@@ -192,11 +192,11 @@
 
   /* ---------------- Gantt timeline ---------------- */
   .gantt{overflow-x:auto;padding-bottom:4px;}
-  .g-inner{min-width:760px;position:relative;--labw:236px;}
-  .g-axis{position:relative;height:24px;margin-left:var(--labw);border-bottom:1px solid var(--line);}
+  .g-inner{min-width:880px;position:relative;--labw:224px;--statw:132px;}
+  .g-axis{position:relative;height:24px;margin-left:var(--labw);margin-right:var(--statw);border-bottom:1px solid var(--line);}
   .g-mo{position:absolute;top:2px;font-size:10.5px;color:var(--faint);font-weight:500;white-space:nowrap;transform:translateX(2px);}
   .g-body{position:relative;padding-top:6px;}
-  .g-grid{position:absolute;left:var(--labw);right:0;top:0;bottom:0;pointer-events:none;z-index:0;}
+  .g-grid{position:absolute;left:var(--labw);right:var(--statw);top:0;bottom:0;pointer-events:none;z-index:0;}
   .g-gl{position:absolute;top:0;bottom:0;width:1px;background:var(--line-soft);}
   .g-today{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed #C4384A;opacity:.55;}
   .g-today-t{
@@ -210,7 +210,7 @@
   .g-pm .av{width:24px;height:24px;border-radius:7px;font-size:9.5px;}
   .g-pm-n{font-size:12px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .g-pm-c{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--faint);flex:none;}
-  .g-row{display:grid;grid-template-columns:var(--labw) 1fr;align-items:center;position:relative;z-index:1;min-height:31px;}
+  .g-row{display:grid;grid-template-columns:var(--labw) 1fr var(--statw);align-items:center;position:relative;z-index:1;min-height:31px;}
   .g-row:hover .g-lab{color:var(--brand);}
   .g-lab{
     font-size:11.5px;color:var(--ink-2);padding-right:12px;white-space:nowrap;overflow:hidden;
@@ -223,10 +223,17 @@
   }
   .g-fill{position:absolute;top:3px;height:17px;border-radius:5px;min-width:3px;background:var(--bc);}
   .g-bar.over{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.5) 0 4px,transparent 4px 8px);}
-  .g-tip{
-    position:absolute;top:4px;font-size:10px;font-family:'IBM Plex Mono',monospace;font-weight:600;
-    white-space:nowrap;line-height:15px;
+  .g-date{
+    position:absolute;top:3px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;
+    color:var(--faint);line-height:17px;white-space:nowrap;
   }
+  .g-date.s{text-align:right;padding-right:7px;}
+  .g-date.e{padding-left:7px;}
+  .g-stat{
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-align:right;
+    padding-left:10px;white-space:nowrap;color:var(--muted);
+  }
+  .g-stat b{color:var(--ink);font-weight:700;}
   .g-legend{
     display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:14px;padding-top:12px;
     border-top:1px solid var(--line-soft);font-size:11px;color:var(--muted);
@@ -497,6 +504,7 @@ function parseD(v){
   return isNaN(d) ? null : d;
 }
 const DAY = 86400000;
+const fmtDObj = d => d.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'});
 const uniq = a => [...new Set(a.filter(v=>v!==undefined && v!==null && v!==''))];
 
 /* ---------- state ---------- */
@@ -698,7 +706,8 @@ function renderGantt(list){
   // ขอบเขตแกนเวลา: ครอบคลุมทุกแท่ง + วันนี้ เผื่อขอบเล็กน้อย
   let t0 = Math.min(today, ...items.map(i=>i.s));
   let t1 = Math.max(today, ...items.map(i=>i.e));
-  const pad = Math.max((t1-t0) * 0.04, 5*DAY);
+  // เผื่อขอบซ้าย-ขวาให้กว้างพอสำหรับป้ายวันที่หัว-ท้ายแท่ง
+  const pad = Math.max((t1-t0) * 0.10, 12*DAY);
   t0 -= pad; t1 += pad;
   const span = t1 - t0;
   const pos = d => ((d - t0)/span)*100;
@@ -736,19 +745,17 @@ function renderGantt(list){
       const col = H.color(i.cls);
       const overdue = i.left < 0;
       const dl = overdue
-        ? `<span style="color:#C4384A;font-weight:700">เลย ${Math.abs(i.left)} ว.</span>`
-        : `<span style="color:${i.left<=30?'#B87A0A':'var(--faint)'}">อีก ${i.left} ว.</span>`;
-      // วางป้ายไว้ขวาแท่ง ถ้าชิดขอบเกินไปให้ย้ายไปซ้ายแท่งแทน
-      const tipRight = (L + W) > 82;
-      const tipStyle = tipRight ? `right:${(100-L).toFixed(2)}%;text-align:right;padding-right:7px`
-                                : `left:${(L+W).toFixed(2)}%;padding-left:7px`;
-      return `<div class="g-row" style="--bc:${col}" title="${i.p['Project Name']||''} | ${fmtDate(i.p['Start Date'])} - ${fmtDate(i.p['End Date'])} | ${i.pr.toFixed(1)}%">
+        ? `<span style="color:#C4384A;font-weight:700">เลย ${Math.abs(i.left)} วัน</span>`
+        : `<span style="color:${i.left<=30?'#B87A0A':'var(--faint)'}">อีก ${i.left} วัน</span>`;
+      return `<div class="g-row" style="--bc:${col}" title="${i.p['Project Name']||''} | ${fmtDObj(i.s)} - ${fmtDObj(i.e)} | ${i.pr.toFixed(1)}%">
         <div class="g-lab">${i.p['Project Name']||'-'}</div>
         <div class="g-track">
+          <span class="g-date s" style="right:${(100-L).toFixed(2)}%">${fmtDObj(i.s)}</span>
           <div class="g-bar ${overdue?'over':''}" style="left:${L}%;width:${W}%"></div>
           <div class="g-fill" style="left:${L}%;width:${(W*i.pr/100).toFixed(2)}%"></div>
-          <span class="g-tip" style="${tipStyle}">${i.pr.toFixed(0)}% · ${dl}</span>
+          <span class="g-date e" style="left:${(L+W).toFixed(2)}%">${fmtDObj(i.e)}</span>
         </div>
+        <div class="g-stat"><b>${i.pr.toFixed(0)}%</b> · ${dl}</div>
       </div>`;
     }).join('');
     return `<div class="g-pm">
