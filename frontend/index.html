@@ -311,7 +311,7 @@ function normalizeRow(raw){
   for (const [k,v] of Object.entries(raw)) out[normalizeKey(k)] = v;
   return out;
 }
-function num(v){ const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+function num(v){ const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n) ? 0 : n; }
 function thb(v){
   return new Intl.NumberFormat('th-TH', {maximumFractionDigits:0}).format(num(v));
 }
