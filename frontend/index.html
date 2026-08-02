@@ -190,6 +190,51 @@
   .pct{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--ink-2);}
   .money{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap;}
 
+  /* ---------------- Gantt timeline ---------------- */
+  .gantt{overflow-x:auto;padding-bottom:4px;}
+  .g-inner{min-width:760px;position:relative;--labw:236px;}
+  .g-axis{position:relative;height:24px;margin-left:var(--labw);border-bottom:1px solid var(--line);}
+  .g-mo{position:absolute;top:2px;font-size:10.5px;color:var(--faint);font-weight:500;white-space:nowrap;transform:translateX(2px);}
+  .g-body{position:relative;padding-top:6px;}
+  .g-grid{position:absolute;left:var(--labw);right:0;top:0;bottom:0;pointer-events:none;z-index:0;}
+  .g-gl{position:absolute;top:0;bottom:0;width:1px;background:var(--line-soft);}
+  .g-today{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed #C4384A;opacity:.55;}
+  .g-today-t{
+    position:absolute;top:-22px;transform:translateX(-50%);font-size:9.5px;font-weight:700;
+    color:#C4384A;background:var(--critical-tint);padding:2px 6px;border-radius:20px;white-space:nowrap;
+  }
+  .g-pm{
+    display:flex;align-items:center;gap:8px;margin:12px 0 5px;position:relative;z-index:1;
+    width:var(--labw);
+  }
+  .g-pm .av{width:24px;height:24px;border-radius:7px;font-size:9.5px;}
+  .g-pm-n{font-size:12px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .g-pm-c{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--faint);flex:none;}
+  .g-row{display:grid;grid-template-columns:var(--labw) 1fr;align-items:center;position:relative;z-index:1;min-height:31px;}
+  .g-row:hover .g-lab{color:var(--brand);}
+  .g-lab{
+    font-size:11.5px;color:var(--ink-2);padding-right:12px;white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;transition:.13s;
+  }
+  .g-track{position:relative;height:23px;}
+  .g-bar{
+    position:absolute;top:3px;height:17px;border-radius:5px;min-width:5px;
+    background:var(--bc);opacity:.28;box-shadow:var(--sh-sm);
+  }
+  .g-fill{position:absolute;top:3px;height:17px;border-radius:5px;min-width:3px;background:var(--bc);}
+  .g-bar.over{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.5) 0 4px,transparent 4px 8px);}
+  .g-tip{
+    position:absolute;top:4px;font-size:10px;font-family:'IBM Plex Mono',monospace;font-weight:600;
+    white-space:nowrap;line-height:15px;
+  }
+  .g-legend{
+    display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:14px;padding-top:12px;
+    border-top:1px solid var(--line-soft);font-size:11px;color:var(--muted);
+  }
+  .g-legend .li{display:flex;align-items:center;gap:6px;}
+  .g-legend .bx{width:22px;height:9px;border-radius:3px;}
+  .g-legend .dash{width:16px;border-top:2px dashed #C4384A;opacity:.6;}
+
   .risks{display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;}
   .chip{
     display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
@@ -325,6 +370,28 @@
   <div class="panel">
     <div class="p-head">
       <div class="p-title">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M3 6h18M3 12h12M3 18h7"/><circle cx="19" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg>
+        Timeline โครงการใกล้ครบกำหนด
+      </div>
+      <div style="display:flex;align-items:center;gap:9px;">
+        <select id="winSel" style="font-size:12px;padding:6px 28px 6px 10px;">
+          <option value="30">ครบกำหนดใน 30 วัน</option>
+          <option value="60">ครบกำหนดใน 60 วัน</option>
+          <option value="90" selected>ครบกำหนดใน 90 วัน</option>
+          <option value="180">ครบกำหนดใน 180 วัน</option>
+          <option value="0">ทั้งหมด</option>
+        </select>
+        <span class="p-count" id="gCount"></span>
+      </div>
+    </div>
+    <div class="p-body">
+      <div class="gantt"><div class="g-inner" id="gantt"></div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="p-head">
+      <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="M8 14h3M8 17h6"/></svg>
         รายละเอียดโครงการ
       </div>
@@ -365,6 +432,8 @@ const I = {
   flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
   play:'<circle cx="12" cy="12" r="10"/><path d="M10 8l6 4-6 4z"/>',
   cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  timeline:'<path d="M3 6h18M3 12h12M3 18h7"/><circle cx="19" cy="12" r="2"/><circle cx="12" cy="18" r="2"/>',
+  hourglass:'<path d="M6 2h12M6 22h12"/><path d="M6 2c0 5 6 5 6 10s-6 5-6 10"/><path d="M18 2c0 5-6 5-6 10s6 5 6 10"/>',
   clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
   check:'<path d="M20 6 9 17l-5-5"/>',
   warn:'<path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="10"/>',
@@ -417,6 +486,17 @@ function fmtDate(v){
   if (isNaN(d)) return v;
   return d.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'});
 }
+function parseD(v){
+  if(!v) return null;
+  let d;
+  if (/^\d{4}-\d{2}-\d{2}/.test(v)) d = new Date(String(v).slice(0,10));
+  else if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(v)){
+    const [dd,mm,yyyy] = String(v).split('/');
+    d = new Date(`${yyyy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`);
+  } else d = new Date(v);
+  return isNaN(d) ? null : d;
+}
+const DAY = 86400000;
 const uniq = a => [...new Set(a.filter(v=>v!==undefined && v!==null && v!==''))];
 
 /* ---------- state ---------- */
@@ -586,6 +666,108 @@ function renderDonut(list){
     </div>`).join('') || `<div class="lg">ไม่มีข้อมูล</div>`;
 }
 
+function renderGantt(list){
+  const el = document.getElementById('gantt');
+  const win = parseInt(document.getElementById('winSel').value, 10);
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // เลือกเฉพาะโครงการที่มีวันสิ้นสุด และยังไม่ปิดงาน
+  let items = list.map(p=>{
+    const s = parseD(p['Start Date']) || parseD(p['Plan Start Date']);
+    const e = parseD(p['End Date']) || parseD(p['Plan End Date']);
+    if(!e) return null;
+    return {
+      p, s: s || e, e,
+      left: Math.round((e - today)/DAY),
+      pm: p['PM Name'] || 'ไม่ระบุ',
+      cls: H.cls(p['Project Health']),
+      pr: Math.min(num(p['%Progress']),100),
+    };
+  }).filter(Boolean);
+
+  if(win > 0) items = items.filter(i => i.left <= win);
+  items.sort((a,b)=> a.e - b.e);
+
+  document.getElementById('gCount').textContent = `${items.length} โครงการ`;
+
+  if(!items.length){
+    el.innerHTML = `<div class="empty">ไม่มีโครงการที่ครบกำหนดในช่วงเวลานี้</div>`;
+    return;
+  }
+
+  // ขอบเขตแกนเวลา: ครอบคลุมทุกแท่ง + วันนี้ เผื่อขอบเล็กน้อย
+  let t0 = Math.min(today, ...items.map(i=>i.s));
+  let t1 = Math.max(today, ...items.map(i=>i.e));
+  const pad = Math.max((t1-t0) * 0.04, 5*DAY);
+  t0 -= pad; t1 += pad;
+  const span = t1 - t0;
+  const pos = d => ((d - t0)/span)*100;
+
+  // เส้นแบ่งเดือน
+  const gl = [];
+  const m = new Date(t0); m.setDate(1); m.setHours(0,0,0,0);
+  m.setMonth(m.getMonth()+1);
+  while(m < t1){
+    gl.push({x:pos(m), label:m.toLocaleDateString('th-TH',{month:'short',year:'2-digit'})});
+    m.setMonth(m.getMonth()+1);
+  }
+  const tx = pos(today);
+  // ถ้าช่วงเวลายาวมาก ให้แสดงป้ายเดือนเว้นระยะ กันตัวหนังสือชนกัน (เส้นแบ่งยังครบทุกเดือน)
+  const step = gl.length > 16 ? 3 : gl.length > 9 ? 2 : 1;
+
+  // จัดกลุ่มตาม PM โดยเรียงจากคนที่มีงานครบกำหนดเร็วที่สุดก่อน
+  const groups = {};
+  items.forEach(i => (groups[i.pm] ||= []).push(i));
+  const order = Object.keys(groups).sort((a,b)=> groups[a][0].e - groups[b][0].e);
+
+  const axis = `<div class="g-axis">${
+    gl.filter((g,ix)=> ix % step === 0)
+      .map(g=>`<span class="g-mo" style="left:${g.x}%">${g.label}</span>`).join('')
+  }</div>`;
+
+  const grid = `<div class="g-grid">${
+    gl.map(g=>`<div class="g-gl" style="left:${g.x}%"></div>`).join('')
+  }<div class="g-today" style="left:${tx}%"></div>
+   <div class="g-today-t" style="left:${tx}%">วันนี้</div></div>`;
+
+  const body = order.map(pm=>{
+    const rows = groups[pm].map(i=>{
+      const L = pos(i.s), W = Math.max(pos(i.e) - L, 0.7);
+      const col = H.color(i.cls);
+      const overdue = i.left < 0;
+      const dl = overdue
+        ? `<span style="color:#C4384A;font-weight:700">เลย ${Math.abs(i.left)} ว.</span>`
+        : `<span style="color:${i.left<=30?'#B87A0A':'var(--faint)'}">อีก ${i.left} ว.</span>`;
+      // วางป้ายไว้ขวาแท่ง ถ้าชิดขอบเกินไปให้ย้ายไปซ้ายแท่งแทน
+      const tipRight = (L + W) > 82;
+      const tipStyle = tipRight ? `right:${(100-L).toFixed(2)}%;text-align:right;padding-right:7px`
+                                : `left:${(L+W).toFixed(2)}%;padding-left:7px`;
+      return `<div class="g-row" style="--bc:${col}" title="${i.p['Project Name']||''} | ${fmtDate(i.p['Start Date'])} - ${fmtDate(i.p['End Date'])} | ${i.pr.toFixed(1)}%">
+        <div class="g-lab">${i.p['Project Name']||'-'}</div>
+        <div class="g-track">
+          <div class="g-bar ${overdue?'over':''}" style="left:${L}%;width:${W}%"></div>
+          <div class="g-fill" style="left:${L}%;width:${(W*i.pr/100).toFixed(2)}%"></div>
+          <span class="g-tip" style="${tipStyle}">${i.pr.toFixed(0)}% · ${dl}</span>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="g-pm">
+        <div class="av" style="background:${avatarColor(pm)}">${initials(pm)}</div>
+        <span class="g-pm-n">${pm}</span><span class="g-pm-c">${groups[pm].length}</span>
+      </div>${rows}`;
+  }).join('');
+
+  el.innerHTML = axis + `<div class="g-body">${grid}${body}</div>` + `
+    <div class="g-legend">
+      <span class="li"><span class="bx" style="background:#128A5E"></span>ตามแผน</span>
+      <span class="li"><span class="bx" style="background:#B87A0A"></span>Warning</span>
+      <span class="li"><span class="bx" style="background:#C4384A"></span>Critical</span>
+      <span class="li"><span class="bx" style="background:#2A4A9E;opacity:.28"></span>ระยะเวลาโครงการ</span>
+      <span class="li"><span class="bx" style="background:#2A4A9E"></span>ความคืบหน้าจริง</span>
+      <span class="li"><span class="dash"></span>วันนี้</span>
+    </div>`;
+}
+
 function renderCards(list){
   document.getElementById('projCount').textContent = `${list.length} / ${ALL.length}`;
   const el = document.getElementById('grid');
@@ -630,7 +812,7 @@ function render(){
 }
 function renderFiltered(){
   const f = applyFilters(ALL);
-  renderKPIs(f); renderPM(f); renderDonut(f); renderCards(f);
+  renderKPIs(f); renderPM(f); renderDonut(f); renderGantt(f); renderCards(f);
 }
 
 async function syncNow(){
@@ -648,6 +830,7 @@ async function syncNow(){
 
 loadData();
 document.getElementById('syncBtn').addEventListener('click', syncNow);
+document.getElementById('winSel').addEventListener('change', ()=>renderGantt(applyFilters(ALL)));
 </script>
 </body>
 </html>
