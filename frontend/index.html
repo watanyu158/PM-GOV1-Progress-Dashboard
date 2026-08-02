@@ -249,6 +249,7 @@
         <div class="sheet" style="margin-top:0;">
           <div class="sheet-head"><h2>PM WORKLOAD LEADERBOARD</h2><span class="count" id="pmCount"></span></div>
           <div class="sheet-body">
+            <div style="font-size:11.5px;color:var(--text-faint);margin:-6px 0 10px;">มูลค่าคำนวณจาก <b style="color:var(--text-dim)">PM Accountable Value</b> เฉพาะส่วนที่ PM คนนั้นรับผิดชอบ — ไม่ใช่ Contract Value เต็มโครงการ</div>
             <table>
               <thead><tr><th>PM</th><th>โครงการ</th><th>ความคืบหน้าเฉลี่ย</th><th>มูลค่าที่รับผิดชอบ</th><th>เสี่ยง</th></tr></thead>
               <tbody id="pmTableBody"></tbody>
@@ -410,7 +411,7 @@ function renderKPIs(list){
     {tag:'02', label:'กำลังดำเนินการ', value: inProgress, unit:`/ ${total}`, foot:'สถานะ Inprogress'},
     {tag:'03', label:'ความคืบหน้าเฉลี่ย', value: avgProgress.toFixed(1), unit:'%', foot:'ถ่วงเฉลี่ยแบบ simple mean'},
     {tag:'04', label:'โครงการเสี่ยง', value: atRisk, unit:'sheets', foot:'Health = Warning / Critical', risk:true},
-    {tag:'05', label:'มูลค่าสัญญารวม', value: thb(totalValue), unit:'THB', foot:'Contract Value ผลรวม'},
+    {tag:'05', label:'มูลค่าสัญญารวม', value: thb(totalValue), unit:'THB', foot:'Contract Value ทั้งโครงการ (คนละค่ากับ "มูลค่าที่รับผิดชอบ" ของ PM)'},
   ];
   document.getElementById('kpiRow').innerHTML = kpis.map(k=>`
     <div class="kpi ${k.risk?'risk':''} ${k.risk && k.value==0 ? 'zero':''}" data-tag="${k.tag}">
