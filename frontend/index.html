@@ -190,6 +190,7 @@
   .pct{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--ink-2);}
   .money{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap;}
 
+  .risks{display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;}
   .chip{
     display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
     padding:4px 9px;border-radius:20px;white-space:nowrap;line-height:1;
@@ -352,6 +353,7 @@ const I = {
   folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   activity:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
   trending:'<path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/>',
+  octagon:'<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86z"/><path d="M15 9l-6 6M9 9l6 6"/>',
   alert:'<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/>',
   money:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>',
   filter:'<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>',
@@ -379,7 +381,7 @@ const H = {
     return 'neutral';
   },
   color(c){ return {success:'#128A5E', warning:'#B87A0A', critical:'#C4384A', neutral:'#8B95AD'}[c]; },
-  icon(c){ return {success:I.check, warning:I.alert, critical:I.alert, neutral:I.flag}[c]; },
+  icon(c){ return {success:I.check, warning:I.alert, critical:I.octagon, neutral:I.flag}[c]; },
   label(h){ return (h && String(h).trim()) ? h : 'ไม่ระบุ'; }
 };
 
@@ -483,14 +485,21 @@ function renderKPIs(list){
   const total = list.length;
   const inprog = list.filter(p=>/inprogress|กำลัง/i.test(p['Status']||'')).length;
   const avg = total ? list.reduce((s,p)=>s+num(p['%Progress']),0)/total : 0;
-  const risk = list.filter(p=>['warning','critical'].includes(H.cls(p['Project Health']))).length;
+  const crit = list.filter(p=>H.cls(p['Project Health'])==='critical').length;
+  const warn = list.filter(p=>H.cls(p['Project Health'])==='warning').length;
+  const risk = crit + warn;
   const value = list.reduce((s,p)=>s+num(p['Contract Value']),0);
+
+  const riskIco = crit ? I.octagon : (warn ? I.alert : I.check);
+  const riskCol = crit ? '#C4384A' : (warn ? '#B87A0A' : '#128A5E');
+  const riskTint = crit ? '#FCE9EB' : (warn ? '#FDF1DC' : '#E3F5EC');
+  const riskFoot = risk ? `Critical ${crit} / Warning ${warn}` : 'ไม่มีโครงการเสี่ยง';
 
   const items = [
     {ic:I.folder,   c:'#2A4A9E', t:'#EAF0FD', l:'โครงการทั้งหมด',  v:total,             u:'',            f:`จากทั้งหมด ${ALL.length} โครงการ`},
     {ic:I.activity, c:'#0E8F86', t:'#E2F5F2', l:'กำลังดำเนินการ',  v:inprog,            u:`/ ${total}`,  f:'สถานะ Inprogress'},
     {ic:I.trending, c:'#4A72D6', t:'#EAF0FD', l:'ความคืบหน้าเฉลี่ย', v:avg.toFixed(1),  u:'%',           f:'ค่าเฉลี่ยของโครงการที่กรองอยู่'},
-    {ic:I.alert,    c: risk? '#B87A0A':'#128A5E', t: risk? '#FDF1DC':'#E3F5EC', l:'โครงการเสี่ยง', v:risk, u:'', f:'Health = Warning / Critical'},
+    {ic:riskIco,    c:riskCol,   t:riskTint,  l:'โครงการเสี่ยง',    v:risk,              u:'',            f:riskFoot},
     {ic:I.money,    c:'#7A4BB5', t:'#F1EAFB', l:'มูลค่าสัญญารวม',  v:thb(value),        u:'THB',         f:'Contract Value', money:true},
   ];
   document.getElementById('kpis').innerHTML = items.map(k=>`
@@ -508,13 +517,15 @@ function renderPM(list){
   const g = {};
   list.forEach(p=>{
     const pm = p['PM Name'] || 'ไม่ระบุ';
-    (g[pm] ||= {pm, team:p['Team']||'', n:0, sum:0, val:0, risk:0});
+    (g[pm] ||= {pm, team:p['Team']||'', n:0, sum:0, val:0, warn:0, crit:0});
     g[pm].n++;
     g[pm].sum += num(p['%Progress']);
     g[pm].val += num(p['PM Accountable Value']);
-    if(['warning','critical'].includes(H.cls(p['Project Health']))) g[pm].risk++;
+    const hc = H.cls(p['Project Health']);
+    if(hc === 'critical') g[pm].crit++;
+    else if(hc === 'warning') g[pm].warn++;
   });
-  const rows = Object.values(g).sort((a,b)=>b.val-a.val);
+  const rows = Object.values(g).sort((a,b)=> (b.crit-a.crit) || (b.warn-a.warn) || (b.val-a.val));
   document.getElementById('pmCount').textContent = `${rows.length} คน`;
   document.getElementById('pmBody').innerHTML = rows.map(r=>{
     const avg = r.n ? r.sum/r.n : 0;
@@ -530,9 +541,12 @@ function renderPM(list){
         <div class="bar"><i style="width:${Math.min(avg,100)}%;background:${col}"></i></div>
       </td>
       <td class="r"><span class="money">${thb(r.val)}</span></td>
-      <td class="r">${ r.risk
-        ? `<span class="chip warning">${svg(I.alert)}${r.risk}</span>`
-        : `<span class="chip success">${svg(I.check)}0</span>` }</td>
+      <td class="r"><div class="risks">${
+        (r.crit || r.warn)
+          ? `${r.crit ? `<span class="chip critical" title="Critical ${r.crit} โครงการ">${svg(I.octagon)}${r.crit}</span>` : ''}${
+               r.warn ? `<span class="chip warning" title="Warning ${r.warn} โครงการ">${svg(I.alert)}${r.warn}</span>` : ''}`
+          : `<span class="chip success" title="ไม่มีโครงการเสี่ยง">${svg(I.check)}0</span>`
+      }</div></td>
     </tr>`;
   }).join('') || `<tr><td colspan="5" class="empty">ไม่มีข้อมูลตรงตามตัวกรอง</td></tr>`;
 }
