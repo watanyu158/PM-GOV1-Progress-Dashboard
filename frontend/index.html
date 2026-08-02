@@ -783,7 +783,7 @@ function renderGantt(list){
   const grid = `<div class="g-grid">${
     gl.map(g=>`<div class="g-gl" style="left:${g.x}%"></div>`).join('')
   }<div class="g-today" style="left:${tx}%"></div>
-   <div class="g-today-t" style="left:${tx}%">วันนี้</div></div>`;
+   <div class="g-today-t" style="left:${tx}%">วันนี้ ${fmtDObj(today)}</div></div>`;
 
   const body = order.map(pm=>{
     const rows = groups[pm].map(i=>{
