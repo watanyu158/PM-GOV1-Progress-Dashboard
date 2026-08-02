@@ -125,7 +125,9 @@
   .kpi-top{display:flex;align-items:center;gap:9px;margin-bottom:12px;}
   .kpi-ico{width:31px;height:31px;border-radius:9px;display:grid;place-items:center;background:var(--kt,var(--brand-tint));color:var(--kc,var(--brand));flex:none;}
   .kpi-ico svg{width:16px;height:16px;}
-  .kpi-label{font-size:11.5px;color:var(--muted);font-weight:500;line-height:1.3;}
+  .kpi-label{line-height:1.25;}
+  .kpi-en{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);}
+  .kpi-th{font-size:11.5px;color:var(--muted);font-weight:500;margin-top:2px;}
   .kpi-val{font-family:'Plus Jakarta Sans',sans-serif;font-size:27px;font-weight:800;letter-spacing:-.02em;line-height:1.05;color:var(--ink);}
   .kpi-val .u{font-size:12.5px;font-weight:600;color:var(--faint);margin-left:5px;letter-spacing:0;}
   .kpi-val.money{font-size:20px;}
@@ -136,6 +138,8 @@
   .p-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line-soft);background:var(--surface-2);}
   .p-title{display:flex;align-items:center;gap:9px;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;color:var(--ink);}
   .p-title svg{width:17px;height:17px;color:var(--brand);}
+  .p-title .th{font-family:'Inter',sans-serif;font-size:12.5px;font-weight:500;color:var(--muted);}
+  .p-title .sep{color:var(--line);font-weight:400;margin:0 -3px;}
   .p-count{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted);background:var(--bg-tint);padding:3px 9px;border-radius:20px;}
   .p-body{padding:16px 18px;}
 
@@ -373,7 +377,7 @@
       <div class="p-head">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          ภาระงานราย PM
+          PM Workload <span class="sep">-</span> <span class="th">ภาระงานราย PM</span>
         </div>
         <span class="p-count" id="pmCount"></span>
       </div>
@@ -392,7 +396,7 @@
       <div class="p-head">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
-          สถานะสุขภาพโครงการ
+          Project Health <span class="sep">-</span> <span class="th">สถานะสุขภาพโครงการ</span>
         </div>
         <span class="p-count" id="healthCount"></span>
       </div>
@@ -409,7 +413,7 @@
     <div class="p-head">
       <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24"><path d="M3 6h18M3 12h12M3 18h7"/><circle cx="19" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg>
-        Timeline โครงการใกล้ครบกำหนด
+        Delivery Timeline <span class="sep">-</span> <span class="th">โครงการใกล้ครบกำหนด</span>
       </div>
       <div style="display:flex;align-items:center;gap:9px;">
         <select id="winSel" style="font-size:12px;padding:6px 28px 6px 10px;">
@@ -431,7 +435,7 @@
     <div class="p-head">
       <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24"><path d="M6 2h12M6 22h12"/><path d="M6 2c0 5 6 5 6 10s-6 5-6 10"/><path d="M18 2c0 5-6 5-6 10s6 5 6 10"/></svg>
-        PM ที่จะว่างงานเร็วที่สุด
+        PM Availability <span class="sep">-</span> <span class="th">พร้อมรับงานใหม่</span>
       </div>
       <span class="p-count" id="freeCount"></span>
     </div>
@@ -442,7 +446,7 @@
     <div class="p-head">
       <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="M8 14h3M8 17h6"/></svg>
-        รายละเอียดโครงการ
+        Project Details <span class="sep">-</span> <span class="th">รายละเอียดโครงการ</span>
       </div>
       <span class="p-count" id="projCount"></span>
     </div>
@@ -597,7 +601,7 @@ function buildFilters(){
     {k:'health', l:'Health', v:uniq(ALL.map(p=>p['Project Health']))},
   ];
   const bar = document.getElementById('filters');
-  bar.innerHTML = `<div class="f-ico">${svg(I.filter)}ตัวกรอง</div>` +
+  bar.innerHTML = `<div class="f-ico">${svg(I.filter)}Filters</div>` +
     defs.map(d=>`<select data-k="${d.k}"><option value="">${d.l}: ทั้งหมด</option>${
       d.v.map(x=>`<option value="${x}">${x}</option>`).join('')}</select>`).join('') +
     `<button class="reset" id="reset">${svg(I.reset)}ล้างตัวกรอง</button>`;
@@ -626,20 +630,20 @@ function renderKPIs(list){
   const riskFoot = risk ? `Critical ${crit} / Warning ${warn}` : 'ไม่มีโครงการเสี่ยง';
 
   const items = [
-    {ic:I.folder,   c:'#2A4A9E', t:'#EAF0FD', l:'โครงการทั้งหมด',  v:total,             u:'',            f:`จากทั้งหมด ${ALL.length} โครงการ`},
-    {ic:I.activity, c:'#0E8F86', t:'#E2F5F2', l:'กำลังดำเนินการ',  v:inprog,            u:`/ ${total}`,  f:'สถานะ Inprogress'},
-    {ic:I.trending, c:'#4A72D6', t:'#EAF0FD', l:'ความคืบหน้าเฉลี่ย', v:avg.toFixed(1),  u:'%',           f:'ค่าเฉลี่ยของโครงการที่กรองอยู่'},
-    {ic:riskIco,    c:riskCol,   t:riskTint,  l:'โครงการเสี่ยง',    v:risk,              u:'',            f:riskFoot},
-    {ic:I.money,    c:'#7A4BB5', t:'#F1EAFB', l:'มูลค่าสัญญารวม',  v:thb(value),        u:'THB',         f:'Contract Value', money:true},
+    {ic:I.folder,   c:'#2A4A9E', t:'#EAF0FD', en:'Total Projects', l:'โครงการทั้งหมด',  v:total,             u:'',            f:`จากทั้งหมด ${ALL.length} โครงการ`},
+    {ic:I.activity, c:'#0E8F86', t:'#E2F5F2', en:'In Progress',    l:'กำลังดำเนินการ',  v:inprog,            u:`/ ${total}`,  f:'สถานะ Inprogress'},
+    {ic:I.trending, c:'#4A72D6', t:'#EAF0FD', en:'Avg. Progress',  l:'ความคืบหน้าเฉลี่ย', v:avg.toFixed(1),  u:'%',           f:'ค่าเฉลี่ยของโครงการที่กรองอยู่'},
+    {ic:riskIco,    c:riskCol,   t:riskTint,  en:'At Risk',        l:'โครงการเสี่ยง',    v:risk,              u:'',            f:riskFoot},
+    {ic:I.money,    c:'#7A4BB5', t:'#F1EAFB', en:'Contract Value', l:'มูลค่าสัญญารวม',  v:thb(value),        u:'THB',         f:'', money:true},
   ];
   document.getElementById('kpis').innerHTML = items.map(k=>`
     <div class="kpi" style="--kc:${k.c};--kt:${k.t}">
       <div class="kpi-top">
         <div class="kpi-ico">${svg(k.ic)}</div>
-        <div class="kpi-label">${k.l}</div>
+        <div class="kpi-label"><div class="kpi-en">${k.en}</div><div class="kpi-th">${k.l}</div></div>
       </div>
       <div class="kpi-val ${k.money?'money':''}">${k.v}${k.u?`<span class="u">${k.u}</span>`:''}</div>
-      <div class="kpi-foot">${k.f}</div>
+      ${k.f ? `<div class="kpi-foot">${k.f}</div>` : ''}
     </div>`).join('');
 }
 
