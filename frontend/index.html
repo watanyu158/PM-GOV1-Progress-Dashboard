@@ -313,7 +313,7 @@ function normalizeRow(raw){
 }
 function num(v){ const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n) ? 0 : n; }
 function thb(v){
-  return new Intl.NumberFormat('th-TH', {maximumFractionDigits:0}).format(num(v));
+  return new Intl.NumberFormat('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}).format(num(v));
 }
 function fmtDate(v){
   if(!v) return '—';
@@ -353,7 +353,7 @@ async function loadData(){
 function setSource(isLive, updatedAt){
   const el = document.getElementById('tbSource');
   if(isLive){
-    el.innerHTML = `<span class="src-dot"></span>เชื่อมต่อ Make.com แบบสด`;
+    el.innerHTML = `<span class="src-dot"></span>กำลังเชื่อมต่อแบบ real-time`;
   } else {
     el.innerHTML = `<span class="src-dot demo"></span>ยังไม่เชื่อมต่อ API — แสดงข้อมูลตัวอย่างจากไฟล์ที่อัปโหลด`;
   }
@@ -442,7 +442,7 @@ function renderPMTable(list){
         <span class="mono">${avg.toFixed(1)}%</span>
         <div class="mini-bar"><i style="width:${Math.min(avg,100)}%"></i></div>
       </td>
-      <td class="mono">฿${thb(g.value)}</td>
+      <td class="mono">${thb(g.value)}</td>
       <td>${g.risk>0 ? `<span class="badge warning"><span class="dot" style="background:var(--warning)"></span>${g.risk}</span>` : `<span class="badge success"><span class="dot" style="background:var(--success)"></span>0</span>`}</td>
     </tr>`;
   }).join('') || `<tr><td colspan="5" class="empty">ไม่มีข้อมูลตรงตามตัวกรอง</td></tr>`;
