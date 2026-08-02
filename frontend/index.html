@@ -191,6 +191,37 @@
   .money{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap;}
 
   /* ---------------- Gantt timeline ---------------- */
+  /* ---------------- PM availability runway ---------------- */
+  .fr{
+    display:grid;grid-template-columns:30px minmax(150px,1.05fr) minmax(160px,2fr) 116px;
+    align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line-soft);
+  }
+  .fr:last-child{border-bottom:none;}
+  .fr-rank{
+    width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
+    font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:800;
+    background:var(--neutral-tint);color:var(--muted);
+  }
+  .fr-rank.first{background:var(--success-tint);color:var(--success);}
+  .fr-who{display:flex;align-items:center;gap:9px;min-width:0;}
+  .fr-who .av{width:30px;height:30px;border-radius:8px;font-size:10.5px;}
+  .fr-n{font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .fr-s{font-size:10.5px;color:var(--faint);margin-top:2px;}
+  .fr-track{position:relative;}
+  .fr-bar{height:9px;border-radius:5px;background:var(--fc);min-width:5px;transition:width .5s cubic-bezier(.4,0,.2,1);}
+  .fr-rail{position:absolute;left:0;right:0;top:0;height:9px;border-radius:5px;background:var(--bg-tint);z-index:-1;}
+  .fr-last{
+    display:block;font-size:10.5px;color:var(--faint);margin-top:5px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .fr-date{text-align:right;white-space:nowrap;}
+  .fr-date b{display:block;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--ink);}
+  .fr-date span{font-size:10.5px;}
+  @media(max-width:720px){
+    .fr{grid-template-columns:30px 1fr 96px;}
+    .fr-track{grid-column:2 / -1;}
+  }
+
   .gantt{overflow-x:auto;padding-bottom:4px;}
   .g-inner{min-width:880px;position:relative;--labw:224px;--statw:132px;}
   .g-axis{position:relative;height:24px;margin-left:var(--labw);margin-right:var(--statw);border-bottom:1px solid var(--line);}
@@ -394,6 +425,17 @@
     <div class="p-body">
       <div class="gantt"><div class="g-inner" id="gantt"></div></div>
     </div>
+  </div>
+
+  <div class="panel">
+    <div class="p-head">
+      <div class="p-title">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M6 2h12M6 22h12"/><path d="M6 2c0 5 6 5 6 10s-6 5-6 10"/><path d="M18 2c0 5-6 5-6 10s6 5 6 10"/></svg>
+        PM ที่จะว่างงานเร็วที่สุด
+      </div>
+      <span class="p-count" id="freeCount"></span>
+    </div>
+    <div class="p-body"><div id="freeList"></div></div>
   </div>
 
   <div class="panel">
@@ -775,6 +817,60 @@ function renderGantt(list){
     </div>`;
 }
 
+function renderFree(list){
+  const el = document.getElementById('freeList');
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // วันที่ว่างของ PM = วันสิ้นสุดของโครงการที่จบช้าที่สุดในมือ
+  const g = {};
+  list.forEach(p=>{
+    const e = parseD(p['End Date']) || parseD(p['Plan End Date']);
+    if(!e) return;
+    const pm = p['PM Name'] || 'ไม่ระบุ';
+    (g[pm] ||= {pm, n:0, free:e, last:p});
+    g[pm].n++;
+    if(e > g[pm].free){ g[pm].free = e; g[pm].last = p; }
+  });
+
+  const rows = Object.values(g)
+    .map(r=>({...r, days: Math.round((r.free - today)/DAY)}))
+    .sort((a,b)=> a.free - b.free);
+
+  document.getElementById('freeCount').textContent = `${rows.length} คน`;
+
+  if(!rows.length){
+    el.innerHTML = `<div class="empty">ไม่มีข้อมูลวันสิ้นสุดโครงการ</div>`;
+    return;
+  }
+
+  const maxDays = Math.max(...rows.map(r=>Math.max(r.days,0)), 1);
+
+  el.innerHTML = rows.map((r,ix)=>{
+    // ยิ่งว่างเร็ว แถบยิ่งสั้น - สีบอกความเร่งด่วนในการหางานใหม่รองรับ
+    const pct = Math.max((Math.max(r.days,0)/maxDays)*100, 3);
+    const col = r.days <= 30 ? '#128A5E' : r.days <= 90 ? '#B87A0A' : '#2A4A9E';
+    const dtxt = r.days < 0
+      ? `<span style="color:#C4384A;font-weight:700">เลยกำหนด ${Math.abs(r.days)} วัน</span>`
+      : `<span style="color:${r.days<=30?'#128A5E':'var(--faint)'}">อีก ${r.days} วัน</span>`;
+    return `<div class="fr" style="--fc:${col}">
+      <div class="fr-rank ${ix===0?'first':''}">${ix+1}</div>
+      <div class="fr-who">
+        <div class="av" style="background:${avatarColor(r.pm)}">${initials(r.pm)}</div>
+        <div style="min-width:0">
+          <div class="fr-n">${r.pm}</div>
+          <div class="fr-s">${r.n} โครงการในมือ</div>
+        </div>
+      </div>
+      <div class="fr-track">
+        <div class="fr-rail"></div>
+        <div class="fr-bar" style="width:${pct.toFixed(1)}%"></div>
+        <span class="fr-last">งานที่จบช้าสุด: ${r.last['Project Name']||'-'}</span>
+      </div>
+      <div class="fr-date"><b>${fmtDObj(r.free)}</b><span>${dtxt}</span></div>
+    </div>`;
+  }).join('');
+}
+
 function renderCards(list){
   document.getElementById('projCount').textContent = `${list.length} / ${ALL.length}`;
   const el = document.getElementById('grid');
@@ -819,7 +915,7 @@ function render(){
 }
 function renderFiltered(){
   const f = applyFilters(ALL);
-  renderKPIs(f); renderPM(f); renderDonut(f); renderGantt(f); renderCards(f);
+  renderKPIs(f); renderPM(f); renderDonut(f); renderGantt(f); renderFree(f); renderCards(f);
 }
 
 async function syncNow(){
