@@ -1,6 +1,8 @@
-// PJL — Project List Dashboard API
+// PM-GOV1 Progress Dashboard API
 // รับข้อมูลจาก Make.com webhook (POST) แล้วเก็บไว้ให้ frontend ดึงไปแสดง (GET)
 // รูปแบบเดียวกับ CNX / HDY / CEI: Excel -> Make.com -> POST /api/webhook/excel -> เก็บ in-memory -> GET /api/projects
+// Deploy URL: https://pm-gov1-progress-api.onrender.com
+// Make.com scenario webhook (trigger): https://hook.eu1.make.com/m58fg8qhrhydcl5nru3md2dumc5c9xqu
 
 const express = require('express');
 const cors = require('cors');
@@ -30,7 +32,7 @@ app.post('/api/webhook/excel', (req, res) => {
     updatedAt: new Date().toISOString(),
   };
 
-  console.log(`✓ PJL webhook: received ${rows.length} rows @ ${latestData.updatedAt}`);
+  console.log(`✓ PM-GOV1 webhook: received ${rows.length} rows @ ${latestData.updatedAt}`);
   res.json({ ok: true, count: rows.length, updatedAt: latestData.updatedAt });
 });
 
@@ -44,4 +46,4 @@ app.get('/api/health', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`PJL API listening on :${PORT}`));
+app.listen(PORT, () => console.log(`PM-GOV1 API listening on :${PORT}`));

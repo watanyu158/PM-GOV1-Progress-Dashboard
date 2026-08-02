@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PJL — Project Command Sheet</title>
+<title>PM-GOV1 — Project Command Sheet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -218,7 +218,7 @@
   <div class="titleblock">
     <div class="tb-cell">
       <div class="tb-label">Project Command Sheet</div>
-      <div class="tb-title">PJL — Project Portfolio</div>
+      <div class="tb-title">PM-GOV1 — Project Portfolio</div>
       <div class="tb-sub" id="tbSource"><span class="src-dot demo"></span>กำลังโหลดข้อมูล…</div>
     </div>
     <div class="tb-cell">
@@ -232,6 +232,7 @@
     <div class="tb-cell">
       <div class="tb-label">อัปเดตล่าสุด</div>
       <div class="tb-value small" id="tbUpdated">—</div>
+      <button class="reset-btn" id="syncBtn" style="margin-top:9px;">⟳ Sync จาก Excel</button>
     </div>
   </div>
 
@@ -275,19 +276,18 @@
     </div>
   </div>
 
-  <footer id="footerNote">PJL Dashboard — ข้อมูลอัปเดตอัตโนมัติจาก Excel ผ่าน Make.com</footer>
+  <footer id="footerNote">PM-GOV1 Progress Dashboard — ข้อมูลอัปเดตอัตโนมัติจาก Excel ผ่าน Make.com</footer>
 </div>
 
 <script>
 /* =========================================================================
-   PJL — Project Command Sheet
+   PM-GOV1 — Project Command Sheet
    ทุกค่าที่แสดง (ยอดรวม, เปอร์เซ็นต์เฉลี่ย, กลุ่ม PM ฯลฯ) คำนวณจาก data array
    ณ runtime เสมอ — ไม่มีการ hardcode ตัวเลขไว้ใน markup
    ========================================================================= */
 
-// TODO: หลัง deploy backend (server.js) ขึ้น Render และตั้งค่า Make.com webhook
-// ให้ยิงข้อมูลเข้า POST /api/webhook/excel แล้วแก้ URL ด้านล่างให้ตรงกับของจริง
-const API_URL = 'https://pjl-migr-api.onrender.com/api/projects';
+const API_URL = 'https://pm-gov1-progress-api.onrender.com/api/projects';
+const MAKE_WEBHOOK = 'https://hook.eu1.make.com/m58fg8qhrhydcl5nru3md2dumc5c9xqu';
 
 const SEED_DATA = [{" Project Code": 335254762, "Project Name": "Log Management System", "PM Name": "Antika Prasadsil", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 65.75, "Progress Update": "ตอนนี้อยู่ในช่วงติดตั้ง เรียบร้อยไปแล้ว 3 ที่ ลูกค้านัดรายงานความก้าวหน้าเดือน กค", "Update Date": "2026-07-24", "Training": "YES", "Project Register\nDate": "2025-12-18", "Project Assigned\nDate": "2026-02-11", "Project Accept\nDate": "2026-02-11", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-03-06", "End Date": "2026-11-30", "Warranty\nType": "Y", "Warranty\nMonth": 24, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Tummanit Suksomboon", "Customer": "Provincial Waterworks Authority", "Contract Value": 29890000, "Selling Price": 29890000, "PM Accountable Value": 29890000, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Sale & Install", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 2, "Project Score": 46.95, "Project Health\nLevel Score": 2, "Project Health": "Warning", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "06/03/2026", "Plan End Date": "30/11/2026", "Plan Master": "08. ส่งของและติดตั้ง - กรณีมีการฝึกอบรม ระยะเวลามากกว่า 3 เดือน  REV : By Progress"}, {" Project Code": 335254611, "Project Name": "IT Asset Management", "PM Name": "Antika Prasadsil", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 87.5, "Progress Update": "ส่งมอบงานงวดที่ 1 เรียบร้อยแล้ว อยู่ในช่วงทำเอกสารอบรม", "Update Date": "2026-07-17", "Training": "YES", "Project Register\nDate": "2025-12-02", "Project Assigned\nDate": "2026-02-11", "Project Accept\nDate": "2026-02-11", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-02-24", "End Date": "2026-08-22", "Warranty\nType": "Y", "Warranty\nMonth": 24, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Tummanit Suksomboon", "Customer": "Provincial Waterworks Authority", "Contract Value": 9270000, "Selling Price": 9270000, "PM Accountable Value": 9270000, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Sale & Install", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 1, "Project Score": 51.07, "Project Health\nLevel Score": 5, "Project Health": "Super Fast", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "24/02/2026", "Plan End Date": "21/08/2026", "Plan Master": "08. ส่งของและติดตั้ง - กรณีมีการฝึกอบรม ระยะเวลามากกว่า 3 เดือน  REV : By Progress"}];
 
@@ -549,7 +549,29 @@ function renderFiltered(){
   renderProjectCards(filtered);
 }
 
+async function syncNow(){
+  const btn = document.getElementById('syncBtn');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⟳ กำลังสั่งซิงก์…';
+  try{
+    // ยิง webhook ของ Make.com เพื่อสั่งให้ scenario ไปดึง Excel ล่าสุด
+    // แล้ว POST เข้า backend (/api/webhook/excel) ให้เอง
+    await fetch(MAKE_WEBHOOK, { method:'POST', mode:'no-cors' });
+    btn.textContent = '⟳ กำลังรอข้อมูลใหม่…';
+    // ให้เวลา Make.com ประมวลผลและ POST กลับมาที่ backend ก่อนค่อยดึงใหม่
+    await new Promise(r=>setTimeout(r, 6000));
+    await loadData();
+    btn.textContent = '✓ ซิงก์แล้ว';
+  }catch(e){
+    btn.textContent = '✕ ซิงก์ไม่สำเร็จ';
+  }finally{
+    setTimeout(()=>{ btn.textContent = original; btn.disabled = false; }, 2500);
+  }
+}
+
 loadData();
+document.getElementById('syncBtn').addEventListener('click', syncNow);
 </script>
 </body>
 </html>

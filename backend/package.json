@@ -1,7 +1,7 @@
 {
-  "name": "pjl-migr-api",
+  "name": "pm-gov1-progress-api",
   "version": "1.0.0",
-  "description": "PJL Project List Dashboard API - receives Excel data from Make.com and serves it to the frontend",
+  "description": "PM-GOV1 Progress Dashboard API - receives Excel data from Make.com and serves it to the frontend",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
