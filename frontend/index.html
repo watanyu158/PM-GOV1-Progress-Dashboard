@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PJL — Project Command Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E131F;
+    --bg2:#111726;
+    --grid:rgba(115,168,255,0.055);
+    --panel:#151C2C;
+    --panel-2:#1B2436;
+    --border:rgba(148,171,214,0.14);
+    --border-strong:rgba(148,171,214,0.28);
+    --text:#EAEEF6;
+    --text-dim:#8B94AB;
+    --text-faint:#5D6580;
+    --accent:#5AC8E8;
+    --accent-dim:rgba(90,200,232,0.16);
+    --stamp:#FF8A5B;
+    --success:#39D2A0;
+    --success-dim:rgba(57,210,160,0.14);
+    --warning:#F0B94D;
+    --warning-dim:rgba(240,185,77,0.14);
+    --critical:#FF6B6B;
+    --critical-dim:rgba(255,107,107,0.14);
+    --neutral:#8B94AB;
+    --neutral-dim:rgba(139,148,171,0.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;}
+  body{
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:32px 32px;
+    min-height:100vh;
+    padding:28px 20px 60px;
+  }
+  .wrap{max-width:1320px;margin:0 auto;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  .disp{font-family:'Space Grotesk',sans-serif;}
+
+  /* ---------- Title block ---------- */
+  .titleblock{
+    border:1px solid var(--border-strong);
+    background:linear-gradient(180deg, var(--panel), var(--bg2));
+    border-radius:6px;
+    display:grid;
+    grid-template-columns: 1.6fr 1fr 1fr 1fr;
+    position:relative;
+    overflow:hidden;
+  }
+  .titleblock::before{
+    content:'';
+    position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg, var(--accent), var(--stamp));
+  }
+  .tb-cell{padding:18px 22px;border-right:1px solid var(--border);}
+  .tb-cell:last-child{border-right:none;}
+  .tb-label{font-size:10px;letter-spacing:.14em;color:var(--text-faint);text-transform:uppercase;margin-bottom:8px;}
+  .tb-title{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;letter-spacing:.01em;}
+  .tb-sub{color:var(--text-dim);font-size:12.5px;margin-top:6px;line-height:1.5;}
+  .tb-value{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:600;}
+  .tb-value.small{font-size:14px;font-weight:500;color:var(--text);}
+  .src-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--success);margin-right:6px;box-shadow:0 0 8px var(--success);}
+  .src-dot.demo{background:var(--text-faint);box-shadow:none;}
+
+  @media(max-width:860px){
+    .titleblock{grid-template-columns:1fr 1fr;}
+    .tb-cell:nth-child(1){grid-column:1/-1;}
+  }
+
+  /* ---------- KPI strip ---------- */
+  .kpis{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:12px;
+    margin-top:14px;
+  }
+  @media(max-width:1000px){.kpis{grid-template-columns:repeat(2,1fr);}}
+  .kpi{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:16px 18px;
+    position:relative;
+  }
+  .kpi::before{
+    content:attr(data-tag);
+    position:absolute; top:10px; right:12px;
+    font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--text-faint); letter-spacing:.08em;
+  }
+  .kpi-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
+  .kpi-value{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;}
+  .kpi-value .unit{font-size:14px;color:var(--text-dim);font-weight:500;margin-left:3px;}
+  .kpi-foot{font-size:11.5px;color:var(--text-faint);margin-top:6px;}
+  .kpi.risk .kpi-value{color:var(--warning);}
+  .kpi.risk.zero .kpi-value{color:var(--success);}
+
+  /* ---------- Section shell ---------- */
+  .sheet{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:6px;
+    margin-top:14px;
+    overflow:hidden;
+  }
+  .sheet-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 18px;border-bottom:1px solid var(--border);
+    background:var(--panel-2);
+  }
+  .sheet-head h2{font-family:'Space Grotesk',sans-serif;font-size:14px;letter-spacing:.03em;}
+  .sheet-head .count{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-dim);}
+  .sheet-body{padding:16px 18px;}
+
+  /* ---------- Filters ---------- */
+  .filters{display:flex;flex-wrap:wrap;gap:8px;padding:14px 18px;border-bottom:1px solid var(--border);}
+  select{
+    background:var(--panel-2);
+    color:var(--text);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:7px 10px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    cursor:pointer;
+  }
+  select:focus{outline:1px solid var(--accent);}
+  .reset-btn{
+    background:transparent;border:1px solid var(--border);color:var(--text-dim);
+    border-radius:4px;padding:7px 12px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;cursor:pointer;
+  }
+  .reset-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* ---------- Grid: PM leaderboard + Health donut ---------- */
+  .row2{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-top:14px;}
+  @media(max-width:900px){.row2{grid-template-columns:1fr;}}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{
+    text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--text-faint);
+    text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--border-strong);
+  }
+  td{padding:10px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tr.clickable{cursor:pointer;}
+  tr.clickable:hover td{background:rgba(255,255,255,0.02);}
+  .pm-name{font-weight:600;}
+  .pm-team{font-size:11px;color:var(--text-faint);}
+
+  .mini-bar{width:100%;height:5px;background:var(--panel-2);border-radius:3px;overflow:hidden;margin-top:5px;}
+  .mini-bar i{display:block;height:100%;background:var(--accent);border-radius:3px;}
+
+  .badge{
+    display:inline-flex;align-items:center;gap:5px;
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.03em;
+    padding:3px 8px;border-radius:20px;white-space:nowrap;
+  }
+  .badge .dot{width:6px;height:6px;border-radius:50%;}
+  .badge.success{background:var(--success-dim);color:var(--success);}
+  .badge.warning{background:var(--warning-dim);color:var(--warning);}
+  .badge.critical{background:var(--critical-dim);color:var(--critical);}
+  .badge.neutral{background:var(--neutral-dim);color:var(--neutral);}
+
+  /* donut */
+  .donut-wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:center;padding:6px 0 2px;}
+  .legend{display:flex;flex-direction:column;gap:8px;font-size:12px;}
+  .legend .item{display:flex;align-items:center;gap:8px;}
+  .legend .sw{width:9px;height:9px;border-radius:2px;}
+  .legend .cnt{margin-left:auto;font-family:'IBM Plex Mono',monospace;color:var(--text-dim);padding-left:14px;}
+
+  /* ---------- Project sheets (cards) ---------- */
+  .proj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;}
+  .proj-card{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:15px 16px 14px;
+    position:relative;
+  }
+  .proj-card::after{
+    content:'';position:absolute;top:0;right:0;width:0;height:0;
+    border-style:solid;border-width:0 16px 16px 0;
+    border-color:transparent var(--bg) transparent transparent;
+    border-top-right-radius:6px;
+  }
+  .proj-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .proj-code{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--stamp);letter-spacing:.05em;}
+  .proj-name{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;margin-top:4px;line-height:1.3;}
+  .proj-cust{font-size:11.5px;color:var(--text-dim);margin-top:3px;}
+  .proj-meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:11.5px;color:var(--text-dim);}
+  .proj-meta b{color:var(--text);font-weight:500;}
+  .ruler{margin-top:12px;}
+  .ruler-top{display:flex;justify-content:space-between;font-size:11px;color:var(--text-faint);margin-bottom:4px;font-family:'IBM Plex Mono',monospace;}
+  .ruler-track{
+    height:8px;border-radius:4px;background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 10%),
+      var(--bg2);
+    border:1px solid var(--border);overflow:hidden;position:relative;
+  }
+  .ruler-fill{height:100%;border-radius:3px 0 0 3px;}
+  .proj-note{margin-top:11px;font-size:12px;color:var(--text-dim);line-height:1.5;border-top:1px dashed var(--border);padding-top:10px;}
+  .proj-foot{display:flex;justify-content:space-between;align-items:center;margin-top:11px;font-size:10.5px;color:var(--text-faint);font-family:'IBM Plex Mono',monospace;}
+
+  footer{margin-top:22px;text-align:center;font-size:11px;color:var(--text-faint);font-family:'IBM Plex Mono',monospace;}
+  .empty{padding:40px 20px;text-align:center;color:var(--text-faint);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- TITLE BLOCK -->
+  <div class="titleblock">
+    <div class="tb-cell">
+      <div class="tb-label">Project Command Sheet</div>
+      <div class="tb-title">PJL — Project Portfolio</div>
+      <div class="tb-sub" id="tbSource"><span class="src-dot demo"></span>กำลังโหลดข้อมูล…</div>
+    </div>
+    <div class="tb-cell">
+      <div class="tb-label">Sheets (Projects)</div>
+      <div class="tb-value" id="tbCount">—</div>
+    </div>
+    <div class="tb-cell">
+      <div class="tb-label">PM ที่ดูแลอยู่</div>
+      <div class="tb-value" id="tbPMs">—</div>
+    </div>
+    <div class="tb-cell">
+      <div class="tb-label">อัปเดตล่าสุด</div>
+      <div class="tb-value small" id="tbUpdated">—</div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpis" id="kpiRow"></div>
+
+  <!-- FILTERS -->
+  <div class="sheet">
+    <div class="filters" id="filterBar"></div>
+
+    <!-- PM leaderboard + Health donut -->
+    <div class="sheet-body">
+      <div class="row2">
+        <div class="sheet" style="margin-top:0;">
+          <div class="sheet-head"><h2>PM WORKLOAD LEADERBOARD</h2><span class="count" id="pmCount"></span></div>
+          <div class="sheet-body">
+            <table>
+              <thead><tr><th>PM</th><th>โครงการ</th><th>ความคืบหน้าเฉลี่ย</th><th>มูลค่าที่รับผิดชอบ</th><th>เสี่ยง</th></tr></thead>
+              <tbody id="pmTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="sheet" style="margin-top:0;">
+          <div class="sheet-head"><h2>PROJECT HEALTH</h2><span class="count" id="healthCount"></span></div>
+          <div class="sheet-body">
+            <div class="donut-wrap">
+              <svg id="donut" width="140" height="140" viewBox="0 0 140 140"></svg>
+              <div class="legend" id="healthLegend"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROJECT SHEETS -->
+  <div class="sheet">
+    <div class="sheet-head"><h2>PROJECT SHEETS</h2><span class="count" id="projShown"></span></div>
+    <div class="sheet-body">
+      <div class="proj-grid" id="projGrid"></div>
+    </div>
+  </div>
+
+  <footer id="footerNote">PJL Dashboard — ข้อมูลอัปเดตอัตโนมัติจาก Excel ผ่าน Make.com</footer>
+</div>
+
+<script>
+/* =========================================================================
+   PJL — Project Command Sheet
+   ทุกค่าที่แสดง (ยอดรวม, เปอร์เซ็นต์เฉลี่ย, กลุ่ม PM ฯลฯ) คำนวณจาก data array
+   ณ runtime เสมอ — ไม่มีการ hardcode ตัวเลขไว้ใน markup
+   ========================================================================= */
+
+// TODO: หลัง deploy backend (server.js) ขึ้น Render และตั้งค่า Make.com webhook
+// ให้ยิงข้อมูลเข้า POST /api/webhook/excel แล้วแก้ URL ด้านล่างให้ตรงกับของจริง
+const API_URL = 'https://pjl-migr-api.onrender.com/api/projects';
+
+const SEED_DATA = [{" Project Code": 335254762, "Project Name": "Log Management System", "PM Name": "Antika Prasadsil", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 65.75, "Progress Update": "ตอนนี้อยู่ในช่วงติดตั้ง เรียบร้อยไปแล้ว 3 ที่ ลูกค้านัดรายงานความก้าวหน้าเดือน กค", "Update Date": "2026-07-24", "Training": "YES", "Project Register\nDate": "2025-12-18", "Project Assigned\nDate": "2026-02-11", "Project Accept\nDate": "2026-02-11", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-03-06", "End Date": "2026-11-30", "Warranty\nType": "Y", "Warranty\nMonth": 24, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Tummanit Suksomboon", "Customer": "Provincial Waterworks Authority", "Contract Value": 29890000, "Selling Price": 29890000, "PM Accountable Value": 29890000, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Sale & Install", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 2, "Project Score": 46.95, "Project Health\nLevel Score": 2, "Project Health": "Warning", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "06/03/2026", "Plan End Date": "30/11/2026", "Plan Master": "08. ส่งของและติดตั้ง - กรณีมีการฝึกอบรม ระยะเวลามากกว่า 3 เดือน  REV : By Progress"}, {" Project Code": 335254611, "Project Name": "IT Asset Management", "PM Name": "Antika Prasadsil", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 87.5, "Progress Update": "ส่งมอบงานงวดที่ 1 เรียบร้อยแล้ว อยู่ในช่วงทำเอกสารอบรม", "Update Date": "2026-07-17", "Training": "YES", "Project Register\nDate": "2025-12-02", "Project Assigned\nDate": "2026-02-11", "Project Accept\nDate": "2026-02-11", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-02-24", "End Date": "2026-08-22", "Warranty\nType": "Y", "Warranty\nMonth": 24, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Tummanit Suksomboon", "Customer": "Provincial Waterworks Authority", "Contract Value": 9270000, "Selling Price": 9270000, "PM Accountable Value": 9270000, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Sale & Install", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 1, "Project Score": 51.07, "Project Health\nLevel Score": 5, "Project Health": "Super Fast", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "24/02/2026", "Plan End Date": "21/08/2026", "Plan Master": "08. ส่งของและติดตั้ง - กรณีมีการฝึกอบรม ระยะเวลามากกว่า 3 เดือน  REV : By Progress"}];
+
+const HEALTH_STYLE = {
+  match(h){
+    const s = (h||'').toLowerCase();
+    if (s.includes('critical') || s.includes('delay')) return 'critical';
+    if (s.includes('warn')) return 'warning';
+    if (s.includes('fast') || s.includes('track') || s.includes('good')) return 'success';
+    return 'neutral';
+  },
+  color(cls){
+    return {success:'var(--success)', warning:'var(--warning)', critical:'var(--critical)', neutral:'var(--neutral)'}[cls];
+  },
+  label(h){ return h && String(h).trim() ? h : 'ไม่ระบุ'; }
+};
+
+function normalizeKey(k){ return k.replace(/\s+/g,' ').trim(); }
+function normalizeRow(raw){
+  const out = {};
+  for (const [k,v] of Object.entries(raw)) out[normalizeKey(k)] = v;
+  return out;
+}
+function num(v){ const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+function thb(v){
+  return new Intl.NumberFormat('th-TH', {maximumFractionDigits:0}).format(num(v));
+}
+function fmtDate(v){
+  if(!v) return '—';
+  // รองรับทั้ง ISO (YYYY-MM-DD) และ D/M/YYYY
+  let d;
+  if (/^\d{4}-\d{2}-\d{2}/.test(v)) d = new Date(v);
+  else if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(v)) {
+    const [dd,mm,yyyy] = v.split('/'); d = new Date(`${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`);
+  } else d = new Date(v);
+  if (isNaN(d)) return v;
+  return d.toLocaleDateString('th-TH', {day:'2-digit', month:'short', year:'2-digit'});
+}
+
+let ALL_PROJECTS = [];
+let filters = { team:'', vp:'', pm:'', status:'', health:'' };
+
+async function loadData(){
+  try{
+    const res = await fetch(API_URL, { signal: AbortSignal.timeout(4000) });
+    if(!res.ok) throw new Error('bad response');
+    const json = await res.json();
+    const rows = json.rows || json;
+    if(Array.isArray(rows) && rows.length){
+      ALL_PROJECTS = rows.map(normalizeRow);
+      setSource(true, json.updatedAt);
+      render();
+      return;
+    }
+    throw new Error('empty');
+  }catch(e){
+    ALL_PROJECTS = SEED_DATA.map(normalizeRow);
+    setSource(false, null);
+    render();
+  }
+}
+
+function setSource(isLive, updatedAt){
+  const el = document.getElementById('tbSource');
+  if(isLive){
+    el.innerHTML = `<span class="src-dot"></span>เชื่อมต่อ Make.com แบบสด`;
+  } else {
+    el.innerHTML = `<span class="src-dot demo"></span>ยังไม่เชื่อมต่อ API — แสดงข้อมูลตัวอย่างจากไฟล์ที่อัปโหลด`;
+  }
+  document.getElementById('tbUpdated').textContent = updatedAt ? fmtDate(updatedAt) : new Date().toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'});
+}
+
+function uniq(arr){ return [...new Set(arr.filter(v=>v!==undefined && v!==null && v!==''))]; }
+
+function applyFilters(list){
+  return list.filter(p =>
+    (!filters.team   || p['Team']==filters.team) &&
+    (!filters.vp     || p['VP Name']==filters.vp) &&
+    (!filters.pm     || p['PM Name']==filters.pm) &&
+    (!filters.status || p['Status']==filters.status) &&
+    (!filters.health || p['Project Health']==filters.health)
+  );
+}
+
+function buildFilterBar(){
+  const bar = document.getElementById('filterBar');
+  const defs = [
+    {key:'team',   label:'ทีม',    values: uniq(ALL_PROJECTS.map(p=>p['Team']))},
+    {key:'vp',     label:'VP',     values: uniq(ALL_PROJECTS.map(p=>p['VP Name']))},
+    {key:'pm',     label:'PM',     values: uniq(ALL_PROJECTS.map(p=>p['PM Name']))},
+    {key:'status', label:'สถานะ',  values: uniq(ALL_PROJECTS.map(p=>p['Status']))},
+    {key:'health', label:'Health', values: uniq(ALL_PROJECTS.map(p=>p['Project Health']))},
+  ];
+  bar.innerHTML = defs.map(d => `
+    <select data-key="${d.key}">
+      <option value="">${d.label}: ทั้งหมด</option>
+      ${d.values.map(v=>`<option value="${v}">${v}</option>`).join('')}
+    </select>
+  `).join('') + `<button class="reset-btn" id="resetBtn">↺ ล้างตัวกรอง</button>`;
+
+  bar.querySelectorAll('select').forEach(sel=>{
+    sel.addEventListener('change', ()=>{ filters[sel.dataset.key] = sel.value; renderFiltered(); });
+  });
+  document.getElementById('resetBtn').addEventListener('click', ()=>{
+    filters = { team:'', vp:'', pm:'', status:'', health:'' };
+    bar.querySelectorAll('select').forEach(s=>s.value='');
+    renderFiltered();
+  });
+}
+
+function renderKPIs(list){
+  const total = list.length;
+  const inProgress = list.filter(p=>/inprogress|กำลัง/i.test(p['Status']||'')).length;
+  const avgProgress = total ? (list.reduce((s,p)=>s+num(p['%Progress']),0)/total) : 0;
+  const atRisk = list.filter(p=>['warning','critical'].includes(HEALTH_STYLE.match(p['Project Health']))).length;
+  const totalValue = list.reduce((s,p)=>s+num(p['Contract Value']),0);
+
+  const kpis = [
+    {tag:'01', label:'โครงการทั้งหมด', value: total, unit:'sheets', foot:`กรองอยู่จากทั้งหมด ${ALL_PROJECTS.length} โครงการ`},
+    {tag:'02', label:'กำลังดำเนินการ', value: inProgress, unit:`/ ${total}`, foot:'สถานะ Inprogress'},
+    {tag:'03', label:'ความคืบหน้าเฉลี่ย', value: avgProgress.toFixed(1), unit:'%', foot:'ถ่วงเฉลี่ยแบบ simple mean'},
+    {tag:'04', label:'โครงการเสี่ยง', value: atRisk, unit:'sheets', foot:'Health = Warning / Critical', risk:true},
+    {tag:'05', label:'มูลค่าสัญญารวม', value: thb(totalValue), unit:'THB', foot:'Contract Value ผลรวม'},
+  ];
+  document.getElementById('kpiRow').innerHTML = kpis.map(k=>`
+    <div class="kpi ${k.risk?'risk':''} ${k.risk && k.value==0 ? 'zero':''}" data-tag="${k.tag}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}<span class="unit">${k.unit}</span></div>
+      <div class="kpi-foot">${k.foot}</div>
+    </div>
+  `).join('');
+}
+
+function renderPMTable(list){
+  const groups = {};
+  list.forEach(p=>{
+    const pm = p['PM Name'] || 'ไม่ระบุ';
+    if(!groups[pm]) groups[pm] = {pm, team:p['Team']||'', count:0, progSum:0, value:0, risk:0};
+    groups[pm].count++;
+    groups[pm].progSum += num(p['%Progress']);
+    groups[pm].value += num(p['PM Accountable Value']);
+    if(['warning','critical'].includes(HEALTH_STYLE.match(p['Project Health']))) groups[pm].risk++;
+  });
+  const rows = Object.values(groups).sort((a,b)=>b.value-a.value);
+  document.getElementById('pmCount').textContent = `${rows.length} PM`;
+  document.getElementById('pmTableBody').innerHTML = rows.map(g=>{
+    const avg = g.count ? (g.progSum/g.count) : 0;
+    return `<tr>
+      <td><div class="pm-name">${g.pm}</div><div class="pm-team">${g.team}</div></td>
+      <td class="mono">${g.count}</td>
+      <td>
+        <span class="mono">${avg.toFixed(1)}%</span>
+        <div class="mini-bar"><i style="width:${Math.min(avg,100)}%"></i></div>
+      </td>
+      <td class="mono">฿${thb(g.value)}</td>
+      <td>${g.risk>0 ? `<span class="badge warning"><span class="dot" style="background:var(--warning)"></span>${g.risk}</span>` : `<span class="badge success"><span class="dot" style="background:var(--success)"></span>0</span>`}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="5" class="empty">ไม่มีข้อมูลตรงตามตัวกรอง</td></tr>`;
+}
+
+function renderDonut(list){
+  const groups = {};
+  list.forEach(p=>{
+    const label = HEALTH_STYLE.label(p['Project Health']);
+    const cls = HEALTH_STYLE.match(p['Project Health']);
+    if(!groups[label]) groups[label] = {label, cls, count:0};
+    groups[label].count++;
+  });
+  const entries = Object.values(groups);
+  const total = list.length || 1;
+  document.getElementById('healthCount').textContent = `${list.length} sheets`;
+
+  // draw donut
+  const r = 55, cx = 70, cy = 70, sw = 16;
+  let angle = -90;
+  const segs = entries.map(e=>{
+    const frac = e.count/total;
+    const start = angle;
+    angle += frac*360;
+    return {...e, start, end:angle};
+  });
+  function arc(cx,cy,r,startDeg,endDeg){
+    const toRad = d=>(d*Math.PI/180);
+    const x1 = cx + r*Math.cos(toRad(startDeg)), y1 = cy + r*Math.sin(toRad(startDeg));
+    const x2 = cx + r*Math.cos(toRad(endDeg)), y2 = cy + r*Math.sin(toRad(endDeg));
+    const large = (endDeg-startDeg) > 180 ? 1 : 0;
+    return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
+  }
+  const svg = document.getElementById('donut');
+  svg.innerHTML = segs.map(s=>{
+    if (s.end - s.start <= 0.001) return '';
+    const full = (s.end - s.start) >= 359.9;
+    const d = full ? '' : arc(cx,cy,r,s.start,s.end);
+    if(full){
+      return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${HEALTH_STYLE.color(s.cls)}" stroke-width="${sw}"/>`;
+    }
+    return `<path d="${d}" fill="none" stroke="${HEALTH_STYLE.color(s.cls)}" stroke-width="${sw}" stroke-linecap="butt"/>`;
+  }).join('') + `<text x="${cx}" y="${cy-3}" text-anchor="middle" fill="var(--text)" font-family="Space Grotesk" font-size="22" font-weight="700">${list.length}</text><text x="${cx}" y="${cy+14}" text-anchor="middle" fill="var(--text-faint)" font-family="IBM Plex Mono" font-size="9">SHEETS</text>`;
+
+  document.getElementById('healthLegend').innerHTML = entries.sort((a,b)=>b.count-a.count).map(e=>`
+    <div class="item">
+      <span class="sw" style="background:${HEALTH_STYLE.color(e.cls)}"></span>
+      ${e.label}
+      <span class="cnt">${e.count}</span>
+    </div>
+  `).join('') || `<div class="item">ไม่มีข้อมูล</div>`;
+}
+
+function renderProjectCards(list){
+  document.getElementById('projShown').textContent = `${list.length} / ${ALL_PROJECTS.length}`;
+  const grid = document.getElementById('projGrid');
+  if(!list.length){
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">ไม่มีโครงการตรงตามตัวกรองที่เลือก</div>`;
+    return;
+  }
+  grid.innerHTML = list.map(p=>{
+    const cls = HEALTH_STYLE.match(p['Project Health']);
+    const progress = Math.min(num(p['%Progress']),100);
+    return `
+    <div class="proj-card">
+      <div class="proj-top">
+        <div>
+          <div class="proj-code">#${p['Project Code']||'—'}</div>
+          <div class="proj-name">${p['Project Name']||'ไม่ระบุชื่อโครงการ'}</div>
+          <div class="proj-cust">${p['Customer']||''}</div>
+        </div>
+        <span class="badge ${cls}"><span class="dot" style="background:${HEALTH_STYLE.color(cls)}"></span>${HEALTH_STYLE.label(p['Project Health'])}</span>
+      </div>
+      <div class="proj-meta">
+        <span>PM: <b>${p['PM Name']||'—'}</b></span>
+        <span>ทีม: <b>${p['Team']||'—'}</b></span>
+        <span>สถานะ: <b>${p['Status']||'—'}</b></span>
+      </div>
+      <div class="ruler">
+        <div class="ruler-top"><span>ความคืบหน้า</span><span>${progress.toFixed(1)}%</span></div>
+        <div class="ruler-track"><div class="ruler-fill" style="width:${progress}%;background:${HEALTH_STYLE.color(cls)}"></div></div>
+      </div>
+      ${p['Progress Update'] ? `<div class="proj-note">${p['Progress Update']}</div>` : ''}
+      <div class="proj-foot">
+        <span>เริ่ม ${fmtDate(p['Start Date'])} → สิ้นสุด ${fmtDate(p['End Date'])}</span>
+        <span>อัปเดต ${fmtDate(p['Update Date'])}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function render(){
+  buildFilterBar();
+  document.getElementById('tbCount').textContent = ALL_PROJECTS.length;
+  document.getElementById('tbPMs').textContent = uniq(ALL_PROJECTS.map(p=>p['PM Name'])).length;
+  renderFiltered();
+}
+
+function renderFiltered(){
+  const filtered = applyFilters(ALL_PROJECTS);
+  renderKPIs(filtered);
+  renderPMTable(filtered);
+  renderDonut(filtered);
+  renderProjectCards(filtered);
+}
+
+loadData();
+</script>
+</body>
+</html>
