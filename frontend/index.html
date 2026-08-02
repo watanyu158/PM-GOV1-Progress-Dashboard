@@ -5,394 +5,474 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PM-GOV1 Progress</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0E131F;
-    --bg2:#111726;
-    --grid:rgba(115,168,255,0.055);
-    --panel:#151C2C;
-    --panel-2:#1B2436;
-    --border:rgba(148,171,214,0.14);
-    --border-strong:rgba(148,171,214,0.28);
-    --text:#EAEEF6;
-    --text-dim:#8B94AB;
-    --text-faint:#5D6580;
-    --accent:#5AC8E8;
-    --accent-dim:rgba(90,200,232,0.16);
-    --stamp:#FF8A5B;
-    --success:#39D2A0;
-    --success-dim:rgba(57,210,160,0.14);
-    --warning:#F0B94D;
-    --warning-dim:rgba(240,185,77,0.14);
-    --critical:#FF6B6B;
-    --critical-dim:rgba(255,107,107,0.14);
-    --neutral:#8B94AB;
-    --neutral-dim:rgba(139,148,171,0.14);
+    --bg:#EEF1F7;
+    --bg-tint:#E3E9F4;
+    --surface:#FFFFFF;
+    --surface-2:#F7F9FC;
+    --line:#E2E8F2;
+    --line-soft:#EDF1F7;
+
+    --ink:#16203A;
+    --ink-2:#3D4A6B;
+    --muted:#6B7899;
+    --faint:#98A3BC;
+
+    --brand:#2A4A9E;
+    --brand-2:#4A72D6;
+    --brand-tint:#EAF0FD;
+
+    --teal:#0E8F86;
+    --teal-tint:#E2F5F2;
+
+    --success:#128A5E;
+    --success-tint:#E3F5EC;
+    --warning:#B87A0A;
+    --warning-tint:#FDF1DC;
+    --critical:#C4384A;
+    --critical-tint:#FCE9EB;
+    --neutral:#6B7899;
+    --neutral-tint:#EDF0F6;
+
+    --sh-sm:0 1px 2px rgba(22,32,58,.06), 0 1px 3px rgba(22,32,58,.04);
+    --sh-md:0 1px 2px rgba(22,32,58,.05), 0 6px 16px -6px rgba(22,32,58,.14);
+    --sh-lg:0 2px 4px rgba(22,32,58,.05), 0 14px 32px -12px rgba(22,32,58,.20);
+    --r:12px;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
-  html,body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;}
   body{
-    background-image:
-      linear-gradient(var(--grid) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-    background-size:32px 32px;
+    background:
+      radial-gradient(1100px 500px at 82% -12%, #DDE6F8 0%, transparent 62%),
+      radial-gradient(900px 420px at 8% -8%, #E6EDFA 0%, transparent 58%),
+      var(--bg);
+    background-attachment:fixed;
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:26px 20px 56px;
     min-height:100vh;
-    padding:28px 20px 60px;
   }
-  .wrap{max-width:1320px;margin:0 auto;}
-  .mono{font-family:'IBM Plex Mono',monospace;}
-  .disp{font-family:'Space Grotesk',sans-serif;}
+  .wrap{max-width:1340px;margin:0 auto;}
+  .mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;}
+  .disp{font-family:'Plus Jakarta Sans',sans-serif;}
+  svg.ico{width:16px;height:16px;stroke-width:1.9;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;flex:none;}
 
-  /* ---------- Title block ---------- */
-  .titleblock{
-    border:1px solid var(--border-strong);
-    background:linear-gradient(180deg, var(--panel), var(--bg2));
-    border-radius:6px;
-    display:grid;
-    grid-template-columns: 1.6fr 1fr 1fr 1fr;
+  /* ---------------- Header ---------------- */
+  .head{
+    background:linear-gradient(140deg,#26417F 0%, #2F55A8 45%, #3C6BC4 100%);
+    border-radius:16px;
+    padding:24px 26px;
+    color:#fff;
+    box-shadow:var(--sh-lg);
     position:relative;
     overflow:hidden;
+    display:flex;flex-wrap:wrap;gap:22px;align-items:center;justify-content:space-between;
   }
-  .titleblock::before{
-    content:'';
-    position:absolute; top:0; left:0; right:0; height:3px;
-    background:linear-gradient(90deg, var(--accent), var(--stamp));
+  .head::after{
+    content:'';position:absolute;inset:0;
+    background:
+      radial-gradient(520px 200px at 88% 0%, rgba(255,255,255,.16), transparent 65%),
+      linear-gradient(90deg, transparent 62%, rgba(255,255,255,.05) 100%);
+    pointer-events:none;
   }
-  .tb-cell{padding:18px 22px;border-right:1px solid var(--border);}
-  .tb-cell:last-child{border-right:none;}
-  .tb-label{font-size:10px;letter-spacing:.14em;color:var(--text-faint);text-transform:uppercase;margin-bottom:8px;}
-  .tb-title{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;letter-spacing:.01em;}
-  .tb-sub{color:var(--text-dim);font-size:12.5px;margin-top:6px;line-height:1.5;}
-  .tb-value{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:600;}
-  .tb-value.small{font-size:14px;font-weight:500;color:var(--text);}
-  .src-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--success);margin-right:6px;box-shadow:0 0 8px var(--success);}
-  .src-dot.demo{background:var(--text-faint);box-shadow:none;}
+  .head-l{display:flex;align-items:center;gap:16px;position:relative;z-index:1;min-width:280px;}
+  .head-mark{
+    width:50px;height:50px;border-radius:13px;flex:none;
+    background:rgba(255,255,255,.15);
+    border:1px solid rgba(255,255,255,.28);
+    display:grid;place-items:center;
+    backdrop-filter:blur(6px);
+  }
+  .head-mark svg{width:25px;height:25px;stroke:#fff;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round;}
+  .head h1{font-family:'Plus Jakarta Sans',sans-serif;font-size:23px;font-weight:800;letter-spacing:-.015em;}
+  .head-sub{font-size:12.5px;color:rgba(255,255,255,.82);margin-top:5px;display:flex;align-items:center;gap:7px;}
+  .live{width:7px;height:7px;border-radius:50%;background:#5BE8B0;box-shadow:0 0 0 3px rgba(91,232,176,.24);flex:none;}
+  .live.off{background:rgba(255,255,255,.5);box-shadow:none;}
 
-  @media(max-width:860px){
-    .titleblock{grid-template-columns:1fr 1fr;}
-    .tb-cell:nth-child(1){grid-column:1/-1;}
+  .head-r{display:flex;gap:10px;align-items:stretch;position:relative;z-index:1;flex-wrap:wrap;}
+  .stat{
+    background:rgba(255,255,255,.13);
+    border:1px solid rgba(255,255,255,.22);
+    border-radius:11px;padding:10px 15px;min-width:96px;
+    backdrop-filter:blur(6px);
   }
+  .stat .l{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.72);margin-bottom:5px;}
+  .stat .v{font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:700;line-height:1.1;}
+  .stat .v.sm{font-size:13px;font-weight:600;padding-top:5px;}
+  .sync{
+    background:rgba(255,255,255,.95);color:var(--brand);
+    border:none;border-radius:11px;padding:0 17px;
+    font-family:'Inter',sans-serif;font-size:12.5px;font-weight:600;cursor:pointer;
+    display:flex;align-items:center;gap:7px;transition:.16s;
+  }
+  .sync:hover:not(:disabled){background:#fff;transform:translateY(-1px);box-shadow:0 6px 16px -6px rgba(0,0,0,.4);}
+  .sync:disabled{opacity:.72;cursor:default;}
+  .sync svg{width:15px;height:15px;}
 
-  /* ---------- KPI strip ---------- */
-  .kpis{
-    display:grid;
-    grid-template-columns:repeat(5,1fr);
-    gap:12px;
-    margin-top:14px;
-  }
-  @media(max-width:1000px){.kpis{grid-template-columns:repeat(2,1fr);}}
+  /* ---------------- KPI ---------------- */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:13px;margin-top:15px;}
+  @media(max-width:1080px){.kpis{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:560px){.kpis{grid-template-columns:1fr;}}
   .kpi{
-    background:var(--panel);
-    border:1px solid var(--border);
-    border-radius:6px;
-    padding:16px 18px;
-    position:relative;
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+    padding:16px 17px;box-shadow:var(--sh-md);position:relative;overflow:hidden;transition:.18s;
   }
-  .kpi::before{
-    content:attr(data-tag);
-    position:absolute; top:10px; right:12px;
-    font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--text-faint); letter-spacing:.08em;
-  }
-  .kpi-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
-  .kpi-value{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;}
-  .kpi-value .unit{font-size:14px;color:var(--text-dim);font-weight:500;margin-left:3px;}
-  .kpi-foot{font-size:11.5px;color:var(--text-faint);margin-top:6px;}
-  .kpi.risk .kpi-value{color:var(--warning);}
-  .kpi.risk.zero .kpi-value{color:var(--success);}
+  .kpi:hover{transform:translateY(-2px);box-shadow:var(--sh-lg);}
+  .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--kc,var(--brand));opacity:.9;}
+  .kpi-top{display:flex;align-items:center;gap:9px;margin-bottom:12px;}
+  .kpi-ico{width:31px;height:31px;border-radius:9px;display:grid;place-items:center;background:var(--kt,var(--brand-tint));color:var(--kc,var(--brand));flex:none;}
+  .kpi-ico svg{width:16px;height:16px;}
+  .kpi-label{font-size:11.5px;color:var(--muted);font-weight:500;line-height:1.3;}
+  .kpi-val{font-family:'Plus Jakarta Sans',sans-serif;font-size:27px;font-weight:800;letter-spacing:-.02em;line-height:1.05;color:var(--ink);}
+  .kpi-val .u{font-size:12.5px;font-weight:600;color:var(--faint);margin-left:5px;letter-spacing:0;}
+  .kpi-val.money{font-size:20px;}
+  .kpi-foot{font-size:11px;color:var(--faint);margin-top:7px;}
 
-  /* ---------- Section shell ---------- */
-  .sheet{
-    background:var(--panel);
-    border:1px solid var(--border);
-    border-radius:6px;
-    margin-top:14px;
-    overflow:hidden;
-  }
-  .sheet-head{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:14px 18px;border-bottom:1px solid var(--border);
-    background:var(--panel-2);
-  }
-  .sheet-head h2{font-family:'Space Grotesk',sans-serif;font-size:14px;letter-spacing:.03em;}
-  .sheet-head .count{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-dim);}
-  .sheet-body{padding:16px 18px;}
+  /* ---------------- Panels ---------------- */
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-md);margin-top:15px;overflow:hidden;}
+  .p-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line-soft);background:var(--surface-2);}
+  .p-title{display:flex;align-items:center;gap:9px;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;color:var(--ink);}
+  .p-title svg{width:17px;height:17px;color:var(--brand);}
+  .p-count{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted);background:var(--bg-tint);padding:3px 9px;border-radius:20px;}
+  .p-body{padding:16px 18px;}
 
-  /* ---------- Filters ---------- */
-  .filters{display:flex;flex-wrap:wrap;gap:8px;padding:14px 18px;border-bottom:1px solid var(--border);}
+  /* ---------------- Filters ---------------- */
+  .filters{display:flex;flex-wrap:wrap;gap:9px;align-items:center;padding:13px 18px;border-bottom:1px solid var(--line-soft);}
+  .f-ico{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);font-weight:500;margin-right:2px;}
+  .f-ico svg{width:15px;height:15px;color:var(--faint);}
   select{
-    background:var(--panel-2);
-    color:var(--text);
-    border:1px solid var(--border);
-    border-radius:4px;
-    padding:7px 10px;
-    font-family:'IBM Plex Mono',monospace;
-    font-size:12px;
-    cursor:pointer;
+    appearance:none;background:var(--surface);
+    background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B7899' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 9px center;
+    border:1px solid var(--line);border-radius:8px;
+    padding:7px 30px 7px 11px;font-family:'Inter',sans-serif;font-size:12.5px;color:var(--ink-2);
+    cursor:pointer;transition:.15s;box-shadow:var(--sh-sm);
   }
-  select:focus{outline:1px solid var(--accent);}
-  .reset-btn{
-    background:transparent;border:1px solid var(--border);color:var(--text-dim);
-    border-radius:4px;padding:7px 12px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;cursor:pointer;
+  select:hover{border-color:var(--brand-2);}
+  select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-tint);}
+  .reset{
+    background:var(--surface);border:1px solid var(--line);border-radius:8px;
+    padding:7px 12px;font-family:'Inter',sans-serif;font-size:12px;color:var(--muted);cursor:pointer;
+    display:flex;align-items:center;gap:6px;box-shadow:var(--sh-sm);transition:.15s;
   }
-  .reset-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .reset:hover{color:var(--brand);border-color:var(--brand-2);}
+  .reset svg{width:13px;height:13px;}
 
-  /* ---------- Grid: PM leaderboard + Health donut ---------- */
-  .row2{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-top:14px;}
-  @media(max-width:900px){.row2{grid-template-columns:1fr;}}
+  /* ---------------- Two-column row ---------------- */
+  .row2{display:grid;grid-template-columns:1.55fr 1fr;gap:15px;margin-top:15px;}
+  @media(max-width:960px){.row2{grid-template-columns:1fr;}}
+  .row2 .panel{margin-top:0;}
 
+  /* ---------------- Table ---------------- */
   table{width:100%;border-collapse:collapse;font-size:13px;}
   th{
-    text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--text-faint);
-    text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--border-strong);
+    text-align:left;font-size:10.5px;font-weight:600;color:var(--faint);
+    text-transform:uppercase;letter-spacing:.07em;padding:0 10px 9px;border-bottom:1px solid var(--line);
   }
-  td{padding:10px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
-  tr:last-child td{border-bottom:none;}
-  tr.clickable{cursor:pointer;}
-  tr.clickable:hover td{background:rgba(255,255,255,0.02);}
-  .pm-name{font-weight:600;}
-  .pm-team{font-size:11px;color:var(--text-faint);}
-
-  .mini-bar{width:100%;height:5px;background:var(--panel-2);border-radius:3px;overflow:hidden;margin-top:5px;}
-  .mini-bar i{display:block;height:100%;background:var(--accent);border-radius:3px;}
-
-  .badge{
-    display:inline-flex;align-items:center;gap:5px;
-    font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.03em;
-    padding:3px 8px;border-radius:20px;white-space:nowrap;
+  th.r,td.r{text-align:right;}
+  td{padding:12px 10px;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr{transition:.13s;}
+  tbody tr:hover{background:var(--surface-2);}
+  .who{display:flex;align-items:center;gap:10px;}
+  .av{
+    width:33px;height:33px;border-radius:9px;flex:none;display:grid;place-items:center;
+    font-family:'Plus Jakarta Sans',sans-serif;font-size:11.5px;font-weight:700;color:#fff;letter-spacing:.02em;
+    box-shadow:var(--sh-sm);
   }
-  .badge .dot{width:6px;height:6px;border-radius:50%;}
-  .badge.success{background:var(--success-dim);color:var(--success);}
-  .badge.warning{background:var(--warning-dim);color:var(--warning);}
-  .badge.critical{background:var(--critical-dim);color:var(--critical);}
-  .badge.neutral{background:var(--neutral-dim);color:var(--neutral);}
+  .who-n{font-weight:600;color:var(--ink);font-size:13px;line-height:1.3;}
+  .who-t{font-size:11px;color:var(--faint);margin-top:1px;}
+  .bar{height:6px;background:var(--bg-tint);border-radius:4px;overflow:hidden;margin-top:6px;min-width:74px;}
+  .bar i{display:block;height:100%;border-radius:4px;transition:width .5s cubic-bezier(.4,0,.2,1);}
+  .pct{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--ink-2);}
+  .money{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap;}
 
-  /* donut */
-  .donut-wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:center;padding:6px 0 2px;}
-  .legend{display:flex;flex-direction:column;gap:8px;font-size:12px;}
-  .legend .item{display:flex;align-items:center;gap:8px;}
-  .legend .sw{width:9px;height:9px;border-radius:2px;}
-  .legend .cnt{margin-left:auto;font-family:'IBM Plex Mono',monospace;color:var(--text-dim);padding-left:14px;}
+  .chip{
+    display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
+    padding:4px 9px;border-radius:20px;white-space:nowrap;line-height:1;
+  }
+  .chip svg{width:12px;height:12px;stroke-width:2.2;}
+  .chip.success{background:var(--success-tint);color:var(--success);}
+  .chip.warning{background:var(--warning-tint);color:var(--warning);}
+  .chip.critical{background:var(--critical-tint);color:var(--critical);}
+  .chip.neutral{background:var(--neutral-tint);color:var(--neutral);}
 
-  /* ---------- Project sheets (cards) ---------- */
-  .proj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;}
-  .proj-card{
-    background:var(--panel-2);
-    border:1px solid var(--border);
-    border-radius:6px;
-    padding:15px 16px 14px;
-    position:relative;
-  }
-  .proj-card::after{
-    content:'';position:absolute;top:0;right:0;width:0;height:0;
-    border-style:solid;border-width:0 16px 16px 0;
-    border-color:transparent var(--bg) transparent transparent;
-    border-top-right-radius:6px;
-  }
-  .proj-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
-  .proj-code{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--stamp);letter-spacing:.05em;}
-  .proj-name{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;margin-top:4px;line-height:1.3;}
-  .proj-cust{font-size:11.5px;color:var(--text-dim);margin-top:3px;}
-  .proj-meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:11.5px;color:var(--text-dim);}
-  .proj-meta b{color:var(--text);font-weight:500;}
-  .ruler{margin-top:12px;}
-  .ruler-top{display:flex;justify-content:space-between;font-size:11px;color:var(--text-faint);margin-bottom:4px;font-family:'IBM Plex Mono',monospace;}
-  .ruler-track{
-    height:8px;border-radius:4px;background:
-      repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 10%),
-      var(--bg2);
-    border:1px solid var(--border);overflow:hidden;position:relative;
-  }
-  .ruler-fill{height:100%;border-radius:3px 0 0 3px;}
-  .proj-note{margin-top:11px;font-size:12px;color:var(--text-dim);line-height:1.5;border-top:1px dashed var(--border);padding-top:10px;}
-  .proj-foot{display:flex;justify-content:space-between;align-items:center;margin-top:11px;font-size:10.5px;color:var(--text-faint);font-family:'IBM Plex Mono',monospace;}
+  /* ---------------- Donut ---------------- */
+  .donut-wrap{display:flex;align-items:center;gap:22px;flex-wrap:wrap;justify-content:center;padding:4px 0;}
+  .legend{display:flex;flex-direction:column;gap:9px;font-size:12.5px;min-width:150px;}
+  .lg{display:flex;align-items:center;gap:9px;color:var(--ink-2);}
+  .lg .sw{width:10px;height:10px;border-radius:3px;flex:none;}
+  .lg .n{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--ink);padding-left:16px;}
+  .lg .p{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--faint);width:38px;text-align:right;}
 
-  footer{margin-top:22px;text-align:center;font-size:11px;color:var(--text-faint);font-family:'IBM Plex Mono',monospace;}
-  .empty{padding:40px 20px;text-align:center;color:var(--text-faint);font-size:13px;}
+  /* ---------------- Project cards ---------------- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(348px,1fr));gap:14px;}
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+    padding:16px 17px 15px;box-shadow:var(--sh-sm);position:relative;overflow:hidden;transition:.18s;
+  }
+  .card:hover{transform:translateY(-2px);box-shadow:var(--sh-lg);border-color:#D5DEEC;}
+  .card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--cc);}
+  .c-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .c-code{
+    display:inline-flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+    color:var(--muted);background:var(--surface-2);border:1px solid var(--line-soft);
+    padding:3px 7px;border-radius:5px;
+  }
+  .c-code svg{width:11px;height:11px;}
+  .c-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:700;color:var(--ink);margin-top:8px;line-height:1.32;letter-spacing:-.01em;}
+  .c-cust{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);margin-top:5px;}
+  .c-cust svg{width:13px;height:13px;color:var(--faint);}
+  .c-meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;}
+  .tag{
+    display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--ink-2);
+    background:var(--surface-2);border:1px solid var(--line-soft);padding:4px 8px;border-radius:6px;
+  }
+  .tag svg{width:12px;height:12px;color:var(--faint);}
+  .c-prog{margin-top:13px;}
+  .c-prog-t{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:var(--muted);margin-bottom:5px;}
+  .c-prog-t b{font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:700;color:var(--ink);}
+  .c-bar{height:7px;background:var(--bg-tint);border-radius:4px;overflow:hidden;}
+  .c-bar i{display:block;height:100%;border-radius:4px;transition:width .55s cubic-bezier(.4,0,.2,1);}
+  .c-note{
+    margin-top:12px;font-size:12px;color:var(--ink-2);line-height:1.55;
+    background:var(--surface-2);border-left:2px solid var(--line);padding:9px 11px;border-radius:0 7px 7px 0;
+  }
+  .c-foot{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+    margin-top:12px;padding-top:11px;border-top:1px solid var(--line-soft);
+    font-size:11px;color:var(--faint);
+  }
+  .c-foot span{display:flex;align-items:center;gap:5px;}
+  .c-foot svg{width:12px;height:12px;}
+
+  .empty{padding:38px 20px;text-align:center;color:var(--faint);font-size:13px;}
+  footer{margin-top:24px;text-align:center;font-size:11.5px;color:var(--faint);}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <!-- TITLE BLOCK -->
-  <div class="titleblock">
-    <div class="tb-cell">
-      <div class="tb-label">Project Command Sheet</div>
-      <div class="tb-title">PM-GOV1 — Project Portfolio</div>
-      <div class="tb-sub" id="tbSource"><span class="src-dot demo"></span>กำลังโหลดข้อมูล…</div>
+  <header class="head">
+    <div class="head-l">
+      <div class="head-mark">
+        <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M8 13h3M8 16h6"/></svg>
+      </div>
+      <div>
+        <h1>PM-GOV1 Progress</h1>
+        <div class="head-sub" id="srcLine"><span class="live off"></span>กำลังโหลดข้อมูล...</div>
+      </div>
     </div>
-    <div class="tb-cell">
-      <div class="tb-label">Sheets (Projects)</div>
-      <div class="tb-value" id="tbCount">—</div>
+    <div class="head-r">
+      <div class="stat"><div class="l">โครงการ</div><div class="v" id="hProjects">-</div></div>
+      <div class="stat"><div class="l">PM</div><div class="v" id="hPMs">-</div></div>
+      <div class="stat"><div class="l">อัปเดต</div><div class="v sm" id="hUpdated">-</div></div>
+      <button class="sync" id="syncBtn">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+        <span id="syncTxt">ซิงก์ข้อมูล</span>
+      </button>
     </div>
-    <div class="tb-cell">
-      <div class="tb-label">PM ที่ดูแลอยู่</div>
-      <div class="tb-value" id="tbPMs">—</div>
-    </div>
-    <div class="tb-cell">
-      <div class="tb-label">อัปเดตล่าสุด</div>
-      <div class="tb-value small" id="tbUpdated">—</div>
-      <button class="reset-btn" id="syncBtn" style="margin-top:9px;">⟳ Sync จาก Excel</button>
-    </div>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="panel">
+    <div class="filters" id="filters"></div>
   </div>
 
-  <!-- KPIs -->
-  <div class="kpis" id="kpiRow"></div>
-
-  <!-- FILTERS -->
-  <div class="sheet">
-    <div class="filters" id="filterBar"></div>
-
-    <!-- PM leaderboard + Health donut -->
-    <div class="sheet-body">
-      <div class="row2">
-        <div class="sheet" style="margin-top:0;">
-          <div class="sheet-head"><h2>PM WORKLOAD LEADERBOARD</h2><span class="count" id="pmCount"></span></div>
-          <div class="sheet-body">
-            <div style="font-size:11.5px;color:var(--text-faint);margin:-6px 0 10px;">มูลค่าคำนวณจาก <b style="color:var(--text-dim)">PM Accountable Value</b> เฉพาะส่วนที่ PM คนนั้นรับผิดชอบ — ไม่ใช่ Contract Value เต็มโครงการ</div>
-            <table>
-              <thead><tr><th>PM</th><th>โครงการ</th><th>ความคืบหน้าเฉลี่ย</th><th>มูลค่าที่รับผิดชอบ</th><th>เสี่ยง</th></tr></thead>
-              <tbody id="pmTableBody"></tbody>
-            </table>
-          </div>
+  <div class="row2">
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          ภาระงานราย PM
         </div>
-        <div class="sheet" style="margin-top:0;">
-          <div class="sheet-head"><h2>PROJECT HEALTH</h2><span class="count" id="healthCount"></span></div>
-          <div class="sheet-body">
-            <div class="donut-wrap">
-              <svg id="donut" width="140" height="140" viewBox="0 0 140 140"></svg>
-              <div class="legend" id="healthLegend"></div>
-            </div>
-          </div>
+        <span class="p-count" id="pmCount"></span>
+      </div>
+      <div class="p-body" style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>PM</th><th class="r">โครงการ</th><th>ความคืบหน้าเฉลี่ย</th>
+            <th class="r">PM Accountable Value</th><th class="r">เสี่ยง</th>
+          </tr></thead>
+          <tbody id="pmBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+          สถานะสุขภาพโครงการ
+        </div>
+        <span class="p-count" id="healthCount"></span>
+      </div>
+      <div class="p-body">
+        <div class="donut-wrap">
+          <svg id="donut" width="148" height="148" viewBox="0 0 148 148"></svg>
+          <div class="legend" id="legend"></div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- PROJECT SHEETS -->
-  <div class="sheet">
-    <div class="sheet-head"><h2>PROJECT SHEETS</h2><span class="count" id="projShown"></span></div>
-    <div class="sheet-body">
-      <div class="proj-grid" id="projGrid"></div>
+  <div class="panel">
+    <div class="p-head">
+      <div class="p-title">
+        <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="M8 14h3M8 17h6"/></svg>
+        รายละเอียดโครงการ
+      </div>
+      <span class="p-count" id="projCount"></span>
     </div>
+    <div class="p-body"><div class="grid" id="grid"></div></div>
   </div>
 
-  <footer id="footerNote">PM-GOV1 Progress Dashboard — ข้อมูลอัปเดตอัตโนมัติจาก Excel ผ่าน Make.com</footer>
+  <footer>PM-GOV1 Progress Dashboard - ข้อมูลอัปเดตอัตโนมัติจาก Excel ผ่าน Make.com</footer>
 </div>
 
 <script>
 /* =========================================================================
-   PM-GOV1 — Project Command Sheet
-   ทุกค่าที่แสดง (ยอดรวม, เปอร์เซ็นต์เฉลี่ย, กลุ่ม PM ฯลฯ) คำนวณจาก data array
-   ณ runtime เสมอ — ไม่มีการ hardcode ตัวเลขไว้ใน markup
+   PM-GOV1 Progress Dashboard
+   ทุกค่าที่แสดง (ยอดรวม, ค่าเฉลี่ย, การจัดกลุ่ม PM) คำนวณจากข้อมูลจริงตอน
+   runtime เสมอ ไม่มีการ hardcode ตัวเลขใด ๆ ไว้ใน markup
    ========================================================================= */
 
 const API_URL = 'https://pm-gov1-progress-api.onrender.com/api/projects';
 const MAKE_WEBHOOK = 'https://hook.eu1.make.com/m58fg8qhrhydcl5nru3md2dumc5c9xqu';
 
-const SEED_DATA = [{" Project Code": 335254762, "Project Name": "Log Management System", "PM Name": "Antika Prasadsil", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 65.75, "Progress Update": "ตอนนี้อยู่ในช่วงติดตั้ง เรียบร้อยไปแล้ว 3 ที่ ลูกค้านัดรายงานความก้าวหน้าเดือน กค", "Update Date": "2026-07-24", "Training": "YES", "Project Register\nDate": "2025-12-18", "Project Assigned\nDate": "2026-02-11", "Project Accept\nDate": "2026-02-11", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-03-06", "End Date": "2026-11-30", "Warranty\nType": "Y", "Warranty\nMonth": 24, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Tummanit Suksomboon", "Customer": "Provincial Waterworks Authority", "Contract Value": 29890000, "Selling Price": 29890000, "PM Accountable Value": 29890000, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Sale & Install", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 2, "Project Score": 46.95, "Project Health\nLevel Score": 2, "Project Health": "Warning", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "06/03/2026", "Plan End Date": "30/11/2026", "Plan Master": "08. ส่งของและติดตั้ง - กรณีมีการฝึกอบรม ระยะเวลามากกว่า 3 เดือน  REV : By Progress"}, {" Project Code": 335254611, "Project Name": "IT Asset Management", "PM Name": "Antika Prasadsil", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 87.5, "Progress Update": "ส่งมอบงานงวดที่ 1 เรียบร้อยแล้ว อยู่ในช่วงทำเอกสารอบรม", "Update Date": "2026-07-17", "Training": "YES", "Project Register\nDate": "2025-12-02", "Project Assigned\nDate": "2026-02-11", "Project Accept\nDate": "2026-02-11", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-02-24", "End Date": "2026-08-22", "Warranty\nType": "Y", "Warranty\nMonth": 24, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Tummanit Suksomboon", "Customer": "Provincial Waterworks Authority", "Contract Value": 9270000, "Selling Price": 9270000, "PM Accountable Value": 9270000, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Sale & Install", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 1, "Project Score": 51.07, "Project Health\nLevel Score": 5, "Project Health": "Super Fast", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "24/02/2026", "Plan End Date": "21/08/2026", "Plan Master": "08. ส่งของและติดตั้ง - กรณีมีการฝึกอบรม ระยะเวลามากกว่า 3 เดือน  REV : By Progress"}];
+const SEED_DATA = [{" Project Code": 335254762, "Project Name": "Log Management System", "PM Name": "Antika Prasadsil", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 65.75, "Progress Update": "ตอนนี้อยู่ในช่วงติดตั้ง เรียบร้อยไปแล้ว 3 ที่ ลูกค้านัดรายงานความก้าวหน้าเดือน กค", "Update Date": "2026-07-24", "Training": "YES", "Project Register\nDate": "2025-12-18", "Project Assigned\nDate": "2026-02-11", "Project Accept\nDate": "2026-02-11", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-03-06", "End Date": "2026-11-30", "Warranty\nType": "Y", "Warranty\nMonth": 24, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Tummanit Suksomboon", "Customer": "Provincial Waterworks Authority", "Contract Value": 29890000, "Selling Price": 29890000, "PM Accountable Value": 29890000, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Sale & Install", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 2, "Project Score": 46.95, "Project Health\nLevel Score": 2, "Project Health": "Warning", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "06/03/2026", "Plan End Date": "30/11/2026", "Plan Master": "08. ส่งของและติดตั้ง - กรณีมีการฝึกอบรม ระยะเวลามากกว่า 3 เดือน  REV : By Progress"}, {" Project Code": 335254611, "Project Name": "IT Asset Management", "PM Name": "Antika Prasadsil", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 87.5, "Progress Update": "ส่งมอบงานงวดที่ 1 เรียบร้อยแล้ว อยู่ในช่วงทำเอกสารอบรม", "Update Date": "2026-07-17", "Training": "YES", "Project Register\nDate": "2025-12-02", "Project Assigned\nDate": "2026-02-11", "Project Accept\nDate": "2026-02-11", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-02-24", "End Date": "2026-08-22", "Warranty\nType": "Y", "Warranty\nMonth": 24, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Tummanit Suksomboon", "Customer": "Provincial Waterworks Authority", "Contract Value": 9270000, "Selling Price": 9270000, "PM Accountable Value": 9270000, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Sale & Install", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 1, "Project Score": 51.07, "Project Health\nLevel Score": 5, "Project Health": "Super Fast", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "24/02/2026", "Plan End Date": "21/08/2026", "Plan Master": "08. ส่งของและติดตั้ง - กรณีมีการฝึกอบรม ระยะเวลามากกว่า 3 เดือน  REV : By Progress"}, {" Project Code": 335261233, "Project Name": "Wifi Replacement", "PM Name": "Lomdetch Puangsombut", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 21, "Progress Update": "- ส่งมอบงานงวดที่ 1 เรียบร้อยแล้ว", "Update Date": "2026-07-31", "Training": "YES", "Project Register\nDate": "2026-03-02", "Project Assigned\nDate": "2026-05-11", "Project Accept\nDate": "2026-05-11", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-05-27", "End Date": "2027-01-22", "Warranty\nType": "Y", "Warranty\nMonth": 36, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Tummanit Suksomboon", "Customer": "Provincial Waterworks Authority", "Contract Value": 49859813.08, "Selling Price": 49859813.08, "PM Accountable Value": 49859813.08, "MA/Rent Value": 124649.53, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "TFRS 15", "RR Type": "By Progress , By TFRS 15 SI", "Complex Level": 3, "Project Level": 2, "Project Score": 46.13, "Project Health\nLevel Score": 1, "Project Health": "Critical", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "27/05/2026", "Plan End Date": "22/01/2027", "Plan Master": "08. ส่งของและติดตั้ง - กรณีมีการฝึกอบรม ระยะเวลามากกว่า 3 เดือน  REV : By Progress"}, {" Project Code": 335260810, "Project Name": "Cloud Conference Phase 2", "PM Name": "Lomdetch Puangsombut", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 85, "Progress Update": "- กำหนดฝึกอบรมช่วงระหว่างวันที่ 3-6 ส.ค. \n- จะส่งมอบงานวันที่ 7 ส.ค. ", "Update Date": "2026-07-31", "Training": "YES", "Project Register\nDate": "2026-02-10", "Project Assigned\nDate": "2026-04-09", "Project Accept\nDate": "2026-04-09", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-04-10", "End Date": "2026-08-07", "Warranty\nType": "Y", "Warranty\nMonth": 24, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Tummanit Suksomboon", "Customer": "Provincial Waterworks Authority", "Contract Value": 29906542.06, "Selling Price": 29906542.06, "PM Accountable Value": 29906542.06, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Sale & Install", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 1, "Project Score": 51.78, "Project Health\nLevel Score": 2, "Project Health": "Warning", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "10/04/2026", "Plan End Date": "07/08/2026", "Plan Master": "08. ส่งของและติดตั้ง - กรณีมีการฝึกอบรม ระยะเวลามากกว่า 3 เดือน  REV : By Progress"}, {" Project Code": 209250688, "Project Name": "Sectoral CERT for Government", "PM Name": "Lomdetch Puangsombut", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 92.5, "Progress Update": "- กำหนดจัดงานประชาสัมพันธ์ 6 ส.ค. นี้\n- จะส่งมอบงานงวดที่ 4 ภายในเดือน ส.ค. (ตามกำหนดเดือน ธ.ค.)", "Update Date": "2026-07-31", "Training": "YES", "Project Register\nDate": "2025-11-11", "Project Assigned\nDate": "2025-12-23", "Project Accept\nDate": "2025-12-23", "Internal Meeting\nSubmit Date": null, "Start Date": "2025-12-24", "End Date": "2026-12-18", "Warranty\nType": "Y", "Warranty\nMonth": 365, "Transfer Date (Manual)": null, "Transfer Date": "21/07/2026", "Transfer Accept Date": null, "Transfer Doc": "PTS-2026-00326 (Y) ", "BI": "Completed", "SL": "Inprogress-Waiting CS", "KT": "New-Waiting CS", "Partial/Final": "Final", "Transfer Status": "รอยืนยัน", "Warranty\nStart Date": "2026-07-09", "Warranty\nEnd Date": "2027-07-08", "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Lalida Khurusathian", "Customer": "National Cyber Security Commission ", "Contract Value": 74878504.67, "Selling Price": 74878504.67, "PM Accountable Value": 74878504.67, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Turnkey", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 3, "Project Score": 49.59, "Project Health\nLevel Score": 5, "Project Health": "Super Fast", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "24/12/2025", "Plan End Date": "18/12/2026", "Plan Master": "12. จ้างเหมา (มีสินค้า/มีการฝึกอบรม) - กรณีมีการฝึกอบรม  REV : By Progress"}, {" Project Code": 328261008, "Project Name": "RTAF Microwave Phase1", "PM Name": "Virojt Changyencham", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 16.65, "Progress Update": "อยู่ระหว่างการจัดทำรายงานผลการสำรวจ และนำเสนอเพื่อให้คณะกรรมการพิจารณาเห็นชอบก่อนเริ่มดำเนินการ\n", "Update Date": "2026-07-31", "Training": "YES", "Project Register\nDate": "2026-02-17", "Project Assigned\nDate": "2026-05-26", "Project Accept\nDate": "2026-05-26", "Internal Meeting\nSubmit Date": "2026-06-09", "Start Date": "2026-05-13", "End Date": "2027-02-06", "Warranty\nType": "Y", "Warranty\nMonth": 24, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Suwasinee Konthong", "Customer": "Royal Thai Airforce", "Contract Value": 11658317.76, "Selling Price": 11658317.76, "PM Accountable Value": 11658317.76, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Sale & Install", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 3, "Project Score": 48.37, "Project Health\nLevel Score": 3, "Project Health": "Normal", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "13/05/2026", "Plan End Date": "05/02/2027", "Plan Master": "08. ส่งของและติดตั้ง - กรณีมีการฝึกอบรม ระยะเวลามากกว่า 3 เดือน  REV : By Progress"}, {" Project Code": 119251388, "Project Name": "OBEC - DDos Phase2", "PM Name": "Virojt Changyencham", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 70.7, "Progress Update": "อยู่ระหว่างการเก็บรวบรวมข้อมูล Web Site จำนวน 60 URL ตามข้อมกำนหสำหรับระบบ CWAAP เพื่อกำหนด Policy และนำข้อมูลไปออกรายงานความเสี่ยงทางไซเบอร์ต่อไป", "Update Date": "2026-07-31", "Training": "YES", "Project Register\nDate": "2025-07-22", "Project Assigned\nDate": "2025-12-03", "Project Accept\nDate": "2025-12-03", "Internal Meeting\nSubmit Date": "2025-12-19", "Start Date": "2025-12-24", "End Date": "2026-10-19", "Warranty\nType": "Y", "Warranty\nMonth": 12, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Sasipreeya Chueachart", "Customer": "Office of The Basic Education Commission", "Contract Value": 30766355.14, "Selling Price": 30766355.14, "PM Accountable Value": 30766355.14, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "งานบริการอย่างเดียว,ส่งของและติดตั้ง", "Project Type ACC": "Turnkey", "RR Type": "By Progress", "Complex Level": 2, "Project Level": 3, "Project Score": 51.88, "Project Health\nLevel Score": 3, "Project Health": "Normal", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "24/12/2025", "Plan End Date": "19/10/2026", "Plan Master": "12. จ้างเหมา (มีสินค้า/มีการฝึกอบรม) - กรณีมีการฝึกอบรม  REV : By Progress"}, {" Project Code": 119260593, "Project Name": "MA - Security for GPPC Platform", "PM Name": "Prapasiri   Rakkanpat", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": null, "Progress Update": null, "Update Date": null, "Training": "", "Project Register\nDate": "2026-04-09", "Project Assigned\nDate": "2026-07-01", "Project Accept\nDate": "2026-07-06", "Internal Meeting\nSubmit Date": null, "Start Date": null, "End Date": null, "Warranty\nType": "N", "Warranty\nMonth": null, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Sasipreeya Chueachart", "Customer": "สำนักงานคณะกรรมการคุ้มครองข้อมูลส่วนบุคคล", "Contract Value": 21691588.79, "Selling Price": 21691588.79, "PM Accountable Value": 0, "MA/Rent Value": 21691588.79, "Project Type": "MA", "Service Type": null, "Project Type ACC": "MA", "RR Type": "MA/Rent", "Complex Level": 0, "Project Level": 1, "Project Score": 0, "Project Health\nLevel Score": 0, "Project Health": "", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": null, "Plan End Date": null, "Plan Master": null}, {" Project Code": 402251322, "Project Name": "DGA_Offsite Backup", "PM Name": "Prapasiri   Rakkanpat", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": null, "Progress Update": "อยู่ระหว่างรอสัญญา ปัจจุบันได้ดำเนินการ Kickoff สำรวจพื้นที่ เรียบร้อย อยู่ระหว่างจัดทำรายงาน ของคาดว่าจะเข้าช่วงกลางเดือน ก.ค.", "Update Date": "2026-07-03", "Training": "YES", "Project Register\nDate": "2025-11-19", "Project Assigned\nDate": "2026-05-12", "Project Accept\nDate": "2026-05-12", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-05-29", "End Date": "2026-11-24", "Warranty\nType": "Y", "Warranty\nMonth": 12, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Atthawat Jeerathitikun", "Customer": "Digital Government Development Agency", "Contract Value": 9336448.59, "Selling Price": 9336448.59, "PM Accountable Value": 9336448.59, "MA/Rent Value": 0, "Project Type": "TURNKEY", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Sale", "RR Type": "By Invoice", "Complex Level": 0, "Project Level": 1, "Project Score": null, "Project Health\nLevel Score": 0, "Project Health": "", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": null, "Plan End Date": null, "Plan Master": null}, {" Project Code": 119252478, "Project Name": "PDPC - Project to enhance efficiency and expand government and private sector PDPA platform", "PM Name": "Prapasiri   Rakkanpat", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 40, "Progress Update": "อยู่ระหว่างการดำเนินงานงวด 3 ปัจจุบันดำเนินการเข้าพบหน่วยงานเป้าหมายและ workshop ของแต่ละกลุ่มอุตสาหกรรม", "Update Date": "2026-07-03", "Training": "YES", "Project Register\nDate": "2025-12-08", "Project Assigned\nDate": "2026-02-13", "Project Accept\nDate": "2026-02-17", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-02-13", "End Date": "2026-11-10", "Warranty\nType": "N", "Warranty\nMonth": null, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Sasipreeya Chueachart", "Customer": "สำนักงานคณะกรรมการคุ้มครองข้อมูลส่วนบุคคล", "Contract Value": 54205607.48, "Selling Price": 26262616.82, "PM Accountable Value": 26262616.82, "MA/Rent Value": 0, "Project Type": "TURNKEY", "Service Type": "งาน MA,งานที่ปรึกษา", "Project Type ACC": "Turnkey", "RR Type": "By Progress", "Complex Level": 5, "Project Level": 3, "Project Score": 42.59, "Project Health\nLevel Score": 1, "Project Health": "Critical", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "13/02/2026", "Plan End Date": "10/11/2026", "Plan Master": "18. จ้างเหมา (ไม่มีสินค้า/มีการฝึกอบรม) - กรณีมีการฝึกอบรม  REV : By Progress"}, {" Project Code": 119250742, "Project Name": "PDPC - DE67 (GPPC for SME )", "PM Name": "Prapasiri   Rakkanpat", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 100, "Progress Update": "ดำเนินการงวด 4 เรียบร้อย อยู่ระหว่างการตรวจรับงาน", "Update Date": "2026-07-24", "Training": "YES", "Project Register\nDate": "2025-03-07", "Project Assigned\nDate": "2025-07-25", "Project Accept\nDate": "2025-08-06", "Internal Meeting\nSubmit Date": null, "Start Date": "2025-08-01", "End Date": "2026-07-26", "Warranty\nType": "N", "Warranty\nMonth": null, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Sasipreeya Chueachart", "Customer": "กิจการร่วมค้า เอเอซี", "Contract Value": 74579439.25, "Selling Price": 36133738.32, "PM Accountable Value": 36133738.32, "MA/Rent Value": 0, "Project Type": "TURNKEY", "Service Type": "งานที่ปรึกษา,ส่งของและติดตั้ง", "Project Type ACC": "Turnkey", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 4, "Project Score": 50.15, "Project Health\nLevel Score": 3, "Project Health": "Normal", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "01/08/2025", "Plan End Date": "24/07/2026", "Plan Master": "12. จ้างเหมา (มีสินค้า/มีการฝึกอบรม) - กรณีมีการฝึกอบรม  REV : By Progress"}];
 
-const HEALTH_STYLE = {
-  match(h){
+/* ---------- icons ---------- */
+const I = {
+  folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  activity:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  trending:'<path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/>',
+  alert:'<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/>',
+  money:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>',
+  filter:'<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>',
+  reset:'<path d="M3 12a9 9 0 1 0 2.64-6.36"/><path d="M3 3v6h6"/>',
+  hash:'<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>',
+  building:'<path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 9h.01M15 9h.01M9 13h.01M15 13h.01M10 21v-4h4v4"/>',
+  user:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>',
+  flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
+  play:'<circle cx="12" cy="12" r="10"/><path d="M10 8l6 4-6 4z"/>',
+  cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  warn:'<path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="10"/>',
+};
+const svg = (p, cls='ico') => `<svg class="${cls}" viewBox="0 0 24 24">${p}</svg>`;
+
+/* ---------- health mapping ---------- */
+const H = {
+  cls(h){
     const s = (h||'').toLowerCase();
     if (s.includes('critical') || s.includes('delay')) return 'critical';
     if (s.includes('warn')) return 'warning';
-    if (s.includes('fast') || s.includes('track') || s.includes('good')) return 'success';
+    if (s.includes('fast') || s.includes('track') || s.includes('good') || s.includes('normal')) return 'success';
     return 'neutral';
   },
-  color(cls){
-    return {success:'var(--success)', warning:'var(--warning)', critical:'var(--critical)', neutral:'var(--neutral)'}[cls];
-  },
-  label(h){ return h && String(h).trim() ? h : 'ไม่ระบุ'; }
+  color(c){ return {success:'#128A5E', warning:'#B87A0A', critical:'#C4384A', neutral:'#8B95AD'}[c]; },
+  icon(c){ return {success:I.check, warning:I.alert, critical:I.alert, neutral:I.flag}[c]; },
+  label(h){ return (h && String(h).trim()) ? h : 'ไม่ระบุ'; }
 };
 
-function normalizeKey(k){ return k.replace(/\s+/g,' ').trim(); }
-function normalizeRow(raw){
-  const out = {};
-  for (const [k,v] of Object.entries(raw)) out[normalizeKey(k)] = v;
-  return out;
+/* ---------- helpers ---------- */
+const AV_COLORS = ['#2A4A9E','#0E8F86','#7A4BB5','#B8620A','#1E7BA6','#A63B62','#3F7A2E'];
+function avatarColor(name){
+  let h = 0; for (let i=0;i<(name||'').length;i++) h = (h*31 + name.charCodeAt(i)) >>> 0;
+  return AV_COLORS[h % AV_COLORS.length];
 }
+function initials(name){
+  const parts = String(name||'').trim().split(/\s+/).filter(Boolean);
+  if(!parts.length) return '?';
+  return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+}
+const normKey = k => k.replace(/\s+/g,' ').trim();
+const normRow = raw => { const o={}; for(const [k,v] of Object.entries(raw)) o[normKey(k)] = v; return o; };
 function num(v){ const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n) ? 0 : n; }
-function thb(v){
-  return new Intl.NumberFormat('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}).format(num(v));
+function thb(v){ return new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(num(v)); }
+function compact(v){
+  const n = num(v);
+  if (n >= 1e6) return (n/1e6).toFixed(1).replace(/\.0$/,'') + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(0) + 'K';
+  return String(n);
 }
 function fmtDate(v){
-  if(!v) return '—';
-  // รองรับทั้ง ISO (YYYY-MM-DD) และ D/M/YYYY
+  if(!v) return '-';
   let d;
   if (/^\d{4}-\d{2}-\d{2}/.test(v)) d = new Date(v);
-  else if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(v)) {
-    const [dd,mm,yyyy] = v.split('/'); d = new Date(`${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`);
+  else if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(v)){
+    const [dd,mm,yyyy] = String(v).split('/');
+    d = new Date(`${yyyy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`);
   } else d = new Date(v);
   if (isNaN(d)) return v;
-  return d.toLocaleDateString('th-TH', {day:'2-digit', month:'short', year:'2-digit'});
+  return d.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'});
 }
+const uniq = a => [...new Set(a.filter(v=>v!==undefined && v!==null && v!==''))];
 
-let ALL_PROJECTS = [];
+/* ---------- state ---------- */
+let ALL = [];
 let filters = { team:'', vp:'', pm:'', status:'', health:'' };
 
 async function loadData(){
   try{
-    const res = await fetch(API_URL, { signal: AbortSignal.timeout(4000) });
-    if(!res.ok) throw new Error('bad response');
-    const json = await res.json();
-    const rows = json.rows || json;
+    const res = await fetch(API_URL, { signal: AbortSignal.timeout(6000) });
+    if(!res.ok) throw new Error('bad');
+    const j = await res.json();
+    const rows = j.rows || j;
     if(Array.isArray(rows) && rows.length){
-      ALL_PROJECTS = rows.map(normalizeRow);
-      setSource(true, json.updatedAt);
-      render();
-      return;
+      ALL = rows.map(normRow);
+      setSource(true, j.updatedAt);
+      render(); return;
     }
     throw new Error('empty');
   }catch(e){
-    ALL_PROJECTS = SEED_DATA.map(normalizeRow);
+    ALL = SEED_DATA.map(normRow);
     setSource(false, null);
     render();
   }
 }
-
-function setSource(isLive, updatedAt){
-  const el = document.getElementById('tbSource');
-  if(isLive){
-    el.innerHTML = `<span class="src-dot"></span>กำลังเชื่อมต่อแบบ real-time`;
-  } else {
-    el.innerHTML = `<span class="src-dot demo"></span>ยังไม่เชื่อมต่อ API — แสดงข้อมูลตัวอย่างจากไฟล์ที่อัปโหลด`;
-  }
-  document.getElementById('tbUpdated').textContent = updatedAt ? fmtDate(updatedAt) : new Date().toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'});
+function setSource(live, updatedAt){
+  document.getElementById('srcLine').innerHTML = live
+    ? `<span class="live"></span>กำลังเชื่อมต่อแบบ real-time`
+    : `<span class="live off"></span>ยังไม่เชื่อมต่อ API - แสดงข้อมูลตัวอย่าง`;
+  document.getElementById('hUpdated').textContent = updatedAt
+    ? fmtDate(updatedAt)
+    : new Date().toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'});
 }
 
-function uniq(arr){ return [...new Set(arr.filter(v=>v!==undefined && v!==null && v!==''))]; }
+const applyFilters = list => list.filter(p =>
+  (!filters.team   || p['Team']==filters.team) &&
+  (!filters.vp     || p['VP Name']==filters.vp) &&
+  (!filters.pm     || p['PM Name']==filters.pm) &&
+  (!filters.status || p['Status']==filters.status) &&
+  (!filters.health || p['Project Health']==filters.health)
+);
 
-function applyFilters(list){
-  return list.filter(p =>
-    (!filters.team   || p['Team']==filters.team) &&
-    (!filters.vp     || p['VP Name']==filters.vp) &&
-    (!filters.pm     || p['PM Name']==filters.pm) &&
-    (!filters.status || p['Status']==filters.status) &&
-    (!filters.health || p['Project Health']==filters.health)
-  );
-}
-
-function buildFilterBar(){
-  const bar = document.getElementById('filterBar');
+function buildFilters(){
   const defs = [
-    {key:'team',   label:'ทีม',    values: uniq(ALL_PROJECTS.map(p=>p['Team']))},
-    {key:'vp',     label:'VP',     values: uniq(ALL_PROJECTS.map(p=>p['VP Name']))},
-    {key:'pm',     label:'PM',     values: uniq(ALL_PROJECTS.map(p=>p['PM Name']))},
-    {key:'status', label:'สถานะ',  values: uniq(ALL_PROJECTS.map(p=>p['Status']))},
-    {key:'health', label:'Health', values: uniq(ALL_PROJECTS.map(p=>p['Project Health']))},
+    {k:'team',   l:'ทีม',    v:uniq(ALL.map(p=>p['Team']))},
+    {k:'vp',     l:'VP',     v:uniq(ALL.map(p=>p['VP Name']))},
+    {k:'pm',     l:'PM',     v:uniq(ALL.map(p=>p['PM Name']))},
+    {k:'status', l:'สถานะ',  v:uniq(ALL.map(p=>p['Status']))},
+    {k:'health', l:'Health', v:uniq(ALL.map(p=>p['Project Health']))},
   ];
-  bar.innerHTML = defs.map(d => `
-    <select data-key="${d.key}">
-      <option value="">${d.label}: ทั้งหมด</option>
-      ${d.values.map(v=>`<option value="${v}">${v}</option>`).join('')}
-    </select>
-  `).join('') + `<button class="reset-btn" id="resetBtn">↺ ล้างตัวกรอง</button>`;
+  const bar = document.getElementById('filters');
+  bar.innerHTML = `<div class="f-ico">${svg(I.filter)}ตัวกรอง</div>` +
+    defs.map(d=>`<select data-k="${d.k}"><option value="">${d.l}: ทั้งหมด</option>${
+      d.v.map(x=>`<option value="${x}">${x}</option>`).join('')}</select>`).join('') +
+    `<button class="reset" id="reset">${svg(I.reset)}ล้างตัวกรอง</button>`;
 
-  bar.querySelectorAll('select').forEach(sel=>{
-    sel.addEventListener('change', ()=>{ filters[sel.dataset.key] = sel.value; renderFiltered(); });
-  });
-  document.getElementById('resetBtn').addEventListener('click', ()=>{
+  bar.querySelectorAll('select').forEach(s=>
+    s.addEventListener('change', ()=>{ filters[s.dataset.k]=s.value; renderFiltered(); }));
+  document.getElementById('reset').addEventListener('click', ()=>{
     filters = { team:'', vp:'', pm:'', status:'', health:'' };
     bar.querySelectorAll('select').forEach(s=>s.value='');
     renderFiltered();
@@ -401,174 +481,155 @@ function buildFilterBar(){
 
 function renderKPIs(list){
   const total = list.length;
-  const inProgress = list.filter(p=>/inprogress|กำลัง/i.test(p['Status']||'')).length;
-  const avgProgress = total ? (list.reduce((s,p)=>s+num(p['%Progress']),0)/total) : 0;
-  const atRisk = list.filter(p=>['warning','critical'].includes(HEALTH_STYLE.match(p['Project Health']))).length;
-  const totalValue = list.reduce((s,p)=>s+num(p['Contract Value']),0);
+  const inprog = list.filter(p=>/inprogress|กำลัง/i.test(p['Status']||'')).length;
+  const avg = total ? list.reduce((s,p)=>s+num(p['%Progress']),0)/total : 0;
+  const risk = list.filter(p=>['warning','critical'].includes(H.cls(p['Project Health']))).length;
+  const value = list.reduce((s,p)=>s+num(p['Contract Value']),0);
 
-  const kpis = [
-    {tag:'01', label:'โครงการทั้งหมด', value: total, unit:'sheets', foot:`กรองอยู่จากทั้งหมด ${ALL_PROJECTS.length} โครงการ`},
-    {tag:'02', label:'กำลังดำเนินการ', value: inProgress, unit:`/ ${total}`, foot:'สถานะ Inprogress'},
-    {tag:'03', label:'ความคืบหน้าเฉลี่ย', value: avgProgress.toFixed(1), unit:'%', foot:'ถ่วงเฉลี่ยแบบ simple mean'},
-    {tag:'04', label:'โครงการเสี่ยง', value: atRisk, unit:'sheets', foot:'Health = Warning / Critical', risk:true},
-    {tag:'05', label:'มูลค่าสัญญารวม', value: thb(totalValue), unit:'THB', foot:'Contract Value ทั้งโครงการ (คนละค่ากับ "มูลค่าที่รับผิดชอบ" ของ PM)'},
+  const items = [
+    {ic:I.folder,   c:'#2A4A9E', t:'#EAF0FD', l:'โครงการทั้งหมด',  v:total,             u:'',            f:`จากทั้งหมด ${ALL.length} โครงการ`},
+    {ic:I.activity, c:'#0E8F86', t:'#E2F5F2', l:'กำลังดำเนินการ',  v:inprog,            u:`/ ${total}`,  f:'สถานะ Inprogress'},
+    {ic:I.trending, c:'#4A72D6', t:'#EAF0FD', l:'ความคืบหน้าเฉลี่ย', v:avg.toFixed(1),  u:'%',           f:'ค่าเฉลี่ยของโครงการที่กรองอยู่'},
+    {ic:I.alert,    c: risk? '#B87A0A':'#128A5E', t: risk? '#FDF1DC':'#E3F5EC', l:'โครงการเสี่ยง', v:risk, u:'', f:'Health = Warning / Critical'},
+    {ic:I.money,    c:'#7A4BB5', t:'#F1EAFB', l:'มูลค่าสัญญารวม',  v:thb(value),        u:'THB',         f:'Contract Value', money:true},
   ];
-  document.getElementById('kpiRow').innerHTML = kpis.map(k=>`
-    <div class="kpi ${k.risk?'risk':''} ${k.risk && k.value==0 ? 'zero':''}" data-tag="${k.tag}">
-      <div class="kpi-label">${k.label}</div>
-      <div class="kpi-value">${k.value}<span class="unit">${k.unit}</span></div>
-      <div class="kpi-foot">${k.foot}</div>
-    </div>
-  `).join('');
+  document.getElementById('kpis').innerHTML = items.map(k=>`
+    <div class="kpi" style="--kc:${k.c};--kt:${k.t}">
+      <div class="kpi-top">
+        <div class="kpi-ico">${svg(k.ic)}</div>
+        <div class="kpi-label">${k.l}</div>
+      </div>
+      <div class="kpi-val ${k.money?'money':''}">${k.v}${k.u?`<span class="u">${k.u}</span>`:''}</div>
+      <div class="kpi-foot">${k.f}</div>
+    </div>`).join('');
 }
 
-function renderPMTable(list){
-  const groups = {};
+function renderPM(list){
+  const g = {};
   list.forEach(p=>{
     const pm = p['PM Name'] || 'ไม่ระบุ';
-    if(!groups[pm]) groups[pm] = {pm, team:p['Team']||'', count:0, progSum:0, value:0, risk:0};
-    groups[pm].count++;
-    groups[pm].progSum += num(p['%Progress']);
-    groups[pm].value += num(p['PM Accountable Value']);
-    if(['warning','critical'].includes(HEALTH_STYLE.match(p['Project Health']))) groups[pm].risk++;
+    (g[pm] ||= {pm, team:p['Team']||'', n:0, sum:0, val:0, risk:0});
+    g[pm].n++;
+    g[pm].sum += num(p['%Progress']);
+    g[pm].val += num(p['PM Accountable Value']);
+    if(['warning','critical'].includes(H.cls(p['Project Health']))) g[pm].risk++;
   });
-  const rows = Object.values(groups).sort((a,b)=>b.value-a.value);
-  document.getElementById('pmCount').textContent = `${rows.length} PM`;
-  document.getElementById('pmTableBody').innerHTML = rows.map(g=>{
-    const avg = g.count ? (g.progSum/g.count) : 0;
+  const rows = Object.values(g).sort((a,b)=>b.val-a.val);
+  document.getElementById('pmCount').textContent = `${rows.length} คน`;
+  document.getElementById('pmBody').innerHTML = rows.map(r=>{
+    const avg = r.n ? r.sum/r.n : 0;
+    const col = avg>=70 ? '#128A5E' : avg>=40 ? '#4A72D6' : '#B87A0A';
     return `<tr>
-      <td><div class="pm-name">${g.pm}</div><div class="pm-team">${g.team}</div></td>
-      <td class="mono">${g.count}</td>
+      <td><div class="who">
+        <div class="av" style="background:${avatarColor(r.pm)}">${initials(r.pm)}</div>
+        <div><div class="who-n">${r.pm}</div><div class="who-t">${r.team}</div></div>
+      </div></td>
+      <td class="r"><span class="pct">${r.n}</span></td>
       <td>
-        <span class="mono">${avg.toFixed(1)}%</span>
-        <div class="mini-bar"><i style="width:${Math.min(avg,100)}%"></i></div>
+        <span class="pct">${avg.toFixed(1)}%</span>
+        <div class="bar"><i style="width:${Math.min(avg,100)}%;background:${col}"></i></div>
       </td>
-      <td class="mono">${thb(g.value)}</td>
-      <td>${g.risk>0 ? `<span class="badge warning"><span class="dot" style="background:var(--warning)"></span>${g.risk}</span>` : `<span class="badge success"><span class="dot" style="background:var(--success)"></span>0</span>`}</td>
+      <td class="r"><span class="money">${thb(r.val)}</span></td>
+      <td class="r">${ r.risk
+        ? `<span class="chip warning">${svg(I.alert)}${r.risk}</span>`
+        : `<span class="chip success">${svg(I.check)}0</span>` }</td>
     </tr>`;
   }).join('') || `<tr><td colspan="5" class="empty">ไม่มีข้อมูลตรงตามตัวกรอง</td></tr>`;
 }
 
 function renderDonut(list){
-  const groups = {};
+  const g = {};
   list.forEach(p=>{
-    const label = HEALTH_STYLE.label(p['Project Health']);
-    const cls = HEALTH_STYLE.match(p['Project Health']);
-    if(!groups[label]) groups[label] = {label, cls, count:0};
-    groups[label].count++;
+    const l = H.label(p['Project Health']);
+    (g[l] ||= {l, c:H.cls(p['Project Health']), n:0}).n++;
   });
-  const entries = Object.values(groups);
+  const es = Object.values(g).sort((a,b)=>b.n-a.n);
   const total = list.length || 1;
-  document.getElementById('healthCount').textContent = `${list.length} sheets`;
+  document.getElementById('healthCount').textContent = `${list.length} โครงการ`;
 
-  // draw donut
-  const r = 55, cx = 70, cy = 70, sw = 16;
-  let angle = -90;
-  const segs = entries.map(e=>{
-    const frac = e.count/total;
-    const start = angle;
-    angle += frac*360;
-    return {...e, start, end:angle};
-  });
-  function arc(cx,cy,r,startDeg,endDeg){
-    const toRad = d=>(d*Math.PI/180);
-    const x1 = cx + r*Math.cos(toRad(startDeg)), y1 = cy + r*Math.sin(toRad(startDeg));
-    const x2 = cx + r*Math.cos(toRad(endDeg)), y2 = cy + r*Math.sin(toRad(endDeg));
-    const large = (endDeg-startDeg) > 180 ? 1 : 0;
-    return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
-  }
-  const svg = document.getElementById('donut');
-  svg.innerHTML = segs.map(s=>{
-    if (s.end - s.start <= 0.001) return '';
-    const full = (s.end - s.start) >= 359.9;
-    const d = full ? '' : arc(cx,cy,r,s.start,s.end);
-    if(full){
-      return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${HEALTH_STYLE.color(s.cls)}" stroke-width="${sw}"/>`;
-    }
-    return `<path d="${d}" fill="none" stroke="${HEALTH_STYLE.color(s.cls)}" stroke-width="${sw}" stroke-linecap="butt"/>`;
-  }).join('') + `<text x="${cx}" y="${cy-3}" text-anchor="middle" fill="var(--text)" font-family="Space Grotesk" font-size="22" font-weight="700">${list.length}</text><text x="${cx}" y="${cy+14}" text-anchor="middle" fill="var(--text-faint)" font-family="IBM Plex Mono" font-size="9">SHEETS</text>`;
+  const cx=74, cy=74, r=52, w=19;
+  let a = -90;
+  const segs = es.map(e=>{ const s=a; a += (e.n/total)*360; return {...e, s, e2:a}; });
+  const pol = (deg,rr)=>[cx+rr*Math.cos(deg*Math.PI/180), cy+rr*Math.sin(deg*Math.PI/180)];
 
-  document.getElementById('healthLegend').innerHTML = entries.sort((a,b)=>b.count-a.count).map(e=>`
-    <div class="item">
-      <span class="sw" style="background:${HEALTH_STYLE.color(e.cls)}"></span>
-      ${e.label}
-      <span class="cnt">${e.count}</span>
-    </div>
-  `).join('') || `<div class="item">ไม่มีข้อมูล</div>`;
+  document.getElementById('donut').innerHTML =
+    `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#E9EDF5" stroke-width="${w}"/>` +
+    segs.map(s=>{
+      const span = s.e2 - s.s;
+      if (span <= 0.01) return '';
+      if (span >= 359.9)
+        return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${H.color(s.c)}" stroke-width="${w}"/>`;
+      const [x1,y1]=pol(s.s,r), [x2,y2]=pol(s.e2,r);
+      return `<path d="M ${x1} ${y1} A ${r} ${r} 0 ${span>180?1:0} 1 ${x2} ${y2}" fill="none" stroke="${H.color(s.c)}" stroke-width="${w}"/>`;
+    }).join('') +
+    `<text x="${cx}" y="${cy-2}" text-anchor="middle" fill="#16203A" font-family="Plus Jakarta Sans" font-size="25" font-weight="800">${list.length}</text>
+     <text x="${cx}" y="${cy+16}" text-anchor="middle" fill="#98A3BC" font-family="Inter" font-size="10">โครงการ</text>`;
+
+  document.getElementById('legend').innerHTML = es.map(e=>`
+    <div class="lg">
+      <span class="sw" style="background:${H.color(e.c)}"></span>${e.l}
+      <span class="n">${e.n}</span><span class="p">${((e.n/total)*100).toFixed(0)}%</span>
+    </div>`).join('') || `<div class="lg">ไม่มีข้อมูล</div>`;
 }
 
-function renderProjectCards(list){
-  document.getElementById('projShown').textContent = `${list.length} / ${ALL_PROJECTS.length}`;
-  const grid = document.getElementById('projGrid');
-  if(!list.length){
-    grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">ไม่มีโครงการตรงตามตัวกรองที่เลือก</div>`;
-    return;
-  }
-  grid.innerHTML = list.map(p=>{
-    const cls = HEALTH_STYLE.match(p['Project Health']);
-    const progress = Math.min(num(p['%Progress']),100);
-    return `
-    <div class="proj-card">
-      <div class="proj-top">
-        <div>
-          <div class="proj-code">#${p['Project Code']||'—'}</div>
-          <div class="proj-name">${p['Project Name']||'ไม่ระบุชื่อโครงการ'}</div>
-          <div class="proj-cust">${p['Customer']||''}</div>
+function renderCards(list){
+  document.getElementById('projCount').textContent = `${list.length} / ${ALL.length}`;
+  const el = document.getElementById('grid');
+  if(!list.length){ el.innerHTML = `<div class="empty" style="grid-column:1/-1">ไม่มีโครงการตรงตามตัวกรองที่เลือก</div>`; return; }
+
+  el.innerHTML = list.map(p=>{
+    const c = H.cls(p['Project Health']);
+    const col = H.color(c);
+    const pr = Math.min(num(p['%Progress']),100);
+    return `<div class="card" style="--cc:${col}">
+      <div class="c-top">
+        <div style="min-width:0">
+          <span class="c-code">${svg(I.hash)}${p[' Project Code']||p['Project Code']||'-'}</span>
+          <div class="c-name">${p['Project Name']||'ไม่ระบุชื่อโครงการ'}</div>
+          <div class="c-cust">${svg(I.building)}${p['Customer']||'-'}</div>
         </div>
-        <span class="badge ${cls}"><span class="dot" style="background:${HEALTH_STYLE.color(cls)}"></span>${HEALTH_STYLE.label(p['Project Health'])}</span>
+        <span class="chip ${c}">${svg(H.icon(c))}${H.label(p['Project Health'])}</span>
       </div>
-      <div class="proj-meta">
-        <span>PM: <b>${p['PM Name']||'—'}</b></span>
-        <span>ทีม: <b>${p['Team']||'—'}</b></span>
-        <span>สถานะ: <b>${p['Status']||'—'}</b></span>
+      <div class="c-meta">
+        <span class="tag">${svg(I.user)}${p['PM Name']||'-'}</span>
+        <span class="tag">${svg(I.play)}${p['Status']||'-'}</span>
+        ${num(p['Contract Value']) ? `<span class="tag">${svg(I.money)}${compact(p['Contract Value'])}</span>` : ''}
       </div>
-      <div class="ruler">
-        <div class="ruler-top"><span>ความคืบหน้า</span><span>${progress.toFixed(1)}%</span></div>
-        <div class="ruler-track"><div class="ruler-fill" style="width:${progress}%;background:${HEALTH_STYLE.color(cls)}"></div></div>
+      <div class="c-prog">
+        <div class="c-prog-t"><span>ความคืบหน้า</span><b>${pr.toFixed(1)}%</b></div>
+        <div class="c-bar"><i style="width:${pr}%;background:${col}"></i></div>
       </div>
-      ${p['Progress Update'] ? `<div class="proj-note">${p['Progress Update']}</div>` : ''}
-      <div class="proj-foot">
-        <span>เริ่ม ${fmtDate(p['Start Date'])} → สิ้นสุด ${fmtDate(p['End Date'])}</span>
-        <span>อัปเดต ${fmtDate(p['Update Date'])}</span>
+      ${p['Progress Update'] ? `<div class="c-note">${p['Progress Update']}</div>` : ''}
+      <div class="c-foot">
+        <span>${svg(I.cal)}${fmtDate(p['Start Date'])} - ${fmtDate(p['End Date'])}</span>
+        <span>${svg(I.clock)}${fmtDate(p['Update Date'])}</span>
       </div>
     </div>`;
   }).join('');
 }
 
 function render(){
-  buildFilterBar();
-  document.getElementById('tbCount').textContent = ALL_PROJECTS.length;
-  document.getElementById('tbPMs').textContent = uniq(ALL_PROJECTS.map(p=>p['PM Name'])).length;
+  buildFilters();
+  document.getElementById('hProjects').textContent = ALL.length;
+  document.getElementById('hPMs').textContent = uniq(ALL.map(p=>p['PM Name'])).length;
   renderFiltered();
 }
-
 function renderFiltered(){
-  const filtered = applyFilters(ALL_PROJECTS);
-  renderKPIs(filtered);
-  renderPMTable(filtered);
-  renderDonut(filtered);
-  renderProjectCards(filtered);
+  const f = applyFilters(ALL);
+  renderKPIs(f); renderPM(f); renderDonut(f); renderCards(f);
 }
 
 async function syncNow(){
-  const btn = document.getElementById('syncBtn');
-  const original = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '⟳ กำลังสั่งซิงก์…';
+  const btn = document.getElementById('syncBtn'), txt = document.getElementById('syncTxt');
+  btn.disabled = true; txt.textContent = 'กำลังสั่งซิงก์...';
   try{
-    // ยิง webhook ของ Make.com เพื่อสั่งให้ scenario ไปดึง Excel ล่าสุด
-    // แล้ว POST เข้า backend (/api/webhook/excel) ให้เอง
     await fetch(MAKE_WEBHOOK, { method:'POST', mode:'no-cors' });
-    btn.textContent = '⟳ กำลังรอข้อมูลใหม่…';
-    // ให้เวลา Make.com ประมวลผลและ POST กลับมาที่ backend ก่อนค่อยดึงใหม่
-    await new Promise(r=>setTimeout(r, 6000));
+    txt.textContent = 'รอข้อมูลใหม่...';
+    await new Promise(r=>setTimeout(r,6000));
     await loadData();
-    btn.textContent = '✓ ซิงก์แล้ว';
-  }catch(e){
-    btn.textContent = '✕ ซิงก์ไม่สำเร็จ';
-  }finally{
-    setTimeout(()=>{ btn.textContent = original; btn.disabled = false; }, 2500);
-  }
+    txt.textContent = 'ซิงก์แล้ว';
+  }catch(e){ txt.textContent = 'ซิงก์ไม่สำเร็จ'; }
+  finally{ setTimeout(()=>{ txt.textContent = 'ซิงก์ข้อมูล'; btn.disabled = false; }, 2500); }
 }
 
 loadData();
