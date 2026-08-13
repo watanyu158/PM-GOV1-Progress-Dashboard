@@ -1085,13 +1085,15 @@ function renderWow(list){
   // ใช้ประวัติทั้งหมด (ทุกแถวที่เคยเพิ่มเข้ามา) เฉพาะโครงการที่ผ่านตัวกรองปัจจุบัน
   const hist = HIST.filter(r => codes.has(r['Project Code']) && parseD(r['Update Date']));
 
-  if(!hist.length){
-    el.innerHTML = `<div class="empty">ยังไม่มีประวัติ Update Date ให้เทียบรอบอัปเดต</div>`;
-    document.getElementById('wowCount').textContent = '';
-    return;
-  }
-
   const today = new Date(); today.setHours(0,0,0,0);
+
+  // ค่า "ปัจจุบัน" ที่แสดง ต้องคำนวณจาก `list` แบบเดียวกับ KPI card เป๊ะ (นับทุกโครงการที่กรองอยู่
+  // รวมโครงการที่ไม่มี Update Date/ %Progress ด้วย) ไม่งั้นตัวเลขจะไม่ตรงกับ Avg. Progress ด้านบน
+  const overallAvgNow = list.length ? list.reduce((s,p)=>s+num(p['%Progress']),0)/list.length : null;
+  const riskValueNow = list.reduce((s,p)=> s + (['warning','critical'].includes(H.cls(p['Project Health'])) ? num(p['Contract Value']) : 0), 0);
+  const byPM = {};
+  list.forEach(p=>{ (byPM[p['PM Name']||'ไม่ระบุ'] ||= []).push(p); });
+
   const byCode = {};
   hist.forEach(r=>{ (byCode[r['Project Code']] ||= []).push(r); });
   Object.values(byCode).forEach(arr=>arr.sort((a,b)=>parseD(a['Update Date'])-parseD(b['Update Date'])));
@@ -1099,6 +1101,7 @@ function renderWow(list){
   // "รอบ" = นับถอยหลังจากรายการล่าสุดของแต่ละโครงการ (ไม่ใช่ปฏิทินสัปดาห์)
   // รอบ 0 = ค่าล่าสุดที่แต่ละโครงการเคยรายงาน, รอบ 1 = ค่าก่อนหน้านั้น ฯลฯ
   // วิธีนี้เทียบ "รายงานล่าสุด vs รายงานก่อนหน้า" ของแต่ละโครงการได้ตรงจริง ต่อให้แต่ละคนอัปเดตไม่พร้อมกัน
+  // ใช้เฉพาะหาค่า "ก่อนหน้า" กับเทรนด์ย้อนหลัง — ค่า "ปัจจุบัน" ใช้ overallAvgNow/byPM ด้านบนเสมอ
   const roundsDesc = []; // index 0 = ล่าสุด, ไล่ย้อนหลังไป
   for(let r=0; r<6; r++){
     let any=false, overallSum=0, overallN=0, riskValue=0; const pmAgg={}; const dates=[];
@@ -1118,8 +1121,11 @@ function renderWow(list){
   }
   const weekPM = roundsDesc.slice().reverse(); // เรียงเก่า -> ใหม่ สำหรับกราฟเทรนด์
 
-  const curr = weekPM[weekPM.length-1];
+  // curr ใช้แสดงกราฟเทรนด์/รอบก่อนหน้าเท่านั้น ค่าที่ "แสดงเป็นตัวเลขหลัก" ทับด้วย overallAvgNow/riskValueNow เสมอ
+  const curr = weekPM.length ? weekPM[weekPM.length-1] : { pmAgg:{}, overallAvg: overallAvgNow, riskValue: riskValueNow, labelDate: today };
   const prev = weekPM.length>1 ? weekPM[weekPM.length-2] : null;
+  curr.overallAvg = overallAvgNow;
+  curr.riskValue = riskValueNow;
 
   const pmNames = uniq(list.map(p=>p['PM Name'])).length
     ? uniq(list.map(p=>p['PM Name']))
@@ -1144,8 +1150,6 @@ function renderWow(list){
   const improvedN = transitions.length - worsenedN;
 
   // ความเร็วคืบหน้าเทียบแผน ต่อ PM (ใช้สถานะปัจจุบันจริง เทียบ ณ วันนี้)
-  const byPM = {};
-  list.forEach(p=>{ (byPM[p['PM Name']||'ไม่ระบุ'] ||= []).push(p); });
   function paceInfo(pm){
     const projs = byPM[pm] || [];
     const deltas = projs.map(r=>{
@@ -1174,11 +1178,14 @@ function renderWow(list){
   });
 
   const rows = pmNames.map(pm=>{
-    const c = curr.pmAgg[pm]; const p = prev ? prev.pmAgg[pm] : null;
-    const cAvg = c ? c.sum/c.n : null;
+    const projs = byPM[pm] || [];
+    const cAvg = projs.length ? projs.reduce((s,r)=>s+num(r['%Progress']),0)/projs.length : null;
+    const nNow = projs.length;
+    const p = prev ? prev.pmAgg[pm] : null;
     const pAvg = p ? p.sum/p.n : null;
     const delta = (cAvg!==null && pAvg!==null) ? (cAvg - pAvg) : null;
     const spark = weekPM.map(wk => { const a = wk.pmAgg[pm]; return a ? a.sum/a.n : null; });
+    if(spark.length) spark[spark.length-1] = cAvg; // จุดล่าสุดของกราฟ ต้องตรงกับตัวเลขที่แสดงเสมอ
 
     // โน้ตความคืบหน้ารายโครงการของ PM คนนี้ เทียบรายงานล่าสุดกับรายงานก่อนหน้า
     const notes = Object.entries(byCode)
@@ -1205,7 +1212,7 @@ function renderWow(list){
     const lastSeen = lastSeenPM[pm] || null;
     const daysAgo = lastSeen ? Math.max(0, Math.round((today-lastSeen)/DAY)) : null;
 
-    return {pm, cAvg, pAvg, delta, spark, daysAgo, n: c ? c.n : 0, pAvgN: p ? p.n : null, notes};
+    return {pm, cAvg, pAvg, delta, spark, daysAgo, n: nNow, pAvgN: p ? p.n : null, notes};
   }).sort((a,b)=>{
     const av = a.delta===null ? -999 : a.delta, bv = b.delta===null ? -999 : b.delta;
     return bv - av;
@@ -1229,6 +1236,7 @@ function renderWow(list){
 
   const chW=740,chH=76,padL=4,padR=4,padT=8,padB=18;
   const pts = weekPM.map(w=>w.overallAvg);
+  if(pts.length) pts[pts.length-1] = overallAvgNow;
   const idxs = pts.map((v,i)=>v===null?null:i).filter(i=>i!==null);
   const chartSVG = idxs.length < 2 ? `<div class="empty" style="padding:16px 0">ข้อมูลไม่พอวาดกราฟภาพรวม</div>` : (()=>{
     const x = i => padL + (i/(pts.length-1))*(chW-padL-padR);
