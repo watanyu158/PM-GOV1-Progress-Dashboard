@@ -129,4 +129,21 @@ app.get('/api/debug/last-payload', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`PM-GOV1 API listening on :${PORT}`));
+app.listen(PORT, () => {
+  console.log(`PM-GOV1 API listening on :${PORT}`);
+
+  // --- Keep-alive: กันไม่ให้ Render free tier sleep (spin down หลังไม่มี request ~15 นาที) ---
+  // ยิง request เข้าตัวเองทุก 10 นาที ผ่าน public URL ของ Render (RENDER_EXTERNAL_URL มีให้อัตโนมัติ
+  // บน Render เท่านั้น — รันในเครื่อง/ที่อื่นจะไม่ทำงาน ไม่กระทบอะไร)
+  const selfUrl = process.env.RENDER_EXTERNAL_URL;
+  if (selfUrl) {
+    setInterval(() => {
+      fetch(`${selfUrl}/api/health`)
+        .then(() => console.log(`♥ keep-alive ping ok @ ${new Date().toISOString()}`))
+        .catch(err => console.log('keep-alive ping failed:', err.message));
+    }, 10 * 60 * 1000); // ทุก 10 นาที (สั้นกว่า timeout ของ Render ที่ ~15 นาที)
+    console.log(`♥ keep-alive enabled → pinging ${selfUrl}/api/health every 10 min`);
+  } else {
+    console.log('ℹ keep-alive skipped (RENDER_EXTERNAL_URL not set — not running on Render, or running locally)');
+  }
+});
