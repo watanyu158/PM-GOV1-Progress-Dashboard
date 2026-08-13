@@ -251,6 +251,7 @@
   .nd:first-child{margin-top:0;}
   .nd-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:7px;}
   .nd-name{font-size:12.5px;font-weight:600;color:var(--ink);}
+  .nd-cust{font-size:11px;color:var(--faint);margin-top:2px;}
   .nd-prog{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap;}
   .nd-prog b{color:var(--brand);}
   .nd-row{display:flex;gap:8px;font-size:12px;line-height:1.55;margin-top:4px;}
@@ -1121,6 +1122,7 @@ function renderWow(list){
         const exp = expectedProgress(ps, pe, today);
         return {
           name: cur2['Project Name'] || code,
+          customer: cur2['Customer'] || '',
           thisNote: (cur2['Progress Update']||'').trim(),
           prevNote: prev2 ? (prev2['Progress Update']||'').trim() : null,
           thisProg: num(cur2['%Progress']),
@@ -1258,7 +1260,10 @@ function renderWow(list){
       const transBadge = trans ? `<span class="nd-new" style="color:${trans.worsened?'var(--critical)':'var(--success)'};background:${trans.worsened?'var(--critical-tint)':'var(--success-tint)'}">${trans.from} → ${trans.to}</span>` : '';
       return `<div class="nd">
         <div class="nd-top">
-          <span class="nd-name">${nt.name}${nt.isNew?'<span class="nd-new">ใหม่</span>':(!changed?'<span class="nd-new" style="color:var(--faint);background:var(--neutral-tint)">ไม่เปลี่ยน</span>':'')}${transBadge}</span>
+          <div style="min-width:0">
+            <span class="nd-name">${nt.name}${nt.isNew?'<span class="nd-new">ใหม่</span>':(!changed?'<span class="nd-new" style="color:var(--faint);background:var(--neutral-tint)">ไม่เปลี่ยน</span>':'')}${transBadge}</span>
+            ${nt.customer ? `<div class="nd-cust">${nt.customer}</div>` : ''}
+          </div>
           <span class="nd-prog">${progTxt}</span>
         </div>
         ${prevRow}${thisRow}${paceLine}
