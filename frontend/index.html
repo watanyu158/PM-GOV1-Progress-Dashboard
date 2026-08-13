@@ -195,16 +195,79 @@
   .money{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap;}
 
   /* ---------------- Gantt timeline ---------------- */
+  /* ---------------- Week-over-Week: company overview ---------------- */
+  .wow-overview{
+    background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;
+    padding:16px 18px;margin-bottom:16px;
+  }
+  .ov-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:10px;}
+  @media(max-width:720px){.ov-stats{grid-template-columns:1fr;}}
+  .ov-l{font-size:10.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;}
+  .ov-v{font-family:'Plus Jakarta Sans',sans-serif;font-size:21px;font-weight:800;color:var(--ink);line-height:1.1;margin-bottom:5px;}
+  .ov-d{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;}
+  .ov-d.up{background:var(--success-tint);color:var(--success);}
+  .ov-d.down{background:var(--critical-tint);color:var(--critical);}
+  .ov-d.flat{background:var(--neutral-tint);color:var(--neutral);}
+  .ov-chart{margin-top:6px;}
+  .ov-trans{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft);}
+  .trans-chip{
+    font-size:11px;color:var(--ink-2);background:var(--surface);border:1px solid var(--line);
+    padding:4px 9px;border-radius:20px;white-space:nowrap;
+  }
+  .trans-chip b{font-weight:700;}
+  .trans-chip.down{border-color:#F3C7CD;background:var(--critical-tint);color:var(--critical);}
+  .trans-chip.up{border-color:#B9E6D2;background:var(--success-tint);color:var(--success);}
+  .trans-chip.flat{color:var(--faint);}
+
+  .pace-chip{
+    display:inline-block;font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;margin-left:2px;
+  }
+  .pace-chip.ahead{background:var(--success-tint);color:var(--success);}
+  .pace-chip.behind{background:var(--critical-tint);color:var(--critical);}
+  .pace-chip.onpace{background:var(--brand-tint);color:var(--brand);}
+
   /* ---------------- Week-over-Week ---------------- */
   .wow-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
   .wow-range{font-size:11.5px;color:var(--faint);}
   .wow-range b{color:var(--ink-2);font-weight:600;}
   .wr{
-    display:grid;grid-template-columns:minmax(150px,1.1fr) 96px minmax(90px,1.4fr) 78px 78px 96px;
+    display:grid;grid-template-columns:minmax(150px,1.1fr) 96px minmax(90px,1.4fr) 78px 78px 96px 20px;
     align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-soft);
+    cursor:pointer;transition:.13s;
   }
-  .wr:last-child{border-bottom:none;}
-  .wr.head-row{padding:0 0 9px;border-bottom:1px solid var(--line);}
+  .wr:hover{background:var(--surface-2);}
+  .wr:last-of-type{border-bottom:none;}
+  .wr-chev{color:var(--faint);transition:transform .18s;}
+  .wr-chev svg{width:15px;height:15px;}
+  .wr.open .wr-chev{transform:rotate(90deg);color:var(--brand);}
+  .wr-detail{
+    display:none;padding:2px 0 14px 42px;border-bottom:1px solid var(--line-soft);
+  }
+  .wr-detail.open{display:block;}
+  .nd{
+    background:var(--surface-2);border:1px solid var(--line-soft);border-radius:9px;
+    padding:11px 13px;margin-top:8px;
+  }
+  .nd:first-child{margin-top:0;}
+  .nd-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:7px;}
+  .nd-name{font-size:12.5px;font-weight:600;color:var(--ink);}
+  .nd-prog{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap;}
+  .nd-prog b{color:var(--brand);}
+  .nd-row{display:flex;gap:8px;font-size:12px;line-height:1.55;margin-top:4px;}
+  .nd-tag{
+    flex:none;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--faint);width:52px;padding-top:1px;
+  }
+  .nd-row.this .nd-tag{color:var(--brand);}
+  .nd-txt{color:var(--ink-2);}
+  .nd-row.prev .nd-txt{color:var(--faint);}
+  .nd-empty{font-size:11.5px;color:var(--faint);font-style:italic;}
+  .nd-new{
+    display:inline-block;font-size:9.5px;font-weight:700;color:var(--brand);background:var(--brand-tint);
+    padding:1px 7px;border-radius:20px;margin-left:6px;vertical-align:middle;
+  }
+  .wr.head-row{padding:0 0 9px;border-bottom:1px solid var(--line);cursor:default;}
+  .wr.head-row:hover{background:none;}
   .wr.head-row span{font-size:10.5px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;}
   .wr-who{display:flex;align-items:center;gap:9px;min-width:0;}
   .wr-who .av{width:30px;height:30px;border-radius:8px;font-size:10.5px;}
@@ -225,9 +288,10 @@
   }
   .wr-active b{color:var(--brand);}
   @media(max-width:900px){
-    .wr{grid-template-columns:1fr 74px 84px 66px;}
+    .wr{grid-template-columns:1fr 74px 84px 66px 20px;}
     .wr .wr-spark, .wr .wr-active{display:none;}
     .wr.head-row .wr-spark, .wr.head-row .wr-active{display:none;}
+    .wr-detail{padding-left:16px;}
   }
 
   /* ---------------- PM availability runway ---------------- */
@@ -535,6 +599,7 @@ const I = {
   timeline:'<path d="M3 6h18M3 12h12M3 18h7"/><circle cx="19" cy="12" r="2"/><circle cx="12" cy="18" r="2"/>',
   hourglass:'<path d="M6 2h12M6 22h12"/><path d="M6 2c0 5 6 5 6 10s-6 5-6 10"/><path d="M18 2c0 5-6 5-6 10s6 5 6 10"/>',
   clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  chevron:'<path d="M9 6l6 6-6 6"/>',
   check:'<path d="M20 6 9 17l-5-5"/>',
   warn:'<path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="10"/>',
 };
@@ -947,6 +1012,12 @@ function weekStart(d){
   return x;
 }
 const fmtShort = d => d.toLocaleDateString('th-TH',{day:'2-digit',month:'short'});
+// ความคืบหน้าที่ "ควรจะเป็น" ตามแผน ถ้าไล่ตามเวลาเป็นเส้นตรงจาก Plan Start ถึง Plan End
+function expectedProgress(ps, pe, asOf){
+  if(!ps || !pe || pe<=ps) return null;
+  const frac = (asOf-ps)/(pe-ps);
+  return Math.max(0, Math.min(1, frac)) * 100;
+}
 
 function renderWow(list){
   const el = document.getElementById('wow');
@@ -979,14 +1050,17 @@ function renderWow(list){
   const weekPM = last6.map(w=>{
     const wEnd = new Date(w); wEnd.setDate(wEnd.getDate()+6); wEnd.setHours(23,59,59,999);
     const pmAgg = {}; // pm -> {sum, n}
+    let overallSum=0, overallN=0, riskValue=0;
     Object.values(byCode).forEach(arr=>{
       let asOf = null;
       for(const r of arr){ if(parseD(r['Update Date']) <= wEnd) asOf = r; else break; }
       if(!asOf) return;
       const pm = asOf['PM Name'] || 'ไม่ระบุ';
       (pmAgg[pm] ||= {sum:0,n:0}); pmAgg[pm].sum += num(asOf['%Progress']); pmAgg[pm].n++;
+      overallSum += num(asOf['%Progress']); overallN++;
+      if(['warning','critical'].includes(H.cls(asOf['Project Health']))) riskValue += num(asOf['Contract Value']);
     });
-    return {w, wEnd, pmAgg};
+    return {w, wEnd, pmAgg, overallAvg: overallN ? overallSum/overallN : null, riskValue};
   });
 
   const curr = weekPM[weekPM.length-1];
@@ -1008,6 +1082,44 @@ function renderWow(list){
     ? uniq(list.map(p=>p['PM Name']))
     : Object.keys(curr.pmAgg);
 
+  const asOfWeek = (arr, wEnd) => { let r=null; for(const x of arr){ if(parseD(x['Update Date'])<=wEnd) r=x; else break; } return r; };
+
+  // Health เปลี่ยนสถานะระหว่าง 2 สัปดาห์ (เช่น Normal -> Warning)
+  const sevRank = {success:0, neutral:1, warning:2, critical:3};
+  const transitions = [];
+  if(prev){
+    Object.entries(byCode).forEach(([code,arr])=>{
+      const c = asOfWeek(arr, curr.wEnd), p = asOfWeek(arr, prev.wEnd);
+      if(!c || !p) return;
+      const fromCls = H.cls(p['Project Health']), toCls = H.cls(c['Project Health']);
+      if(fromCls === toCls) return;
+      transitions.push({
+        name: c['Project Name']||code, pm: c['PM Name']||'ไม่ระบุ',
+        from: H.label(p['Project Health']), to: H.label(c['Project Health']),
+        fromCls, toCls, worsened: sevRank[toCls] > sevRank[fromCls],
+      });
+    });
+    transitions.sort((a,b)=> b.worsened - a.worsened);
+  }
+  const worsenedN = transitions.filter(t=>t.worsened).length;
+  const improvedN = transitions.length - worsenedN;
+
+  // ความเร็วคืบหน้าเทียบแผน ต่อ PM (ใช้สถานะปัจจุบันจริง เทียบ ณ วันนี้)
+  const byPM = {};
+  list.forEach(p=>{ (byPM[p['PM Name']||'ไม่ระบุ'] ||= []).push(p); });
+  const todayD = new Date(); todayD.setHours(0,0,0,0);
+  function paceChip(pm){
+    const projs = byPM[pm] || [];
+    const deltas = projs.map(r=>{
+      const ps = parseD(r['Plan Start Date']) || parseD(r['Start Date']);
+      const pe = parseD(r['Plan End Date']) || parseD(r['End Date']);
+      const exp = expectedProgress(ps, pe, todayD);
+      return exp===null ? null : num(r['%Progress']) - exp;
+    }).filter(v=>v!==null);
+    if(!deltas.length) return null;
+    return deltas.reduce((a,b)=>a+b,0)/deltas.length;
+  }
+
   const rows = pmNames.map(pm=>{
     const c = curr.pmAgg[pm]; const p = prev ? prev.pmAgg[pm] : null;
     const cAvg = c ? c.sum/c.n : null;
@@ -1017,7 +1129,27 @@ function renderWow(list){
       const a = wk.pmAgg[pm];
       return a ? a.sum/a.n : null;
     });
-    return {pm, cAvg, pAvg, delta, spark, active: activeThisWeek[pm]||0, n: c ? c.n : 0, pAvgN: p ? p.n : null};
+    // โน้ตความคืบหน้ารายโครงการของ PM คนนี้ เทียบสัปดาห์นี้กับสัปดาห์ก่อน
+    const notes = Object.entries(byCode)
+      .map(([code,arr])=>{
+        const cur2 = asOfWeek(arr, curr.wEnd);
+        if(!cur2 || (cur2['PM Name']||'ไม่ระบุ') !== pm) return null;
+        const prev2 = prev ? asOfWeek(arr, prev.wEnd) : null;
+        const ps = parseD(cur2['Plan Start Date']) || parseD(cur2['Start Date']);
+        const pe = parseD(cur2['Plan End Date']) || parseD(cur2['End Date']);
+        const exp = expectedProgress(ps, pe, curr.wEnd);
+        return {
+          name: cur2['Project Name'] || code,
+          thisNote: (cur2['Progress Update']||'').trim(),
+          prevNote: prev2 ? (prev2['Progress Update']||'').trim() : null,
+          thisProg: num(cur2['%Progress']),
+          prevProg: prev2 ? num(prev2['%Progress']) : null,
+          isNew: !prev2,
+          expProg: exp,
+        };
+      }).filter(Boolean)
+      .sort((a,b)=> (a.thisNote===a.prevNote ? 1 : 0) - (b.thisNote===b.prevNote ? 1 : 0)); // โน้ตที่เปลี่ยนขึ้นก่อน
+    return {pm, cAvg, pAvg, delta, spark, active: activeThisWeek[pm]||0, n: c ? c.n : 0, pAvgN: p ? p.n : null, notes};
   }).sort((a,b)=>{
     const av = a.delta===null ? -999 : a.delta, bv = b.delta===null ? -999 : b.delta;
     return bv - av;
@@ -1026,6 +1158,62 @@ function renderWow(list){
   document.getElementById('wowCount').textContent = `${weeks.length} สัปดาห์`;
 
   const rangeLabel = `<div class="wow-range">เทียบสัปดาห์ <b>${fmtShort(curr.w)} - ${fmtShort(curr.wEnd)}</b> กับ <b>${prev ? fmtShort(prev.w)+' - '+fmtShort(prev.wEnd) : '-'}</b></div>`;
+
+  // --- ภาพรวมทั้งบริษัท (ไม่แยกราย PM) ---
+  const oAvgD = (prev && curr.overallAvg!==null && prev.overallAvg!==null) ? curr.overallAvg - prev.overallAvg : null;
+  const oRiskD = (prev) ? curr.riskValue - prev.riskValue : null;
+  const dChip = (d, unit, invert) => {
+    if(d===null) return `<span class="ov-d flat">ยังไม่มีคู่เทียบ</span>`;
+    const dir = Math.abs(d) < (unit==='pp'?0.05:1) ? 'flat' : (d>0 ? 'up' : 'down');
+    const cls = invert ? (dir==='up'?'down':dir==='down'?'up':'flat') : dir;
+    const arrow = dir==='up'?'▲':dir==='down'?'▼':'—';
+    const txt = unit==='pp' ? `${d>0?'+':''}${d.toFixed(1)} pp` : `${d>0?'+':''}${compact(d)}`;
+    return `<span class="ov-d ${cls}">${arrow} ${txt}</span>`;
+  };
+
+  const chW=740,chH=76,padL=4,padR=4,padT=8,padB=18;
+  const pts = weekPM.map(w=>w.overallAvg);
+  const idxs = pts.map((v,i)=>v===null?null:i).filter(i=>i!==null);
+  const chartSVG = idxs.length < 2 ? `<div class="empty" style="padding:16px 0">ข้อมูลไม่พอวาดกราฟภาพรวม</div>` : (()=>{
+    const x = i => padL + (i/(pts.length-1))*(chW-padL-padR);
+    const y = v => chH-padB - (v/100)*(chH-padT-padB);
+    const line = idxs.map(i=>`${x(i).toFixed(1)},${y(pts[i]).toFixed(1)}`).join(' ');
+    const area = `${x(idxs[0]).toFixed(1)},${(chH-padB).toFixed(1)} ${line} ${x(idxs[idxs.length-1]).toFixed(1)},${(chH-padB).toFixed(1)}`;
+    const step = Math.ceil(weekPM.length/6);
+    const labels = weekPM.map((w,i)=> (i%step===0 || i===weekPM.length-1)
+      ? `<text x="${x(i).toFixed(1)}" y="${chH-3}" font-size="9.5" fill="var(--faint)" text-anchor="middle" font-family="IBM Plex Mono">${fmtShort(w.w)}</text>` : '').join('');
+    const lastI = idxs[idxs.length-1];
+    return `<svg width="100%" height="${chH}" viewBox="0 0 ${chW} ${chH}" preserveAspectRatio="none">
+      <polygon points="${area}" fill="#2A4A9E" opacity="0.07"/>
+      <polyline points="${line}" fill="none" stroke="#2A4A9E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${x(lastI)}" cy="${y(pts[lastI])}" r="3.4" fill="#2A4A9E"/>
+      ${labels}
+    </svg>`;
+  })();
+
+  const overview = `<div class="wow-overview">
+    <div class="ov-stats">
+      <div class="ov-stat">
+        <div class="ov-l">ความคืบหน้าเฉลี่ยรวมทั้งบริษัท</div>
+        <div class="ov-v">${curr.overallAvg!==null?curr.overallAvg.toFixed(1)+'%':'-'}</div>
+        ${dChip(oAvgD,'pp')}
+      </div>
+      <div class="ov-stat">
+        <div class="ov-l">มูลค่าสัญญาที่มีความเสี่ยง</div>
+        <div class="ov-v">${compact(curr.riskValue)}</div>
+        ${dChip(oRiskD,'money',true)}
+      </div>
+      <div class="ov-stat">
+        <div class="ov-l">Health เปลี่ยนสถานะสัปดาห์นี้</div>
+        <div class="ov-v">${transitions.length}</div>
+        <span class="ov-d ${worsenedN?'down':'flat'}">${worsenedN} แย่ลง · ${improvedN} ดีขึ้น</span>
+      </div>
+    </div>
+    <div class="ov-chart">${chartSVG}</div>
+    ${transitions.length ? `<div class="ov-trans">${transitions.slice(0,8).map(t=>`
+      <span class="trans-chip ${t.worsened?'down':'up'}">${t.name} <b>${t.from} → ${t.to}</b></span>`).join('')}${
+      transitions.length>8 ? `<span class="trans-chip flat">+${transitions.length-8} เพิ่มเติม</span>` : ''}</div>` : ''}
+  </div>`;
 
   const sparkSVG = (pts) => {
     const vals = pts.filter(v=>v!==null);
@@ -1044,7 +1232,7 @@ function renderWow(list){
 
   const head = `<div class="wr head-row">
     <span>PM</span><span style="text-align:right">สัปดาห์นี้</span><span>เทรนด์ ${weekPM.length} สัปดาห์</span>
-    <span style="text-align:right">สัปดาห์ก่อน</span><span style="text-align:right">Δ</span><span style="text-align:right">อัปเดตสัปดาห์นี้</span>
+    <span style="text-align:right">สัปดาห์ก่อน</span><span style="text-align:right">Δ</span><span style="text-align:right">อัปเดตสัปดาห์นี้</span><span></span>
   </div>`;
 
   const body = rows.map(r=>{
@@ -1054,10 +1242,44 @@ function renderWow(list){
     const prevN = r.pAvgN;
     const countNote = (prevN!==null && prevN!==r.n)
       ? `<div class="wr-s" style="text-align:right;color:var(--faint)">โครงการ ${prevN}→${r.n}</div>` : '';
-    return `<div class="wr">
+
+    const pace = paceChip(r.pm);
+    const paceHtml = pace===null ? '' :
+      pace >= 5 ? `<span class="pace-chip ahead">⚡ เร็วกว่าแผน</span>` :
+      pace <= -10 ? `<span class="pace-chip behind">🐢 ช้ากว่าแผน</span>` :
+      `<span class="pace-chip onpace">✓ ตามแผน</span>`;
+
+    const notesHtml = r.notes.length ? r.notes.map(nt=>{
+      const progTxt = nt.prevProg!==null
+        ? `<b>${nt.prevProg.toFixed(0)}%</b> → <b>${nt.thisProg.toFixed(0)}%</b>`
+        : `<b>${nt.thisProg.toFixed(0)}%</b>`;
+      const prevRow = nt.isNew
+        ? `<div class="nd-row prev"><span class="nd-tag">ก่อน</span><span class="nd-txt nd-empty">— โครงการใหม่เข้ามาสัปดาห์นี้ —</span></div>`
+        : `<div class="nd-row prev"><span class="nd-tag">ก่อน</span><span class="nd-txt">${nt.prevNote || '<span class="nd-empty">ไม่มีบันทึก</span>'}</span></div>`;
+      const thisRow = `<div class="nd-row this"><span class="nd-tag">สัปดาห์นี้</span><span class="nd-txt">${nt.thisNote || '<span class="nd-empty">ไม่มีบันทึก</span>'}</span></div>`;
+      const changed = nt.thisNote !== nt.prevNote;
+      const paceLine = nt.expProg===null ? '' : (()=>{
+        const diff = nt.thisProg - nt.expProg;
+        const cls = diff>=5?'ahead':diff<=-10?'behind':'onpace';
+        const icon = cls==='ahead'?'⚡':cls==='behind'?'🐢':'✓';
+        const word = cls==='ahead'?'เร็วกว่าแผน':cls==='behind'?'ช้ากว่าแผน':'ตามแผน';
+        return `<div class="nd-row" style="margin-top:6px"><span class="nd-tag">แผน</span><span class="nd-txt" style="color:var(--faint)">ควรอยู่ที่ <b style="color:var(--ink-2)">${nt.expProg.toFixed(0)}%</b> — <span class="pace-chip ${cls}" style="margin-left:2px">${icon} ${word} (${diff>0?'+':''}${diff.toFixed(0)}pp)</span></span></div>`;
+      })();
+      const trans = transitions.find(t=>t.name===nt.name);
+      const transBadge = trans ? `<span class="nd-new" style="color:${trans.worsened?'var(--critical)':'var(--success)'};background:${trans.worsened?'var(--critical-tint)':'var(--success-tint)'}">${trans.from} → ${trans.to}</span>` : '';
+      return `<div class="nd">
+        <div class="nd-top">
+          <span class="nd-name">${nt.name}${nt.isNew?'<span class="nd-new">ใหม่</span>':(!changed?'<span class="nd-new" style="color:var(--faint);background:var(--neutral-tint)">ไม่เปลี่ยน</span>':'')}${transBadge}</span>
+          <span class="nd-prog">${progTxt}</span>
+        </div>
+        ${prevRow}${thisRow}${paceLine}
+      </div>`;
+    }).join('') : `<div class="nd-empty">ไม่มีโครงการที่มีบันทึกความคืบหน้าในช่วงนี้</div>`;
+
+    return `<div class="wr" data-pm="${r.pm.replace(/"/g,'&quot;')}">
       <div class="wr-who">
         <div class="av" style="background:${avatarColor(r.pm)}">${initials(r.pm)}</div>
-        <div style="min-width:0"><div class="wr-n">${r.pm}</div><div class="wr-s">${r.n} โครงการ</div></div>
+        <div style="min-width:0"><div class="wr-n">${r.pm}</div><div class="wr-s">${r.n} โครงการ ${paceHtml}</div></div>
       </div>
       <div class="wr-num">${r.cAvg!==null ? r.cAvg.toFixed(1)+'%' : '-'}</div>
       <div>${sparkSVG(r.spark)}</div>
@@ -1067,10 +1289,12 @@ function renderWow(list){
         ${countNote}
       </div>
       <div class="wr-active">${r.active>0 ? `<b>${r.active}</b> รายการ` : '<span style="color:var(--faint)">ไม่มีอัปเดต</span>'}</div>
-    </div>`;
+      <span class="wr-chev">${svg(I.chevron,'')}</span>
+    </div>
+    <div class="wr-detail">${notesHtml}</div>`;
   }).join('');
 
-  el.innerHTML = `<div class="wow-head">${rangeLabel}</div>${head}${body}`;
+  el.innerHTML = overview + `<div class="wow-head">${rangeLabel}</div>${head}${body}`;
 }
 
 function renderCards(list){
@@ -1136,6 +1360,16 @@ async function syncNow(){
 loadData();
 document.getElementById('syncBtn').addEventListener('click', syncNow);
 document.getElementById('winSel').addEventListener('change', ()=>renderGantt(applyFilters(ALL)));
+document.getElementById('wow').addEventListener('click', (e)=>{
+  const row = e.target.closest('.wr:not(.head-row)');
+  if(!row) return;
+  const detail = row.nextElementSibling;
+  if(!detail || !detail.classList.contains('wr-detail')) return;
+  const opening = !detail.classList.contains('open');
+  document.querySelectorAll('.wr-detail.open').forEach(d=>{ if(d!==detail){ d.classList.remove('open'); d.previousElementSibling.classList.remove('open'); }});
+  detail.classList.toggle('open', opening);
+  row.classList.toggle('open', opening);
+});
 </script>
 </body>
 </html>
