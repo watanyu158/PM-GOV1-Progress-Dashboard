@@ -195,6 +195,55 @@
   .money{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap;}
 
   /* ---------------- Gantt timeline ---------------- */
+  /* ---------------- Complexity Intelligence ---------------- */
+  .cx-sec{margin-top:18px;}
+  .cx-sec:first-child{margin-top:0;}
+  .cx-sec-title{
+    display:flex;align-items:center;gap:7px;font-family:'Plus Jakarta Sans',sans-serif;
+    font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:11px;
+  }
+  .cx-sec-title .n{
+    width:18px;height:18px;border-radius:5px;background:var(--brand-tint);color:var(--brand);
+    font-size:10px;font-weight:800;display:grid;place-items:center;flex:none;
+  }
+  .cx-sec-sub{font-size:11px;color:var(--faint);font-weight:400;margin-left:2px;}
+
+  .cx-bar-row{display:flex;align-items:center;gap:10px;padding:5px 0;}
+  .cx-bar-label{width:88px;font-size:11.5px;color:var(--ink-2);flex:none;}
+  .cx-bar-track{flex:1;height:16px;background:var(--bg-tint);border-radius:5px;overflow:hidden;}
+  .cx-bar-fill{height:100%;border-radius:5px;transition:width .4s;}
+  .cx-bar-count{width:60px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted);flex:none;}
+
+  .cx-tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  @media(max-width:720px){.cx-tiers{grid-template-columns:1fr;}}
+  .cx-tier{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:9px;padding:13px 15px;}
+  .cx-tier-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px;}
+  .cx-tier-h b{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:var(--ink);}
+  .cx-tier-h span{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--faint);}
+  .cx-tier-row{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-2);padding:3px 0;}
+  .cx-tier-row b{font-family:'IBM Plex Mono',monospace;font-weight:600;}
+
+  .cx-risk-row{
+    display:grid;grid-template-columns:26px minmax(150px,1.6fr) 90px 90px 76px 100px;
+    align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-soft);
+  }
+  .cx-risk-row:last-child{border-bottom:none;}
+  .cx-risk-rank{
+    width:24px;height:24px;border-radius:7px;display:grid;place-items:center;
+    font-size:11px;font-weight:800;background:var(--critical-tint);color:var(--critical);
+  }
+  .cx-risk-name{font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cx-risk-sub{font-size:10.5px;color:var(--faint);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cx-risk-score{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:800;color:var(--critical);text-align:right;}
+  .cx-risk-val{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted);text-align:right;}
+
+  .cx-track-row{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--line-soft);}
+  .cx-track-row:last-child{border-bottom:none;}
+  .cx-track-row .av{width:28px;height:28px;border-radius:8px;font-size:10px;flex:none;}
+  .cx-track-body{flex:1;min-width:0;}
+  .cx-track-n{font-size:12.5px;font-weight:600;color:var(--ink);}
+  .cx-track-s{font-size:11px;color:var(--faint);margin-top:1px;}
+
   /* ---------------- Week-over-Week: company overview ---------------- */
   .wow-overview{
     background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;
@@ -525,6 +574,17 @@
   <div class="panel">
     <div class="p-head">
       <div class="p-title">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+        Complexity Intelligence <span class="sep">-</span> <span class="th">วิเคราะห์ตามระดับความซับซ้อน</span>
+      </div>
+      <span class="p-count" id="cxCount"></span>
+    </div>
+    <div class="p-body"><div id="cx"></div></div>
+  </div>
+
+  <div class="panel">
+    <div class="p-head">
+      <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24"><path d="M3 6h18M3 12h12M3 18h7"/><circle cx="19" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg>
         Delivery Timeline <span class="sep">-</span> <span class="th">โครงการใกล้ครบกำหนด</span>
       </div>
@@ -786,10 +846,11 @@ function renderPM(list){
   const g = {};
   list.forEach(p=>{
     const pm = p['PM Name'] || 'ไม่ระบุ';
-    (g[pm] ||= {pm, team:p['Team']||'', n:0, sum:0, val:0, warn:0, crit:0});
+    (g[pm] ||= {pm, team:p['Team']||'', n:0, sum:0, val:0, warn:0, crit:0, cx:0});
     g[pm].n++;
     g[pm].sum += num(p['%Progress']);
     g[pm].val += num(p['PM Accountable Value']);
+    g[pm].cx += num(p['Complex Level']);
     const hc = H.cls(p['Project Health']);
     if(hc === 'critical') g[pm].crit++;
     else if(hc === 'warning') g[pm].warn++;
@@ -804,7 +865,7 @@ function renderPM(list){
         <div class="av" style="background:${avatarColor(r.pm)}">${initials(r.pm)}</div>
         <div><div class="who-n">${r.pm}</div><div class="who-t">${r.team}</div></div>
       </div></td>
-      <td class="r"><span class="pct">${r.n}</span></td>
+      <td class="r"><span class="pct">${r.n}</span><div class="who-t" style="margin-top:2px">Σ Complexity ${r.cx}</div></td>
       <td>
         <span class="pct">${avg.toFixed(1)}%</span>
         <div class="bar"><i style="width:${Math.min(avg,100)}%;background:${col}"></i></div>
@@ -1300,6 +1361,138 @@ function renderWow(list){
   el.innerHTML = overview + `<div class="wow-head">${rangeLabel}</div>${head}${body}`;
 }
 
+function renderComplexity(list){
+  const el = document.getElementById('cx');
+  if(!list.length){
+    el.innerHTML = `<div class="empty">ไม่มีโครงการตรงตามตัวกรอง</div>`;
+    document.getElementById('cxCount').textContent = '';
+    return;
+  }
+  const today = new Date(); today.setHours(0,0,0,0);
+  const sevRank = {success:0, neutral:1, warning:2, critical:3};
+  const tierOf = cx => cx<=1 ? 'low' : cx<=3 ? 'mid' : 'high';
+  const tierLabel = {low:'ต่ำ (0-1)', mid:'กลาง (2-3)', high:'สูง (4-5)'};
+  const tierColor = {low:'#128A5E', mid:'#B87A0A', high:'#C4384A'};
+
+  const withCx = list.map(p=>{
+    const cx = num(p['Complex Level']);
+    const cls = H.cls(p['Project Health']);
+    const ps = parseD(p['Plan Start Date']) || parseD(p['Start Date']);
+    const pe = parseD(p['Plan End Date']) || parseD(p['End Date']);
+    const exp = expectedProgress(ps, pe, today);
+    const paceDev = exp===null ? null : (num(p['%Progress']) - exp);
+    return {p, cx, cls, sev: sevRank[cls], paceDev, tier: tierOf(cx), risk: sevRank[cls]*cx};
+  });
+
+  document.getElementById('cxCount').textContent = `${list.length} โครงการ`;
+
+  // --- 5. การกระจายตาม Complex Level (0-5) ---
+  const distCounts = [0,1,2,3,4,5].map(lv => withCx.filter(x=>x.cx===lv).length);
+  const distMax = Math.max(...distCounts, 1);
+  const distHtml = [0,1,2,3,4,5].map(lv=>{
+    const n = distCounts[lv];
+    const pct = (n/distMax)*100;
+    const col = lv<=1?'#128A5E':lv<=3?'#B87A0A':'#C4384A';
+    return `<div class="cx-bar-row">
+      <div class="cx-bar-label">Level ${lv}</div>
+      <div class="cx-bar-track"><div class="cx-bar-fill" style="width:${pct}%;background:${col}"></div></div>
+      <div class="cx-bar-count">${n} โครงการ</div>
+    </div>`;
+  }).join('');
+
+  // --- 2. ความสัมพันธ์กับ Health และ Pace ตามระดับความซับซ้อน ---
+  const tiers = ['low','mid','high'].map(t=>{
+    const items = withCx.filter(x=>x.tier===t);
+    const n = items.length;
+    const atRisk = items.filter(x=>['warning','critical'].includes(x.cls)).length;
+    const paceVals = items.map(x=>x.paceDev).filter(v=>v!==null);
+    const avgPace = paceVals.length ? paceVals.reduce((a,b)=>a+b,0)/paceVals.length : null;
+    return {t, n, atRiskPct: n ? (atRisk/n*100) : null, avgPace};
+  });
+  const tiersHtml = tiers.map(tr=>`
+    <div class="cx-tier">
+      <div class="cx-tier-h"><b>${tierLabel[tr.t]}</b><span style="color:${tierColor[tr.t]}">●</span></div>
+      <div class="cx-tier-row"><span>จำนวนโครงการ</span><b>${tr.n}</b></div>
+      <div class="cx-tier-row"><span>สัดส่วนเสี่ยง (Warning/Critical)</span><b style="color:${tr.atRiskPct===null?'var(--faint)':tr.atRiskPct>=40?'var(--critical)':tr.atRiskPct>0?'var(--warning)':'var(--success)'}">${tr.atRiskPct===null?'-':tr.atRiskPct.toFixed(0)+'%'}</b></div>
+      <div class="cx-tier-row"><span>Pace เฉลี่ยเทียบแผน</span><b style="color:${tr.avgPace===null?'var(--faint)':tr.avgPace<-5?'var(--critical)':tr.avgPace>5?'var(--success)':'var(--ink-2)'}">${tr.avgPace===null?'-':(tr.avgPace>0?'+':'')+tr.avgPace.toFixed(1)+'pp'}</b></div>
+    </div>`).join('');
+
+  // --- 3. Top Risk Score (Health severity × Complex Level) ---
+  const topRisk = withCx.filter(x=>x.risk>0).sort((a,b)=> b.risk-a.risk || num(b.p['Contract Value'])-num(a.p['Contract Value'])).slice(0,6);
+  const riskHtml = topRisk.length ? topRisk.map((x,i)=>`
+    <div class="cx-risk-row">
+      <div class="cx-risk-rank">${i+1}</div>
+      <div>
+        <div class="cx-risk-name">${x.p['Project Name']||'-'}</div>
+        <div class="cx-risk-sub">${x.p['PM Name']||'-'} · ${x.p['Customer']||'-'}</div>
+      </div>
+      <div style="text-align:center"><span class="chip ${x.cls}">${svg(H.icon(x.cls))}${H.label(x.p['Project Health'])}</span></div>
+      <div style="text-align:center"><span class="tag">Complex ${x.cx}</span></div>
+      <div class="cx-risk-score">${x.risk}</div>
+      <div class="cx-risk-val">${compact(x.p['Contract Value'])}</div>
+    </div>`).join('') : `<div class="empty">ไม่มีโครงการที่มีความเสี่ยงตอนนี้</div>`;
+
+  // --- 4. Track record ของ PM กับโครงการซับซ้อนสูง (Complex >= 4) ---
+  const byPM = {};
+  withCx.forEach(x=>{ const pm = x.p['PM Name']||'ไม่ระบุ'; (byPM[pm] ||= []).push(x); });
+  const track = Object.entries(byPM).map(([pm,items])=>{
+    const complex = items.filter(x=>x.cx>=4);
+    if(!complex.length) return {pm, n:0};
+    const atRisk = complex.filter(x=>['warning','critical'].includes(x.cls)).length;
+    const goodPct = ((complex.length-atRisk)/complex.length)*100;
+    return {pm, n: complex.length, goodPct, atRisk};
+  }).sort((a,b)=> b.n-a.n);
+  const trackHtml = track.map(t=>{
+    const badge = t.n===0
+      ? `<span class="pace-chip onpace" style="background:var(--neutral-tint);color:var(--faint)">ยังไม่เคยรับงานซับซ้อนสูง</span>`
+      : t.goodPct>=70
+        ? `<span class="pace-chip ahead">✓ ถนัดงานซับซ้อน (${t.n} โครงการ, เสี่ยง ${t.atRisk})</span>`
+        : `<span class="pace-chip behind">⚠ ต้องการซัพพอร์ต (${t.n} โครงการ, เสี่ยง ${t.atRisk})</span>`;
+    return `<div class="cx-track-row">
+      <div class="av" style="background:${avatarColor(t.pm)}">${initials(t.pm)}</div>
+      <div class="cx-track-body"><div class="cx-track-n">${t.pm}</div></div>
+      ${badge}
+    </div>`;
+  }).join('');
+
+  // --- 5b. ความซับซ้อนของโครงการใหม่ vs โครงการเดิมที่ถืออยู่แล้ว ---
+  const codes = new Set(list.map(p=>p['Project Code']));
+  const byCode = {};
+  HIST.filter(r=>codes.has(r['Project Code'])).forEach(r=>{ (byCode[r['Project Code']] ||= []).push(r); });
+  const isNewProj = code => (byCode[code]||[]).length <= 1;
+  const newItems = withCx.filter(x=>isNewProj(x.p['Project Code']));
+  const oldItems = withCx.filter(x=>!isNewProj(x.p['Project Code']));
+  const avgCx = arr => arr.length ? arr.reduce((s,x)=>s+x.cx,0)/arr.length : null;
+  const newAvg = avgCx(newItems), oldAvg = avgCx(oldItems);
+
+  el.innerHTML = `
+    <div class="cx-sec">
+      <div class="cx-sec-title"><span class="n">5</span>การกระจายตามระดับความซับซ้อน <span class="cx-sec-sub">(ทั้งหมด ${list.length} โครงการที่กรองอยู่)</span></div>
+      ${distHtml}
+      ${(newAvg!==null || oldAvg!==null) ? `<div style="margin-top:10px;font-size:11.5px;color:var(--muted)">
+        โครงการใหม่ล่าสุด (${newItems.length}): ความซับซ้อนเฉลี่ย <b style="color:var(--ink)">${newAvg!==null?newAvg.toFixed(1):'-'}</b>
+        &nbsp;·&nbsp; โครงการเดิม (${oldItems.length}): เฉลี่ย <b style="color:var(--ink)">${oldAvg!==null?oldAvg.toFixed(1):'-'}</b>
+        ${(newAvg!==null && oldAvg!==null) ? (newAvg>oldAvg ? `<span style="color:var(--warning)"> — งานใหม่ที่เข้ามาซับซ้อนกว่าเดิม</span>` : newAvg<oldAvg ? `<span style="color:var(--success)"> — งานใหม่ที่เข้ามาซับซ้อนน้อยกว่าเดิม</span>` : '') : ''}
+      </div>` : ''}
+    </div>
+
+    <div class="cx-sec">
+      <div class="cx-sec-title"><span class="n">2</span>ความสัมพันธ์กับ Health และความเร็วคืบหน้า</div>
+      <div class="cx-tiers">${tiersHtml}</div>
+    </div>
+
+    <div class="cx-sec">
+      <div class="cx-sec-title"><span class="n">3</span>Top Risk Score <span class="cx-sec-sub">(Health severity × Complex Level)</span></div>
+      ${riskHtml}
+    </div>
+
+    <div class="cx-sec">
+      <div class="cx-sec-title"><span class="n">4</span>ผลงาน PM กับโครงการซับซ้อนสูง <span class="cx-sec-sub">(Complex Level ≥ 4)</span></div>
+      ${trackHtml}
+    </div>
+  `;
+}
+
 function renderCards(list){
   document.getElementById('projCount').textContent = `${list.length} / ${ALL.length}`;
   const el = document.getElementById('grid');
@@ -1344,7 +1537,7 @@ function render(){
 }
 function renderFiltered(){
   const f = applyFilters(ALL);
-  renderKPIs(f); renderPM(f); renderDonut(f); renderWow(f); renderGantt(f); renderFree(f); renderCards(f);
+  renderKPIs(f); renderPM(f); renderDonut(f); renderWow(f); renderComplexity(f); renderGantt(f); renderFree(f); renderCards(f);
 }
 
 async function syncNow(){
