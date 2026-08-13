@@ -195,6 +195,41 @@
   .money{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap;}
 
   /* ---------------- Gantt timeline ---------------- */
+  /* ---------------- Week-over-Week ---------------- */
+  .wow-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+  .wow-range{font-size:11.5px;color:var(--faint);}
+  .wow-range b{color:var(--ink-2);font-weight:600;}
+  .wr{
+    display:grid;grid-template-columns:minmax(150px,1.1fr) 96px minmax(90px,1.4fr) 78px 78px 96px;
+    align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-soft);
+  }
+  .wr:last-child{border-bottom:none;}
+  .wr.head-row{padding:0 0 9px;border-bottom:1px solid var(--line);}
+  .wr.head-row span{font-size:10.5px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;}
+  .wr-who{display:flex;align-items:center;gap:9px;min-width:0;}
+  .wr-who .av{width:30px;height:30px;border-radius:8px;font-size:10.5px;}
+  .wr-n{font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .wr-s{font-size:10.5px;color:var(--faint);margin-top:1px;}
+  .wr-num{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--ink-2);text-align:right;}
+  .wr-delta{
+    display:inline-flex;align-items:center;gap:4px;font-family:'IBM Plex Mono',monospace;
+    font-size:12px;font-weight:700;padding:3px 8px;border-radius:20px;justify-self:end;white-space:nowrap;
+  }
+  .wr-delta.up{background:var(--success-tint);color:var(--success);}
+  .wr-delta.down{background:var(--critical-tint);color:var(--critical);}
+  .wr-delta.flat{background:var(--neutral-tint);color:var(--neutral);}
+  .wr-delta svg{width:11px;height:11px;stroke-width:2.6;}
+  .wr-active{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;text-align:right;
+    color:var(--muted);white-space:nowrap;
+  }
+  .wr-active b{color:var(--brand);}
+  @media(max-width:900px){
+    .wr{grid-template-columns:1fr 74px 84px 66px;}
+    .wr .wr-spark, .wr .wr-active{display:none;}
+    .wr.head-row .wr-spark, .wr.head-row .wr-active{display:none;}
+  }
+
   /* ---------------- PM availability runway ---------------- */
   .fr{
     display:grid;grid-template-columns:30px minmax(150px,1.05fr) minmax(160px,2fr) 116px;
@@ -413,6 +448,17 @@
   <div class="panel">
     <div class="p-head">
       <div class="p-title">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>
+        Week-over-Week <span class="sep">-</span> <span class="th">เทียบความคืบหน้ารายสัปดาห์ต่อ PM</span>
+      </div>
+      <span class="p-count" id="wowCount"></span>
+    </div>
+    <div class="p-body"><div id="wow"></div></div>
+  </div>
+
+  <div class="panel">
+    <div class="p-head">
+      <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24"><path d="M3 6h18M3 12h12M3 18h7"/><circle cx="19" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg>
         Delivery Timeline <span class="sep">-</span> <span class="th">โครงการใกล้ครบกำหนด</span>
       </div>
@@ -554,8 +600,25 @@ const DAY = 86400000;
 const fmtDObj = d => d.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'});
 const uniq = a => [...new Set(a.filter(v=>v!==undefined && v!==null && v!==''))];
 
+// ไฟล์ Excel ตอนนี้ "ต่อท้าย" แถวใหม่ทุกสัปดาห์แทนที่จะเขียนทับ (เดียวกัน Project Code ซ้ำได้หลายแถว)
+// ทุกมุมมองหลัก (KPI, ตาราง PM, Health, Gantt, Availability, การ์ด) ต้องใช้ "แถวล่าสุด" ต่อโครงการเท่านั้น
+// ส่วนกราฟ Week-over-Week จะใช้ประวัติทั้งหมดแยกต่างหาก
+function latestPerProject(rows){
+  const m = new Map();
+  rows.forEach((r, idx)=>{
+    const code = r['Project Code'] || `__row${idx}`;
+    const d = parseD(r['Update Date']);
+    const cur = m.get(code);
+    if(!cur){ m.set(code, {r, d, idx}); return; }
+    if(d && (!cur.d || d > cur.d)) m.set(code, {r, d, idx});
+    else if(!d && !cur.d && idx > cur.idx) m.set(code, {r, d, idx});
+  });
+  return [...m.values()].map(v=>v.r);
+}
+
 /* ---------- state ---------- */
 let ALL = [];
+let HIST = [];
 let filters = { team:'', vp:'', pm:'', status:'', health:'' };
 
 async function loadData(){
@@ -565,13 +628,15 @@ async function loadData(){
     const j = await res.json();
     const rows = j.rows || j;
     if(Array.isArray(rows) && rows.length){
-      ALL = rows.map(normRow);
+      HIST = rows.map(normRow);
+      ALL = latestPerProject(HIST);
       setSource(true, j.updatedAt);
       render(); return;
     }
     throw new Error('empty');
   }catch(e){
-    ALL = SEED_DATA.map(normRow);
+    HIST = SEED_DATA.map(normRow);
+    ALL = latestPerProject(HIST);
     setSource(false, null);
     render();
   }
@@ -876,6 +941,138 @@ function renderFree(list){
   }).join('');
 }
 
+function weekStart(d){
+  const x = new Date(d); const dow = (x.getDay()+6)%7; // จันทร์ = 0
+  x.setDate(x.getDate()-dow); x.setHours(0,0,0,0);
+  return x;
+}
+const fmtShort = d => d.toLocaleDateString('th-TH',{day:'2-digit',month:'short'});
+
+function renderWow(list){
+  const el = document.getElementById('wow');
+  const codes = new Set(list.map(p=>p['Project Code']));
+  // ใช้ประวัติทั้งหมด (ทุกแถวที่เคยเพิ่มเข้ามา) เฉพาะโครงการที่ผ่านตัวกรองปัจจุบัน
+  const hist = HIST.filter(r => codes.has(r['Project Code']) && parseD(r['Update Date']));
+
+  if(!hist.length){
+    el.innerHTML = `<div class="empty">ยังไม่มีประวัติ Update Date ให้เทียบรายสัปดาห์</div>`;
+    document.getElementById('wowCount').textContent = '';
+    return;
+  }
+
+  const dates = hist.map(r=>parseD(r['Update Date']));
+  const today = new Date(); today.setHours(0,0,0,0);
+  const w0 = weekStart(Math.min(...dates));
+  const wLatest = weekStart(Math.max(Math.max(...dates), today));
+
+  // สร้างรายการ "จุดเริ่มต้นสัปดาห์" ทุกสัปดาห์ตั้งแต่ข้อมูลแรกสุด ถึงสัปดาห์ปัจจุบัน
+  const weeks = [];
+  for(let w=new Date(w0); w<=wLatest; w.setDate(w.getDate()+7)) weeks.push(new Date(w));
+  const last6 = weeks.slice(-6); // แสดง sparkline ย้อนหลังไม่เกิน 6 สัปดาห์
+
+  // สำหรับแต่ละสัปดาห์ หาสถานะ "ล่าสุด ณ ตอนนั้น" ของแต่ละโครงการ (carry-forward)
+  // แล้วรวมเป็นค่าเฉลี่ยความคืบหน้า ต่อ PM
+  const byCode = {};
+  hist.forEach(r=>{ (byCode[r['Project Code']] ||= []).push(r); });
+  Object.values(byCode).forEach(arr=>arr.sort((a,b)=>parseD(a['Update Date'])-parseD(b['Update Date'])));
+
+  const weekPM = last6.map(w=>{
+    const wEnd = new Date(w); wEnd.setDate(wEnd.getDate()+6); wEnd.setHours(23,59,59,999);
+    const pmAgg = {}; // pm -> {sum, n}
+    Object.values(byCode).forEach(arr=>{
+      let asOf = null;
+      for(const r of arr){ if(parseD(r['Update Date']) <= wEnd) asOf = r; else break; }
+      if(!asOf) return;
+      const pm = asOf['PM Name'] || 'ไม่ระบุ';
+      (pmAgg[pm] ||= {sum:0,n:0}); pmAgg[pm].sum += num(asOf['%Progress']); pmAgg[pm].n++;
+    });
+    return {w, wEnd, pmAgg};
+  });
+
+  const curr = weekPM[weekPM.length-1];
+  const prev = weekPM.length>1 ? weekPM[weekPM.length-2] : null;
+
+  // จำนวนแถวที่ "อัปเดตจริง" ในสัปดาห์ล่าสุด (ไม่ใช่ carry-forward) ต่อ PM
+  const currWEnd = curr.wEnd;
+  const currWStart = curr.w;
+  const activeThisWeek = {};
+  hist.forEach(r=>{
+    const d = parseD(r['Update Date']);
+    if(d>=currWStart && d<=currWEnd){
+      const pm = r['PM Name']||'ไม่ระบุ';
+      activeThisWeek[pm] = (activeThisWeek[pm]||0)+1;
+    }
+  });
+
+  const pmNames = uniq(list.map(p=>p['PM Name'])).length
+    ? uniq(list.map(p=>p['PM Name']))
+    : Object.keys(curr.pmAgg);
+
+  const rows = pmNames.map(pm=>{
+    const c = curr.pmAgg[pm]; const p = prev ? prev.pmAgg[pm] : null;
+    const cAvg = c ? c.sum/c.n : null;
+    const pAvg = p ? p.sum/p.n : null;
+    const delta = (cAvg!==null && pAvg!==null) ? (cAvg - pAvg) : null;
+    const spark = weekPM.map(wk => {
+      const a = wk.pmAgg[pm];
+      return a ? a.sum/a.n : null;
+    });
+    return {pm, cAvg, pAvg, delta, spark, active: activeThisWeek[pm]||0, n: c ? c.n : 0, pAvgN: p ? p.n : null};
+  }).sort((a,b)=>{
+    const av = a.delta===null ? -999 : a.delta, bv = b.delta===null ? -999 : b.delta;
+    return bv - av;
+  });
+
+  document.getElementById('wowCount').textContent = `${weeks.length} สัปดาห์`;
+
+  const rangeLabel = `<div class="wow-range">เทียบสัปดาห์ <b>${fmtShort(curr.w)} - ${fmtShort(curr.wEnd)}</b> กับ <b>${prev ? fmtShort(prev.w)+' - '+fmtShort(prev.wEnd) : '-'}</b></div>`;
+
+  const sparkSVG = (pts) => {
+    const vals = pts.filter(v=>v!==null);
+    if(vals.length < 2) return `<span style="font-size:11px;color:var(--faint)">ข้อมูลไม่พอวาดกราฟ</span>`;
+    const W=90,H=26,pad=3;
+    const idxs = pts.map((v,i)=>v===null?null:i).filter(i=>i!==null);
+    const x = i => pad + (i/(pts.length-1))*(W-pad*2);
+    const y = v => H-pad - ((v-0)/100)*(H-pad*2);
+    const poly = idxs.map(i=>`${x(i).toFixed(1)},${y(pts[i]).toFixed(1)}`).join(' ');
+    const lastI = idxs[idxs.length-1], lastV = pts[lastI];
+    return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+      <polyline points="${poly}" fill="none" stroke="#2A4A9E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${x(lastI)}" cy="${y(lastV)}" r="2.6" fill="#2A4A9E"/>
+    </svg>`;
+  };
+
+  const head = `<div class="wr head-row">
+    <span>PM</span><span style="text-align:right">สัปดาห์นี้</span><span>เทรนด์ ${weekPM.length} สัปดาห์</span>
+    <span style="text-align:right">สัปดาห์ก่อน</span><span style="text-align:right">Δ</span><span style="text-align:right">อัปเดตสัปดาห์นี้</span>
+  </div>`;
+
+  const body = rows.map(r=>{
+    const dCls = r.delta===null ? 'flat' : r.delta>0.05 ? 'up' : r.delta<-0.05 ? 'down' : 'flat';
+    const dIcon = dCls==='up' ? '<path d="M18 15l-6-6-6 6"/>' : dCls==='down' ? '<path d="M6 9l6 6 6-6"/>' : '<path d="M5 12h14"/>';
+    const dTxt = r.delta===null ? 'ยังไม่มีคู่เทียบ' : `${r.delta>0?'+':''}${r.delta.toFixed(1)} pp`;
+    const prevN = r.pAvgN;
+    const countNote = (prevN!==null && prevN!==r.n)
+      ? `<div class="wr-s" style="text-align:right;color:var(--faint)">โครงการ ${prevN}→${r.n}</div>` : '';
+    return `<div class="wr">
+      <div class="wr-who">
+        <div class="av" style="background:${avatarColor(r.pm)}">${initials(r.pm)}</div>
+        <div style="min-width:0"><div class="wr-n">${r.pm}</div><div class="wr-s">${r.n} โครงการ</div></div>
+      </div>
+      <div class="wr-num">${r.cAvg!==null ? r.cAvg.toFixed(1)+'%' : '-'}</div>
+      <div>${sparkSVG(r.spark)}</div>
+      <div class="wr-num">${r.pAvg!==null ? r.pAvg.toFixed(1)+'%' : '-'}</div>
+      <div style="text-align:right">
+        <span class="wr-delta ${dCls}">${svg(dIcon,'')}${dTxt}</span>
+        ${countNote}
+      </div>
+      <div class="wr-active">${r.active>0 ? `<b>${r.active}</b> รายการ` : '<span style="color:var(--faint)">ไม่มีอัปเดต</span>'}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="wow-head">${rangeLabel}</div>${head}${body}`;
+}
+
 function renderCards(list){
   document.getElementById('projCount').textContent = `${list.length} / ${ALL.length}`;
   const el = document.getElementById('grid');
@@ -920,7 +1117,7 @@ function render(){
 }
 function renderFiltered(){
   const f = applyFilters(ALL);
-  renderKPIs(f); renderPM(f); renderDonut(f); renderGantt(f); renderFree(f); renderCards(f);
+  renderKPIs(f); renderPM(f); renderDonut(f); renderWow(f); renderGantt(f); renderFree(f); renderCards(f);
 }
 
 async function syncNow(){
