@@ -636,9 +636,11 @@ function num(v){ const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(
 function thb(v){ return new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(num(v)); }
 function compact(v){
   const n = num(v);
-  if (n >= 1e6) return (n/1e6).toFixed(1).replace(/\.0$/,'') + 'M';
-  if (n >= 1e3) return (n/1e3).toFixed(0) + 'K';
-  return String(n);
+  const sign = n < 0 ? '-' : '';
+  const a = Math.abs(n);
+  if (a >= 1e6) return sign + (a/1e6).toFixed(1).replace(/\.0$/,'') + 'M';
+  if (a >= 1e3) return sign + (a/1e3).toFixed(0) + 'K';
+  return sign + a.toFixed(0);
 }
 function fmtDate(v){
   if(!v) return '-';
@@ -1006,11 +1008,6 @@ function renderFree(list){
   }).join('');
 }
 
-function weekStart(d){
-  const x = new Date(d); const dow = (x.getDay()+6)%7; // จันทร์ = 0
-  x.setDate(x.getDate()-dow); x.setHours(0,0,0,0);
-  return x;
-}
 const fmtShort = d => d.toLocaleDateString('th-TH',{day:'2-digit',month:'short'});
 // ความคืบหน้าที่ "ควรจะเป็น" ตามแผน ถ้าไล่ตามเวลาเป็นเส้นตรงจาก Plan Start ถึง Plan End
 function expectedProgress(ps, pe, asOf){
@@ -1026,118 +1023,102 @@ function renderWow(list){
   const hist = HIST.filter(r => codes.has(r['Project Code']) && parseD(r['Update Date']));
 
   if(!hist.length){
-    el.innerHTML = `<div class="empty">ยังไม่มีประวัติ Update Date ให้เทียบรายสัปดาห์</div>`;
+    el.innerHTML = `<div class="empty">ยังไม่มีประวัติ Update Date ให้เทียบรอบอัปเดต</div>`;
     document.getElementById('wowCount').textContent = '';
     return;
   }
 
-  const dates = hist.map(r=>parseD(r['Update Date']));
   const today = new Date(); today.setHours(0,0,0,0);
-  const w0 = weekStart(Math.min(...dates));
-  const wLatest = weekStart(Math.max(Math.max(...dates), today));
-
-  // สร้างรายการ "จุดเริ่มต้นสัปดาห์" ทุกสัปดาห์ตั้งแต่ข้อมูลแรกสุด ถึงสัปดาห์ปัจจุบัน
-  const weeks = [];
-  for(let w=new Date(w0); w<=wLatest; w.setDate(w.getDate()+7)) weeks.push(new Date(w));
-  const last6 = weeks.slice(-6); // แสดง sparkline ย้อนหลังไม่เกิน 6 สัปดาห์
-
-  // สำหรับแต่ละสัปดาห์ หาสถานะ "ล่าสุด ณ ตอนนั้น" ของแต่ละโครงการ (carry-forward)
-  // แล้วรวมเป็นค่าเฉลี่ยความคืบหน้า ต่อ PM
   const byCode = {};
   hist.forEach(r=>{ (byCode[r['Project Code']] ||= []).push(r); });
   Object.values(byCode).forEach(arr=>arr.sort((a,b)=>parseD(a['Update Date'])-parseD(b['Update Date'])));
 
-  const weekPM = last6.map(w=>{
-    const wEnd = new Date(w); wEnd.setDate(wEnd.getDate()+6); wEnd.setHours(23,59,59,999);
-    const pmAgg = {}; // pm -> {sum, n}
-    let overallSum=0, overallN=0, riskValue=0;
+  // "รอบ" = นับถอยหลังจากรายการล่าสุดของแต่ละโครงการ (ไม่ใช่ปฏิทินสัปดาห์)
+  // รอบ 0 = ค่าล่าสุดที่แต่ละโครงการเคยรายงาน, รอบ 1 = ค่าก่อนหน้านั้น ฯลฯ
+  // วิธีนี้เทียบ "รายงานล่าสุด vs รายงานก่อนหน้า" ของแต่ละโครงการได้ตรงจริง ต่อให้แต่ละคนอัปเดตไม่พร้อมกัน
+  const roundsDesc = []; // index 0 = ล่าสุด, ไล่ย้อนหลังไป
+  for(let r=0; r<6; r++){
+    let any=false, overallSum=0, overallN=0, riskValue=0; const pmAgg={}; const dates=[];
     Object.values(byCode).forEach(arr=>{
-      let asOf = null;
-      for(const r of arr){ if(parseD(r['Update Date']) <= wEnd) asOf = r; else break; }
-      if(!asOf) return;
-      const pm = asOf['PM Name'] || 'ไม่ระบุ';
-      (pmAgg[pm] ||= {sum:0,n:0}); pmAgg[pm].sum += num(asOf['%Progress']); pmAgg[pm].n++;
-      overallSum += num(asOf['%Progress']); overallN++;
-      if(['warning','critical'].includes(H.cls(asOf['Project Health']))) riskValue += num(asOf['Contract Value']);
+      const idx = arr.length-1-r;
+      if(idx<0) return;
+      any = true;
+      const e = arr[idx];
+      overallSum += num(e['%Progress']); overallN++;
+      dates.push(parseD(e['Update Date']));
+      const pm = e['PM Name'] || 'ไม่ระบุ';
+      (pmAgg[pm] ||= {sum:0,n:0}); pmAgg[pm].sum += num(e['%Progress']); pmAgg[pm].n++;
+      if(['warning','critical'].includes(H.cls(e['Project Health']))) riskValue += num(e['Contract Value']);
     });
-    return {w, wEnd, pmAgg, overallAvg: overallN ? overallSum/overallN : null, riskValue};
-  });
+    if(!any) break;
+    roundsDesc.push({ pmAgg, overallAvg: overallN ? overallSum/overallN : null, riskValue, labelDate: new Date(Math.max(...dates)) });
+  }
+  const weekPM = roundsDesc.slice().reverse(); // เรียงเก่า -> ใหม่ สำหรับกราฟเทรนด์
 
   const curr = weekPM[weekPM.length-1];
   const prev = weekPM.length>1 ? weekPM[weekPM.length-2] : null;
-
-  // จำนวนแถวที่ "อัปเดตจริง" ในสัปดาห์ล่าสุด (ไม่ใช่ carry-forward) ต่อ PM
-  const currWEnd = curr.wEnd;
-  const currWStart = curr.w;
-  const activeThisWeek = {};
-  hist.forEach(r=>{
-    const d = parseD(r['Update Date']);
-    if(d>=currWStart && d<=currWEnd){
-      const pm = r['PM Name']||'ไม่ระบุ';
-      activeThisWeek[pm] = (activeThisWeek[pm]||0)+1;
-    }
-  });
 
   const pmNames = uniq(list.map(p=>p['PM Name'])).length
     ? uniq(list.map(p=>p['PM Name']))
     : Object.keys(curr.pmAgg);
 
-  const asOfWeek = (arr, wEnd) => { let r=null; for(const x of arr){ if(parseD(x['Update Date'])<=wEnd) r=x; else break; } return r; };
-
-  // Health เปลี่ยนสถานะระหว่าง 2 สัปดาห์ (เช่น Normal -> Warning)
+  // Health เปลี่ยนสถานะ: เทียบรายการล่าสุด vs รายการก่อนหน้าของแต่ละโครงการ
   const sevRank = {success:0, neutral:1, warning:2, critical:3};
   const transitions = [];
-  if(prev){
-    Object.entries(byCode).forEach(([code,arr])=>{
-      const c = asOfWeek(arr, curr.wEnd), p = asOfWeek(arr, prev.wEnd);
-      if(!c || !p) return;
-      const fromCls = H.cls(p['Project Health']), toCls = H.cls(c['Project Health']);
-      if(fromCls === toCls) return;
-      transitions.push({
-        name: c['Project Name']||code, pm: c['PM Name']||'ไม่ระบุ',
-        from: H.label(p['Project Health']), to: H.label(c['Project Health']),
-        fromCls, toCls, worsened: sevRank[toCls] > sevRank[fromCls],
-      });
+  Object.entries(byCode).forEach(([code,arr])=>{
+    if(arr.length<2) return;
+    const c = arr[arr.length-1], p = arr[arr.length-2];
+    const fromCls = H.cls(p['Project Health']), toCls = H.cls(c['Project Health']);
+    if(fromCls === toCls) return;
+    transitions.push({
+      name: c['Project Name']||code, pm: c['PM Name']||'ไม่ระบุ',
+      from: H.label(p['Project Health']), to: H.label(c['Project Health']),
+      fromCls, toCls, worsened: sevRank[toCls] > sevRank[fromCls],
     });
-    transitions.sort((a,b)=> b.worsened - a.worsened);
-  }
+  });
+  transitions.sort((a,b)=> b.worsened - a.worsened);
   const worsenedN = transitions.filter(t=>t.worsened).length;
   const improvedN = transitions.length - worsenedN;
 
   // ความเร็วคืบหน้าเทียบแผน ต่อ PM (ใช้สถานะปัจจุบันจริง เทียบ ณ วันนี้)
   const byPM = {};
   list.forEach(p=>{ (byPM[p['PM Name']||'ไม่ระบุ'] ||= []).push(p); });
-  const todayD = new Date(); todayD.setHours(0,0,0,0);
   function paceChip(pm){
     const projs = byPM[pm] || [];
     const deltas = projs.map(r=>{
       const ps = parseD(r['Plan Start Date']) || parseD(r['Start Date']);
       const pe = parseD(r['Plan End Date']) || parseD(r['End Date']);
-      const exp = expectedProgress(ps, pe, todayD);
+      const exp = expectedProgress(ps, pe, today);
       return exp===null ? null : num(r['%Progress']) - exp;
     }).filter(v=>v!==null);
     if(!deltas.length) return null;
     return deltas.reduce((a,b)=>a+b,0)/deltas.length;
   }
 
+  // วันที่อัปเดตล่าสุดจริงของแต่ละ PM (จากโครงการปัจจุบันของเขา) — ไว้บอกว่า "เงียบไปกี่วันแล้ว"
+  const lastSeenPM = {};
+  list.forEach(p=>{
+    const d = parseD(p['Update Date']);
+    const pm = p['PM Name']||'ไม่ระบุ';
+    if(d && (!lastSeenPM[pm] || d > lastSeenPM[pm])) lastSeenPM[pm] = d;
+  });
+
   const rows = pmNames.map(pm=>{
     const c = curr.pmAgg[pm]; const p = prev ? prev.pmAgg[pm] : null;
     const cAvg = c ? c.sum/c.n : null;
     const pAvg = p ? p.sum/p.n : null;
     const delta = (cAvg!==null && pAvg!==null) ? (cAvg - pAvg) : null;
-    const spark = weekPM.map(wk => {
-      const a = wk.pmAgg[pm];
-      return a ? a.sum/a.n : null;
-    });
-    // โน้ตความคืบหน้ารายโครงการของ PM คนนี้ เทียบสัปดาห์นี้กับสัปดาห์ก่อน
+    const spark = weekPM.map(wk => { const a = wk.pmAgg[pm]; return a ? a.sum/a.n : null; });
+
+    // โน้ตความคืบหน้ารายโครงการของ PM คนนี้ เทียบรายงานล่าสุดกับรายงานก่อนหน้า
     const notes = Object.entries(byCode)
       .map(([code,arr])=>{
-        const cur2 = asOfWeek(arr, curr.wEnd);
-        if(!cur2 || (cur2['PM Name']||'ไม่ระบุ') !== pm) return null;
-        const prev2 = prev ? asOfWeek(arr, prev.wEnd) : null;
+        const cur2 = arr[arr.length-1];
+        if((cur2['PM Name']||'ไม่ระบุ') !== pm) return null;
+        const prev2 = arr.length>1 ? arr[arr.length-2] : null;
         const ps = parseD(cur2['Plan Start Date']) || parseD(cur2['Start Date']);
         const pe = parseD(cur2['Plan End Date']) || parseD(cur2['End Date']);
-        const exp = expectedProgress(ps, pe, curr.wEnd);
+        const exp = expectedProgress(ps, pe, today);
         return {
           name: cur2['Project Name'] || code,
           thisNote: (cur2['Progress Update']||'').trim(),
@@ -1148,16 +1129,20 @@ function renderWow(list){
           expProg: exp,
         };
       }).filter(Boolean)
-      .sort((a,b)=> (a.thisNote===a.prevNote ? 1 : 0) - (b.thisNote===b.prevNote ? 1 : 0)); // โน้ตที่เปลี่ยนขึ้นก่อน
-    return {pm, cAvg, pAvg, delta, spark, active: activeThisWeek[pm]||0, n: c ? c.n : 0, pAvgN: p ? p.n : null, notes};
+      .sort((a,b)=> (a.thisNote===a.prevNote ? 1 : 0) - (b.thisNote===b.prevNote ? 1 : 0));
+
+    const lastSeen = lastSeenPM[pm] || null;
+    const daysAgo = lastSeen ? Math.max(0, Math.round((today-lastSeen)/DAY)) : null;
+
+    return {pm, cAvg, pAvg, delta, spark, daysAgo, n: c ? c.n : 0, pAvgN: p ? p.n : null, notes};
   }).sort((a,b)=>{
     const av = a.delta===null ? -999 : a.delta, bv = b.delta===null ? -999 : b.delta;
     return bv - av;
   });
 
-  document.getElementById('wowCount').textContent = `${weeks.length} สัปดาห์`;
+  document.getElementById('wowCount').textContent = `${weekPM.length} รอบ`;
 
-  const rangeLabel = `<div class="wow-range">เทียบสัปดาห์ <b>${fmtShort(curr.w)} - ${fmtShort(curr.wEnd)}</b> กับ <b>${prev ? fmtShort(prev.w)+' - '+fmtShort(prev.wEnd) : '-'}</b></div>`;
+  const rangeLabel = `<div class="wow-range">เทียบรอบอัปเดตล่าสุด <b>~${fmtShort(curr.labelDate)}</b> กับรอบก่อนหน้า <b>${prev ? '~'+fmtShort(prev.labelDate) : '-'}</b></div>`;
 
   // --- ภาพรวมทั้งบริษัท (ไม่แยกราย PM) ---
   const oAvgD = (prev && curr.overallAvg!==null && prev.overallAvg!==null) ? curr.overallAvg - prev.overallAvg : null;
@@ -1179,9 +1164,7 @@ function renderWow(list){
     const y = v => chH-padB - (v/100)*(chH-padT-padB);
     const line = idxs.map(i=>`${x(i).toFixed(1)},${y(pts[i]).toFixed(1)}`).join(' ');
     const area = `${x(idxs[0]).toFixed(1)},${(chH-padB).toFixed(1)} ${line} ${x(idxs[idxs.length-1]).toFixed(1)},${(chH-padB).toFixed(1)}`;
-    const step = Math.ceil(weekPM.length/6);
-    const labels = weekPM.map((w,i)=> (i%step===0 || i===weekPM.length-1)
-      ? `<text x="${x(i).toFixed(1)}" y="${chH-3}" font-size="9.5" fill="var(--faint)" text-anchor="middle" font-family="IBM Plex Mono">${fmtShort(w.w)}</text>` : '').join('');
+    const labels = weekPM.map((w,i)=>`<text x="${x(i).toFixed(1)}" y="${chH-3}" font-size="9.5" fill="var(--faint)" text-anchor="middle" font-family="IBM Plex Mono">${fmtShort(w.labelDate)}</text>`).join('');
     const lastI = idxs[idxs.length-1];
     return `<svg width="100%" height="${chH}" viewBox="0 0 ${chW} ${chH}" preserveAspectRatio="none">
       <polygon points="${area}" fill="#2A4A9E" opacity="0.07"/>
@@ -1204,7 +1187,7 @@ function renderWow(list){
         ${dChip(oRiskD,'money',true)}
       </div>
       <div class="ov-stat">
-        <div class="ov-l">Health เปลี่ยนสถานะสัปดาห์นี้</div>
+        <div class="ov-l">Health เปลี่ยนสถานะรอบล่าสุด</div>
         <div class="ov-v">${transitions.length}</div>
         <span class="ov-d ${worsenedN?'down':'flat'}">${worsenedN} แย่ลง · ${improvedN} ดีขึ้น</span>
       </div>
@@ -1231,8 +1214,8 @@ function renderWow(list){
   };
 
   const head = `<div class="wr head-row">
-    <span>PM</span><span style="text-align:right">สัปดาห์นี้</span><span>เทรนด์ ${weekPM.length} สัปดาห์</span>
-    <span style="text-align:right">สัปดาห์ก่อน</span><span style="text-align:right">Δ</span><span style="text-align:right">อัปเดตสัปดาห์นี้</span><span></span>
+    <span>PM</span><span style="text-align:right">รายงานล่าสุด</span><span>เทรนด์ ${weekPM.length} รอบ</span>
+    <span style="text-align:right">รอบก่อนหน้า</span><span style="text-align:right">Δ</span><span style="text-align:right">อัปเดตล่าสุดเมื่อ</span><span></span>
   </div>`;
 
   const body = rows.map(r=>{
@@ -1249,21 +1232,27 @@ function renderWow(list){
       pace <= -10 ? `<span class="pace-chip behind">🐢 ช้ากว่าแผน</span>` :
       `<span class="pace-chip onpace">✓ ตามแผน</span>`;
 
+    const activeTxt = r.daysAgo===null ? `<span style="color:var(--faint)">ไม่มีข้อมูล</span>`
+      : r.daysAgo===0 ? `<b>วันนี้</b>`
+      : r.daysAgo===1 ? `<b>เมื่อวาน</b>`
+      : r.daysAgo<=10 ? `<b>${r.daysAgo}</b> วันก่อน`
+      : `<span style="color:var(--critical)"><b>${r.daysAgo}</b> วันก่อน</span>`;
+
     const notesHtml = r.notes.length ? r.notes.map(nt=>{
       const progTxt = nt.prevProg!==null
         ? `<b>${nt.prevProg.toFixed(0)}%</b> → <b>${nt.thisProg.toFixed(0)}%</b>`
         : `<b>${nt.thisProg.toFixed(0)}%</b>`;
       const prevRow = nt.isNew
-        ? `<div class="nd-row prev"><span class="nd-tag">ก่อน</span><span class="nd-txt nd-empty">— โครงการใหม่เข้ามาสัปดาห์นี้ —</span></div>`
+        ? `<div class="nd-row prev"><span class="nd-tag">ก่อน</span><span class="nd-txt nd-empty">— ยังไม่เคยมีรายงานก่อนหน้า —</span></div>`
         : `<div class="nd-row prev"><span class="nd-tag">ก่อน</span><span class="nd-txt">${nt.prevNote || '<span class="nd-empty">ไม่มีบันทึก</span>'}</span></div>`;
-      const thisRow = `<div class="nd-row this"><span class="nd-tag">สัปดาห์นี้</span><span class="nd-txt">${nt.thisNote || '<span class="nd-empty">ไม่มีบันทึก</span>'}</span></div>`;
+      const thisRow = `<div class="nd-row this"><span class="nd-tag">ล่าสุด</span><span class="nd-txt">${nt.thisNote || '<span class="nd-empty">ไม่มีบันทึก</span>'}</span></div>`;
       const changed = nt.thisNote !== nt.prevNote;
       const paceLine = nt.expProg===null ? '' : (()=>{
         const diff = nt.thisProg - nt.expProg;
         const cls = diff>=5?'ahead':diff<=-10?'behind':'onpace';
         const icon = cls==='ahead'?'⚡':cls==='behind'?'🐢':'✓';
         const word = cls==='ahead'?'เร็วกว่าแผน':cls==='behind'?'ช้ากว่าแผน':'ตามแผน';
-        return `<div class="nd-row" style="margin-top:6px"><span class="nd-tag">แผน</span><span class="nd-txt" style="color:var(--faint)">ควรอยู่ที่ <b style="color:var(--ink-2)">${nt.expProg.toFixed(0)}%</b> — <span class="pace-chip ${cls}" style="margin-left:2px">${icon} ${word} (${diff>0?'+':''}${diff.toFixed(0)}pp)</span></span></div>`;
+        return `<div class="nd-row" style="margin-top:6px"><span class="nd-tag">แผน</span><span class="nd-txt" style="color:var(--faint)">ควรอยู่ที่ <b style="color:var(--ink-2)">${nt.expProg.toFixed(0)}%</b> ณ วันนี้ — <span class="pace-chip ${cls}" style="margin-left:2px">${icon} ${word} (${diff>0?'+':''}${diff.toFixed(0)}pp)</span></span></div>`;
       })();
       const trans = transitions.find(t=>t.name===nt.name);
       const transBadge = trans ? `<span class="nd-new" style="color:${trans.worsened?'var(--critical)':'var(--success)'};background:${trans.worsened?'var(--critical-tint)':'var(--success-tint)'}">${trans.from} → ${trans.to}</span>` : '';
@@ -1288,7 +1277,7 @@ function renderWow(list){
         <span class="wr-delta ${dCls}">${svg(dIcon,'')}${dTxt}</span>
         ${countNote}
       </div>
-      <div class="wr-active">${r.active>0 ? `<b>${r.active}</b> รายการ` : '<span style="color:var(--faint)">ไม่มีอัปเดต</span>'}</div>
+      <div class="wr-active">${activeTxt}</div>
       <span class="wr-chev">${svg(I.chevron,'')}</span>
     </div>
     <div class="wr-detail">${notesHtml}</div>`;
