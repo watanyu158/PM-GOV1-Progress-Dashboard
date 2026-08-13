@@ -225,6 +225,7 @@
   .pace-chip.ahead{background:var(--success-tint);color:var(--success);}
   .pace-chip.behind{background:var(--critical-tint);color:var(--critical);}
   .pace-chip.onpace{background:var(--brand-tint);color:var(--brand);}
+  .pace-chip.mixed{background:var(--warning-tint);color:var(--warning);}
 
   /* ---------------- Week-over-Week ---------------- */
   .wow-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
@@ -1084,7 +1085,7 @@ function renderWow(list){
   // ความเร็วคืบหน้าเทียบแผน ต่อ PM (ใช้สถานะปัจจุบันจริง เทียบ ณ วันนี้)
   const byPM = {};
   list.forEach(p=>{ (byPM[p['PM Name']||'ไม่ระบุ'] ||= []).push(p); });
-  function paceChip(pm){
+  function paceInfo(pm){
     const projs = byPM[pm] || [];
     const deltas = projs.map(r=>{
       const ps = parseD(r['Plan Start Date']) || parseD(r['Start Date']);
@@ -1093,7 +1094,14 @@ function renderWow(list){
       return exp===null ? null : num(r['%Progress']) - exp;
     }).filter(v=>v!==null);
     if(!deltas.length) return null;
-    return deltas.reduce((a,b)=>a+b,0)/deltas.length;
+    const avg = deltas.reduce((a,b)=>a+b,0)/deltas.length;
+    const anyBehind = deltas.some(d=>d<=-10);
+    let cls;
+    if(avg <= -10) cls = 'behind';
+    else if(anyBehind) cls = 'mixed';
+    else if(avg >= 5) cls = 'ahead';
+    else cls = 'onpace';
+    return {avg, cls};
   }
 
   // วันที่อัปเดตล่าสุดจริงของแต่ละ PM (จากโครงการปัจจุบันของเขา) — ไว้บอกว่า "เงียบไปกี่วันแล้ว"
@@ -1228,10 +1236,11 @@ function renderWow(list){
     const countNote = (prevN!==null && prevN!==r.n)
       ? `<div class="wr-s" style="text-align:right;color:var(--faint)">โครงการ ${prevN}→${r.n}</div>` : '';
 
-    const pace = paceChip(r.pm);
+    const pace = paceInfo(r.pm);
     const paceHtml = pace===null ? '' :
-      pace >= 5 ? `<span class="pace-chip ahead">⚡ เร็วกว่าแผน</span>` :
-      pace <= -10 ? `<span class="pace-chip behind">🐢 ช้ากว่าแผน</span>` :
+      pace.cls==='ahead' ? `<span class="pace-chip ahead">⚡ เร็วกว่าแผน</span>` :
+      pace.cls==='behind' ? `<span class="pace-chip behind">🐢 ช้ากว่าแผน</span>` :
+      pace.cls==='mixed' ? `<span class="pace-chip mixed">⚠ ผสม (มีโครงการช้ากว่าแผน)</span>` :
       `<span class="pace-chip onpace">✓ ตามแผน</span>`;
 
     const activeTxt = r.daysAgo===null ? `<span style="color:var(--faint)">ไม่มีข้อมูล</span>`
