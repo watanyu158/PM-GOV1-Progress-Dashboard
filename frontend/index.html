@@ -800,7 +800,7 @@ let HIST = [];
 let REV = [];
 let filters = { team:'', vp:'', pm:'', status:'', health:'' };
 
-async function loadData(){
+async function loadData(auto){
   try{
     const res = await fetch(API_URL, { signal: AbortSignal.timeout(6000) });
     if(!res.ok) throw new Error('bad');
@@ -815,6 +815,16 @@ async function loadData(){
     }
     throw new Error('empty');
   }catch(e){
+    // เจอข้อมูลว่าง (เช่น backend เพิ่ง restart แล้ว memory รีเซ็ต) — ลอง sync อัตโนมัติให้ 1 ครั้ง
+    // ก่อนจะ fallback ไปโชว์ข้อมูลตัวอย่าง กันไม่ให้ต้องมานั่งกดปุ่มเองทุกครั้ง
+    if(!auto){
+      setSource(false, null, true);
+      try{
+        await fetch(MAKE_WEBHOOK, { method:'POST', mode:'no-cors' });
+        await new Promise(r=>setTimeout(r, 7000));
+        return loadData(true);
+      }catch(e2){ /* ตกไปที่ fallback ด้านล่างตามปกติ */ }
+    }
     HIST = SEED_DATA.map(normRow);
     ALL = latestPerProject(HIST);
     REV = SEED_REVENUE.map(normRow);
@@ -822,10 +832,12 @@ async function loadData(){
     render();
   }
 }
-function setSource(live, updatedAt){
+function setSource(live, updatedAt, healing){
   document.getElementById('srcLine').innerHTML = live
     ? `<span class="live"></span>กำลังเชื่อมต่อแบบ real-time`
-    : `<span class="live off"></span>ยังไม่เชื่อมต่อ API - แสดงข้อมูลตัวอย่าง`;
+    : healing
+      ? `<span class="live off"></span>ตรวจพบข้อมูลว่าง — กำลังซิงก์ให้อัตโนมัติ...`
+      : `<span class="live off"></span>ยังไม่เชื่อมต่อ API - แสดงข้อมูลตัวอย่าง`;
   document.getElementById('hUpdated').textContent = updatedAt
     ? fmtDate(updatedAt)
     : new Date().toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'});
