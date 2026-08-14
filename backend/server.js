@@ -42,7 +42,8 @@ let lastRaw = {
 // ตรงกับโครงสร้างไฟล์ All_Project_List / PM_GOV1_Progress_Update ทุกประการ
 function parseExcelBuffer(buf) {
   const wb = XLSX.read(buf, { type: 'buffer', cellDates: true });
-  const sheetName = wb.SheetNames.find(n => n.trim().toUpperCase() === 'DATA') || wb.SheetNames[0];
+  const KNOWN_NAMES = ['DATA', 'PROGRESS1'];
+  const sheetName = wb.SheetNames.find(n => KNOWN_NAMES.includes(n.trim().toUpperCase())) || wb.SheetNames[0];
   const ws = wb.Sheets[sheetName];
   const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: null, dateNF: 'yyyy-mm-dd' });
 
