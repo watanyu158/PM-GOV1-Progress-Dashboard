@@ -24,6 +24,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 // เก็บ snapshot ล่าสุดไว้ใน memory
 let latestData = {
   rows: [],
+  revenue: [],
   updatedAt: null,
 };
 
@@ -37,11 +38,9 @@ let lastRaw = {
   preview: null,
 };
 
-// --- แกะไฟล์ Excel ---
-// อ่าน sheet ชื่อ "DATA" (หรือ sheet แรกถ้าหาไม่เจอ) โดยแถวที่ 2 = header, แถวที่ 3 เป็นต้นไป = ข้อมูล
-// ตรงกับโครงสร้างไฟล์ All_Project_List / PM_GOV1_Progress_Update ทุกประการ
-function parseExcelBuffer(buf) {
-  const wb = XLSX.read(buf, { type: 'buffer', cellDates: true });
+// --- แกะไฟล์ Excel: sheet ความคืบหน้าโครงการ ---
+// อ่าน sheet ชื่อ "DATA"/"PROGRESS1" (หรือ sheet แรกถ้าหาไม่เจอ) โดยแถวที่ 2 = header, แถวที่ 3 เป็นต้นไป = ข้อมูล
+function parseProgressSheet(wb) {
   const KNOWN_NAMES = ['DATA', 'PROGRESS1'];
   const sheetName = wb.SheetNames.find(n => KNOWN_NAMES.includes(n.trim().toUpperCase())) || wb.SheetNames[0];
   const ws = wb.Sheets[sheetName];
@@ -64,30 +63,82 @@ function parseExcelBuffer(buf) {
   return { rows, sheetName };
 }
 
+// --- แกะไฟล์ Excel: sheet "Revenue" ---
+// โครงสร้างต่างจาก DATA: header 2 แถวซ้อนกัน (แถว 3 = หมวดหลัก/ไตรมาส, แถว 4 = เดือนย่อยใต้แต่ละไตรมาส)
+// ข้อมูลเริ่มแถว 5 เป็นต้นไป — แปลงเป็น key เดียวโดยรวมบริบทไตรมาสเข้ากับ "Total" ย่อยกันชนกัน
+// (Q1_Total, Q2_Total, ...) ส่วนเดือน (Jan..Dec) ใช้ชื่อเดือนตรง ๆ เพราะไม่ซ้ำกันอยู่แล้ว
+function parseRevenueSheet(wb) {
+  const sheetName = wb.SheetNames.find(n => n.trim().toUpperCase() === 'REVENUE');
+  if (!sheetName) return { rows: [], sheetName: null };
+
+  const ws = wb.Sheets[sheetName];
+  const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: null, dateNF: 'yyyy-mm-dd' });
+
+  // หาแถว header คู่ (แถวที่มี "Project Code") แล้วแถวถัดไปคือ sub-header เดือน
+  let h3Idx = aoa.findIndex(r => Array.isArray(r) && r.includes('Project Code'));
+  if (h3Idx < 0) return { rows: [], sheetName };
+  const h3 = aoa[h3Idx] || [];
+  const h4 = aoa[h3Idx + 1] || [];
+  const dataRows = aoa.slice(h3Idx + 2);
+
+  const keys = [];
+  let currentQuarter = null;
+  const width = Math.max(h3.length, h4.length);
+  for (let i = 0; i < width; i++) {
+    const v3 = h3[i], v4 = h4[i];
+    if (v3 && /^Q[1-4]$/.test(String(v3).trim())) currentQuarter = String(v3).trim();
+    if (v4) {
+      keys[i] = String(v4).trim() === 'Total' ? `${currentQuarter}_Total` : String(v4).trim();
+    } else if (v3) {
+      keys[i] = String(v3).trim();
+    } else {
+      keys[i] = null;
+    }
+  }
+
+  const rows = dataRows
+    .filter(r => Array.isArray(r) && r.some(v => v !== null && v !== ''))
+    .map(r => {
+      const obj = {};
+      keys.forEach((k, i) => {
+        if (!k) return;
+        obj[k] = r[i] !== undefined ? r[i] : null;
+      });
+      return obj;
+    })
+    .filter(o => o['Project Code']); // ตัดแถวว่าง/แถวสรุปที่ไม่มีรหัสโครงการทิ้ง
+
+  return { rows, sheetName };
+}
+
 // --- รับข้อมูลจาก Make.com ---
 // รองรับ 2 ทาง: (1) ไฟล์ Excel จริงแบบ multipart (ทางหลัก) (2) JSON array ตรง ๆ (ทางสำรอง เผื่อ mapping ฝั่ง Make.com เอง)
 app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
   try {
     if (req.file) {
-      const { rows, sheetName } = parseExcelBuffer(req.file.buffer);
-      latestData = { rows, updatedAt: new Date().toISOString() };
+      const wb = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
+      const { rows, sheetName } = parseProgressSheet(wb);
+      const { rows: revenue, sheetName: revenueSheetName } = parseRevenueSheet(wb);
+      latestData = { rows, revenue, updatedAt: new Date().toISOString() };
       lastRaw = {
         receivedAt: latestData.updatedAt,
         contentType: req.headers['content-type'] || null,
         mode: 'file',
         sheetName,
+        revenueSheetName,
         fileSize: req.file.buffer.length,
         preview: rows[0] ? JSON.stringify(rows[0]).slice(0, 500) : null,
+        revenuePreview: revenue[0] ? JSON.stringify(revenue[0]).slice(0, 500) : null,
       };
-      console.log(`✓ PM-GOV1 webhook: parsed ${rows.length} rows from sheet "${sheetName}" (${req.file.buffer.length} bytes)`);
-      return res.json({ ok: true, mode: 'file', sheet: sheetName, count: rows.length, updatedAt: latestData.updatedAt });
+      console.log(`✓ PM-GOV1 webhook: parsed ${rows.length} rows from "${sheetName}", ${revenue.length} revenue rows from "${revenueSheetName || '(not found)'}" (${req.file.buffer.length} bytes)`);
+      return res.json({ ok: true, mode: 'file', sheet: sheetName, count: rows.length, revenueSheet: revenueSheetName, revenueCount: revenue.length, updatedAt: latestData.updatedAt });
     }
 
     // ทางสำรอง: body เป็น JSON array ของแถวข้อมูลตรง ๆ
     const payload = req.body;
     const rows = Array.isArray(payload) ? payload : payload?.rows || payload?.data || null;
     if (rows) {
-      latestData = { rows, updatedAt: new Date().toISOString() };
+      latestData = { rows, revenue: payload?.revenue || [], updatedAt: new Date().toISOString() };
       lastRaw = {
         receivedAt: latestData.updatedAt,
         contentType: req.headers['content-type'] || null,
