@@ -24,16 +24,29 @@ app.use(express.json({ limit: '25mb' }));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 // --- ผู้ใช้งาน (login) ---
-// ตั้งค่าจริงผ่าน environment variable AUTH_USERS บน Render (JSON array), เช่น:
-//   [{"username":"antika","name":"Antika Prasadsil","passwordHash":"$2a$10$..."}]
+// ตั้งค่าจริงผ่าน environment variable AUTH_USERS บน Render (JSON array บรรทัดเดียว), เช่น:
+//   [
+//     {"username":"oat","name":"OAT","role":"admin","passwordHash":"$2b$10$..."},
+//     {"username":"antika","name":"Antika Prasadsil","pmName":"Antika Prasadsil","passwordHash":"$2b$10$..."}
+//   ]
+//
+// การมองเห็นข้อมูล:
+//   - role:"admin"  หรือ ไม่ได้ใส่ pmName  -> เห็นข้อมูลทุกโครงการของทุก PM
+//   - ใส่ pmName    -> เห็นเฉพาะโครงการที่ตัวเองเป็น PM เท่านั้น (กรองที่ server ก่อนส่งออก)
+//   ค่า pmName ต้องตรงกับคอลัมน์ "PM Name" ในไฟล์ Excel (ระบบเทียบแบบไม่สนตัวพิมพ์เล็ก/ใหญ่
+//   และไม่สนช่องว่างซ้ำ เช่น "Prapasiri   Rakkanpat" กับ "Prapasiri Rakkanpat" ถือว่าคนเดียวกัน)
+//
 // สร้าง hash รหัสผ่านได้จาก: node generate-hash.js "รหัสผ่านจริง"
 // ⚠️ ถ้าไม่ตั้ง AUTH_USERS จะใช้ค่าเริ่มต้นด้านล่าง (username: admin / password: pmgov1) — เปลี่ยนก่อนใช้งานจริงเสมอ
 let USERS;
 try { USERS = JSON.parse(process.env.AUTH_USERS || 'null'); } catch { USERS = null; }
 if (!Array.isArray(USERS) || !USERS.length) {
-  USERS = [{ username: 'admin', name: 'PM-GOV1 Admin', passwordHash: '$2b$10$bqSxasX72zv/WjwFMOYzden5FnVDWsATMQVD29KFMC3nvmWIhHLOi' }];
+  USERS = [{ username: 'admin', name: 'PM-GOV1 Admin', role: 'admin', passwordHash: '$2b$10$bqSxasX72zv/WjwFMOYzden5FnVDWsATMQVD29KFMC3nvmWIhHLOi' }];
   console.log('⚠ AUTH_USERS ไม่ได้ตั้งค่า — ใช้บัญชีเริ่มต้น admin/pmgov1 (ควรเปลี่ยนก่อนใช้งานจริง)');
 }
+
+// เทียบชื่อ PM แบบยืดหยุ่น: ตัดช่องว่างซ้ำ/หัวท้าย และไม่สนตัวพิมพ์เล็กใหญ่
+const normName = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
 
 const tokens = new Map(); // token -> { username, name, expires }
 const TOKEN_TTL = 12 * 60 * 60 * 1000; // 12 ชั่วโมง
@@ -47,7 +60,7 @@ function requireAuth(req, res, next) {
     return res.status(401).json({ ok: false, error: 'Unauthorized - please sign in again' });
   }
   entry.expires = Date.now() + TOKEN_TTL; // ใช้งานต่อเนื่อง = ต่ออายุ session ให้อัตโนมัติ
-  req.user = { username: entry.username, name: entry.name };
+  req.user = { username: entry.username, name: entry.name, pmName: entry.pmName || null, role: entry.role || 'pm' };
   next();
 }
 
@@ -63,9 +76,9 @@ app.post('/api/login', async (req, res) => {
   if (!match) return res.status(401).json({ ok: false, error: 'Incorrect username or password' });
 
   const token = crypto.randomBytes(24).toString('hex');
-  tokens.set(token, { username: user.username, name: user.name || user.username, expires: Date.now() + TOKEN_TTL });
+  tokens.set(token, { username: user.username, name: user.name || user.username, pmName: user.pmName || null, role: user.role || 'pm', expires: Date.now() + TOKEN_TTL });
   console.log(`✓ Login: ${user.username}`);
-  res.json({ ok: true, token, name: user.name || user.username, expiresIn: TOKEN_TTL });
+  res.json({ ok: true, token, name: user.name || user.username, scope: (user.role === 'admin' || !user.pmName) ? 'all' : user.pmName, expiresIn: TOKEN_TTL });
 });
 
 app.post('/api/logout', requireAuth, (req, res) => {
@@ -189,6 +202,18 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
         revenuePreview: revenue[0] ? JSON.stringify(revenue[0]).slice(0, 500) : null,
       };
       console.log(`✓ PM-GOV1 webhook: parsed ${rows.length} rows from "${sheetName}", ${revenue.length} revenue rows from "${revenueSheetName || '(not found)'}" (${req.file.buffer.length} bytes)`);
+
+      // เตือนถ้ามีชื่อ PM ในไฟล์ที่ยังไม่มีบัญชีผูกไว้ (พิมพ์ชื่อผิด หรือมี PM ใหม่เข้าทีม)
+      const linked = new Set(USERS.filter(u => u.pmName).map(u => normName(u.pmName)));
+      if (linked.size) {
+        const unlinked = [...new Set(rows.map(r => r['PM Name']).filter(Boolean))]
+          .filter(n => !linked.has(normName(n)));
+        if (unlinked.length) {
+          console.log(`⚠ พบชื่อ PM ในไฟล์ที่ยังไม่มีบัญชีผูกไว้: ${JSON.stringify(unlinked)}`);
+          console.log('  (คนเหล่านี้จะยัง login เข้ามาดูข้อมูลตัวเองไม่ได้ จนกว่าจะเพิ่มใน AUTH_USERS)');
+        }
+      }
+
       return res.json({ ok: true, mode: 'file', sheet: sheetName, count: rows.length, revenueSheet: revenueSheetName, revenueCount: revenue.length, updatedAt: latestData.updatedAt });
     }
 
@@ -225,8 +250,24 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
 });
 
 // --- ให้ frontend ดึงข้อมูลไปแสดง (ต้อง login ก่อน) ---
+// ถ้าผู้ใช้ผูกกับ pmName ไว้ จะกรองให้เหลือเฉพาะโครงการของตัวเองตั้งแต่ฝั่ง server
+// (ปลอดภัยกว่ากรองฝั่งเบราว์เซอร์ เพราะข้อมูลคนอื่นไม่เคยถูกส่งออกไปเลย)
 app.get('/api/projects', requireAuth, (req, res) => {
-  res.json(latestData);
+  const { pmName, role } = req.user;
+  if (role === 'admin' || !pmName) return res.json(latestData);
+
+  const target = normName(pmName);
+  const rows = latestData.rows.filter(r => normName(r['PM Name']) === target);
+  const revenue = (latestData.revenue || []).filter(r => normName(r['PM Name']) === target);
+
+  // ถ้าผูก pmName ไว้แล้วแต่ไม่เจอโครงการเลย มักเกิดจากชื่อใน Excel สะกดไม่ตรงกับที่ตั้งไว้
+  if (latestData.rows.length && !rows.length) {
+    const available = [...new Set(latestData.rows.map(r => r['PM Name']).filter(Boolean))];
+    console.log(`⚠ ผู้ใช้ "${req.user.username}" ผูกกับ pmName="${pmName}" แต่ไม่พบโครงการใดเลย`);
+    console.log(`  ชื่อ PM ที่มีอยู่จริงในไฟล์: ${JSON.stringify(available)}`);
+  }
+
+  res.json({ ...latestData, rows, revenue, scope: pmName });
 });
 
 app.get('/api/health', (req, res) => {
