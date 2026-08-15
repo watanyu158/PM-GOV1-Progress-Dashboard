@@ -535,65 +535,133 @@
   }
   .lg-brand{
     flex:1 1 46%;position:relative;overflow:hidden;
-    background:linear-gradient(150deg,#213A72 0%, #2F55A8 48%, #4172CE 100%);
+    background:linear-gradient(150deg,#16274F 0%, #23407C 42%, #3560B4 100%);
     display:flex;flex-direction:column;justify-content:space-between;
     padding:48px 52px;color:#fff;
   }
+  /* ชั้นลาย: กริดบางแบบ blueprint + จุดไข่ปลา ให้พื้นหลังไม่แบน */
   .lg-brand::before{
-    content:'';position:absolute;inset:0;
-    background:radial-gradient(560px 320px at 85% 8%, rgba(255,255,255,.14), transparent 60%),
-               radial-gradient(420px 300px at 8% 92%, rgba(255,255,255,.10), transparent 60%);
+    content:'';position:absolute;inset:-10%;
+    background-image:
+      linear-gradient(rgba(255,255,255,.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.055) 1px, transparent 1px),
+      radial-gradient(rgba(255,255,255,.13) 1px, transparent 1.4px);
+    background-size:46px 46px, 46px 46px, 23px 23px;
+    background-position:0 0, 0 0, 11px 11px;
+    mask-image:radial-gradient(120% 100% at 20% 10%, #000 20%, transparent 78%);
+    -webkit-mask-image:radial-gradient(120% 100% at 20% 10%, #000 20%, transparent 78%);
     pointer-events:none;
   }
-  .lg-brand-top{display:flex;align-items:center;gap:14px;position:relative;z-index:1;}
+  /* ชั้นแสง: วงกลมเรืองแสงนุ่ม ๆ ขยับช้า ๆ ให้รู้สึกมีชีวิต */
+  .lg-brand::after{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(520px 340px at 88% 4%, rgba(90,190,255,.30), transparent 62%),
+      radial-gradient(460px 320px at 4% 96%, rgba(122,75,181,.30), transparent 62%),
+      radial-gradient(700px 420px at 60% 60%, rgba(255,255,255,.06), transparent 70%);
+    animation:lgGlow 14s ease-in-out infinite alternate;
+  }
+  @keyframes lgGlow{
+    0%{transform:translate3d(0,0,0) scale(1);opacity:.9;}
+    100%{transform:translate3d(-18px,-14px,0) scale(1.06);opacity:1;}
+  }
+
+  .lg-brand-top{display:flex;align-items:center;gap:14px;position:relative;z-index:2;}
   .lg-mark{
-    width:46px;height:46px;border-radius:12px;flex:none;background:rgba(255,255,255,.15);
-    border:1px solid rgba(255,255,255,.28);display:grid;place-items:center;
+    width:46px;height:46px;border-radius:13px;flex:none;
+    background:linear-gradient(145deg, rgba(255,255,255,.28), rgba(255,255,255,.10));
+    border:1px solid rgba(255,255,255,.34);display:grid;place-items:center;
+    box-shadow:0 8px 20px -8px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.35);
+    backdrop-filter:blur(6px);
   }
   .lg-mark svg{width:23px;height:23px;stroke:#fff;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round;}
   .lg-brand-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:19px;font-weight:800;letter-spacing:-.01em;}
-  .lg-brand-sub{font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;}
+  .lg-brand-sub{font-size:12px;color:rgba(255,255,255,.72);margin-top:2px;}
 
-  .lg-hero{position:relative;z-index:1;margin:20px 0;}
-  .lg-hero h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:30px;font-weight:800;line-height:1.28;letter-spacing:-.02em;max-width:420px;}
-  .lg-hero p{font-size:13.5px;color:rgba(255,255,255,.78);margin-top:14px;max-width:380px;line-height:1.7;}
+  .lg-hero{position:relative;z-index:2;margin:20px 0;}
+  .lg-hero .lg-eyebrow{
+    display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;letter-spacing:.06em;
+    text-transform:uppercase;color:rgba(255,255,255,.82);background:rgba(255,255,255,.12);
+    border:1px solid rgba(255,255,255,.2);padding:5px 11px;border-radius:20px;margin-bottom:16px;
+  }
+  .lg-hero .lg-eyebrow i{width:6px;height:6px;border-radius:50%;background:#5BE8B0;box-shadow:0 0 0 3px rgba(91,232,176,.25);}
+  .lg-hero h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:31px;font-weight:800;line-height:1.28;letter-spacing:-.02em;max-width:430px;}
+  .lg-hero p{font-size:13.5px;color:rgba(255,255,255,.76);margin-top:14px;max-width:390px;line-height:1.75;}
 
-  .lg-cards{position:relative;z-index:1;height:200px;}
+  .lg-cards{position:relative;z-index:2;height:206px;}
   .lg-card{
-    position:absolute;background:rgba(255,255,255,.97);border-radius:11px;padding:12px 14px;
-    box-shadow:0 14px 34px -10px rgba(0,0,0,.35);width:200px;color:var(--ink);
+    position:absolute;background:rgba(255,255,255,.98);border-radius:12px;padding:12px 14px;
+    box-shadow:0 18px 40px -12px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.12);
+    width:200px;color:var(--ink);border:1px solid rgba(255,255,255,.7);
+    animation:lgFloat 7s ease-in-out infinite;
+  }
+  @keyframes lgFloat{
+    0%,100%{transform:var(--rot) translateY(0);}
+    50%{transform:var(--rot) translateY(-7px);}
   }
   .lg-card .t{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
   .lg-card .v{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:800;}
   .lg-card .bar{height:5px;background:var(--bg-tint);border-radius:3px;margin-top:8px;overflow:hidden;}
   .lg-card .bar i{display:block;height:100%;border-radius:3px;}
-  .lg-c1{top:0;left:0;transform:rotate(-4deg);}
-  .lg-c2{top:52px;left:150px;transform:rotate(3deg);}
-  .lg-c3{top:118px;left:20px;transform:rotate(-2deg);width:170px;}
+  .lg-c1{top:0;left:0;--rot:rotate(-4deg);animation-delay:0s;}
+  .lg-c2{top:54px;left:152px;--rot:rotate(3deg);animation-delay:1.4s;}
+  .lg-c3{top:122px;left:20px;--rot:rotate(-2deg);width:172px;animation-delay:2.8s;}
 
-  .lg-foot{position:relative;z-index:1;font-size:11px;color:rgba(255,255,255,.6);}
+  .lg-foot{position:relative;z-index:2;font-size:11px;color:rgba(255,255,255,.55);}
 
-  .lg-form-side{flex:1 1 54%;display:flex;align-items:center;justify-content:center;padding:32px;}
-  .lg-card-form{width:100%;max-width:380px;}
+  /* ฝั่งฟอร์ม: ใส่พื้นผิวจาง ๆ กันดูโล่งเกินไป */
+  .lg-form-side{
+    flex:1 1 54%;display:flex;align-items:center;justify-content:center;padding:32px;position:relative;
+    background:
+      radial-gradient(700px 420px at 78% 12%, #E3EAFA 0%, transparent 62%),
+      radial-gradient(560px 380px at 10% 92%, #E8E3F7 0%, transparent 60%),
+      var(--bg);
+  }
+  .lg-form-side::before{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background-image:radial-gradient(rgba(42,74,158,.07) 1px, transparent 1.3px);
+    background-size:20px 20px;
+    mask-image:radial-gradient(90% 80% at 50% 40%, #000 10%, transparent 75%);
+    -webkit-mask-image:radial-gradient(90% 80% at 50% 40%, #000 10%, transparent 75%);
+  }
+  .lg-card-form{
+    width:100%;max-width:394px;position:relative;z-index:1;
+    background:rgba(255,255,255,.82);
+    border:1px solid rgba(255,255,255,.9);
+    border-radius:18px;padding:34px 32px 30px;
+    box-shadow:0 2px 4px rgba(22,32,58,.04), 0 20px 48px -18px rgba(22,32,58,.26);
+    backdrop-filter:blur(14px);
+  }
   .lg-form-h{font-family:'Plus Jakarta Sans',sans-serif;font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.01em;}
-  .lg-form-s{font-size:13px;color:var(--muted);margin-top:6px;margin-bottom:30px;}
+  .lg-form-s{font-size:13px;color:var(--muted);margin-top:6px;margin-bottom:26px;}
 
   .lg-field{margin-bottom:16px;}
   .lg-label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:7px;}
-  .lg-input-wrap{position:relative;}
-  .lg-input-wrap svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--faint);pointer-events:none;}
+  .lg-input-wrap{position:relative;display:flex;align-items:center;}
+  .lg-lead-ico{
+    position:absolute;left:13px;width:17px;height:17px;color:var(--faint);
+    pointer-events:none;transition:color .15s;
+  }
+  .lg-input-wrap:focus-within .lg-lead-ico{color:var(--brand);}
   .lg-input{
-    width:100%;padding:12px 14px 12px 40px;border:1px solid var(--line);border-radius:10px;
-    font-family:'Inter',sans-serif;font-size:14px;color:var(--ink);background:var(--surface);
-    transition:.15s;box-shadow:var(--sh-sm);
+    width:100%;padding:12px 14px 12px 40px;border:1px solid var(--line);border-radius:11px;
+    font-family:'Inter',sans-serif;font-size:14px;color:var(--ink);
+    background:linear-gradient(#fff,#FCFDFF);
+    transition:.16s;box-shadow:inset 0 1px 2px rgba(22,32,58,.05);
   }
-  .lg-input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-tint);}
+  .lg-input::placeholder{color:#AEB7CC;}
+  .lg-input:hover{border-color:#C9D4E8;}
+  .lg-input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-tint), inset 0 1px 2px rgba(22,32,58,.04);}
+  .lg-input.has-toggle{padding-right:46px;}
+  /* ปุ่มดวงตา: จัดกึ่งกลางแนวตั้งด้วย flex ของ wrapper แทนการ translate เอง กันเบี้ยว */
   .lg-toggle-pw{
-    position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;
-    cursor:pointer;color:var(--faint);padding:7px;border-radius:6px;display:flex;
+    position:absolute;right:8px;background:none;border:none;cursor:pointer;color:var(--faint);
+    width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    transition:.15s;padding:0;
   }
-  .lg-toggle-pw:hover{color:var(--brand);background:var(--bg-tint);}
-  .lg-toggle-pw svg{width:17px;height:17px;}
+  .lg-toggle-pw:hover{color:var(--brand);background:var(--brand-tint);}
+  .lg-toggle-pw:active{transform:scale(.92);}
+  .lg-toggle-pw svg{width:17px;height:17px;display:block;}
 
   .lg-row{display:flex;align-items:center;justify-content:space-between;margin:2px 0 22px;}
   .lg-remember{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);cursor:pointer;user-select:none;}
@@ -601,25 +669,32 @@
 
   .lg-err{
     display:none;align-items:center;gap:8px;background:var(--critical-tint);color:var(--critical);
-    font-size:12.5px;padding:10px 13px;border-radius:9px;margin-bottom:16px;
+    font-size:12.5px;padding:10px 13px;border-radius:10px;margin-bottom:16px;
+    border:1px solid rgba(196,56,74,.18);
   }
-  .lg-err.show{display:flex;}
+  .lg-err.show{display:flex;animation:lgShake .35s ease;}
+  @keyframes lgShake{
+    0%,100%{transform:translateX(0);}
+    25%{transform:translateX(-5px);}
+    75%{transform:translateX(5px);}
+  }
   .lg-err svg{width:15px;height:15px;flex:none;}
 
   .lg-submit{
-    width:100%;background:var(--brand);color:#fff;border:none;border-radius:10px;
+    width:100%;background:linear-gradient(180deg,#3059AF,#254A94);color:#fff;border:none;border-radius:11px;
     padding:13px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s;
-    box-shadow:0 8px 20px -8px rgba(42,74,158,.55);
+    display:flex;align-items:center;justify-content:center;gap:8px;transition:.16s;
+    box-shadow:0 10px 24px -10px rgba(42,74,158,.7), inset 0 1px 0 rgba(255,255,255,.22);
   }
-  .lg-submit:hover:not(:disabled){background:#233f87;transform:translateY(-1px);}
+  .lg-submit:hover:not(:disabled){background:linear-gradient(180deg,#28509F,#1E3F80);transform:translateY(-1px);box-shadow:0 14px 28px -10px rgba(42,74,158,.75);}
+  .lg-submit:active:not(:disabled){transform:translateY(0);}
   .lg-submit:disabled{opacity:.7;cursor:default;}
   .lg-spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:lgspin .7s linear infinite;display:none;}
   .lg-submit.loading .lg-spin{display:block;}
   .lg-submit.loading .lg-btn-txt{display:none;}
   @keyframes lgspin{to{transform:rotate(360deg);}}
 
-  .lg-footnote{text-align:center;font-size:11.5px;color:var(--faint);margin-top:24px;}
+  .lg-footnote{text-align:center;font-size:11.5px;color:var(--faint);margin-top:22px;}
 
   @media(max-width:860px){
     #loginScreen{flex-direction:column;overflow-y:auto;}
@@ -647,6 +722,7 @@
     </div>
 
     <div class="lg-hero">
+      <div class="lg-eyebrow"><i></i>Live Project Tracking</div>
       <h2>ภาพรวมโปรเจกต์ทั้งทีมในที่เดียว</h2>
       <p>ติดตามความคืบหน้า สุขภาพโครงการ กำหนดส่งมอบ และรายได้สะสม แบบเรียลไทม์ สำหรับทีม PM - Government 1</p>
     </div>
@@ -686,15 +762,15 @@
         <div class="lg-field">
           <label class="lg-label" for="lgUser">ชื่อผู้ใช้</label>
           <div class="lg-input-wrap">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <svg class="lg-lead-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <input class="lg-input" type="text" id="lgUser" autocomplete="username" placeholder="username" required>
           </div>
         </div>
         <div class="lg-field">
           <label class="lg-label" for="lgPass">รหัสผ่าน</label>
           <div class="lg-input-wrap">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <input class="lg-input" type="password" id="lgPass" autocomplete="current-password" placeholder="••••••••" required style="padding-right:40px">
+            <svg class="lg-lead-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <input class="lg-input has-toggle" type="password" id="lgPass" autocomplete="current-password" placeholder="••••••••" required>
             <button type="button" class="lg-toggle-pw" id="lgTogglePw" aria-label="แสดง/ซ่อนรหัสผ่าน">
               <svg id="lgEyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
