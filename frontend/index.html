@@ -527,10 +527,196 @@
 
   .empty{padding:38px 20px;text-align:center;color:var(--faint);font-size:13px;}
   footer{margin-top:24px;text-align:center;font-size:11.5px;color:var(--faint);}
+  /* ---------------- Login screen ---------------- */
+  #dashboardWrap{display:none;}
+  #loginScreen{
+    position:fixed;inset:0;z-index:1000;display:flex;
+    background:var(--bg);
+  }
+  .lg-brand{
+    flex:1 1 46%;position:relative;overflow:hidden;
+    background:linear-gradient(150deg,#213A72 0%, #2F55A8 48%, #4172CE 100%);
+    display:flex;flex-direction:column;justify-content:space-between;
+    padding:48px 52px;color:#fff;
+  }
+  .lg-brand::before{
+    content:'';position:absolute;inset:0;
+    background:radial-gradient(560px 320px at 85% 8%, rgba(255,255,255,.14), transparent 60%),
+               radial-gradient(420px 300px at 8% 92%, rgba(255,255,255,.10), transparent 60%);
+    pointer-events:none;
+  }
+  .lg-brand-top{display:flex;align-items:center;gap:14px;position:relative;z-index:1;}
+  .lg-mark{
+    width:46px;height:46px;border-radius:12px;flex:none;background:rgba(255,255,255,.15);
+    border:1px solid rgba(255,255,255,.28);display:grid;place-items:center;
+  }
+  .lg-mark svg{width:23px;height:23px;stroke:#fff;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round;}
+  .lg-brand-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:19px;font-weight:800;letter-spacing:-.01em;}
+  .lg-brand-sub{font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;}
+
+  .lg-hero{position:relative;z-index:1;margin:20px 0;}
+  .lg-hero h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:30px;font-weight:800;line-height:1.28;letter-spacing:-.02em;max-width:420px;}
+  .lg-hero p{font-size:13.5px;color:rgba(255,255,255,.78);margin-top:14px;max-width:380px;line-height:1.7;}
+
+  .lg-cards{position:relative;z-index:1;height:200px;}
+  .lg-card{
+    position:absolute;background:rgba(255,255,255,.97);border-radius:11px;padding:12px 14px;
+    box-shadow:0 14px 34px -10px rgba(0,0,0,.35);width:200px;color:var(--ink);
+  }
+  .lg-card .t{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+  .lg-card .v{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:800;}
+  .lg-card .bar{height:5px;background:var(--bg-tint);border-radius:3px;margin-top:8px;overflow:hidden;}
+  .lg-card .bar i{display:block;height:100%;border-radius:3px;}
+  .lg-c1{top:0;left:0;transform:rotate(-4deg);}
+  .lg-c2{top:52px;left:150px;transform:rotate(3deg);}
+  .lg-c3{top:118px;left:20px;transform:rotate(-2deg);width:170px;}
+
+  .lg-foot{position:relative;z-index:1;font-size:11px;color:rgba(255,255,255,.6);}
+
+  .lg-form-side{flex:1 1 54%;display:flex;align-items:center;justify-content:center;padding:32px;}
+  .lg-card-form{width:100%;max-width:380px;}
+  .lg-form-h{font-family:'Plus Jakarta Sans',sans-serif;font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.01em;}
+  .lg-form-s{font-size:13px;color:var(--muted);margin-top:6px;margin-bottom:30px;}
+
+  .lg-field{margin-bottom:16px;}
+  .lg-label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:7px;}
+  .lg-input-wrap{position:relative;}
+  .lg-input-wrap svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--faint);pointer-events:none;}
+  .lg-input{
+    width:100%;padding:12px 14px 12px 40px;border:1px solid var(--line);border-radius:10px;
+    font-family:'Inter',sans-serif;font-size:14px;color:var(--ink);background:var(--surface);
+    transition:.15s;box-shadow:var(--sh-sm);
+  }
+  .lg-input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-tint);}
+  .lg-toggle-pw{
+    position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;
+    cursor:pointer;color:var(--faint);padding:7px;border-radius:6px;display:flex;
+  }
+  .lg-toggle-pw:hover{color:var(--brand);background:var(--bg-tint);}
+  .lg-toggle-pw svg{width:17px;height:17px;}
+
+  .lg-row{display:flex;align-items:center;justify-content:space-between;margin:2px 0 22px;}
+  .lg-remember{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);cursor:pointer;user-select:none;}
+  .lg-remember input{width:15px;height:15px;accent-color:var(--brand);cursor:pointer;}
+
+  .lg-err{
+    display:none;align-items:center;gap:8px;background:var(--critical-tint);color:var(--critical);
+    font-size:12.5px;padding:10px 13px;border-radius:9px;margin-bottom:16px;
+  }
+  .lg-err.show{display:flex;}
+  .lg-err svg{width:15px;height:15px;flex:none;}
+
+  .lg-submit{
+    width:100%;background:var(--brand);color:#fff;border:none;border-radius:10px;
+    padding:13px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s;
+    box-shadow:0 8px 20px -8px rgba(42,74,158,.55);
+  }
+  .lg-submit:hover:not(:disabled){background:#233f87;transform:translateY(-1px);}
+  .lg-submit:disabled{opacity:.7;cursor:default;}
+  .lg-spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:lgspin .7s linear infinite;display:none;}
+  .lg-submit.loading .lg-spin{display:block;}
+  .lg-submit.loading .lg-btn-txt{display:none;}
+  @keyframes lgspin{to{transform:rotate(360deg);}}
+
+  .lg-footnote{text-align:center;font-size:11.5px;color:var(--faint);margin-top:24px;}
+
+  @media(max-width:860px){
+    #loginScreen{flex-direction:column;overflow-y:auto;}
+    .lg-brand{flex:none;padding:32px 28px;min-height:auto;}
+    .lg-hero h2{font-size:22px;}
+    .lg-cards{display:none;}
+    .lg-form-side{flex:none;padding:32px 24px 40px;}
+  }
+
   @media(prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
 </head>
 <body>
+
+<div id="loginScreen">
+  <div class="lg-brand">
+    <div class="lg-brand-top">
+      <div class="lg-mark">
+        <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M8 13h3M8 16h6"/></svg>
+      </div>
+      <div>
+        <div class="lg-brand-title">PM-GOV1 Progress</div>
+        <div class="lg-brand-sub">Project Command Center</div>
+      </div>
+    </div>
+
+    <div class="lg-hero">
+      <h2>ภาพรวมโปรเจกต์ทั้งทีมในที่เดียว</h2>
+      <p>ติดตามความคืบหน้า สุขภาพโครงการ กำหนดส่งมอบ และรายได้สะสม แบบเรียลไทม์ สำหรับทีม PM - Government 1</p>
+    </div>
+
+    <div class="lg-cards">
+      <div class="lg-card lg-c1">
+        <div class="t">ความคืบหน้าเฉลี่ย</div>
+        <div class="v">76.6%</div>
+        <div class="bar"><i style="width:77%;background:#128A5E"></i></div>
+      </div>
+      <div class="lg-card lg-c2">
+        <div class="t">Project Health</div>
+        <div class="v" style="color:#128A5E">Super Fast</div>
+        <div class="bar"><i style="width:92%;background:#128A5E"></i></div>
+      </div>
+      <div class="lg-card lg-c3">
+        <div class="t">Revenue Attainment</div>
+        <div class="v">81.6%<span style="font-size:11px;color:var(--faint);font-weight:500"> / เป้า 85.5%</span></div>
+        <div class="bar"><i style="width:82%;background:#7A4BB5"></i></div>
+      </div>
+    </div>
+
+    <div class="lg-foot">PM-GOV1 Progress Dashboard &middot; AIT</div>
+  </div>
+
+  <div class="lg-form-side">
+    <div class="lg-card-form">
+      <div class="lg-form-h">เข้าสู่ระบบ</div>
+      <div class="lg-form-s">กรอกชื่อผู้ใช้และรหัสผ่านเพื่อเข้าใช้งาน dashboard</div>
+
+      <div class="lg-err" id="lgErr">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span id="lgErrTxt">เกิดข้อผิดพลาด</span>
+      </div>
+
+      <form id="lgForm">
+        <div class="lg-field">
+          <label class="lg-label" for="lgUser">ชื่อผู้ใช้</label>
+          <div class="lg-input-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <input class="lg-input" type="text" id="lgUser" autocomplete="username" placeholder="username" required>
+          </div>
+        </div>
+        <div class="lg-field">
+          <label class="lg-label" for="lgPass">รหัสผ่าน</label>
+          <div class="lg-input-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <input class="lg-input" type="password" id="lgPass" autocomplete="current-password" placeholder="••••••••" required style="padding-right:40px">
+            <button type="button" class="lg-toggle-pw" id="lgTogglePw" aria-label="แสดง/ซ่อนรหัสผ่าน">
+              <svg id="lgEyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="lg-row">
+          <label class="lg-remember"><input type="checkbox" id="lgRemember" checked>จดจำการเข้าสู่ระบบ</label>
+        </div>
+
+        <button type="submit" class="lg-submit" id="lgSubmit">
+          <span class="lg-spin"></span>
+          <span class="lg-btn-txt">เข้าสู่ระบบ</span>
+        </button>
+      </form>
+
+      <div class="lg-footnote">เข้าถึงได้เฉพาะทีม PM - Government 1 เท่านั้น</div>
+    </div>
+  </div>
+</div>
+
+<div id="dashboardWrap">
 <div class="wrap">
 
   <header class="head">
@@ -550,6 +736,9 @@
       <button class="sync" id="syncBtn">
         <svg class="ico" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
         <span id="syncTxt">ซิงก์ข้อมูล</span>
+      </button>
+      <button class="sync" id="logoutBtn" title="ออกจากระบบ" style="width:40px;padding:0;flex:none;">
+        <svg class="ico" viewBox="0 0 24 24" style="margin:0"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
       </button>
     </div>
   </header>
@@ -676,6 +865,7 @@
 
   <footer>PM-GOV1 Progress Dashboard - ข้อมูลอัปเดตอัตโนมัติจาก Excel ผ่าน Make.com</footer>
 </div>
+</div>
 
 <script>
 /* =========================================================================
@@ -684,8 +874,88 @@
    runtime เสมอ ไม่มีการ hardcode ตัวเลขใด ๆ ไว้ใน markup
    ========================================================================= */
 
-const API_URL = 'https://pm-gov1-progress-api.onrender.com/api/projects';
+const API_BASE = 'https://pm-gov1-progress-api.onrender.com';
+const API_URL = `${API_BASE}/api/projects`;
 const MAKE_WEBHOOK = 'https://hook.eu1.make.com/m58fg8qhrhydcl5nru3md2dumc5c9xqu';
+
+/* ---------- auth ---------- */
+const TOKEN_KEY = 'pmgov1_token';
+const NAME_KEY = 'pmgov1_name';
+const getToken = () => localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+function setToken(token, name, remember){
+  const store = remember ? localStorage : sessionStorage;
+  store.setItem(TOKEN_KEY, token);
+  store.setItem(NAME_KEY, name || '');
+}
+function clearToken(){
+  localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(NAME_KEY);
+  sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(NAME_KEY);
+}
+function showLogin(errMsg){
+  document.getElementById('dashboardWrap').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  if(errMsg){
+    document.getElementById('lgErrTxt').textContent = errMsg;
+    document.getElementById('lgErr').classList.add('show');
+  }
+}
+function showDashboard(){
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('dashboardWrap').style.display = 'block';
+}
+
+async function doLogin(username, password, remember){
+  const btn = document.getElementById('lgSubmit');
+  const errBox = document.getElementById('lgErr');
+  errBox.classList.remove('show');
+  btn.disabled = true; btn.classList.add('loading');
+  try{
+    const res = await fetch(`${API_BASE}/api/login`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username, password}),
+      signal: AbortSignal.timeout(10000),
+    });
+    const j = await res.json();
+    if(!res.ok || !j.ok){
+      document.getElementById('lgErrTxt').textContent = j.error || 'เข้าสู่ระบบไม่สำเร็จ';
+      errBox.classList.add('show');
+      return;
+    }
+    setToken(j.token, j.name, remember);
+    showDashboard();
+    loadData();
+  }catch(e){
+    document.getElementById('lgErrTxt').textContent = 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง';
+    errBox.classList.add('show');
+  }finally{
+    btn.disabled = false; btn.classList.remove('loading');
+  }
+}
+
+async function checkSession(){
+  const token = getToken();
+  if(!token){ showLogin(); return; }
+  try{
+    const res = await fetch(`${API_BASE}/api/me`, {
+      headers:{ Authorization:`Bearer ${token}` }, signal: AbortSignal.timeout(8000),
+    });
+    if(!res.ok) throw new Error('invalid session');
+    showDashboard();
+    loadData();
+  }catch(e){
+    clearToken();
+    showLogin();
+  }
+}
+
+async function doLogout(){
+  const token = getToken();
+  clearToken();
+  if(token){
+    try{ await fetch(`${API_BASE}/api/logout`, { method:'POST', headers:{ Authorization:`Bearer ${token}` } }); }catch(e){}
+  }
+  showLogin();
+}
 
 const SEED_DATA = [{" Project Code": 335254762, "Project Name": "Log Management System", "PM Name": "Antika Prasadsil", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 65.75, "Progress Update": "ตอนนี้อยู่ในช่วงติดตั้ง เรียบร้อยไปแล้ว 3 ที่ ลูกค้านัดรายงานความก้าวหน้าเดือน กค", "Update Date": "2026-07-24", "Training": "YES", "Project Register\nDate": "2025-12-18", "Project Assigned\nDate": "2026-02-11", "Project Accept\nDate": "2026-02-11", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-03-06", "End Date": "2026-11-30", "Warranty\nType": "Y", "Warranty\nMonth": 24, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Tummanit Suksomboon", "Customer": "Provincial Waterworks Authority", "Contract Value": 29890000, "Selling Price": 29890000, "PM Accountable Value": 29890000, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Sale & Install", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 2, "Project Score": 46.95, "Project Health\nLevel Score": 2, "Project Health": "Warning", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "06/03/2026", "Plan End Date": "30/11/2026", "Plan Master": "08. ส่งของและติดตั้ง - กรณีมีการฝึกอบรม ระยะเวลามากกว่า 3 เดือน  REV : By Progress"}, {" Project Code": 335254611, "Project Name": "IT Asset Management", "PM Name": "Antika Prasadsil", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 87.5, "Progress Update": "ส่งมอบงานงวดที่ 1 เรียบร้อยแล้ว อยู่ในช่วงทำเอกสารอบรม", "Update Date": "2026-07-17", "Training": "YES", "Project Register\nDate": "2025-12-02", "Project Assigned\nDate": "2026-02-11", "Project Accept\nDate": "2026-02-11", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-02-24", "End Date": "2026-08-22", "Warranty\nType": "Y", "Warranty\nMonth": 24, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Tummanit Suksomboon", "Customer": "Provincial Waterworks Authority", "Contract Value": 9270000, "Selling Price": 9270000, "PM Accountable Value": 9270000, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Sale & Install", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 1, "Project Score": 51.07, "Project Health\nLevel Score": 5, "Project Health": "Super Fast", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "24/02/2026", "Plan End Date": "21/08/2026", "Plan Master": "08. ส่งของและติดตั้ง - กรณีมีการฝึกอบรม ระยะเวลามากกว่า 3 เดือน  REV : By Progress"}, {" Project Code": 335261233, "Project Name": "Wifi Replacement", "PM Name": "Lomdetch Puangsombut", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 21, "Progress Update": "- ส่งมอบงานงวดที่ 1 เรียบร้อยแล้ว", "Update Date": "2026-07-31", "Training": "YES", "Project Register\nDate": "2026-03-02", "Project Assigned\nDate": "2026-05-11", "Project Accept\nDate": "2026-05-11", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-05-27", "End Date": "2027-01-22", "Warranty\nType": "Y", "Warranty\nMonth": 36, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Tummanit Suksomboon", "Customer": "Provincial Waterworks Authority", "Contract Value": 49859813.08, "Selling Price": 49859813.08, "PM Accountable Value": 49859813.08, "MA/Rent Value": 124649.53, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "TFRS 15", "RR Type": "By Progress , By TFRS 15 SI", "Complex Level": 3, "Project Level": 2, "Project Score": 46.13, "Project Health\nLevel Score": 1, "Project Health": "Critical", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "27/05/2026", "Plan End Date": "22/01/2027", "Plan Master": "08. ส่งของและติดตั้ง - กรณีมีการฝึกอบรม ระยะเวลามากกว่า 3 เดือน  REV : By Progress"}, {" Project Code": 335260810, "Project Name": "Cloud Conference Phase 2", "PM Name": "Lomdetch Puangsombut", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 85, "Progress Update": "- กำหนดฝึกอบรมช่วงระหว่างวันที่ 3-6 ส.ค. \n- จะส่งมอบงานวันที่ 7 ส.ค. ", "Update Date": "2026-07-31", "Training": "YES", "Project Register\nDate": "2026-02-10", "Project Assigned\nDate": "2026-04-09", "Project Accept\nDate": "2026-04-09", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-04-10", "End Date": "2026-08-07", "Warranty\nType": "Y", "Warranty\nMonth": 24, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Tummanit Suksomboon", "Customer": "Provincial Waterworks Authority", "Contract Value": 29906542.06, "Selling Price": 29906542.06, "PM Accountable Value": 29906542.06, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Sale & Install", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 1, "Project Score": 51.78, "Project Health\nLevel Score": 2, "Project Health": "Warning", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "10/04/2026", "Plan End Date": "07/08/2026", "Plan Master": "08. ส่งของและติดตั้ง - กรณีมีการฝึกอบรม ระยะเวลามากกว่า 3 เดือน  REV : By Progress"}, {" Project Code": 209250688, "Project Name": "Sectoral CERT for Government", "PM Name": "Lomdetch Puangsombut", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 92.5, "Progress Update": "- กำหนดจัดงานประชาสัมพันธ์ 6 ส.ค. นี้\n- จะส่งมอบงานงวดที่ 4 ภายในเดือน ส.ค. (ตามกำหนดเดือน ธ.ค.)", "Update Date": "2026-07-31", "Training": "YES", "Project Register\nDate": "2025-11-11", "Project Assigned\nDate": "2025-12-23", "Project Accept\nDate": "2025-12-23", "Internal Meeting\nSubmit Date": null, "Start Date": "2025-12-24", "End Date": "2026-12-18", "Warranty\nType": "Y", "Warranty\nMonth": 365, "Transfer Date (Manual)": null, "Transfer Date": "21/07/2026", "Transfer Accept Date": null, "Transfer Doc": "PTS-2026-00326 (Y) ", "BI": "Completed", "SL": "Inprogress-Waiting CS", "KT": "New-Waiting CS", "Partial/Final": "Final", "Transfer Status": "รอยืนยัน", "Warranty\nStart Date": "2026-07-09", "Warranty\nEnd Date": "2027-07-08", "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Lalida Khurusathian", "Customer": "National Cyber Security Commission ", "Contract Value": 74878504.67, "Selling Price": 74878504.67, "PM Accountable Value": 74878504.67, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Turnkey", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 3, "Project Score": 49.59, "Project Health\nLevel Score": 5, "Project Health": "Super Fast", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "24/12/2025", "Plan End Date": "18/12/2026", "Plan Master": "12. จ้างเหมา (มีสินค้า/มีการฝึกอบรม) - กรณีมีการฝึกอบรม  REV : By Progress"}, {" Project Code": 328261008, "Project Name": "RTAF Microwave Phase1", "PM Name": "Virojt Changyencham", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 16.65, "Progress Update": "อยู่ระหว่างการจัดทำรายงานผลการสำรวจ และนำเสนอเพื่อให้คณะกรรมการพิจารณาเห็นชอบก่อนเริ่มดำเนินการ\n", "Update Date": "2026-07-31", "Training": "YES", "Project Register\nDate": "2026-02-17", "Project Assigned\nDate": "2026-05-26", "Project Accept\nDate": "2026-05-26", "Internal Meeting\nSubmit Date": "2026-06-09", "Start Date": "2026-05-13", "End Date": "2027-02-06", "Warranty\nType": "Y", "Warranty\nMonth": 24, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Suwasinee Konthong", "Customer": "Royal Thai Airforce", "Contract Value": 11658317.76, "Selling Price": 11658317.76, "PM Accountable Value": 11658317.76, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Sale & Install", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 3, "Project Score": 48.37, "Project Health\nLevel Score": 3, "Project Health": "Normal", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "13/05/2026", "Plan End Date": "05/02/2027", "Plan Master": "08. ส่งของและติดตั้ง - กรณีมีการฝึกอบรม ระยะเวลามากกว่า 3 เดือน  REV : By Progress"}, {" Project Code": 119251388, "Project Name": "OBEC - DDos Phase2", "PM Name": "Virojt Changyencham", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 70.7, "Progress Update": "อยู่ระหว่างการเก็บรวบรวมข้อมูล Web Site จำนวน 60 URL ตามข้อมกำนหสำหรับระบบ CWAAP เพื่อกำหนด Policy และนำข้อมูลไปออกรายงานความเสี่ยงทางไซเบอร์ต่อไป", "Update Date": "2026-07-31", "Training": "YES", "Project Register\nDate": "2025-07-22", "Project Assigned\nDate": "2025-12-03", "Project Accept\nDate": "2025-12-03", "Internal Meeting\nSubmit Date": "2025-12-19", "Start Date": "2025-12-24", "End Date": "2026-10-19", "Warranty\nType": "Y", "Warranty\nMonth": 12, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Sasipreeya Chueachart", "Customer": "Office of The Basic Education Commission", "Contract Value": 30766355.14, "Selling Price": 30766355.14, "PM Accountable Value": 30766355.14, "MA/Rent Value": 0, "Project Type": "SALES", "Service Type": "งานบริการอย่างเดียว,ส่งของและติดตั้ง", "Project Type ACC": "Turnkey", "RR Type": "By Progress", "Complex Level": 2, "Project Level": 3, "Project Score": 51.88, "Project Health\nLevel Score": 3, "Project Health": "Normal", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "24/12/2025", "Plan End Date": "19/10/2026", "Plan Master": "12. จ้างเหมา (มีสินค้า/มีการฝึกอบรม) - กรณีมีการฝึกอบรม  REV : By Progress"}, {" Project Code": 119260593, "Project Name": "MA - Security for GPPC Platform", "PM Name": "Prapasiri   Rakkanpat", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": null, "Progress Update": null, "Update Date": null, "Training": "", "Project Register\nDate": "2026-04-09", "Project Assigned\nDate": "2026-07-01", "Project Accept\nDate": "2026-07-06", "Internal Meeting\nSubmit Date": null, "Start Date": null, "End Date": null, "Warranty\nType": "N", "Warranty\nMonth": null, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Sasipreeya Chueachart", "Customer": "สำนักงานคณะกรรมการคุ้มครองข้อมูลส่วนบุคคล", "Contract Value": 21691588.79, "Selling Price": 21691588.79, "PM Accountable Value": 0, "MA/Rent Value": 21691588.79, "Project Type": "MA", "Service Type": null, "Project Type ACC": "MA", "RR Type": "MA/Rent", "Complex Level": 0, "Project Level": 1, "Project Score": 0, "Project Health\nLevel Score": 0, "Project Health": "", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": null, "Plan End Date": null, "Plan Master": null}, {" Project Code": 402251322, "Project Name": "DGA_Offsite Backup", "PM Name": "Prapasiri   Rakkanpat", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": null, "Progress Update": "อยู่ระหว่างรอสัญญา ปัจจุบันได้ดำเนินการ Kickoff สำรวจพื้นที่ เรียบร้อย อยู่ระหว่างจัดทำรายงาน ของคาดว่าจะเข้าช่วงกลางเดือน ก.ค.", "Update Date": "2026-07-03", "Training": "YES", "Project Register\nDate": "2025-11-19", "Project Assigned\nDate": "2026-05-12", "Project Accept\nDate": "2026-05-12", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-05-29", "End Date": "2026-11-24", "Warranty\nType": "Y", "Warranty\nMonth": 12, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Atthawat Jeerathitikun", "Customer": "Digital Government Development Agency", "Contract Value": 9336448.59, "Selling Price": 9336448.59, "PM Accountable Value": 9336448.59, "MA/Rent Value": 0, "Project Type": "TURNKEY", "Service Type": "ส่งของและติดตั้ง", "Project Type ACC": "Sale", "RR Type": "By Invoice", "Complex Level": 0, "Project Level": 1, "Project Score": null, "Project Health\nLevel Score": 0, "Project Health": "", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": null, "Plan End Date": null, "Plan Master": null}, {" Project Code": 119252478, "Project Name": "PDPC - Project to enhance efficiency and expand government and private sector PDPA platform", "PM Name": "Prapasiri   Rakkanpat", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 40, "Progress Update": "อยู่ระหว่างการดำเนินงานงวด 3 ปัจจุบันดำเนินการเข้าพบหน่วยงานเป้าหมายและ workshop ของแต่ละกลุ่มอุตสาหกรรม", "Update Date": "2026-07-03", "Training": "YES", "Project Register\nDate": "2025-12-08", "Project Assigned\nDate": "2026-02-13", "Project Accept\nDate": "2026-02-17", "Internal Meeting\nSubmit Date": null, "Start Date": "2026-02-13", "End Date": "2026-11-10", "Warranty\nType": "N", "Warranty\nMonth": null, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Sasipreeya Chueachart", "Customer": "สำนักงานคณะกรรมการคุ้มครองข้อมูลส่วนบุคคล", "Contract Value": 54205607.48, "Selling Price": 26262616.82, "PM Accountable Value": 26262616.82, "MA/Rent Value": 0, "Project Type": "TURNKEY", "Service Type": "งาน MA,งานที่ปรึกษา", "Project Type ACC": "Turnkey", "RR Type": "By Progress", "Complex Level": 5, "Project Level": 3, "Project Score": 42.59, "Project Health\nLevel Score": 1, "Project Health": "Critical", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "13/02/2026", "Plan End Date": "10/11/2026", "Plan Master": "18. จ้างเหมา (ไม่มีสินค้า/มีการฝึกอบรม) - กรณีมีการฝึกอบรม  REV : By Progress"}, {" Project Code": 119250742, "Project Name": "PDPC - DE67 (GPPC for SME )", "PM Name": "Prapasiri   Rakkanpat", "Team": "PM - Government 1", "VP Name": "Wittaya Weerawongtrakul", "Status": "Inprogress", "%Progress": 100, "Progress Update": "ดำเนินการงวด 4 เรียบร้อย อยู่ระหว่างการตรวจรับงาน", "Update Date": "2026-07-24", "Training": "YES", "Project Register\nDate": "2025-03-07", "Project Assigned\nDate": "2025-07-25", "Project Accept\nDate": "2025-08-06", "Internal Meeting\nSubmit Date": null, "Start Date": "2025-08-01", "End Date": "2026-07-26", "Warranty\nType": "N", "Warranty\nMonth": null, "Transfer Date (Manual)": null, "Transfer Date": null, "Transfer Accept Date": null, "Transfer Doc": null, "BI": null, "SL": null, "KT": null, "Partial/Final": "", "Transfer Status": null, "Warranty\nStart Date": null, "Warranty\nEnd Date": null, "Contract\nClosed Date": null, "Completely\nClosed Date": null, "Sale": "Sasipreeya Chueachart", "Customer": "กิจการร่วมค้า เอเอซี", "Contract Value": 74579439.25, "Selling Price": 36133738.32, "PM Accountable Value": 36133738.32, "MA/Rent Value": 0, "Project Type": "TURNKEY", "Service Type": "งานที่ปรึกษา,ส่งของและติดตั้ง", "Project Type ACC": "Turnkey", "RR Type": "By Progress", "Complex Level": 3, "Project Level": 4, "Project Score": 50.15, "Project Health\nLevel Score": 3, "Project Health": "Normal", "Last Comment": "", "Last Comment\nDate": null, "Plan Start Date": "01/08/2025", "Plan End Date": "24/07/2026", "Plan Master": "12. จ้างเหมา (มีสินค้า/มีการฝึกอบรม) - กรณีมีการฝึกอบรม  REV : By Progress"}];
 const SEED_REVENUE = [{"#": "1", "Project Code": "119250133", "Project Name": "AOT - Network Refreshment", "PM Name": "Watanyu Anantakunakorn", "Contract Start-End": "22/01/2025 - 13/10/2026", "Plan Start-End": "22/01/2025 - 13/10/2026", "Project Status": "Inprogress", "Selling Price": "807,300,000.00", "ACC Type": "Sale & Install", "Revenue Type": "By Progress", "Acc %": "84.50", "PMS %": "84.50", "มูลค่าของ PMS": "682,168,500.00", "Send Update": "24/07/2026", "PMS Current %": "85.40", "Progress Date": null, "Rev Plan%": "89.90", "Diff\r\n(Rev Plan% - PMS Current %)": "4.50", "Diff (Baht)": "36,328,500.00", "Status": "Confirmed", "Req. Date": "01/08/2026", "Requester": "Request By System", "BF": "66.90", "Jan": "5.60", "Feb": "4.00", "Mar": "0.00", "Q1_Total": "9.60", "Apr": "0.50", "May": "0.52", "Jun": "3.48", "Q2_Total": "4.50", "Jul": "3.50", "Aug": "5.40", "Sep": "4.50", "Q3_Total": "13.40", "Oct": "5.60", "Nov": "0.00", "Dec": "0.00", "Q4_Total": "5.60", ">2026": "0.00", "To Date": "13/10/2026", "Total": "33.10", "Grand Total": "100.00", "Create Date": "31/07/2026", "Last Update Date": null}, {"#": "2", "Project Code": "119250742", "Project Name": "PDPC - DE67 (GPPC for SME )", "PM Name": "Prapasiri   Rakkanpat", "Contract Start-End": "01/08/2025 - 26/07/2026", "Plan Start-End": "01/08/2025 - 24/07/2026", "Project Status": "Inprogress", "Selling Price": "36,133,738.32", "ACC Type": "Turnkey", "Revenue Type": "By Progress", "Acc %": "100.00", "PMS %": "100.00", "มูลค่าของ PMS": "36,133,738.32", "Send Update": "24/07/2026", "PMS Current %": "100.00", "Progress Date": null, "Rev Plan%": "100.00", "Diff\r\n(Rev Plan% - PMS Current %)": "0.00", "Diff (Baht)": "0.00", "Status": "Confirmed", "Req. Date": "01/08/2026", "Requester": "Request By System", "BF": "39.50", "Jan": "19.00", "Feb": "5.50", "Mar": "0.00", "Q1_Total": "24.50", "Apr": "0.00", "May": "7.00", "Jun": "0.00", "Q2_Total": "7.00", "Jul": "29.00", "Aug": "0.00", "Sep": "0.00", "Q3_Total": "29.00", "Oct": "0.00", "Nov": "0.00", "Dec": "0.00", "Q4_Total": "0.00", ">2026": "0.00", "To Date": "26/07/2026", "Total": "60.50", "Grand Total": "100.00", "Create Date": "31/07/2026", "Last Update Date": null}, {"#": "3", "Project Code": "119251388", "Project Name": "OBEC - DDos Phase2", "PM Name": "Virojt Changyencham", "Contract Start-End": "24/12/2025 - 19/10/2026", "Plan Start-End": "24/12/2025 - 19/10/2026", "Project Status": "Inprogress", "Selling Price": "30,766,355.14", "ACC Type": "Turnkey", "Revenue Type": "By Progress", "Acc %": "70.70", "PMS %": "70.70", "มูลค่าของ PMS": "21,751,813.08", "Send Update": "24/07/2026", "PMS Current %": "74.40", "Progress Date": null, "Rev Plan%": "80.00", "Diff\r\n(Rev Plan% - PMS Current %)": "5.60", "Diff (Baht)": "1,722,915.89", "Status": "Confirmed", "Req. Date": "01/08/2026", "Requester": "Request By System", "BF": "0.00", "Jan": "23.00", "Feb": "4.00", "Mar": "0.00", "Q1_Total": "27.00", "Apr": "8.00", "May": "8.00", "Jun": "14.80", "Q2_Total": "30.80", "Jul": "12.90", "Aug": "9.30", "Sep": "10.00", "Q3_Total": "32.20", "Oct": "10.00", "Nov": "0.00", "Dec": "0.00", "Q4_Total": "10.00", ">2026": "0.00", "To Date": "19/10/2026", "Total": "100.00", "Grand Total": "100.00", "Create Date": "31/07/2026", "Last Update Date": null}, {"#": "4", "Project Code": "119252478", "Project Name": "PDPC - Project to enhance efficiency and expand government and private sector PDPA platform", "PM Name": "Prapasiri   Rakkanpat", "Contract Start-End": "13/02/2026 - 10/11/2026", "Plan Start-End": "13/02/2026 - 10/11/2026", "Project Status": "Inprogress", "Selling Price": "26,262,616.82", "ACC Type": "Turnkey", "Revenue Type": "By Progress", "Acc %": "40.00", "PMS %": "40.00", "มูลค่าของ PMS": "10,505,046.73", "Send Update": "03/07/2026", "PMS Current %": "52.00", "Progress Date": null, "Rev Plan%": "60.00", "Diff\r\n(Rev Plan% - PMS Current %)": "8.00", "Diff (Baht)": "2,101,009.35", "Status": "Confirmed", "Req. Date": "01/08/2026", "Requester": "Request By System", "BF": "0.00", "Jan": "0.00", "Feb": "0.00", "Mar": "5.00", "Q1_Total": "5.00", "Apr": "15.00", "May": "16.00", "Jun": "4.00", "Q2_Total": "35.00", "Jul": "0.00", "Aug": "20.00", "Sep": "10.00", "Q3_Total": "30.00", "Oct": "15.00", "Nov": "15.00", "Dec": "0.00", "Q4_Total": "30.00", ">2026": "0.00", "To Date": "10/11/2026", "Total": "100.00", "Grand Total": "100.00", "Create Date": "31/07/2026", "Last Update Date": null}, {"#": "5", "Project Code": "209250688", "Project Name": "Sectoral CERT for Government", "PM Name": "Lomdetch Puangsombut", "Contract Start-End": "24/12/2025 - 18/12/2026", "Plan Start-End": "24/12/2025 - 18/12/2026", "Project Status": "Inprogress", "Selling Price": "74,878,504.67", "ACC Type": "Turnkey", "Revenue Type": "By Progress", "Acc %": "92.50", "PMS %": "92.50", "มูลค่าของ PMS": "69,262,616.82", "Send Update": "10/07/2026", "PMS Current %": "92.50", "Progress Date": null, "Rev Plan%": "88.75", "Diff\r\n(Rev Plan% - PMS Current %)": "-3.75", "Diff (Baht)": "-2,807,943.93", "Status": "Confirmed", "Req. Date": "01/08/2026", "Requester": "Request By System", "BF": "0.00", "Jan": "22.50", "Feb": "5.00", "Mar": "0.00", "Q1_Total": "27.50", "Apr": "6.55", "May": "47.70", "Jun": "0.75", "Q2_Total": "55.00", "Jul": "10.00", "Aug": "-3.75", "Sep": "2.00", "Q3_Total": "8.25", "Oct": "2.00", "Nov": "2.00", "Dec": "5.25", "Q4_Total": "9.25", ">2026": "0.00", "To Date": "18/12/2026", "Total": "100.00", "Grand Total": "100.00", "Create Date": "31/07/2026", "Last Update Date": null}, {"#": "6", "Project Code": "328261008", "Project Name": "RTAF Microwave Phase1", "PM Name": "Virojt Changyencham", "Contract Start-End": "13/05/2026 - 06/02/2027", "Plan Start-End": "13/05/2026 - 05/02/2027", "Project Status": "Inprogress", "Selling Price": "11,658,317.76", "ACC Type": "Sale & Install", "Revenue Type": "By Progress", "Acc %": "16.40", "PMS %": "16.40", "มูลค่าของ PMS": "1,911,964.11", "Send Update": "24/07/2026", "PMS Current %": "17.15", "Progress Date": null, "Rev Plan%": "15.00", "Diff\r\n(Rev Plan% - PMS Current %)": "-2.15", "Diff (Baht)": "-250,653.83", "Status": "Confirmed", "Req. Date": "01/08/2026", "Requester": "Request By System", "BF": "0.00", "Jan": "0.00", "Feb": "0.00", "Mar": "0.00", "Q1_Total": "0.00", "Apr": "0.00", "May": "0.00", "Jun": "5.10", "Q2_Total": "5.10", "Jul": "11.30", "Aug": "-1.40", "Sep": "5.00", "Q3_Total": "14.90", "Oct": "5.00", "Nov": "45.00", "Dec": "15.00", "Q4_Total": "65.00", ">2026": "15.00", "To Date": "06/02/2027", "Total": "85.00", "Grand Total": "85.00", "Create Date": "31/07/2026", "Last Update Date": null}, {"#": "7", "Project Code": "335254611", "Project Name": "IT Asset Management", "PM Name": "Antika Prasadsil", "Contract Start-End": "24/02/2026 - 22/08/2026", "Plan Start-End": "24/02/2026 - 21/08/2026", "Project Status": "Inprogress", "Selling Price": "9,270,000.00", "ACC Type": "Sale & Install", "Revenue Type": "By Progress", "Acc %": "87.50", "PMS %": "87.50", "มูลค่าของ PMS": "8,111,250.00", "Send Update": "17/07/2026", "PMS Current %": "97.00", "Progress Date": null, "Rev Plan%": "100.00", "Diff\r\n(Rev Plan% - PMS Current %)": "3.00", "Diff (Baht)": "278,100.00", "Status": "Confirmed", "Req. Date": "01/08/2026", "Requester": "Request By System", "BF": "0.00", "Jan": "0.00", "Feb": "0.00", "Mar": "5.00", "Q1_Total": "5.00", "Apr": "12.50", "May": "42.50", "Jun": "9.00", "Q2_Total": "64.00", "Jul": "18.50", "Aug": "12.50", "Sep": "0.00", "Q3_Total": "31.00", "Oct": "0.00", "Nov": "0.00", "Dec": "0.00", "Q4_Total": "0.00", ">2026": "0.00", "To Date": "22/08/2026", "Total": "100.00", "Grand Total": "100.00", "Create Date": "31/07/2026", "Last Update Date": null}, {"#": "8", "Project Code": "335254762", "Project Name": "Log Management System", "PM Name": "Antika Prasadsil", "Contract Start-End": "06/03/2026 - 30/11/2026", "Plan Start-End": "06/03/2026 - 30/11/2026", "Project Status": "Inprogress", "Selling Price": "29,890,000.00", "ACC Type": "Sale & Install", "Revenue Type": "By Progress", "Acc %": "65.75", "PMS %": "65.75", "มูลค่าของ PMS": "19,652,675.00", "Send Update": "24/07/2026", "PMS Current %": "71.00", "Progress Date": null, "Rev Plan%": "75.50", "Diff\r\n(Rev Plan% - PMS Current %)": "4.50", "Diff (Baht)": "1,345,050.00", "Status": "Confirmed", "Req. Date": "01/08/2026", "Requester": "Request By System", "BF": "0.00", "Jan": "0.00", "Feb": "0.00", "Mar": "0.00", "Q1_Total": "0.00", "Apr": "10.00", "May": "5.50", "Jun": "15.00", "Q2_Total": "30.50", "Jul": "35.25", "Aug": "9.75", "Sep": "15.00", "Q3_Total": "60.00", "Oct": "5.50", "Nov": "4.00", "Dec": "0.00", "Q4_Total": "9.50", ">2026": "0.00", "To Date": "30/11/2026", "Total": "100.00", "Grand Total": "100.00", "Create Date": "31/07/2026", "Last Update Date": null}, {"#": "9", "Project Code": "335260810", "Project Name": "Cloud Conference Phase 2", "PM Name": "Lomdetch Puangsombut", "Contract Start-End": "10/04/2026 - 07/08/2026", "Plan Start-End": "10/04/2026 - 07/08/2026", "Project Status": "Inprogress", "Selling Price": "29,906,542.06", "ACC Type": "Sale & Install", "Revenue Type": "By Progress", "Acc %": "85.00", "PMS %": "85.00", "มูลค่าของ PMS": "25,420,560.75", "Send Update": "10/07/2026", "PMS Current %": "100.00", "Progress Date": null, "Rev Plan%": "100.00", "Diff\r\n(Rev Plan% - PMS Current %)": "0.00", "Diff (Baht)": "0.00", "Status": "Confirmed", "Req. Date": "01/08/2026", "Requester": "Request By System", "BF": "0.00", "Jan": "0.00", "Feb": "0.00", "Mar": "0.00", "Q1_Total": "0.00", "Apr": "5.00", "May": "10.00", "Jun": "45.00", "Q2_Total": "60.00", "Jul": "25.00", "Aug": "15.00", "Sep": "0.00", "Q3_Total": "40.00", "Oct": "0.00", "Nov": "0.00", "Dec": "0.00", "Q4_Total": "0.00", ">2026": "0.00", "To Date": "07/08/2026", "Total": "100.00", "Grand Total": "100.00", "Create Date": "31/07/2026", "Last Update Date": null}, {"#": "10", "Project Code": "335261233", "Project Name": "Wifi Replacement", "PM Name": "Lomdetch Puangsombut", "Contract Start-End": "27/05/2026 - 22/01/2027", "Plan Start-End": "27/05/2026 - 22/01/2027", "Project Status": "Inprogress", "Selling Price": "49,859,813.08", "ACC Type": "TFRS 15", "Revenue Type": "By Progress , By TFRS 15 SI", "Acc %": "15.00", "PMS %": "15.00", "มูลค่าของ PMS": "7,478,971.96", "Send Update": "10/07/2026", "PMS Current %": "21.00", "Progress Date": null, "Rev Plan%": "30.00", "Diff\r\n(Rev Plan% - PMS Current %)": "9.00", "Diff (Baht)": "4,487,383.18", "Status": "Confirmed", "Req. Date": "01/08/2026", "Requester": "Request By System", "BF": "0.00", "Jan": "0.00", "Feb": "0.00", "Mar": "0.00", "Q1_Total": "0.00", "Apr": "0.00", "May": "0.00", "Jun": "5.00", "Q2_Total": "5.00", "Jul": "10.00", "Aug": "15.00", "Sep": "20.00", "Q3_Total": "45.00", "Oct": "10.00", "Nov": "10.00", "Dec": "10.00", "Q4_Total": "30.00", ">2026": "20.00", "To Date": "22/01/2027", "Total": "80.00", "Grand Total": "80.00", "Create Date": "31/07/2026", "Last Update Date": null}, {"#": "11", "Project Code": "334262732", "Project Name": "Aerothai-Network at Huahin", "PM Name": "Antika Prasadsil", "Contract Start-End": " - ", "Plan Start-End": " - ", "Project Status": "Inprogress", "Selling Price": "2,380,000.00", "ACC Type": "Sale & Install", "Revenue Type": "By Progress", "Acc %": "0.00", "PMS %": "0.00", "มูลค่าของ PMS": "0.00", "Send Update": null, "PMS Current %": null, "Progress Date": "14/08/2026", "Rev Plan%": "0.00", "Diff\r\n(Rev Plan% - PMS Current %)": "0.00", "Diff (Baht)": "0.00", "Status": "Confirmed", "Req. Date": "10/08/2026", "Requester": "Request By System", "BF": "0.00", "Jan": "0.00", "Feb": "0.00", "Mar": "0.00", "Q1_Total": "0.00", "Apr": "0.00", "May": "0.00", "Jun": "0.00", "Q2_Total": "0.00", "Jul": "0.00", "Aug": "0.00", "Sep": "0.00", "Q3_Total": "0.00", "Oct": "0.00", "Nov": "0.00", "Dec": "100.00", "Q4_Total": "100.00", ">2026": "0.00", "To Date": null, "Total": "100.00", "Grand Total": "100.00", "Create Date": "10/08/2026", "Last Update Date": null}];
@@ -802,7 +1072,13 @@ let filters = { team:'', vp:'', pm:'', status:'', health:'' };
 
 async function loadData(auto){
   try{
-    const res = await fetch(API_URL, { signal: AbortSignal.timeout(6000) });
+    const token = getToken();
+    if(!token){ showLogin(); return; }
+    const res = await fetch(API_URL, {
+      headers:{ Authorization:`Bearer ${token}` },
+      signal: AbortSignal.timeout(6000),
+    });
+    if(res.status === 401){ clearToken(); showLogin('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'); return; }
     if(!res.ok) throw new Error('bad');
     const j = await res.json();
     const rows = j.rows || j;
@@ -1788,9 +2064,29 @@ async function syncNow(){
   finally{ setTimeout(()=>{ txt.textContent = 'ซิงก์ข้อมูล'; btn.disabled = false; }, 2500); }
 }
 
-loadData();
+checkSession();
 document.getElementById('syncBtn').addEventListener('click', syncNow);
+document.getElementById('logoutBtn').addEventListener('click', doLogout);
 document.getElementById('winSel').addEventListener('change', ()=>renderGantt(applyFilters(ALL)));
+
+document.getElementById('lgForm').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const u = document.getElementById('lgUser').value.trim();
+  const p = document.getElementById('lgPass').value;
+  const remember = document.getElementById('lgRemember').checked;
+  if(!u || !p) return;
+  doLogin(u, p, remember);
+});
+document.getElementById('lgTogglePw').addEventListener('click', ()=>{
+  const inp = document.getElementById('lgPass');
+  const eye = document.getElementById('lgEyeIcon');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  eye.innerHTML = show
+    ? '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.6 18.6 0 0 1 5.06-5.94M9.9 4.24A10.4 10.4 0 0 1 12 4c7 0 11 8 11 8a18.6 18.6 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/>'
+    : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+});
+
 document.getElementById('wow').addEventListener('click', (e)=>{
   const row = e.target.closest('.wr:not(.head-row)');
   if(!row) return;

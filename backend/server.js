@@ -14,12 +14,70 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const XLSX = require('xlsx');
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '25mb' }));
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+
+// --- ผู้ใช้งาน (login) ---
+// ตั้งค่าจริงผ่าน environment variable AUTH_USERS บน Render (JSON array), เช่น:
+//   [{"username":"antika","name":"Antika Prasadsil","passwordHash":"$2a$10$..."}]
+// สร้าง hash รหัสผ่านได้จาก: node generate-hash.js "รหัสผ่านจริง"
+// ⚠️ ถ้าไม่ตั้ง AUTH_USERS จะใช้ค่าเริ่มต้นด้านล่าง (username: admin / password: pmgov1) — เปลี่ยนก่อนใช้งานจริงเสมอ
+let USERS;
+try { USERS = JSON.parse(process.env.AUTH_USERS || 'null'); } catch { USERS = null; }
+if (!Array.isArray(USERS) || !USERS.length) {
+  USERS = [{ username: 'admin', name: 'PM-GOV1 Admin', passwordHash: '$2b$10$bqSxasX72zv/WjwFMOYzden5FnVDWsATMQVD29KFMC3nvmWIhHLOi' }];
+  console.log('⚠ AUTH_USERS ไม่ได้ตั้งค่า — ใช้บัญชีเริ่มต้น admin/pmgov1 (ควรเปลี่ยนก่อนใช้งานจริง)');
+}
+
+const tokens = new Map(); // token -> { username, name, expires }
+const TOKEN_TTL = 12 * 60 * 60 * 1000; // 12 ชั่วโมง
+
+function requireAuth(req, res, next) {
+  const h = req.headers['authorization'] || '';
+  const token = h.startsWith('Bearer ') ? h.slice(7) : null;
+  const entry = token ? tokens.get(token) : null;
+  if (!entry || entry.expires < Date.now()) {
+    if (token) tokens.delete(token);
+    return res.status(401).json({ ok: false, error: 'Unauthorized — กรุณาเข้าสู่ระบบใหม่' });
+  }
+  entry.expires = Date.now() + TOKEN_TTL; // ใช้งานต่อเนื่อง = ต่ออายุ session ให้อัตโนมัติ
+  req.user = { username: entry.username, name: entry.name };
+  next();
+}
+
+// --- เข้าสู่ระบบ ---
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) return res.status(400).json({ ok: false, error: 'กรุณากรอก username และ password' });
+
+  const user = USERS.find(u => u.username.toLowerCase() === String(username).toLowerCase());
+  if (!user) return res.status(401).json({ ok: false, error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
+
+  const match = await bcrypt.compare(String(password), user.passwordHash);
+  if (!match) return res.status(401).json({ ok: false, error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
+
+  const token = crypto.randomBytes(24).toString('hex');
+  tokens.set(token, { username: user.username, name: user.name || user.username, expires: Date.now() + TOKEN_TTL });
+  console.log(`✓ Login: ${user.username}`);
+  res.json({ ok: true, token, name: user.name || user.username, expiresIn: TOKEN_TTL });
+});
+
+app.post('/api/logout', requireAuth, (req, res) => {
+  const token = (req.headers['authorization'] || '').slice(7);
+  tokens.delete(token);
+  res.json({ ok: true });
+});
+
+// ให้ frontend เช็คว่า token ที่เก็บไว้ยังใช้ได้ไหม (ตอนเปิดหน้าเว็บใหม่)
+app.get('/api/me', requireAuth, (req, res) => {
+  res.json({ ok: true, user: req.user });
+});
 
 // เก็บ snapshot ล่าสุดไว้ใน memory
 let latestData = {
@@ -166,8 +224,8 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
   }
 });
 
-// --- ให้ frontend ดึงข้อมูลไปแสดง ---
-app.get('/api/projects', (req, res) => {
+// --- ให้ frontend ดึงข้อมูลไปแสดง (ต้อง login ก่อน) ---
+app.get('/api/projects', requireAuth, (req, res) => {
   res.json(latestData);
 });
 
@@ -175,8 +233,8 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, rows: latestData.rows.length, updatedAt: latestData.updatedAt });
 });
 
-// --- Debug: ดูว่า Make.com ส่งอะไรมาล่าสุดจริง ๆ ---
-app.get('/api/debug/last-payload', (req, res) => {
+// --- Debug: ดูว่า Make.com ส่งอะไรมาล่าสุดจริง ๆ (ต้อง login ก่อน) ---
+app.get('/api/debug/last-payload', requireAuth, (req, res) => {
   res.json(lastRaw);
 });
 
