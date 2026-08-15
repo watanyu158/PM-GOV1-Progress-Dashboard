@@ -217,6 +217,7 @@
   .rv-track{position:relative;height:10px;background:var(--bg-tint);border-radius:5px;margin-top:5px;}
   .rv-fill{position:absolute;top:0;left:0;height:100%;border-radius:5px;background:var(--fc);}
   .rv-plan-mark{position:absolute;top:-4px;width:2px;height:18px;background:#8A5A72;z-index:2;}
+  .rv-plan-mark-eom{position:absolute;top:-4px;width:0;height:18px;border-left:1.5px dashed #C9B8C2;z-index:1;opacity:.85;}
   .rv-acc-mark{position:absolute;top:-2px;width:2px;height:14px;background:var(--faint);opacity:.7;}
   .rv-legend2{display:flex;gap:12px;font-size:10px;color:var(--faint);margin-top:5px;}
   .rv-legend2 span{display:flex;align-items:center;gap:4px;}
@@ -1929,6 +1930,14 @@ function renderRevenue(list){
     document.getElementById('revCount').textContent = '';
     return;
   }
+  // เป้าที่ "แฟร์กับวันนี้" — เป้าสิ้นเดือน (Rev Plan%) ถูกปักไว้ที่วันสุดท้ายของเดือนเสมอ
+  // ถ้าเทียบ % ปัจจุบันกับเป้าสิ้นเดือนตรง ๆ จะดูล่าช้าเกินจริงเสมอในช่วงต้น-กลางเดือน
+  // แก้โดย "เฉลี่ยเชิงเส้นตามสัดส่วนวันที่ผ่านไปแล้วในเดือน" ระหว่างเป้าสิ้นเดือนก่อน ➜ เป้าสิ้นเดือนนี้
+  const today = new Date();
+  const monthLabel = today.toLocaleDateString('en-US',{month:'short'});
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+  const dayFrac = today.getDate() / daysInMonth;
+
   // join ด้วย Project Code — ถ้ามีหลายแถวต่อโครงการ (ต่อท้ายทุกสัปดาห์เหมือน Progress) ใช้แถวสุดท้าย
   const revByCode = {};
   REV.forEach(r=>{ if(r['Project Code']) revByCode[r['Project Code']] = r; });
@@ -1940,13 +1949,20 @@ function renderRevenue(list){
       const r = revByCode[p['Project Code']];
       const acc = num(r['Acc %']);
       const cur = num(r['PMS Current %']);
-      const plan = num(r['Rev Plan%']);
-      const diffPct = plan - cur;
-      const diffBaht = num(r['Diff (Baht)']);
+      const plan = num(r['Rev Plan%']);            // เป้าสิ้นเดือน (ทางการ)
       const selling = num(r['Selling Price']);
       const months = ['BF','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','>2026'];
       let cum = 0; const curvePts = months.map(m=>{ cum += num(r[m]); return cum; });
-      return {p, r, acc, cur, plan, diffPct, diffBaht, selling, curvePts, months};
+
+      let monIdx = months.indexOf(monthLabel);
+      if(monIdx < 0) monIdx = months.length - 2;
+      const prevCum = monIdx > 0 ? curvePts[monIdx-1] : 0;
+      const planToday = prevCum + (plan - prevCum) * dayFrac;  // เป้าปรับตามวันที่วันนี้ — ใช้ตัดสินสถานะจริง
+      const diffPct = planToday - cur;              // ค่าที่ใช้จัดอันดับ/ให้สีจริง (แฟร์กว่า)
+      const diffPctOfficial = plan - cur;           // เก็บไว้อ้างอิงเทียบให้เห็นส่วนต่าง
+      const diffBaht = diffPct/100 * selling;        // คำนวณเองด้วยวิธีเดียวกับที่ชีทใช้ (ยืนยันแล้วว่า Diff(Baht)=diffPct/100*Selling Price)
+
+      return {p, r, acc, cur, plan, planToday, diffPct, diffPctOfficial, diffBaht, selling, curvePts, months, monIdx, dayFrac};
     });
 
   const missingN = list.length - items.length;
@@ -1959,7 +1975,8 @@ function renderRevenue(list){
 
   // --- ภาพรวม ---
   const totalSelling = items.reduce((s,x)=>s+x.selling,0);
-  const wPlan = totalSelling ? items.reduce((s,x)=>s+x.plan*x.selling,0)/totalSelling : 0;
+  const wPlanToday = totalSelling ? items.reduce((s,x)=>s+x.planToday*x.selling,0)/totalSelling : 0;
+  const wPlanEOM   = totalSelling ? items.reduce((s,x)=>s+x.plan*x.selling,0)/totalSelling : 0;
   const wCur = totalSelling ? items.reduce((s,x)=>s+x.cur*x.selling,0)/totalSelling : 0;
   const totalDiffBaht = items.reduce((s,x)=>s+x.diffBaht,0);
   const behindN = items.filter(x=>x.diffPct>0.5).length;
@@ -1974,10 +1991,11 @@ function renderRevenue(list){
     <div class="ov-stats">
       <div class="ov-stat">
         <div class="ov-l">Revenue Attainment ถ่วงมูลค่า</div>
-        <div class="ov-v">${wCur.toFixed(1)}%<span style="font-size:12px;color:var(--faint);font-weight:500"> / เป้า ${wPlan.toFixed(1)}%</span></div>
+        <div class="ov-v">${wCur.toFixed(1)}%<span style="font-size:12px;color:var(--faint);font-weight:500"> / เป้าวันนี้ ${wPlanToday.toFixed(1)}%</span></div>
+        <div style="font-size:10.5px;color:var(--faint);margin-top:3px">เป้าสิ้นเดือนทางการ ${wPlanEOM.toFixed(1)}% — ปรับสัดส่วนตามวันที่ ${today.getDate()}/${daysInMonth}</div>
       </div>
       <div class="ov-stat">
-        <div class="ov-l">ส่วนต่างรายได้สะสมรวม</div>
+        <div class="ov-l">ส่วนต่างรายได้สะสมรวม <span style="font-weight:400">(เทียบเป้าวันนี้)</span></div>
         <div class="ov-v">${compact(Math.abs(totalDiffBaht))}</div>
         ${dChip2(totalDiffBaht)}
       </div>
@@ -2000,7 +2018,7 @@ function renderRevenue(list){
     byPM[pm].diffBaht += x.diffBaht;
   });
   const pmRows = Object.values(byPM).map(g=>{
-    const wp = g.selling ? g.items.reduce((s,x)=>s+x.plan*x.selling,0)/g.selling : 0;
+    const wp = g.selling ? g.items.reduce((s,x)=>s+x.planToday*x.selling,0)/g.selling : 0;
     const wc = g.selling ? g.items.reduce((s,x)=>s+x.cur*x.selling,0)/g.selling : 0;
     const diffPctW = wp - wc;
     const cls = diffPctW>1 ? 'behind' : diffPctW<-1 ? 'ahead' : 'onpace';
@@ -2008,7 +2026,7 @@ function renderRevenue(list){
   }).sort((a,b)=> b.diffBaht - a.diffBaht);
 
   const head = `<div class="rv-row head-row">
-    <span>PM</span><span style="text-align:right">Σ Selling Price</span><span>PMS Current% vs Rev Plan%</span><span style="text-align:right">Diff (Baht)</span><span></span>
+    <span>PM</span><span style="text-align:right">Σ Selling Price</span><span>PMS Current% vs Rev Plan% (เป้าวันนี้)</span><span style="text-align:right">Diff (Baht)</span><span></span>
   </div>`;
 
   const body = pmRows.map(g=>{
@@ -2019,25 +2037,28 @@ function renderRevenue(list){
 
     const cards = g.items.slice().sort((a,b)=>b.diffPct-a.diffPct).map(x=>{
       const barCol = x.diffPct>0.5 ? '#A8482F' : x.diffPct<-0.5 ? '#4F7A4A' : '#7A5C3E';
-      const scurve = sCurveSVG(x.curvePts, x.months, x.plan, x.cur);
+      const scurve = sCurveSVG(x.curvePts, x.months, x.plan, x.planToday, x.cur, x.monIdx, x.dayFrac);
       return `<div class="rv-card">
         <div class="rv-card-top">
           <div><div class="rv-card-name">${x.p['Project Name']||'-'}</div><div class="rv-card-cust">${x.p['Customer']||''}</div></div>
-          <span class="chip ${x.diffPct>0.5?'critical':x.diffPct<-0.5?'success':'neutral'}">${x.diffPct>0?'ช้ากว่า':x.diffPct<0?'เร็วกว่า':'ตรง'} ${Math.abs(x.diffPct).toFixed(1)}pp</span>
+          <span class="chip ${x.diffPct>0.5?'critical':x.diffPct<-0.5?'success':'neutral'}">${x.diffPct>0?'ช้ากว่า':x.diffPct<0?'เร็วกว่า':'ตรง'} ${Math.abs(x.diffPct).toFixed(1)}pp <span style="opacity:.75;font-weight:400">(เป้าวันนี้)</span></span>
         </div>
         <div class="rv-track">
           <div class="rv-fill" style="width:${Math.min(x.cur,100)}%;background:${barCol}"></div>
           <div class="rv-acc-mark" style="left:${Math.min(x.acc,100)}%" title="Acc% (รอบก่อน) ${x.acc.toFixed(1)}%"></div>
-          <div class="rv-plan-mark" style="left:${Math.min(x.plan,100)}%" title="Rev Plan% (เป้าเดือนนี้) ${x.plan.toFixed(1)}%"></div>
+          <div class="rv-plan-mark-eom" style="left:${Math.min(x.plan,100)}%" title="Rev Plan% เป้าสิ้นเดือน (ทางการ) ${x.plan.toFixed(1)}%"></div>
+          <div class="rv-plan-mark" style="left:${Math.min(x.planToday,100)}%" title="เป้าปรับตามวันที่วันนี้ ${x.planToday.toFixed(1)}%"></div>
         </div>
         <div class="rv-legend2">
           <span><i style="background:${barCol}"></i>PMS Current ${x.cur.toFixed(1)}%</span>
           <span><i style="background:var(--faint)"></i>Acc% (รอบก่อน) ${x.acc.toFixed(1)}%</span>
-          <span><i style="background:#8A5A72"></i>Rev Plan% ${x.plan.toFixed(1)}%</span>
+          <span><i style="background:#8A5A72"></i>เป้าวันนี้ ${x.planToday.toFixed(1)}%</span>
+          <span><i style="background:#C9B8C2"></i>เป้าสิ้นเดือน ${x.plan.toFixed(1)}%</span>
         </div>
         <div class="rv-metrics">
           <span>Selling Price <b>${compact(x.selling)}</b></span>
-          <span>ส่วนต่าง <b style="color:${barCol}">${x.diffBaht>0?'-':x.diffBaht<0?'+':''}${compact(Math.abs(x.diffBaht))}</b></span>
+          <span>ส่วนต่าง (เป้าวันนี้) <b style="color:${barCol}">${x.diffBaht>0?'-':x.diffBaht<0?'+':''}${compact(Math.abs(x.diffBaht))}</b></span>
+          <span style="color:var(--faint)">เทียบเป้าสิ้นเดือน: ${x.diffPctOfficial>0?'-':'+'}${Math.abs(x.diffPctOfficial).toFixed(1)}pp</span>
         </div>
         <div class="rv-scurve">${scurve}</div>
       </div>`;
@@ -2063,24 +2084,26 @@ function renderRevenue(list){
 }
 
 // S-curve: เส้นสะสมตามแผนรายเดือน (BF -> Jan..Dec -> >2026) พร้อมจุด Rev Plan%/PMS Current% ของรอบล่าสุด
-function sCurveSVG(pts, months, plan, cur){
+// S-curve: เส้นสะสมตามแผนรายเดือน (BF -> Jan..Dec -> >2026)
+// วางจุด "เป้าวันนี้" ตรงตำแหน่ง x ที่แท้จริงของวันนี้ (ระหว่างเดือน ไม่ปัดไปที่ขอบเดือน)
+// วงกลมทึบ = เป้าปรับตามวันที่วันนี้ (ใช้ตัดสินสถานะจริง), วงกลมโปร่ง = เป้าสิ้นเดือนทางการ (อ้างอิง)
+function sCurveSVG(pts, months, planEOM, planToday, cur, monIdx, dayFrac){
   const W=680,H=90,padL=6,padR=6,padT=10,padB=20;
   const x = i => padL + (i/(pts.length-1))*(W-padL-padR);
   const y = v => H-padB - (Math.min(v,105)/105)*(H-padT-padB);
   const line = pts.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
   const area = `${x(0).toFixed(1)},${(H-padB).toFixed(1)} ${line} ${x(pts.length-1).toFixed(1)},${(H-padB).toFixed(1)}`;
-  // ตำแหน่ง "วันนี้" โดยประมาณจากเดือนปัจจุบัน (map เดือนที่ตรงกับ index ใน months array)
-  const now = new Date();
-  const curMonLabel = now.toLocaleDateString('en-US',{month:'short'});
-  let todayIdx = months.findIndex(m=>m===curMonLabel);
-  if(todayIdx < 0) todayIdx = pts.length-2;
   const labels = months.map((m,i)=> (i%2===0 || i===months.length-1) ? `<text x="${x(i).toFixed(1)}" y="${H-4}" font-size="8.5" fill="var(--faint)" text-anchor="middle" font-family="IBM Plex Mono">${m}</text>` : '').join('');
+  // ตำแหน่ง x ต่อเนื่องของ "วันนี้" = ระหว่างจุดเดือนก่อน (monIdx-1) กับเดือนนี้ (monIdx) ตามสัดส่วนวันที่ผ่านไป
+  const todayPos = monIdx>0 ? (monIdx-1) + dayFrac : 0;
+  const todayX = x(todayPos);
   return `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
     <polygon points="${area}" fill="#7A5C3E" opacity="0.06"/>
     <polyline points="${line}" fill="none" stroke="#7A5C3E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    <line x1="${x(todayIdx)}" y1="${padT}" x2="${x(todayIdx)}" y2="${H-padB}" stroke="#A8482F" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.55"/>
-    <circle cx="${x(todayIdx)}" cy="${y(plan)}" r="3.2" fill="#8A5A72"/>
-    <circle cx="${x(todayIdx)}" cy="${y(cur)}" r="3.2" fill="${cur>=plan?'#4F7A4A':'#A8482F'}"/>
+    <line x1="${todayX}" y1="${padT}" x2="${todayX}" y2="${H-padB}" stroke="#A8482F" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.55"/>
+    <circle cx="${x(monIdx)}" cy="${y(planEOM)}" r="3" fill="none" stroke="#8A5A72" stroke-width="1.6" opacity="0.7"/>
+    <circle cx="${todayX}" cy="${y(planToday)}" r="3.4" fill="#8A5A72"/>
+    <circle cx="${todayX}" cy="${y(cur)}" r="3.4" fill="${cur>=planToday?'#4F7A4A':'#A8482F'}"/>
     ${labels}
   </svg>`;
 }
