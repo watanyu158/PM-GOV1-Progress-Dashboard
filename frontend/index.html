@@ -723,13 +723,13 @@
 
     <div class="lg-hero">
       <div class="lg-eyebrow"><i></i>Live Project Tracking</div>
-      <h2>ภาพรวมโปรเจกต์ทั้งทีมในที่เดียว</h2>
-      <p>ติดตามความคืบหน้า สุขภาพโครงการ กำหนดส่งมอบ และรายได้สะสม แบบเรียลไทม์ สำหรับทีม PM - Government 1</p>
+      <h2>Every project, one command center.</h2>
+      <p>Track delivery progress, project health, upcoming milestones and revenue attainment in real time — built for the PM - Government 1 team.</p>
     </div>
 
     <div class="lg-cards">
       <div class="lg-card lg-c1">
-        <div class="t">ความคืบหน้าเฉลี่ย</div>
+        <div class="t">Avg. Progress</div>
         <div class="v">76.6%</div>
         <div class="bar"><i style="width:77%;background:#128A5E"></i></div>
       </div>
@@ -740,7 +740,7 @@
       </div>
       <div class="lg-card lg-c3">
         <div class="t">Revenue Attainment</div>
-        <div class="v">81.6%<span style="font-size:11px;color:var(--faint);font-weight:500"> / เป้า 85.5%</span></div>
+        <div class="v">81.6%<span style="font-size:11px;color:var(--faint);font-weight:500"> / target 85.5%</span></div>
         <div class="bar"><i style="width:82%;background:#7A4BB5"></i></div>
       </div>
     </div>
@@ -750,44 +750,44 @@
 
   <div class="lg-form-side">
     <div class="lg-card-form">
-      <div class="lg-form-h">เข้าสู่ระบบ</div>
-      <div class="lg-form-s">กรอกชื่อผู้ใช้และรหัสผ่านเพื่อเข้าใช้งาน dashboard</div>
+      <div class="lg-form-h">Sign in</div>
+      <div class="lg-form-s">Enter your credentials to access the dashboard</div>
 
       <div class="lg-err" id="lgErr">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-        <span id="lgErrTxt">เกิดข้อผิดพลาด</span>
+        <span id="lgErrTxt">An error occurred</span>
       </div>
 
       <form id="lgForm">
         <div class="lg-field">
-          <label class="lg-label" for="lgUser">ชื่อผู้ใช้</label>
+          <label class="lg-label" for="lgUser">Username</label>
           <div class="lg-input-wrap">
             <svg class="lg-lead-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <input class="lg-input" type="text" id="lgUser" autocomplete="username" placeholder="username" required>
           </div>
         </div>
         <div class="lg-field">
-          <label class="lg-label" for="lgPass">รหัสผ่าน</label>
+          <label class="lg-label" for="lgPass">Password</label>
           <div class="lg-input-wrap">
             <svg class="lg-lead-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             <input class="lg-input has-toggle" type="password" id="lgPass" autocomplete="current-password" placeholder="••••••••" required>
-            <button type="button" class="lg-toggle-pw" id="lgTogglePw" aria-label="แสดง/ซ่อนรหัสผ่าน">
+            <button type="button" class="lg-toggle-pw" id="lgTogglePw" aria-label="Show or hide password">
               <svg id="lgEyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           </div>
         </div>
 
         <div class="lg-row">
-          <label class="lg-remember"><input type="checkbox" id="lgRemember" checked>จดจำการเข้าสู่ระบบ</label>
+          <label class="lg-remember"><input type="checkbox" id="lgRemember" checked>Keep me signed in</label>
         </div>
 
         <button type="submit" class="lg-submit" id="lgSubmit">
           <span class="lg-spin"></span>
-          <span class="lg-btn-txt">เข้าสู่ระบบ</span>
+          <span class="lg-btn-txt">Sign in</span>
         </button>
       </form>
 
-      <div class="lg-footnote">เข้าถึงได้เฉพาะทีม PM - Government 1 เท่านั้น</div>
+      <div class="lg-footnote">Authorised access for PM - Government 1 only</div>
     </div>
   </div>
 </div>
@@ -993,7 +993,7 @@ async function doLogin(username, password, remember){
     });
     const j = await res.json();
     if(!res.ok || !j.ok){
-      document.getElementById('lgErrTxt').textContent = j.error || 'เข้าสู่ระบบไม่สำเร็จ';
+      document.getElementById('lgErrTxt').textContent = j.error || 'Sign in failed';
       errBox.classList.add('show');
       return;
     }
@@ -1001,7 +1001,7 @@ async function doLogin(username, password, remember){
     showDashboard();
     loadData();
   }catch(e){
-    document.getElementById('lgErrTxt').textContent = 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง';
+    document.getElementById('lgErrTxt').textContent = 'Cannot reach the server. Please try again.';
     errBox.classList.add('show');
   }finally{
     btn.disabled = false; btn.classList.remove('loading');
@@ -1154,7 +1154,7 @@ async function loadData(auto){
       headers:{ Authorization:`Bearer ${token}` },
       signal: AbortSignal.timeout(6000),
     });
-    if(res.status === 401){ clearToken(); showLogin('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'); return; }
+    if(res.status === 401){ clearToken(); showLogin('Your session has expired. Please sign in again.'); return; }
     if(!res.ok) throw new Error('bad');
     const j = await res.json();
     const rows = j.rows || j;

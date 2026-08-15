@@ -44,7 +44,7 @@ function requireAuth(req, res, next) {
   const entry = token ? tokens.get(token) : null;
   if (!entry || entry.expires < Date.now()) {
     if (token) tokens.delete(token);
-    return res.status(401).json({ ok: false, error: 'Unauthorized — กรุณาเข้าสู่ระบบใหม่' });
+    return res.status(401).json({ ok: false, error: 'Unauthorized - please sign in again' });
   }
   entry.expires = Date.now() + TOKEN_TTL; // ใช้งานต่อเนื่อง = ต่ออายุ session ให้อัตโนมัติ
   req.user = { username: entry.username, name: entry.name };
@@ -54,13 +54,13 @@ function requireAuth(req, res, next) {
 // --- เข้าสู่ระบบ ---
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body || {};
-  if (!username || !password) return res.status(400).json({ ok: false, error: 'กรุณากรอก username และ password' });
+  if (!username || !password) return res.status(400).json({ ok: false, error: 'Username and password are required' });
 
   const user = USERS.find(u => u.username.toLowerCase() === String(username).toLowerCase());
-  if (!user) return res.status(401).json({ ok: false, error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
+  if (!user) return res.status(401).json({ ok: false, error: 'Incorrect username or password' });
 
   const match = await bcrypt.compare(String(password), user.passwordHash);
-  if (!match) return res.status(401).json({ ok: false, error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
+  if (!match) return res.status(401).json({ ok: false, error: 'Incorrect username or password' });
 
   const token = crypto.randomBytes(24).toString('hex');
   tokens.set(token, { username: user.username, name: user.name || user.username, expires: Date.now() + TOKEN_TTL });
