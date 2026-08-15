@@ -11,46 +11,43 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#EEF1F7;
-    --bg-tint:#E3E9F4;
-    --surface:#FFFFFF;
-    --surface-2:#F7F9FC;
-    --line:#E2E8F2;
-    --line-soft:#EDF1F7;
+    /* พื้นหลังโทนดินอุ่น เข้มกว่าการ์ดชัดเจน เพื่อให้การ์ดลอยเด่นไม่กลืนกัน */
+    --bg:#E4DDD1;
+    --bg-tint:#D6CCBC;
+    --surface:#FFFDFA;
+    --surface-2:#F6F1E9;
+    --line:#D2C7B6;
+    --line-soft:#E5DDD0;
 
-    --ink:#16203A;
-    --ink-2:#3D4A6B;
-    --muted:#6B7899;
-    --faint:#98A3BC;
+    --ink:#2A2520;
+    --ink-2:#4E463C;
+    --muted:#7A6F62;
+    --faint:#9A8E7E;
 
-    --brand:#2A4A9E;
-    --brand-2:#4A72D6;
-    --brand-tint:#EAF0FD;
+    --brand:#7A5C3E;
+    --brand-2:#9C7A55;
+    --brand-tint:#EFE6D9;
 
-    --teal:#0E8F86;
-    --teal-tint:#E2F5F2;
+    --teal:#4A6B5C;
+    --teal-tint:#E3EBE5;
 
-    --success:#128A5E;
-    --success-tint:#E3F5EC;
-    --warning:#B87A0A;
-    --warning-tint:#FDF1DC;
-    --critical:#C4384A;
-    --critical-tint:#FCE9EB;
-    --neutral:#6B7899;
-    --neutral-tint:#EDF0F6;
+    --success:#4F7A4A;
+    --success-tint:#E6EDDF;
+    --warning:#B07A28;
+    --warning-tint:#F7EBD6;
+    --critical:#A8482F;
+    --critical-tint:#F5E2DB;
+    --neutral:#7A6F62;
+    --neutral-tint:#E9E2D7;
 
-    --sh-sm:0 1px 2px rgba(22,32,58,.06), 0 1px 3px rgba(22,32,58,.04);
-    --sh-md:0 1px 2px rgba(22,32,58,.05), 0 6px 16px -6px rgba(22,32,58,.14);
-    --sh-lg:0 2px 4px rgba(22,32,58,.05), 0 14px 32px -12px rgba(22,32,58,.20);
+    --sh-sm:0 1px 2px rgba(60,48,34,.07), 0 1px 3px rgba(60,48,34,.05);
+    --sh-md:0 1px 2px rgba(60,48,34,.06), 0 6px 16px -6px rgba(60,48,34,.16);
+    --sh-lg:0 2px 4px rgba(60,48,34,.06), 0 14px 32px -12px rgba(60,48,34,.22);
     --r:12px;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   body{
-    background:
-      radial-gradient(1100px 500px at 82% -12%, #DDE6F8 0%, transparent 62%),
-      radial-gradient(900px 420px at 8% -8%, #E6EDFA 0%, transparent 58%),
-      var(--bg);
-    background-attachment:fixed;
+    background:var(--bg);
     color:var(--ink);
     font-family:'Inter',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
@@ -64,7 +61,7 @@
 
   /* ---------------- Header ---------------- */
   .head{
-    background:linear-gradient(140deg,#26417F 0%, #2F55A8 45%, #3C6BC4 100%);
+    background:linear-gradient(140deg,#463323 0%, #5E4630 45%, #7A5C3E 100%);
     border-radius:16px;
     padding:24px 26px;
     color:#fff;
@@ -91,7 +88,7 @@
   .head-mark svg{width:25px;height:25px;stroke:#fff;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round;}
   .head h1{font-family:'Plus Jakarta Sans',sans-serif;font-size:23px;font-weight:800;letter-spacing:-.015em;}
   .head-sub{font-size:12.5px;color:rgba(255,255,255,.82);margin-top:5px;display:flex;align-items:center;gap:7px;}
-  .live{width:7px;height:7px;border-radius:50%;background:#5BE8B0;box-shadow:0 0 0 3px rgba(91,232,176,.24);flex:none;}
+  .live{width:7px;height:7px;border-radius:50%;background:#9CC08A;box-shadow:0 0 0 3px rgba(156,192,138,.28);flex:none;}
   .live.off{background:rgba(255,255,255,.5);box-shadow:none;}
 
   .head-r{display:flex;gap:10px;align-items:stretch;position:relative;z-index:1;flex-wrap:wrap;}
@@ -137,7 +134,7 @@
 
   /* ---------------- Panels ---------------- */
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-md);margin-top:15px;overflow:hidden;}
-  .p-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line-soft);background:var(--surface-2);}
+  .p-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--surface-2);}
   .p-title{display:flex;align-items:center;gap:9px;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;color:var(--ink);}
   .p-title svg{width:17px;height:17px;color:var(--brand);}
   .p-title .th{font-family:'Inter',sans-serif;font-size:12.5px;font-weight:500;color:var(--muted);}
@@ -214,7 +211,7 @@
 
   .rv-track{position:relative;height:10px;background:var(--bg-tint);border-radius:5px;margin-top:5px;}
   .rv-fill{position:absolute;top:0;left:0;height:100%;border-radius:5px;background:var(--fc);}
-  .rv-plan-mark{position:absolute;top:-4px;width:2px;height:18px;background:#7A4BB5;z-index:2;}
+  .rv-plan-mark{position:absolute;top:-4px;width:2px;height:18px;background:#8A5A72;z-index:2;}
   .rv-acc-mark{position:absolute;top:-2px;width:2px;height:14px;background:var(--faint);opacity:.7;}
   .rv-legend2{display:flex;gap:12px;font-size:10px;color:var(--faint);margin-top:5px;}
   .rv-legend2 span{display:flex;align-items:center;gap:4px;}
@@ -420,10 +417,10 @@
   .g-body{position:relative;padding-top:6px;}
   .g-grid{position:absolute;left:var(--labw);right:var(--statw);top:0;bottom:0;pointer-events:none;z-index:0;}
   .g-gl{position:absolute;top:0;bottom:0;width:1px;background:var(--line-soft);}
-  .g-today{position:absolute;top:-30px;bottom:0;width:0;border-left:2px dashed #C4384A;opacity:.5;}
+  .g-today{position:absolute;top:-30px;bottom:0;width:0;border-left:2px dashed #A8482F;opacity:.5;}
   .g-today-t{
     position:absolute;top:-49px;transform:translateX(-50%);font-size:9.5px;font-weight:700;
-    color:#C4384A;background:var(--critical-tint);padding:3px 8px;border-radius:20px;white-space:nowrap;
+    color:#A8482F;background:var(--critical-tint);padding:3px 8px;border-radius:20px;white-space:nowrap;
     box-shadow:var(--sh-sm);
   }
   .g-pm{
@@ -463,7 +460,7 @@
   }
   .g-legend .li{display:flex;align-items:center;gap:6px;}
   .g-legend .bx{width:22px;height:9px;border-radius:3px;}
-  .g-legend .dash{width:16px;border-top:2px dashed #C4384A;opacity:.6;}
+  .g-legend .dash{width:16px;border-top:2px dashed #A8482F;opacity:.6;}
 
   .risks{display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;}
   .chip{
@@ -1071,13 +1068,13 @@ const H = {
     if (s.includes('fast') || s.includes('track') || s.includes('good') || s.includes('normal')) return 'success';
     return 'neutral';
   },
-  color(c){ return {success:'#128A5E', warning:'#B87A0A', critical:'#C4384A', neutral:'#8B95AD'}[c]; },
+  color(c){ return {success:'#4F7A4A', warning:'#B07A28', critical:'#A8482F', neutral:'#9A8E7E'}[c]; },
   icon(c){ return {success:I.check, warning:I.alert, critical:I.octagon, neutral:I.flag}[c]; },
   label(h){ return (h && String(h).trim()) ? h : 'ไม่ระบุ'; }
 };
 
 /* ---------- helpers ---------- */
-const AV_COLORS = ['#2A4A9E','#0E8F86','#7A4BB5','#B8620A','#1E7BA6','#A63B62','#3F7A2E'];
+const AV_COLORS = ['#7A5C3E','#4A6B5C','#8A5A72','#A9662E','#4A6B5C','#8A5A72','#5C7A3F'];
 function avatarColor(name){
   let h = 0; for (let i=0;i<(name||'').length;i++) h = (h*31 + name.charCodeAt(i)) >>> 0;
   return AV_COLORS[h % AV_COLORS.length];
@@ -1236,16 +1233,16 @@ function renderKPIs(list){
   const value = list.reduce((s,p)=>s+num(p['Contract Value']),0);
 
   const riskIco = crit ? I.octagon : (warn ? I.alert : I.check);
-  const riskCol = crit ? '#C4384A' : (warn ? '#B87A0A' : '#128A5E');
-  const riskTint = crit ? '#FCE9EB' : (warn ? '#FDF1DC' : '#E3F5EC');
+  const riskCol = crit ? '#A8482F' : (warn ? '#B07A28' : '#4F7A4A');
+  const riskTint = crit ? '#F5E2DB' : (warn ? '#F7EBD6' : '#E6EDDF');
   const riskFoot = risk ? `Critical ${crit} / Warning ${warn}` : 'ไม่มีโครงการเสี่ยง';
 
   const items = [
-    {ic:I.folder,   c:'#2A4A9E', t:'#EAF0FD', en:'Total Projects', l:'โครงการทั้งหมด',  v:total,             u:'',            f:`จากทั้งหมด ${ALL.length} โครงการ`},
-    {ic:I.activity, c:'#0E8F86', t:'#E2F5F2', en:'In Progress',    l:'กำลังดำเนินการ',  v:inprog,            u:`/ ${total}`,  f:'สถานะ Inprogress'},
-    {ic:I.trending, c:'#4A72D6', t:'#EAF0FD', en:'Avg. Progress',  l:'ความคืบหน้าเฉลี่ย', v:avg.toFixed(1),  u:'%',           f:'ค่าเฉลี่ยของโครงการที่กรองอยู่'},
+    {ic:I.folder,   c:'#7A5C3E', t:'#EFE6D9', en:'Total Projects', l:'โครงการทั้งหมด',  v:total,             u:'',            f:`จากทั้งหมด ${ALL.length} โครงการ`},
+    {ic:I.activity, c:'#4A6B5C', t:'#E3EBE5', en:'In Progress',    l:'กำลังดำเนินการ',  v:inprog,            u:`/ ${total}`,  f:'สถานะ Inprogress'},
+    {ic:I.trending, c:'#9C7A55', t:'#EFE6D9', en:'Avg. Progress',  l:'ความคืบหน้าเฉลี่ย', v:avg.toFixed(1),  u:'%',           f:'ค่าเฉลี่ยของโครงการที่กรองอยู่'},
     {ic:riskIco,    c:riskCol,   t:riskTint,  en:'At Risk',        l:'โครงการเสี่ยง',    v:risk,              u:'',            f:riskFoot},
-    {ic:I.money,    c:'#7A4BB5', t:'#F1EAFB', en:'Contract Value', l:'มูลค่าสัญญารวม',  v:thb(value),        u:'THB',         f:'', money:true},
+    {ic:I.money,    c:'#8A5A72', t:'#F0E6EA', en:'Contract Value', l:'มูลค่าสัญญารวม',  v:thb(value),        u:'THB',         f:'', money:true},
   ];
   document.getElementById('kpis').innerHTML = items.map(k=>`
     <div class="kpi" style="--kc:${k.c};--kt:${k.t}">
@@ -1275,7 +1272,7 @@ function renderPM(list){
   document.getElementById('pmCount').textContent = `${rows.length} คน`;
   document.getElementById('pmBody').innerHTML = rows.map(r=>{
     const avg = r.n ? r.sum/r.n : 0;
-    const col = avg>=70 ? '#128A5E' : avg>=40 ? '#4A72D6' : '#B87A0A';
+    const col = avg>=70 ? '#4F7A4A' : avg>=40 ? '#9C7A55' : '#B07A28';
     return `<tr>
       <td><div class="who">
         <div class="av" style="background:${avatarColor(r.pm)}">${initials(r.pm)}</div>
@@ -1313,7 +1310,7 @@ function renderDonut(list){
   const pol = (deg,rr)=>[cx+rr*Math.cos(deg*Math.PI/180), cy+rr*Math.sin(deg*Math.PI/180)];
 
   document.getElementById('donut').innerHTML =
-    `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#E9EDF5" stroke-width="${w}"/>` +
+    `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#E5DDD0" stroke-width="${w}"/>` +
     segs.map(s=>{
       const span = s.e2 - s.s;
       if (span <= 0.01) return '';
@@ -1403,8 +1400,8 @@ function renderGantt(list){
       const col = H.color(i.cls);
       const overdue = i.left < 0;
       const dl = overdue
-        ? `<span style="color:#C4384A;font-weight:700">เลย ${Math.abs(i.left)} วัน</span>`
-        : `<span style="color:${i.left<=30?'#B87A0A':'var(--faint)'}">อีก ${i.left} วัน</span>`;
+        ? `<span style="color:#A8482F;font-weight:700">เลย ${Math.abs(i.left)} วัน</span>`
+        : `<span style="color:${i.left<=30?'#B07A28':'var(--faint)'}">อีก ${i.left} วัน</span>`;
       return `<div class="g-row" style="--bc:${col}" title="${i.p['Project Name']||''} | ${fmtDObj(i.s)} - ${fmtDObj(i.e)} | ${i.pr.toFixed(1)}%">
         <div class="g-lab">${i.p['Project Name']||'-'}</div>
         <div class="g-track">
@@ -1424,11 +1421,11 @@ function renderGantt(list){
 
   el.innerHTML = axis + `<div class="g-body">${grid}${body}</div>` + `
     <div class="g-legend">
-      <span class="li"><span class="bx" style="background:#128A5E"></span>ตามแผน</span>
-      <span class="li"><span class="bx" style="background:#B87A0A"></span>Warning</span>
-      <span class="li"><span class="bx" style="background:#C4384A"></span>Critical</span>
-      <span class="li"><span class="bx" style="background:#2A4A9E;opacity:.28"></span>ระยะเวลาโครงการ</span>
-      <span class="li"><span class="bx" style="background:#2A4A9E"></span>ความคืบหน้าจริง</span>
+      <span class="li"><span class="bx" style="background:#4F7A4A"></span>ตามแผน</span>
+      <span class="li"><span class="bx" style="background:#B07A28"></span>Warning</span>
+      <span class="li"><span class="bx" style="background:#A8482F"></span>Critical</span>
+      <span class="li"><span class="bx" style="background:#7A5C3E;opacity:.28"></span>ระยะเวลาโครงการ</span>
+      <span class="li"><span class="bx" style="background:#7A5C3E"></span>ความคืบหน้าจริง</span>
       <span class="li"><span class="dash"></span>วันนี้</span>
     </div>`;
 }
@@ -1464,10 +1461,10 @@ function renderFree(list){
   el.innerHTML = rows.map((r,ix)=>{
     // ยิ่งว่างเร็ว แถบยิ่งสั้น - สีบอกความเร่งด่วนในการหางานใหม่รองรับ
     const pct = Math.max((Math.max(r.days,0)/maxDays)*100, 3);
-    const col = r.days <= 30 ? '#128A5E' : r.days <= 90 ? '#B87A0A' : '#2A4A9E';
+    const col = r.days <= 30 ? '#4F7A4A' : r.days <= 90 ? '#B07A28' : '#7A5C3E';
     const dtxt = r.days < 0
-      ? `<span style="color:#C4384A;font-weight:700">เลยกำหนด ${Math.abs(r.days)} วัน</span>`
-      : `<span style="color:${r.days<=30?'#128A5E':'var(--faint)'}">อีก ${r.days} วัน</span>`;
+      ? `<span style="color:#A8482F;font-weight:700">เลยกำหนด ${Math.abs(r.days)} วัน</span>`
+      : `<span style="color:${r.days<=30?'#4F7A4A':'var(--faint)'}">อีก ${r.days} วัน</span>`;
     return `<div class="fr" style="--fc:${col}">
       <div class="fr-rank ${ix===0?'first':''}">${ix+1}</div>
       <div class="fr-who">
@@ -1662,9 +1659,9 @@ function renderWow(list){
     const labels = weekPM.map((w,i)=>`<text x="${x(i).toFixed(1)}" y="${chH-3}" font-size="9.5" fill="var(--faint)" text-anchor="middle" font-family="IBM Plex Mono">${fmtShort(w.labelDate)}</text>`).join('');
     const lastI = idxs[idxs.length-1];
     return `<svg width="100%" height="${chH}" viewBox="0 0 ${chW} ${chH}" preserveAspectRatio="none">
-      <polygon points="${area}" fill="#2A4A9E" opacity="0.07"/>
-      <polyline points="${line}" fill="none" stroke="#2A4A9E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="${x(lastI)}" cy="${y(pts[lastI])}" r="3.4" fill="#2A4A9E"/>
+      <polygon points="${area}" fill="#7A5C3E" opacity="0.07"/>
+      <polyline points="${line}" fill="none" stroke="#7A5C3E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${x(lastI)}" cy="${y(pts[lastI])}" r="3.4" fill="#7A5C3E"/>
       ${labels}
     </svg>`;
   })();
@@ -1703,8 +1700,8 @@ function renderWow(list){
     const poly = idxs.map(i=>`${x(i).toFixed(1)},${y(pts[i]).toFixed(1)}`).join(' ');
     const lastI = idxs[idxs.length-1], lastV = pts[lastI];
     return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-      <polyline points="${poly}" fill="none" stroke="#2A4A9E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="${x(lastI)}" cy="${y(lastV)}" r="2.6" fill="#2A4A9E"/>
+      <polyline points="${poly}" fill="none" stroke="#7A5C3E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${x(lastI)}" cy="${y(lastV)}" r="2.6" fill="#7A5C3E"/>
     </svg>`;
   };
 
@@ -1796,7 +1793,7 @@ function renderComplexity(list){
   const sevRank = {success:0, neutral:1, warning:2, critical:3};
   const tierOf = cx => cx<=1 ? 'low' : cx<=3 ? 'mid' : 'high';
   const tierLabel = {low:'ต่ำ (0-1)', mid:'กลาง (2-3)', high:'สูง (4-5)'};
-  const tierColor = {low:'#128A5E', mid:'#B87A0A', high:'#C4384A'};
+  const tierColor = {low:'#4F7A4A', mid:'#B07A28', high:'#A8482F'};
 
   const withCx = list.map(p=>{
     const cx = num(p['Complex Level']);
@@ -1816,7 +1813,7 @@ function renderComplexity(list){
   const distHtml = [0,1,2,3,4,5].map(lv=>{
     const n = distCounts[lv];
     const pct = (n/distMax)*100;
-    const col = lv<=1?'#128A5E':lv<=3?'#B87A0A':'#C4384A';
+    const col = lv<=1?'#4F7A4A':lv<=3?'#B07A28':'#A8482F';
     return `<div class="cx-bar-row">
       <div class="cx-bar-label">Level ${lv}</div>
       <div class="cx-bar-track"><div class="cx-bar-fill" style="width:${pct}%;background:${col}"></div></div>
@@ -2007,13 +2004,13 @@ function renderRevenue(list){
   </div>`;
 
   const body = pmRows.map(g=>{
-    const col = g.cls==='behind' ? '#C4384A' : g.cls==='ahead' ? '#128A5E' : '#2A4A9E';
+    const col = g.cls==='behind' ? '#A8482F' : g.cls==='ahead' ? '#4F7A4A' : '#7A5C3E';
     const chip = g.cls==='behind' ? `<span class="pace-chip behind">🐢 ล่าช้ากว่าแผน</span>`
       : g.cls==='ahead' ? `<span class="pace-chip ahead">⚡ ล้ำหน้าแผน</span>`
       : `<span class="pace-chip onpace">✓ ตรงแผน</span>`;
 
     const cards = g.items.slice().sort((a,b)=>b.diffPct-a.diffPct).map(x=>{
-      const barCol = x.diffPct>0.5 ? '#C4384A' : x.diffPct<-0.5 ? '#128A5E' : '#2A4A9E';
+      const barCol = x.diffPct>0.5 ? '#A8482F' : x.diffPct<-0.5 ? '#4F7A4A' : '#7A5C3E';
       const scurve = sCurveSVG(x.curvePts, x.months, x.plan, x.cur);
       return `<div class="rv-card">
         <div class="rv-card-top">
@@ -2028,7 +2025,7 @@ function renderRevenue(list){
         <div class="rv-legend2">
           <span><i style="background:${barCol}"></i>PMS Current ${x.cur.toFixed(1)}%</span>
           <span><i style="background:var(--faint)"></i>Acc% (รอบก่อน) ${x.acc.toFixed(1)}%</span>
-          <span><i style="background:#7A4BB5"></i>Rev Plan% ${x.plan.toFixed(1)}%</span>
+          <span><i style="background:#8A5A72"></i>Rev Plan% ${x.plan.toFixed(1)}%</span>
         </div>
         <div class="rv-metrics">
           <span>Selling Price <b>${compact(x.selling)}</b></span>
@@ -2071,11 +2068,11 @@ function sCurveSVG(pts, months, plan, cur){
   if(todayIdx < 0) todayIdx = pts.length-2;
   const labels = months.map((m,i)=> (i%2===0 || i===months.length-1) ? `<text x="${x(i).toFixed(1)}" y="${H-4}" font-size="8.5" fill="var(--faint)" text-anchor="middle" font-family="IBM Plex Mono">${m}</text>` : '').join('');
   return `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-    <polygon points="${area}" fill="#2A4A9E" opacity="0.06"/>
-    <polyline points="${line}" fill="none" stroke="#2A4A9E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    <line x1="${x(todayIdx)}" y1="${padT}" x2="${x(todayIdx)}" y2="${H-padB}" stroke="#C4384A" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.55"/>
-    <circle cx="${x(todayIdx)}" cy="${y(plan)}" r="3.2" fill="#7A4BB5"/>
-    <circle cx="${x(todayIdx)}" cy="${y(cur)}" r="3.2" fill="${cur>=plan?'#128A5E':'#C4384A'}"/>
+    <polygon points="${area}" fill="#7A5C3E" opacity="0.06"/>
+    <polyline points="${line}" fill="none" stroke="#7A5C3E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="${x(todayIdx)}" y1="${padT}" x2="${x(todayIdx)}" y2="${H-padB}" stroke="#A8482F" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.55"/>
+    <circle cx="${x(todayIdx)}" cy="${y(plan)}" r="3.2" fill="#8A5A72"/>
+    <circle cx="${x(todayIdx)}" cy="${y(cur)}" r="3.2" fill="${cur>=plan?'#4F7A4A':'#A8482F'}"/>
     ${labels}
   </svg>`;
 }
