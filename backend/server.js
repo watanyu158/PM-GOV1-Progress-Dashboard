@@ -48,6 +48,13 @@ if (!Array.isArray(USERS) || !USERS.length) {
 // เทียบชื่อ PM แบบยืดหยุ่น: ตัดช่องว่างซ้ำ/หัวท้าย และไม่สนตัวพิมพ์เล็กใหญ่
 const normName = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
 
+// ทีม PM-GOV1 (5 คน) — sheet PaymentW/PaymentM/Stock Movement/SumStockM เป็นข้อมูลทั้งบริษัท (ทุกทีม)
+// ต้อง "ล็อก" ให้เหลือแค่ 5 คนนี้เสมอ ไม่ว่าใครจะ login เข้ามา (รวมถึง admin) เพราะ Tab การเงิน/สต็อก
+// ต้องไม่โชว์ข้อมูลของทีมอื่นเด็ดขาดตามที่ตกลงกันไว้
+const TEAM_PM_NAMES = ['Antika Prasadsil', 'Lomdetch Puangsombut', 'Virojt Changyencham', 'Prapasiri Rakkanpat', 'Watanyu Anantakunakorn'];
+const TEAM_SET = new Set(TEAM_PM_NAMES.map(normName));
+const inTeam = (name) => TEAM_SET.has(normName(name));
+
 const tokens = new Map(); // token -> { username, name, expires }
 const TOKEN_TTL = 12 * 60 * 60 * 1000; // 12 ชั่วโมง
 
@@ -96,6 +103,10 @@ app.get('/api/me', requireAuth, (req, res) => {
 let latestData = {
   rows: [],
   revenue: [],
+  paymentW: [],
+  po: [],
+  stock: [],
+  stockSummary: [],
   updatedAt: null,
 };
 
@@ -130,6 +141,107 @@ function parseProgressSheet(wb) {
       });
       return obj;
     });
+
+  return { rows, sheetName };
+}
+
+// --- แกะไฟล์ Excel: sheet "PaymentW" (เก็บเงินจากลูกค้า อัปเดตรายสัปดาห์) ---
+// โครงสร้างพิเศษ: แถวโครงการ (มีเลขที่ No. + Project Code) ตามด้วยแถวย่อยรายงวด/ใบแจ้งหนี้
+// (ไม่มี No./Project Code ซ้ำ ใช้ค่าคอลัมน์ D เป็นคำอธิบายงวดแทนชื่อโครงการ) สลับกับแถวหัวข้อ section
+// (เช่น "TEAM 1", "Performed by PM") ที่ต้องข้ามทิ้ง
+function parsePaymentW(wb) {
+  const sheetName = wb.SheetNames.find(n => n.trim().toUpperCase() === 'PAYMENTW');
+  if (!sheetName) return { rows: [], sheetName: null };
+  const ws = wb.Sheets[sheetName];
+  const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: null, dateNF: 'yyyy-mm-dd' });
+
+  const hIdx = aoa.findIndex(r => Array.isArray(r) && r.includes('Project Code'));
+  if (hIdx < 0) return { rows: [], sheetName };
+  const dataRows = aoa.slice(hIdx + 1);
+
+  const projects = [];
+  let cur = null;
+  for (const r of dataRows) {
+    if (!Array.isArray(r) || r.every(v => v === null || v === '')) continue;
+    const no = r[0], code = r[1];
+    const isProjectRow = (typeof no === 'number' || (typeof no === 'string' && no.trim() !== '' && !isNaN(no))) && code;
+    if (isProjectRow) {
+      cur = {
+        projectCode: String(code).trim(), customer: r[2], projectName: r[3], accType: r[4],
+        contractNo: r[5], startDate: r[6], endedDate: r[7], creditTerm: r[8],
+        sellingPrice: r[9], remainder: r[10], invoiced: r[12], collecting: r[13],
+        collected: r[15], sale: r[16], pm: r[17], remark: r[18], installments: [],
+      };
+      projects.push(cur);
+    } else if (cur && (r[3] || r[12] != null || r[15] != null)) {
+      // แถวย่อย: งวด/ใบแจ้งหนี้ของโครงการปัจจุบัน — ข้ามถ้าเป็นแถวหัวข้อ section (col A มีตัวหนังสือ, col B ว่าง)
+      if (typeof no === 'string' && !code) continue;
+      cur.installments.push({
+        desc: r[3], accType: r[4], invoiceDate: r[11], invoiced: r[12],
+        collecting: r[13], collectedDate: r[14], collected: r[15],
+      });
+    }
+  }
+  return { rows: projects, sheetName };
+}
+
+// --- แกะไฟล์ Excel: sheet "PaymentM" เฉพาะตาราง PO (ฝั่งขวา คอลัมน์ T เป็นต้นไป) ---
+// ตารางนี้เป็นรายการ PO ที่สั่งซื้อ/ว่าจ้างผู้รับเหมา-vendor ต่อโครงการ ใช้ track ว่าจ่าย/รับของครบหรือยัง
+function parsePaymentMPO(wb) {
+  const sheetName = wb.SheetNames.find(n => n.trim().toUpperCase() === 'PAYMENTM');
+  if (!sheetName) return { rows: [], sheetName: null };
+  const ws = wb.Sheets[sheetName];
+  const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: null, dateNF: 'yyyy-mm-dd' });
+
+  const hIdx = aoa.findIndex(r => Array.isArray(r) && r.some(v => String(v || '').replace(/\s+/g, ' ').trim() === 'PROJECT CODE'));
+  if (hIdx < 0) return { rows: [], sheetName };
+  const header = aoa[hIdx];
+  const startCol = header.findIndex(v => String(v || '').replace(/\s+/g, ' ').trim() === 'PROJECT CODE');
+  const dataRows = aoa.slice(hIdx + 1);
+
+  const KEYS = ['projectCode','poNumber','approved','status','quotation','vendor','bup','item','price','poDate','paymentTerm','approvedDate','deliveryDate','product','category','customer','arrivalDate','receivedPrice','balanced','cur','remark'];
+  const rows = dataRows
+    .map(r => (Array.isArray(r) ? r.slice(startCol, startCol + KEYS.length) : []))
+    .filter(r => r[0] !== null && r[0] !== undefined && r[0] !== '')
+    .map(r => { const o = {}; KEYS.forEach((k,i)=>{ o[k] = r[i] !== undefined ? r[i] : null; }); o.projectCode = String(o.projectCode).trim(); return o; });
+
+  return { rows, sheetName };
+}
+
+// --- แกะไฟล์ Excel: sheet "Stock Movement" (ของค้างสต็อก ระดับรายชิ้น) ---
+function parseStockMovement(wb) {
+  const sheetName = wb.SheetNames.find(n => n.trim().toUpperCase() === 'STOCK MOVEMENT');
+  if (!sheetName) return { rows: [], sheetName: null };
+  const ws = wb.Sheets[sheetName];
+  const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: null, dateNF: 'yyyy-mm-dd' });
+
+  const hIdx = aoa.findIndex(r => Array.isArray(r) && r.includes('PCODE'));
+  if (hIdx < 0) return { rows: [], sheetName };
+  const dataRows = aoa.slice(hIdx + 1);
+
+  const KEYS = ['no','pcode','partNumber','description','pur','hasSN','zone','shelf','poNo','receiveNo','invNo','rest','unitPrice','rate','cur','unitPriceBaht','totalPriceBaht','stockValueBaht','inDate','daysIn','pmName'];
+  const rows = dataRows
+    .filter(r => Array.isArray(r) && r[1] !== null && r[1] !== undefined && r[1] !== '')
+    .map(r => { const o = {}; KEYS.forEach((k,i)=>{ o[k] = r[i] !== undefined ? r[i] : null; }); o.pcode = String(o.pcode).trim(); return o; });
+
+  return { rows, sheetName };
+}
+
+// --- แกะไฟล์ Excel: sheet "SumStockM" (สรุปของค้างสต็อก ระดับโครงการ ต่อ PM) ---
+function parseSumStockM(wb) {
+  const sheetName = wb.SheetNames.find(n => n.trim().toUpperCase() === 'SUMSTOCKM');
+  if (!sheetName) return { rows: [], sheetName: null };
+  const ws = wb.Sheets[sheetName];
+  const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: null, dateNF: 'yyyy-mm-dd' });
+
+  const hIdx = aoa.findIndex(r => Array.isArray(r) && r.includes('Project Code'));
+  if (hIdx < 0) return { rows: [], sheetName };
+  const dataRows = aoa.slice(hIdx + 2); // แถวถัดไปเป็น sub-header ของคอลัมน์ P จึงข้าม 2 แถว
+
+  const KEYS = ['no','projectCode','projectName','customer','pm','progressPct','contractValue','stockValuePrev','stockValueCurr','diffStockValue','startDate','endDate','contractDays','stockAgeDays','firstInDate','poStatus','stockRemarkCurr','pmRemarkCurr','pmRemarkPrev'];
+  const rows = dataRows
+    .filter(r => Array.isArray(r) && r[1] !== null && r[1] !== undefined && r[1] !== '')
+    .map(r => { const o = {}; KEYS.forEach((k,i)=>{ o[k] = r[i] !== undefined ? r[i] : null; }); o.projectCode = String(o.projectCode).trim(); return o; });
 
   return { rows, sheetName };
 }
@@ -190,7 +302,25 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const wb = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
       const { rows, sheetName } = parseProgressSheet(wb);
       const { rows: revenue, sheetName: revenueSheetName } = parseRevenueSheet(wb);
-      latestData = { rows, revenue, updatedAt: new Date().toISOString() };
+      const { rows: paymentW, sheetName: paymentWSheetName } = parsePaymentW(wb);
+      const { rows: po, sheetName: poSheetName } = parsePaymentMPO(wb);
+      const { rows: stock, sheetName: stockSheetName } = parseStockMovement(wb);
+      const { rows: stockSummary, sheetName: stockSummarySheetName } = parseSumStockM(wb);
+
+      // PO ไม่มีคอลัมน์ PM ตรง ๆ — เดา PM เจ้าของจาก Project Code โดยอ้างอิงจาก Progress1 ก่อน (ครอบคลุมสุด)
+      // แล้ว fallback ไปที่ PaymentW ถ้า Progress1 ไม่มีโครงการนั้น (เช่นโครงการเก่าที่ปิดไปแล้ว)
+      const pmByCode = {};
+      rows.forEach(r => { if (r['Project Code'] && r['PM Name']) pmByCode[String(r['Project Code']).trim()] = r['PM Name']; });
+      paymentW.forEach(p => { if (p.projectCode && p.pm && !pmByCode[p.projectCode]) pmByCode[p.projectCode] = p.pm; });
+      po.forEach(p => { p.pm = pmByCode[p.projectCode] || null; });
+
+      // ล็อกทั้ง 4 ชุดข้อมูลนี้ให้เหลือแค่ทีม PM-GOV1 (5 คน) เสมอ — sheet ต้นทางเป็นข้อมูลทั้งบริษัท
+      const paymentWTeam = paymentW.filter(p => inTeam(p.pm));
+      const poTeam = po.filter(p => inTeam(p.pm));
+      const stockTeam = stock.filter(s => inTeam(s.pmName));
+      const stockSummaryTeam = stockSummary.filter(s => inTeam(s.pm));
+
+      latestData = { rows, revenue, paymentW: paymentWTeam, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, updatedAt: new Date().toISOString() };
       lastRaw = {
         receivedAt: latestData.updatedAt,
         contentType: req.headers['content-type'] || null,
@@ -201,7 +331,8 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
         preview: rows[0] ? JSON.stringify(rows[0]).slice(0, 500) : null,
         revenuePreview: revenue[0] ? JSON.stringify(revenue[0]).slice(0, 500) : null,
       };
-      console.log(`✓ PM-GOV1 webhook: parsed ${rows.length} rows from "${sheetName}", ${revenue.length} revenue rows from "${revenueSheetName || '(not found)'}" (${req.file.buffer.length} bytes)`);
+      console.log(`✓ PM-GOV1 webhook: parsed ${rows.length} rows from "${sheetName}", ${revenue.length} revenue rows from "${revenueSheetName || '(not found)'}"`);
+      console.log(`  + PaymentW ${paymentW.length}→${paymentWTeam.length} (team) from "${paymentWSheetName || '(not found)'}", PO ${po.length}→${poTeam.length} (team) from "${poSheetName || '(not found)'}", Stock ${stock.length}→${stockTeam.length} (team) from "${stockSheetName || '(not found)'}", StockSummary ${stockSummary.length}→${stockSummaryTeam.length} (team) from "${stockSummarySheetName || '(not found)'}" (${req.file.buffer.length} bytes)`);
 
       // เตือนถ้ามีชื่อ PM ในไฟล์ที่ยังไม่มีบัญชีผูกไว้ (พิมพ์ชื่อผิด หรือมี PM ใหม่เข้าทีม)
       const linked = new Set(USERS.filter(u => u.pmName).map(u => normName(u.pmName)));
@@ -214,7 +345,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
         }
       }
 
-      return res.json({ ok: true, mode: 'file', sheet: sheetName, count: rows.length, revenueSheet: revenueSheetName, revenueCount: revenue.length, updatedAt: latestData.updatedAt });
+      return res.json({ ok: true, mode: 'file', sheet: sheetName, count: rows.length, revenueSheet: revenueSheetName, revenueCount: revenue.length, paymentWCount: paymentWTeam.length, poCount: poTeam.length, stockCount: stockTeam.length, stockSummaryCount: stockSummaryTeam.length, updatedAt: latestData.updatedAt });
     }
 
     // ทางสำรอง: body เป็น JSON array ของแถวข้อมูลตรง ๆ
@@ -259,6 +390,10 @@ app.get('/api/projects', requireAuth, (req, res) => {
   const target = normName(pmName);
   const rows = latestData.rows.filter(r => normName(r['PM Name']) === target);
   const revenue = (latestData.revenue || []).filter(r => normName(r['PM Name']) === target);
+  const paymentW = (latestData.paymentW || []).filter(r => normName(r.pm) === target);
+  const po = (latestData.po || []).filter(r => normName(r.pm) === target);
+  const stock = (latestData.stock || []).filter(r => normName(r.pmName) === target);
+  const stockSummary = (latestData.stockSummary || []).filter(r => normName(r.pm) === target);
 
   // ถ้าผูก pmName ไว้แล้วแต่ไม่เจอโครงการเลย มักเกิดจากชื่อใน Excel สะกดไม่ตรงกับที่ตั้งไว้
   if (latestData.rows.length && !rows.length) {
@@ -267,7 +402,7 @@ app.get('/api/projects', requireAuth, (req, res) => {
     console.log(`  ชื่อ PM ที่มีอยู่จริงในไฟล์: ${JSON.stringify(available)}`);
   }
 
-  res.json({ ...latestData, rows, revenue, scope: pmName });
+  res.json({ ...latestData, rows, revenue, paymentW, po, stock, stockSummary, scope: pmName });
 });
 
 app.get('/api/health', (req, res) => {

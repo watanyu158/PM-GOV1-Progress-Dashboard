@@ -530,6 +530,21 @@
 
   .empty{padding:38px 20px;text-align:center;color:var(--faint);font-size:13px;}
   footer{margin-top:24px;text-align:center;font-size:11.5px;color:var(--faint);}
+  /* ---------------- Tab navigation ---------------- */
+  .tabbar{display:flex;gap:6px;margin-top:15px;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:5px;}
+  .tab-btn{
+    flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
+    padding:10px 14px;border-radius:8px;border:none;background:transparent;cursor:pointer;
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:var(--muted);transition:.15s;
+  }
+  .tab-btn svg{width:16px;height:16px;}
+  .tab-btn:hover{color:var(--ink-2);}
+  .tab-btn.active{background:var(--surface);color:var(--brand);box-shadow:var(--sh-sm);}
+  .tab-btn .tab-en{font-weight:700;}
+  .tab-btn .tab-th{font-weight:500;color:var(--faint);font-size:11.5px;}
+  .tab-btn.active .tab-th{color:var(--brand-2);}
+  #tab2Panels{display:none;}
+
   /* ---------------- Login screen ---------------- */
   #dashboardWrap{display:none;}
   #loginScreen{display:none;}
@@ -833,6 +848,18 @@
     </div>
   </header>
 
+  <div class="tabbar">
+    <button class="tab-btn active" id="tabBtn1" data-tab="1">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="M8 14h3M8 17h6"/></svg>
+      <span><span class="tab-en">Project Overview</span> <span class="tab-th">· ภาพรวมโครงการ</span></span>
+    </button>
+    <button class="tab-btn" id="tabBtn2" data-tab="2">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>
+      <span><span class="tab-en">Finance & Stock</span> <span class="tab-th">· การเงินและสต็อกสินค้า</span></span>
+    </button>
+  </div>
+
+  <div id="tab1Panels">
   <div class="kpis" id="kpis"></div>
 
   <div class="panel">
@@ -952,6 +979,42 @@
     </div>
     <div class="p-body"><div class="grid" id="grid"></div></div>
   </div>
+  </div><!-- /tab1Panels -->
+
+  <div id="tab2Panels">
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
+          Payment Collection <span class="sep">-</span> <span class="th">การเก็บเงินจากลูกค้า (PaymentW รายสัปดาห์)</span>
+        </div>
+        <span class="p-count" id="pwCount"></span>
+      </div>
+      <div class="p-body"><div id="pw"></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M21 3l-7.5 7.5"/><path d="M3 21l7.5-7.5"/><circle cx="12" cy="12" r="2"/></svg>
+          Purchase Orders <span class="sep">-</span> <span class="th">PO และการจ่ายเงินผู้รับเหมา</span>
+        </div>
+        <span class="p-count" id="poCount"></span>
+      </div>
+      <div class="p-body"><div id="poBox"></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+          Stock Outstanding <span class="sep">-</span> <span class="th">ของค้างสต็อก</span>
+        </div>
+        <span class="p-count" id="stkCount"></span>
+      </div>
+      <div class="p-body"><div id="stkBox"></div></div>
+    </div>
+  </div><!-- /tab2Panels -->
 
   <footer>PM-GOV1 Progress Dashboard - ข้อมูลอัปเดตอัตโนมัติจาก Excel ผ่าน Make.com</footer>
 </div>
@@ -1165,6 +1228,7 @@ function parseD(v){
 const DAY = 86400000;
 const fmtDObj = d => d.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'});
 const uniq = a => [...new Set(a.filter(v=>v!==undefined && v!==null && v!==''))];
+const nrm = s => String(s||'').replace(/\s+/g,' ').trim().toLowerCase();
 
 // ไฟล์ Excel ตอนนี้ "ต่อท้าย" แถวใหม่ทุกสัปดาห์แทนที่จะเขียนทับ (เดียวกัน Project Code ซ้ำได้หลายแถว)
 // ทุกมุมมองหลัก (KPI, ตาราง PM, Health, Gantt, Availability, การ์ด) ต้องใช้ "แถวล่าสุด" ต่อโครงการเท่านั้น
@@ -1186,6 +1250,10 @@ function latestPerProject(rows){
 let ALL = [];
 let HIST = [];
 let REV = [];
+let PAYW = [];
+let PO = [];
+let STOCK = [];
+let STOCKSUM = [];
 let SCOPE = null;   // ชื่อ PM ที่ backend กรองมาให้ (null = เห็นทุกโครงการ)
 let filters = { team:'', vp:'', pm:'', status:'', health:'' };
 
@@ -1205,6 +1273,10 @@ async function loadData(auto){
       HIST = rows.map(normRow);
       ALL = latestPerProject(HIST);
       REV = (j.revenue || []).map(normRow);
+      PAYW = j.paymentW || [];
+      PO = j.po || [];
+      STOCK = j.stock || [];
+      STOCKSUM = j.stockSummary || [];
       SCOPE = j.scope || null;
       setSource(true, j.updatedAt);
       render(); return;
@@ -1224,6 +1296,7 @@ async function loadData(auto){
     HIST = SEED_DATA.map(normRow);
     ALL = latestPerProject(HIST);
     REV = SEED_REVENUE.map(normRow);
+    PAYW = []; PO = []; STOCK = []; STOCKSUM = [];
     setSource(false, null);
     render();
   }
@@ -2205,6 +2278,215 @@ function sCurveSVG(pts, months, planEOM, planToday, cur, monIdx, dayFrac){
   </svg>`;
 }
 
+/* ================= TAB 2: Finance & Stock ================= */
+
+function renderPayment(){
+  const el = document.getElementById('pw');
+  const items = PAYW.filter(p => !filters.pm || nrm(p.pm)===nrm(filters.pm));
+  document.getElementById('pwCount').textContent = `${items.length} โครงการ`;
+  if(!items.length){ el.innerHTML = `<div class="empty">ไม่มีข้อมูลการเก็บเงินตรงกับตัวกรองนี้</div>`; return; }
+
+  const totalSelling = items.reduce((s,x)=>s+num(x.sellingPrice),0);
+  const totalCollected = items.reduce((s,x)=>s+num(x.collected),0);
+  const totalInvoiced = items.reduce((s,x)=>s+num(x.invoiced),0);
+  const outstanding = totalInvoiced - totalCollected;
+  const rate = totalSelling ? (totalCollected/totalSelling*100) : 0;
+
+  const overview = `<div class="wow-overview">
+    <div class="ov-stats">
+      <div class="ov-stat"><div class="ov-l">Σ Selling Price (ทีม)</div><div class="ov-v">${compact(totalSelling)}</div></div>
+      <div class="ov-stat"><div class="ov-l">เก็บเงินได้แล้ว</div><div class="ov-v">${compact(totalCollected)}<span style="font-size:12px;color:var(--faint)"> (${rate.toFixed(1)}%)</span></div></div>
+      <div class="ov-stat"><div class="ov-l">ออกใบแจ้งหนี้แล้วแต่ยังไม่เก็บ</div><div class="ov-v" style="color:${outstanding>1?'var(--critical)':'var(--success)'}">${compact(outstanding)}</div></div>
+    </div>
+  </div>`;
+
+  const byPM = {};
+  items.forEach(x=>{
+    const pm = x.pm || 'ไม่ระบุ';
+    (byPM[pm] ||= {pm, items:[], selling:0, collected:0, invoiced:0});
+    byPM[pm].items.push(x);
+    byPM[pm].selling += num(x.sellingPrice);
+    byPM[pm].collected += num(x.collected);
+    byPM[pm].invoiced += num(x.invoiced);
+  });
+  const pmRows = Object.values(byPM).map(g=>({...g, outstanding: g.invoiced-g.collected, rate: g.selling? g.collected/g.selling*100:0}))
+    .sort((a,b)=> b.outstanding - a.outstanding);
+
+  const head = `<div class="rv-row head-row"><span>PM</span><span style="text-align:right">Σ Selling Price</span><span>เก็บเงินแล้ว</span><span style="text-align:right">ค้างเก็บ</span><span></span></div>`;
+
+  const body = pmRows.map(g=>{
+    const col = g.outstanding > g.selling*0.1 ? '#A8482F' : g.outstanding>1 ? '#B07A28' : '#4F7A4A';
+    const cards = g.items.slice().sort((a,b)=>(num(b.invoiced)-num(b.collected))-(num(a.invoiced)-num(a.collected))).map(x=>{
+      const inv = num(x.invoiced), coll = num(x.collected), out2 = inv-coll;
+      const barCol = out2 > num(x.sellingPrice)*0.1 ? '#A8482F' : out2>1 ? '#B07A28' : '#4F7A4A';
+      const insts = (x.installments||[]).filter(i=>i.desc || i.collected!=null || i.invoiced!=null);
+      const installHtml = insts.map(inst=>{
+        const pending = num(inst.collecting) > 0 && !inst.collectedDate;
+        return `<div class="nd">
+          <div class="nd-top"><span class="nd-name">${inst.desc||'-'}</span><span class="nd-prog">${inst.collected!=null ? compact(inst.collected) : '-'}</span></div>
+          <div class="nd-row"><span class="nd-tag">Invoice</span><span class="nd-txt">${fmtDate(inst.invoiceDate)} · ${compact(inst.invoiced)}</span></div>
+          <div class="nd-row"><span class="nd-tag">${pending?'ค้าง':'เก็บแล้ว'}</span><span class="nd-txt" style="${pending?'color:var(--critical)':''}">${inst.collectedDate ? fmtDate(inst.collectedDate) : (pending ? 'ยังไม่เก็บ - ค้าง '+compact(inst.collecting) : '-')}</span></div>
+        </div>`;
+      }).join('');
+      return `<div class="rv-card">
+        <div class="rv-card-top">
+          <div><div class="rv-card-name">${x.projectName||x.projectCode}</div><div class="rv-card-cust">${x.customer||''}</div></div>
+          <span class="chip ${out2>num(x.sellingPrice)*0.1?'critical':out2>1?'warning':'success'}">ค้างเก็บ ${compact(out2)}</span>
+        </div>
+        <div class="rv-track"><div class="rv-fill" style="width:${Math.min(num(x.sellingPrice)?coll/num(x.sellingPrice)*100:0,100)}%;background:${barCol}"></div></div>
+        <div class="rv-legend2">
+          <span><i style="background:${barCol}"></i>เก็บแล้ว ${compact(coll)}</span>
+          <span><i style="background:var(--faint)"></i>Invoiced ${compact(inv)}</span>
+          <span><i style="background:#C9B8C2"></i>Selling ${compact(x.sellingPrice)}</span>
+        </div>
+        ${installHtml}
+      </div>`;
+    }).join('');
+    return `<div class="rv-row" style="--fc:${col}">
+      <div class="wr-who">
+        <div class="av" style="background:${avatarColor(g.pm)}">${initials(g.pm)}</div>
+        <div style="min-width:0"><div class="wr-n">${g.pm}</div><div class="wr-s">${g.items.length} โครงการ</div></div>
+      </div>
+      <div class="wr-num">${compact(g.selling)}</div>
+      <div><span class="pct">${g.rate.toFixed(1)}%</span><div class="bar"><i style="width:${Math.min(g.rate,100)}%;background:${col}"></i></div></div>
+      <div class="wr-num" style="color:${g.outstanding>1?'var(--critical)':'var(--success)'}">${compact(g.outstanding)}</div>
+      <span class="wr-chev">${svg(I.chevron,'')}</span>
+    </div>
+    <div class="rv-detail">${cards}</div>`;
+  }).join('');
+
+  el.innerHTML = overview + head + body;
+}
+
+function renderPOPanel(){
+  const el = document.getElementById('poBox');
+  const items = PO.filter(p => !filters.pm || nrm(p.pm)===nrm(filters.pm));
+  document.getElementById('poCount').textContent = `${items.length} PO`;
+  if(!items.length){ el.innerHTML = `<div class="empty">ไม่มี PO ตรงกับตัวกรองนี้</div>`; return; }
+
+  const totalPrice = items.reduce((s,x)=>s+num(x.price),0);
+  const totalBalanced = items.reduce((s,x)=>s+num(x.balanced),0);
+  const statusCount = {};
+  items.forEach(x=>{ const st=x.status||'ไม่ระบุ'; statusCount[st]=(statusCount[st]||0)+1; });
+
+  const overview = `<div class="wow-overview">
+    <div class="ov-stats">
+      <div class="ov-stat"><div class="ov-l">Σ มูลค่า PO (ทีม)</div><div class="ov-v">${compact(totalPrice)}</div></div>
+      <div class="ov-stat"><div class="ov-l">ยังไม่ได้รับของครบ/ค้างจ่าย</div><div class="ov-v" style="color:${totalBalanced>1?'var(--critical)':'var(--success)'}">${compact(totalBalanced)}</div></div>
+      <div class="ov-stat"><div class="ov-l">สถานะ PO</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${Object.entries(statusCount).map(([k,v])=>`<span class="tag">${k}: ${v}</span>`).join('')}</div>
+      </div>
+    </div>
+  </div>`;
+
+  const byPM = {};
+  items.forEach(x=>{
+    const pm = x.pm || 'ไม่ระบุ';
+    (byPM[pm] ||= {pm, items:[], price:0, balanced:0});
+    byPM[pm].items.push(x);
+    byPM[pm].price += num(x.price);
+    byPM[pm].balanced += num(x.balanced);
+  });
+  const pmRows = Object.values(byPM).sort((a,b)=> b.balanced - a.balanced);
+  const statusCls = st => st==='รับครบ'?'success': st==='Partial'?'warning': st==='ค้างรับ'?'critical': 'neutral';
+
+  const head = `<div class="rv-row head-row"><span>PM</span><span style="text-align:right">Σ มูลค่า PO</span><span>PO ที่ยังไม่ครบ</span><span style="text-align:right">ค้างรับ/ค้างจ่าย</span><span></span></div>`;
+
+  const body = pmRows.map(g=>{
+    const col = g.balanced > g.price*0.15 ? '#A8482F' : g.balanced>1 ? '#B07A28' : '#4F7A4A';
+    const incomplete = g.items.filter(x=>num(x.balanced)>1).length;
+    const cards = g.items.slice().sort((a,b)=>num(b.balanced)-num(a.balanced)).map(x=>{
+      const cls = statusCls(x.status);
+      return `<div class="rv-card">
+        <div class="rv-card-top">
+          <div><div class="rv-card-name">${x.poNumber||'-'}</div><div class="rv-card-cust">${x.vendor||''}</div></div>
+          <span class="chip ${cls}">${x.status||'-'}</span>
+        </div>
+        <div class="rv-metrics" style="margin-top:9px">
+          <span>PO Value <b>${compact(x.price)}</b></span>
+          <span>Received <b>${compact(x.receivedPrice)}</b></span>
+          <span>Balanced <b style="color:${num(x.balanced)>1?'var(--critical)':'var(--success)'}">${compact(x.balanced)}</b></span>
+        </div>
+        <div class="rv-metrics" style="margin-top:5px;color:var(--muted)"><span>${x.item||''}${x.product?' · '+x.product:''}</span></div>
+        <div class="rv-metrics" style="margin-top:5px"><span>PO Date: ${fmtDate(x.poDate)}</span><span>Delivery: ${fmtDate(x.deliveryDate)}</span></div>
+      </div>`;
+    }).join('');
+    return `<div class="rv-row" style="--fc:${col}">
+      <div class="wr-who">
+        <div class="av" style="background:${avatarColor(g.pm)}">${initials(g.pm)}</div>
+        <div style="min-width:0"><div class="wr-n">${g.pm}</div><div class="wr-s">${g.items.length} PO</div></div>
+      </div>
+      <div class="wr-num">${compact(g.price)}</div>
+      <div><span class="pct">${incomplete}</span> <span style="font-size:11px;color:var(--faint)">PO ยังไม่ครบ</span></div>
+      <div class="wr-num" style="color:${g.balanced>1?'var(--critical)':'var(--success)'}">${compact(g.balanced)}</div>
+      <span class="wr-chev">${svg(I.chevron,'')}</span>
+    </div>
+    <div class="rv-detail">${cards}</div>`;
+  }).join('');
+
+  el.innerHTML = overview + head + body;
+}
+
+function renderStock(){
+  const el = document.getElementById('stkBox');
+  const items = STOCKSUM.filter(p => !filters.pm || nrm(p.pm)===nrm(filters.pm));
+  document.getElementById('stkCount').textContent = `${items.length} โครงการ`;
+  if(!items.length){ el.innerHTML = `<div class="empty">ไม่มีของค้างสต็อกตรงกับตัวกรองนี้</div>`; return; }
+
+  const totalValue = items.reduce((s,x)=>s+num(x.stockValueCurr),0);
+  const avgAge = items.length ? items.reduce((s,x)=>s+num(x.stockAgeDays),0)/items.length : 0;
+  const incomplete = items.filter(x=>(x.poStatus||'').trim()!=='ครบ').length;
+
+  const overview = `<div class="wow-overview">
+    <div class="ov-stats">
+      <div class="ov-stat"><div class="ov-l">มูลค่าของค้างสต็อกรวม</div><div class="ov-v">${compact(totalValue)}</div></div>
+      <div class="ov-stat"><div class="ov-l">อายุคงค้างเฉลี่ย</div><div class="ov-v">${avgAge.toFixed(0)}<span style="font-size:12px;color:var(--faint)"> วัน</span></div></div>
+      <div class="ov-stat"><div class="ov-l">โครงการของยังไม่ครบ</div><div class="ov-v">${incomplete}<span class="u" style="font-size:12px"> / ${items.length}</span></div></div>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--faint)">"ค้างมาแล้ว X วัน" นับจากวันที่สินค้าชิ้นแรกเข้าคลัง ไม่ใช่วันที่คาดว่าจะได้รับครบ (ไฟล์ต้นทางไม่มีวันคาดการณ์ส่งมอบแยกให้)</div>
+  </div>`;
+
+  const byCode = {};
+  STOCK.forEach(s=>{ (byCode[s.pcode] ||= []).push(s); });
+
+  const rows = items.slice().sort((a,b)=>num(b.stockValueCurr)-num(a.stockValueCurr)).map(x=>{
+    const age = num(x.stockAgeDays);
+    const ageCol = age>30?'#A8482F':age>14?'#B07A28':'#4F7A4A';
+    const complete = (x.poStatus||'').trim()==='ครบ';
+    const detailItems = (byCode[x.projectCode]||[]).map(s=>`
+      <div class="nd">
+        <div class="nd-top"><span class="nd-name">${s.partNumber||'-'}</span><span class="nd-prog">${compact(s.stockValueBaht)}</span></div>
+        <div class="nd-row"><span class="nd-tag">รายละเอียด</span><span class="nd-txt">${s.description||'-'}</span></div>
+        <div class="nd-row"><span class="nd-tag">คงเหลือ</span><span class="nd-txt">${s.rest} หน่วย · PO ${s.poNo||'-'} · เข้าเมื่อ ${fmtDate(s.inDate)} (ค้างมา ${s.daysIn} วัน)</span></div>
+      </div>`).join('');
+    return `<div class="rv-row" style="--fc:${ageCol}">
+      <div class="wr-who">
+        <div class="av" style="background:${avatarColor(x.pm)}">${initials(x.pm)}</div>
+        <div style="min-width:0"><div class="wr-n">${x.projectName||x.projectCode}</div><div class="wr-s">${x.pm} · ${x.customer||''}</div></div>
+      </div>
+      <div class="wr-num">${compact(x.stockValueCurr)}</div>
+      <div><span class="chip ${complete?'success':'warning'}">${x.poStatus||'-'}</span></div>
+      <div class="wr-num" style="color:${ageCol}">${age.toFixed(0)} วัน</div>
+      <span class="wr-chev">${svg(I.chevron,'')}</span>
+    </div>
+    <div class="rv-detail">
+      <div class="rv-card">
+        <div class="rv-metrics">
+          <span>สินค้าเข้าครั้งแรก <b>${fmtDate(x.firstInDate)}</b></span>
+          <span>ต่างจากสัปดาห์ก่อน <b style="color:${num(x.diffStockValue)>1?'var(--critical)':'var(--success)'}">${num(x.diffStockValue)>0?'+':''}${compact(x.diffStockValue)}</b></span>
+        </div>
+        ${x.stockRemarkCurr ? `<div class="rv-metrics" style="margin-top:7px;color:var(--muted)"><span>หมายเหตุสต็อก: ${x.stockRemarkCurr}</span></div>` : ''}
+        ${x.pmRemarkCurr ? `<div class="rv-metrics" style="margin-top:4px;color:var(--muted)"><span>หมายเหตุ PM: ${x.pmRemarkCurr}</span></div>` : ''}
+      </div>
+      ${detailItems}
+    </div>`;
+  }).join('');
+
+  const head = `<div class="rv-row head-row"><span>โครงการ</span><span style="text-align:right">มูลค่าคงค้าง</span><span>สถานะของตาม PO</span><span style="text-align:right">ค้างมาแล้ว</span><span></span></div>`;
+
+  el.innerHTML = overview + head + rows;
+}
+
 function renderCards(list){
   document.getElementById('projCount').textContent = `${list.length} / ${ALL.length}`;
   const el = document.getElementById('grid');
@@ -2250,6 +2532,7 @@ function render(){
 function renderFiltered(){
   const f = applyFilters(ALL);
   renderKPIs(f); renderPM(f); renderDonut(f); renderWow(f); renderComplexity(f); renderRevenue(f); renderGantt(f); renderFree(f); renderCards(f);
+  renderPayment(); renderPOPanel(); renderStock();
 }
 
 async function syncNow(){
@@ -2319,6 +2602,33 @@ document.getElementById('rev').addEventListener('click', (e)=>{
   document.querySelectorAll('.rv-detail.open').forEach(d=>{ if(d!==detail){ d.classList.remove('open'); d.previousElementSibling.classList.remove('open'); }});
   detail.classList.toggle('open', opening);
   row.classList.toggle('open', opening);
+});
+
+// Tab 2 (Payment / PO / Stock) ใช้กลไก expand แบบเดียวกับ Revenue เป๊ะ — ผูก listener ซ้ำกับอีก 3 กล่อง
+['pw','poBox','stkBox'].forEach(id=>{
+  const box = document.getElementById(id);
+  if(!box) return;
+  box.addEventListener('click', (e)=>{
+    const row = e.target.closest('.rv-row:not(.head-row)');
+    if(!row) return;
+    const detail = row.nextElementSibling;
+    if(!detail || !detail.classList.contains('rv-detail')) return;
+    const opening = !detail.classList.contains('open');
+    box.querySelectorAll('.rv-detail.open').forEach(d=>{ if(d!==detail){ d.classList.remove('open'); d.previousElementSibling.classList.remove('open'); }});
+    detail.classList.toggle('open', opening);
+    row.classList.toggle('open', opening);
+  });
+});
+
+// สลับแท็บ — ไม่ต้องดึงข้อมูลใหม่ แค่สลับว่ากลุ่ม panel ไหนโชว์/ซ่อน
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById('tab1Panels').style.display = tab==='1' ? 'block' : 'none';
+    document.getElementById('tab2Panels').style.display = tab==='2' ? 'block' : 'none';
+  });
 });
 </script>
 </body>
