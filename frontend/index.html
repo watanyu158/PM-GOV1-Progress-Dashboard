@@ -1828,20 +1828,8 @@ function renderWow(list){
   const rangeLabel = `<div class="wow-range">เทียบรอบอัปเดตล่าสุด <b>~${fmtShort(curr.labelDate)}</b> กับรอบก่อนหน้า <b>${prev ? '~'+fmtShort(prev.labelDate) : '-'}</b></div>`;
 
   // --- ภาพรวมทั้งบริษัท (ไม่แยกราย PM) ---
-  const oAvgD = (prev && curr.overallAvg!==null && prev.overallAvg!==null) ? curr.overallAvg - prev.overallAvg : null;
-  const oRiskD = (prev) ? curr.riskValue - prev.riskValue : null;
-  const dChip = (d, unit, invert) => {
-    if(d===null) return `<span class="ov-d flat">ยังไม่มีคู่เทียบ</span>`;
-    const dir = Math.abs(d) < (unit==='pp'?0.05:1) ? 'flat' : (d>0 ? 'up' : 'down');
-    const cls = invert ? (dir==='up'?'down':dir==='down'?'up':'flat') : dir;
-    const arrow = dir==='up'?'▲':dir==='down'?'▼':'—';
-    const txt = unit==='pp' ? `${d>0?'+':''}${d.toFixed(1)} pp` : `${d>0?'+':''}${compact(d)}`;
-    return `<span class="ov-d ${cls}">${arrow} ${txt}</span>`;
-  };
-
-  // กราฟเทรนด์ต้องใช้ "วันที่ปฏิทินจริง" ที่ไม่ซ้ำกัน แยกต่างหากจากตาราง WoW ด้านล่าง
-  // (ตาราง WoW ใช้ "รอบ" แบบนับถอยหลังต่อโครงการซึ่งถูกต้องสำหรับเทียบล่าสุด-ก่อนหน้า แต่ถ้าเอามาทำแกน X
-  // ของกราฟจะได้ป้ายวันที่ที่อาจซ้ำกันได้ เพราะแต่ละโครงการมีจำนวนรอบไม่เท่ากัน)
+  // ใช้ "วันที่ปฏิทินจริง" ที่ไม่ซ้ำกันเป็นแหล่งเดียวทั้งกราฟเส้นและตัวเลข Δ ที่โชว์ข้างบน
+  // (เดิมกราฟกับตัวเลข Δ ใช้คนละระบบกัน ทำให้ตัวเลขไม่ตรงกับสิ่งที่เห็นในกราฟ)
   const distinctDates = [...new Set(hist.map(r=>{ const d=parseD(r['Update Date']); return d?d.getTime():null; }).filter(Boolean))]
     .sort((a,b)=>a-b).slice(-6).map(t=>new Date(t));
   const chartSeries = distinctDates.map(d=>{
@@ -1855,6 +1843,18 @@ function renderWow(list){
   });
   const pts = chartSeries.map(c=>c.overallAvg);
   if(pts.length) pts[pts.length-1] = overallAvgNow;
+
+  const prevChartAvg = chartSeries.length>1 ? chartSeries[chartSeries.length-2].overallAvg : null;
+  const oAvgD = (prevChartAvg!==null && overallAvgNow!==null) ? overallAvgNow - prevChartAvg : null;
+  const oRiskD = (prev) ? curr.riskValue - prev.riskValue : null;
+  const dChip = (d, unit, invert) => {
+    if(d===null) return `<span class="ov-d flat">ยังไม่มีคู่เทียบ</span>`;
+    const dir = Math.abs(d) < (unit==='pp'?0.05:1) ? 'flat' : (d>0 ? 'up' : 'down');
+    const cls = invert ? (dir==='up'?'down':dir==='down'?'up':'flat') : dir;
+    const arrow = dir==='up'?'▲':dir==='down'?'▼':'—';
+    const txt = unit==='pp' ? `${d>0?'+':''}${d.toFixed(1)} pp` : `${d>0?'+':''}${compact(d)}`;
+    return `<span class="ov-d ${cls}">${arrow} ${txt}</span>`;
+  };
 
   const overview = `<div class="wow-overview">
     <div class="ov-stats">
@@ -2331,18 +2331,17 @@ function codeInfo(code){
   if(p) return { name: p['Project Name'] || code, customer: p['Customer'] || '' };
   return { name: code, customer: '' };
 }
-// โครงการที่มีข้อมูลการเงิน/สต็อก แต่ไม่ได้อยู่ใน 13 โครงการที่ Progress1 ติดตามอยู่ตอนนี้
-// (เช่น ปิดงานไปแล้วแต่ยังเก็บเงิน/เคลียร์ของค้างไม่ครบ) — ติด badge กันสับสนว่าทำไมนับจำนวนไม่ตรงกับ Tab 1
-function notActiveBadge(code){
-  const active = new Set(ALL.map(p=>p['Project Code']));
-  return active.has(code) ? '' : `<span class="code-tag" style="color:var(--warning);border-color:#E8D4A8;background:var(--warning-tint)" title="ไม่อยู่ใน 13 โครงการที่ Progress1 ติดตามอยู่ตอนนี้ (อาจปิดงานแล้วแต่ยังเคลียร์การเงิน/ของค้างไม่ครบ)">ไม่อยู่ใน Progress1</span>`;
-}
+// Tab การเงิน/สต็อกต้องแสดง "เฉพาะโครงการที่ Progress1 ติดตามอยู่ตอนนี้" เท่านั้น — ไม่ map ตามชื่อ PM เพียงอย่างเดียว
+// โครงการอื่นที่มีข้อมูลการเงิน/สต็อกแต่ไม่ได้อยู่ใน Progress1 (เช่นปิดงานไปแล้ว) จะถูกตัดทิ้งตั้งแต่ต้น
+// ไม่ถูกนำไปคำนวณผลรวม/ค่าเฉลี่ยใด ๆ ทั้งสิ้น ไม่ใช่แค่ซ่อนไว้เฉย ๆ
+function activeCodeSet(){ return new Set(ALL.map(p=>p['Project Code'])); }
 
 /* ================= TAB 2: Finance & Stock ================= */
 
 function renderPayment(){
   const el = document.getElementById('pw');
-  const items = PAYW.filter(p => !filters.pm || nrm(p.pm)===nrm(filters.pm));
+  const activeCodes = activeCodeSet();
+  const items = PAYW.filter(p => activeCodes.has(p.projectCode) && (!filters.pm || nrm(p.pm)===nrm(filters.pm)));
   document.getElementById('pwCount').textContent = `${items.length} โครงการ`;
   if(!items.length){ el.innerHTML = `<div class="empty">ไม่มีข้อมูลการเก็บเงินตรงกับตัวกรองนี้</div>`; return; }
 
@@ -2407,7 +2406,7 @@ function renderPayment(){
       }).join('');
       return `<div class="rv-card">
         <div class="rv-card-top">
-          <div><div class="rv-card-name">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span> ${notActiveBadge(x.projectCode)}</div><div class="rv-card-cust">${x.customer||''}</div></div>
+          <div><div class="rv-card-name">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span></div><div class="rv-card-cust">${x.customer||''}</div></div>
           <span class="chip ${coll_ing>num(x.sellingPrice)*0.1?'critical':coll_ing>1?'warning':'success'}">Collecting ${thb(coll_ing)}</span>
         </div>
         ${stackBar(rem, coll_ing, coll_ed, num(x.sellingPrice))}
@@ -2438,7 +2437,8 @@ function renderPayment(){
 
 function renderPOPanel(){
   const el = document.getElementById('poBox');
-  const items = PO.filter(p => !filters.pm || nrm(p.pm)===nrm(filters.pm));
+  const activeCodes = activeCodeSet();
+  const items = PO.filter(p => activeCodes.has(p.projectCode) && (!filters.pm || nrm(p.pm)===nrm(filters.pm)));
   const projectCount = uniq(items.map(x=>x.projectCode)).length;
   document.getElementById('poCount').textContent = `${items.length} PO · ${projectCount} โครงการ`;
   if(!items.length){ el.innerHTML = `<div class="empty">ไม่มี PO ตรงกับตัวกรองนี้</div>`; return; }
@@ -2501,7 +2501,7 @@ function renderPOPanel(){
       }).join('');
       return `<div class="rv-card" style="border-left:3px solid ${pgCol}">
         <div class="rv-card-top">
-          <div><div class="rv-card-name">${info.name} <span class="code-tag">#${pg.code}</span> ${notActiveBadge(pg.code)}</div><div class="rv-card-cust">${info.customer}</div></div>
+          <div><div class="rv-card-name">${info.name} <span class="code-tag">#${pg.code}</span></div><div class="rv-card-cust">${info.customer}</div></div>
           <span class="chip ${pg.balanced>pg.price*0.15?'critical':pg.balanced>1?'warning':'success'}">${pg.items.length} PO</span>
         </div>
         <div class="rv-metrics" style="margin-top:9px">
@@ -2531,7 +2531,8 @@ function renderPOPanel(){
 
 function renderStock(){
   const el = document.getElementById('stkBox');
-  const items = STOCKSUM.filter(p => !filters.pm || nrm(p.pm)===nrm(filters.pm));
+  const activeCodes = activeCodeSet();
+  const items = STOCKSUM.filter(p => activeCodes.has(p.projectCode) && (!filters.pm || nrm(p.pm)===nrm(filters.pm)));
   document.getElementById('stkCount').textContent = `${items.length} โครงการ`;
   if(!items.length){ el.innerHTML = `<div class="empty">ไม่มีของค้างสต็อกตรงกับตัวกรองนี้</div>`; return; }
 
@@ -2564,7 +2565,7 @@ function renderStock(){
     return `<div class="rv-row" style="--fc:${ageCol}">
       <div class="wr-who">
         <div class="av" style="background:${avatarColor(x.pm)}">${initials(x.pm)}</div>
-        <div style="min-width:0"><div class="wr-n">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span> ${notActiveBadge(x.projectCode)}</div><div class="wr-s">${x.pm} · ${x.customer||''}</div></div>
+        <div style="min-width:0"><div class="wr-n">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span></div><div class="wr-s">${x.pm} · ${x.customer||''}</div></div>
       </div>
       <div class="wr-num">${thb(x.stockValueCurr)}</div>
       <div><span class="chip ${complete?'success':'warning'}">${x.poStatus||'-'}</span></div>
