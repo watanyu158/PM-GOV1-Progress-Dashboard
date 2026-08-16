@@ -1236,6 +1236,10 @@ const DAY = 86400000;
 const fmtDObj = d => d.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'});
 const uniq = a => [...new Set(a.filter(v=>v!==undefined && v!==null && v!==''))];
 const nrm = s => String(s||'').replace(/\s+/g,' ').trim().toLowerCase();
+// ใช้เป็น "คีย์จัดกลุ่ม" ทุกจุดที่ group ตามชื่อ PM — ตัดช่องว่างซ้ำ/หัวท้ายออก แต่คงตัวพิมพ์เล็กใหญ่ไว้แสดงผล
+// (เดิมหลายจุด group ด้วยชื่อดิบตรง ๆ พอมีบางแถวพิมพ์เว้นวรรคไม่เท่ากัน เช่น "Prapasiri   Rakkanpat" vs
+// "Prapasiri  Rakkanpat" — สายตาเห็นเหมือนกันเพราะ HTML ยุบช่องว่างให้ แต่ JS มองเป็นคนละคีย์ นับซ้ำ/แยกกลุ่มผิด)
+const pmKey = s => String(s||'').replace(/\s+/g,' ').trim();
 
 // ไฟล์ Excel ตอนนี้ "ต่อท้าย" แถวใหม่ทุกสัปดาห์แทนที่จะเขียนทับ (เดียวกัน Project Code ซ้ำได้หลายแถว)
 // ทุกมุมมองหลัก (KPI, ตาราง PM, Health, Gantt, Availability, การ์ด) ต้องใช้ "แถวล่าสุด" ต่อโครงการเท่านั้น
@@ -1323,7 +1327,7 @@ function setSource(live, updatedAt, healing){
 const applyFilters = list => list.filter(p =>
   (!filters.team   || p['Team']==filters.team) &&
   (!filters.vp     || p['VP Name']==filters.vp) &&
-  (!filters.pm     || p['PM Name']==filters.pm) &&
+  (!filters.pm     || pmKey(p['PM Name'])===filters.pm) &&
   (!filters.status || p['Status']==filters.status) &&
   (!filters.health || p['Project Health']==filters.health)
 );
@@ -1332,7 +1336,7 @@ function buildFilters(){
   const defs = [
     {k:'team',   l:'ทีม',    v:uniq(ALL.map(p=>p['Team']))},
     {k:'vp',     l:'VP',     v:uniq(ALL.map(p=>p['VP Name']))},
-    {k:'pm',     l:'PM',     v:uniq(ALL.map(p=>p['PM Name']))},
+    {k:'pm',     l:'PM',     v:uniq(ALL.map(p=>pmKey(p['PM Name'])))},
     {k:'status', l:'สถานะ',  v:uniq(ALL.map(p=>p['Status']))},
     {k:'health', l:'Health', v:uniq(ALL.map(p=>p['Project Health']))},
   ];
@@ -1386,7 +1390,7 @@ function renderKPIs(list){
 function renderPM(list){
   const g = {};
   list.forEach(p=>{
-    const pm = p['PM Name'] || 'ไม่ระบุ';
+    const pm = pmKey(p['PM Name']) || 'ไม่ระบุ';
     (g[pm] ||= {pm, team:p['Team']||'', n:0, sum:0, val:0, warn:0, crit:0, cx:0});
     g[pm].n++;
     g[pm].sum += num(p['%Progress']);
@@ -1697,7 +1701,7 @@ function renderWow(list){
   const overallAvgNow = list.length ? list.reduce((s,p)=>s+num(p['%Progress']),0)/list.length : null;
   const riskValueNow = list.reduce((s,p)=> s + (['warning','critical'].includes(H.cls(p['Project Health'])) ? num(p['Contract Value']) : 0), 0);
   const byPM = {};
-  list.forEach(p=>{ (byPM[p['PM Name']||'ไม่ระบุ'] ||= []).push(p); });
+  list.forEach(p=>{ (byPM[pmKey(p['PM Name'])||'ไม่ระบุ'] ||= []).push(p); });
 
   const byCode = {};
   hist.forEach(r=>{ (byCode[r['Project Code']] ||= []).push(r); });
@@ -1732,8 +1736,8 @@ function renderWow(list){
   curr.overallAvg = overallAvgNow;
   curr.riskValue = riskValueNow;
 
-  const pmNames = uniq(list.map(p=>p['PM Name'])).length
-    ? uniq(list.map(p=>p['PM Name']))
+  const pmNames = uniq(list.map(p=>pmKey(p['PM Name']))).length
+    ? uniq(list.map(p=>pmKey(p['PM Name'])))
     : Object.keys(curr.pmAgg);
 
   // Health เปลี่ยนสถานะ: เทียบรายการล่าสุด vs รายการก่อนหน้าของแต่ละโครงการ
@@ -1745,7 +1749,7 @@ function renderWow(list){
     const fromCls = H.cls(p['Project Health']), toCls = H.cls(c['Project Health']);
     if(fromCls === toCls) return;
     transitions.push({
-      name: c['Project Name']||code, pm: c['PM Name']||'ไม่ระบุ',
+      name: c['Project Name']||code, pm: pmKey(c['PM Name'])||'ไม่ระบุ',
       from: H.label(p['Project Health']), to: H.label(c['Project Health']),
       fromCls, toCls, worsened: sevRank[toCls] > sevRank[fromCls],
     });
@@ -1778,7 +1782,7 @@ function renderWow(list){
   const lastSeenPM = {};
   list.forEach(p=>{
     const d = parseD(p['Update Date']);
-    const pm = p['PM Name']||'ไม่ระบุ';
+    const pm = pmKey(p['PM Name'])||'ไม่ระบุ';
     if(d && (!lastSeenPM[pm] || d > lastSeenPM[pm])) lastSeenPM[pm] = d;
   });
 
@@ -1796,7 +1800,7 @@ function renderWow(list){
     const notes = Object.entries(byCode)
       .map(([code,arr])=>{
         const cur2 = arr[arr.length-1];
-        if((cur2['PM Name']||'ไม่ระบุ') !== pm) return null;
+        if((pmKey(cur2['PM Name'])||'ไม่ระบุ') !== pm) return null;
         const prev2 = arr.length>1 ? arr[arr.length-2] : null;
         const ps = parseD(cur2['Plan Start Date']) || parseD(cur2['Start Date']);
         const pe = parseD(cur2['Plan End Date']) || parseD(cur2['End Date']);
@@ -2055,7 +2059,7 @@ function renderComplexity(list){
 
   // --- 4. Track record ของ PM กับโครงการซับซ้อนสูง (Complex >= 4) ---
   const byPM = {};
-  withCx.forEach(x=>{ const pm = x.p['PM Name']||'ไม่ระบุ'; (byPM[pm] ||= []).push(x); });
+  withCx.forEach(x=>{ const pm = pmKey(x.p['PM Name'])||'ไม่ระบุ'; (byPM[pm] ||= []).push(x); });
   const track = Object.entries(byPM).map(([pm,items])=>{
     const complex = items.filter(x=>x.cx>=4);
     if(!complex.length) return {pm, n:0};
@@ -2202,7 +2206,7 @@ function renderRevenue(list){
   // --- รวมต่อ PM ---
   const byPM = {};
   items.forEach(x=>{
-    const pm = x.p['PM Name']||'ไม่ระบุ';
+    const pm = pmKey(x.p['PM Name'])||'ไม่ระบุ';
     (byPM[pm] ||= {pm, items:[], selling:0, diffBaht:0});
     byPM[pm].items.push(x);
     byPM[pm].selling += x.selling;
@@ -2379,7 +2383,7 @@ function renderPayment(){
 
   const byPM = {};
   items.forEach(x=>{
-    const pm = x.pm || 'ไม่ระบุ';
+    const pm = pmKey(x.pm) || 'ไม่ระบุ';
     (byPM[pm] ||= {pm, items:[], selling:0, collected:0, collecting:0, remainder:0});
     byPM[pm].items.push(x);
     byPM[pm].selling += num(x.sellingPrice);
@@ -2463,7 +2467,7 @@ function renderPOPanel(){
   // จัดกลุ่ม PM -> โครงการ -> รายการ PO แต่ละใบ (3 ชั้น แต่ขยายแค่ระดับ PM เดียว ไม่ต้องคลิกซ้อนอีกชั้น)
   const byPM = {};
   items.forEach(x=>{
-    const pm = x.pm || 'ไม่ระบุ';
+    const pm = pmKey(x.pm) || 'ไม่ระบุ';
     (byPM[pm] ||= {pm, items:[], price:0, balanced:0, projects:{}});
     byPM[pm].items.push(x);
     byPM[pm].price += num(x.price);
@@ -2629,7 +2633,7 @@ function renderCards(list){
 function render(){
   buildFilters();
   document.getElementById('hProjects').textContent = ALL.length;
-  document.getElementById('hPMs').textContent = uniq(ALL.map(p=>p['PM Name'])).length;
+  document.getElementById('hPMs').textContent = uniq(ALL.map(p=>pmKey(p['PM Name']))).length;
   renderFiltered();
 }
 function renderFiltered(){
