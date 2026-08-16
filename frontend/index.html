@@ -221,6 +221,15 @@
   .rv-acc-mark{position:absolute;top:-2px;width:2px;height:14px;background:var(--faint);opacity:.7;}
   .rv-legend2{display:flex;gap:12px;font-size:10px;color:var(--faint);margin-top:5px;}
   .code-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;color:var(--faint);background:var(--surface-2);border:1px solid var(--line-soft);padding:1px 6px;border-radius:5px;white-space:nowrap;}
+
+  /* ---------------- Closure & Transfer Tracking ---------------- */
+  .cls-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-soft);}
+  .cls-row:last-child{border-bottom:none;}
+  .cls-name{font-size:12.5px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+  .cls-msg{font-size:12px;margin-top:5px;padding:7px 10px;border-radius:7px;line-height:1.5;}
+  .cls-msg.warning{background:var(--warning-tint);color:var(--warning);}
+  .cls-msg.critical{background:var(--critical-tint);color:var(--critical);}
+  .cls-pm{font-size:11px;color:var(--faint);white-space:nowrap;flex:none;padding-top:2px;}
   .pw-stack{display:flex;height:12px;border-radius:6px;overflow:hidden;margin-top:6px;background:var(--line);}
   .pw-seg{height:100%;min-width:0;}
   .pw-legend3{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:7px;flex-wrap:wrap;}
@@ -760,7 +769,7 @@
     <div class="lg-hero">
       <div class="lg-eyebrow"><i></i>Live Project Tracking</div>
       <h2>Every project, one command center.</h2>
-      <p>Track delivery progress, project health, upcoming milestones and revenue attainment in real time — built for the PM - Government 1 team.</p>
+      <p>Track delivery progress, project health, upcoming milestones and revenue attainment in real time - built for the PM - Government 1 team.</p>
     </div>
 
     <div class="lg-cards">
@@ -935,7 +944,18 @@
   <div class="panel">
     <div class="p-head">
       <div class="p-title">
-        <svg class="ico" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Closure & Transfer Tracking <span class="sep">-</span> <span class="th">ปิดงาน / โอนงาน</span>
+      </div>
+      <span class="p-count" id="clsCount"></span>
+    </div>
+    <div class="p-body"><div id="cls"></div></div>
+  </div>
+
+  <div class="panel">
+    <div class="p-head">
+      <div class="p-title">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>
         Revenue Attainment <span class="sep">-</span> <span class="th">รายได้สะสมเทียบเป้าตามแผน</span>
       </div>
       <span class="p-count" id="revCount"></span>
@@ -1236,25 +1256,60 @@ const DAY = 86400000;
 const fmtDObj = d => d.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'});
 const uniq = a => [...new Set(a.filter(v=>v!==undefined && v!==null && v!==''))];
 const nrm = s => String(s||'').replace(/\s+/g,' ').trim().toLowerCase();
-// ใช้เป็น "คีย์จัดกลุ่ม" ทุกจุดที่ group ตามชื่อ PM — ตัดช่องว่างซ้ำ/หัวท้ายออก แต่คงตัวพิมพ์เล็กใหญ่ไว้แสดงผล
+// ใช้เป็น "คีย์จัดกลุ่ม" ทุกจุดที่ group ตามชื่อ PM - ตัดช่องว่างซ้ำ/หัวท้ายออก แต่คงตัวพิมพ์เล็กใหญ่ไว้แสดงผล
 // (เดิมหลายจุด group ด้วยชื่อดิบตรง ๆ พอมีบางแถวพิมพ์เว้นวรรคไม่เท่ากัน เช่น "Prapasiri   Rakkanpat" vs
-// "Prapasiri  Rakkanpat" — สายตาเห็นเหมือนกันเพราะ HTML ยุบช่องว่างให้ แต่ JS มองเป็นคนละคีย์ นับซ้ำ/แยกกลุ่มผิด)
+// "Prapasiri  Rakkanpat" - สายตาเห็นเหมือนกันเพราะ HTML ยุบช่องว่างให้ แต่ JS มองเป็นคนละคีย์ นับซ้ำ/แยกกลุ่มผิด)
 const pmKey = s => String(s||'').replace(/\s+/g,' ').trim();
+
+// สถานะโครงการ "จริง" ที่ควรใช้แสดงผล/กรอง - ไม่ใช่แค่คอลัมน์ Status (ซึ่งมักค้างเป็น Inprogress ตลอด)
+// ต้องดู Contract Closed Date / Completely Closed Date ประกอบด้วยเสมอ
+function projectStatus(p){
+  if(p['Completely Closed Date']) return 'Completely Closed';
+  if(p['Contract Closed Date']) return 'Contract Closed';
+  return p['Status'] || 'Inprogress';
+}
+const isY = v => String(v||'').trim().toUpperCase() === 'Y';
+const isCompleted = v => String(v||'').trim().toLowerCase() === 'completed';
+
+// นับ "รอบติดกันล่าสุด" ที่เข้าเงื่อนไข test(entry) เป็นจริง ไล่จากรอบล่าสุดย้อนกลับไป จนกว่าจะเจอรอบที่ไม่เข้าเงื่อนไข
+function trailingStreak(entries, test){
+  let n = 0;
+  for(let i=entries.length-1; i>=0; i--){
+    if(test(entries[i])) n++; else break;
+  }
+  return n;
+}
 
 // ไฟล์ Excel ตอนนี้ "ต่อท้าย" แถวใหม่ทุกสัปดาห์แทนที่จะเขียนทับ (เดียวกัน Project Code ซ้ำได้หลายแถว)
 // ทุกมุมมองหลัก (KPI, ตาราง PM, Health, Gantt, Availability, การ์ด) ต้องใช้ "แถวล่าสุด" ต่อโครงการเท่านั้น
 // ส่วนกราฟ Week-over-Week จะใช้ประวัติทั้งหมดแยกต่างหาก
+//
+// วงจรชีวิตโครงการที่ปิดงานแล้ว: Contract Closed -> Completely Closed -> Transfer (BI/SL/KT Completed ครบ)
+// โครงการที่ปิดแล้วยังคง "แสดงอยู่" พร้อมสถานะและคำเตือน (ดู renderClosure) จนกว่าจะโอนงานเสร็จสมบูรณ์จริง ๆ
+// ถึงจะตัดออกจาก dashboard - ไม่ใช่ซ่อนทันทีที่ 100% เพราะจะบังปัญหาที่ควรเห็น (ค้าง Transfer, ค้าง BI/SL/KT)
+// เงื่อนไขตัดออก: Completely Closed + BI/SL/KT = Completed ครบทั้ง 3 ตัว ต่อเนื่องกันมา >= 2 รอบอัปเดต
 function latestPerProject(rows){
-  const m = new Map();
+  const byCode = {};
   rows.forEach((r, idx)=>{
     const code = r['Project Code'] || `__row${idx}`;
-    const d = parseD(r['Update Date']);
-    const cur = m.get(code);
-    if(!cur){ m.set(code, {r, d, idx}); return; }
-    if(d && (!cur.d || d > cur.d)) m.set(code, {r, d, idx});
-    else if(!d && !cur.d && idx > cur.idx) m.set(code, {r, d, idx});
+    (byCode[code] ||= []).push({ r, d: parseD(r['Update Date']), idx });
   });
-  return [...m.values()].map(v=>v.r);
+  Object.values(byCode).forEach(arr=>arr.sort((a,b)=>{
+    if(a.d && b.d) return a.d - b.d;
+    if(a.d) return 1;
+    if(b.d) return -1;
+    return a.idx - b.idx;
+  }));
+
+  const active = [];
+  Object.values(byCode).forEach(arr=>{
+    const fullyTransferredStreak = trailingStreak(arr, e =>
+      !!e.r['Completely Closed Date'] && isCompleted(e.r['BI']) && isCompleted(e.r['SL']) && isCompleted(e.r['KT'])
+    );
+    if(fullyTransferredStreak >= 2) return; // โอนงานเสร็จสมบูรณ์คงที่มา 2 รอบแล้ว -> ตัดออกจาก dashboard
+    active.push(arr[arr.length-1].r);
+  });
+  return active;
 }
 
 /* ---------- state ---------- */
@@ -1294,7 +1349,7 @@ async function loadData(auto){
     }
     throw new Error('empty');
   }catch(e){
-    // เจอข้อมูลว่าง (เช่น backend เพิ่ง restart แล้ว memory รีเซ็ต) — ลอง sync อัตโนมัติให้ 1 ครั้ง
+    // เจอข้อมูลว่าง (เช่น backend เพิ่ง restart แล้ว memory รีเซ็ต) - ลอง sync อัตโนมัติให้ 1 ครั้ง
     // ก่อนจะ fallback ไปโชว์ข้อมูลตัวอย่าง กันไม่ให้ต้องมานั่งกดปุ่มเองทุกครั้ง
     if(!auto){
       setSource(false, null, true);
@@ -1317,7 +1372,7 @@ function setSource(live, updatedAt, healing){
   document.getElementById('srcLine').innerHTML = live
     ? `<span class="live"></span>กำลังเชื่อมต่อแบบ real-time${scopeTag}`
     : healing
-      ? `<span class="live off"></span>ตรวจพบข้อมูลว่าง — กำลังซิงก์ให้อัตโนมัติ...`
+      ? `<span class="live off"></span>ตรวจพบข้อมูลว่าง - กำลังซิงก์ให้อัตโนมัติ...`
       : `<span class="live off"></span>ยังไม่เชื่อมต่อ API - แสดงข้อมูลตัวอย่าง`;
   document.getElementById('hUpdated').textContent = updatedAt
     ? fmtDate(updatedAt)
@@ -1328,7 +1383,7 @@ const applyFilters = list => list.filter(p =>
   (!filters.team   || p['Team']==filters.team) &&
   (!filters.vp     || p['VP Name']==filters.vp) &&
   (!filters.pm     || pmKey(p['PM Name'])===filters.pm) &&
-  (!filters.status || p['Status']==filters.status) &&
+  (!filters.status || projectStatus(p)==filters.status) &&
   (!filters.health || p['Project Health']==filters.health)
 );
 
@@ -1337,7 +1392,7 @@ function buildFilters(){
     {k:'team',   l:'ทีม',    v:uniq(ALL.map(p=>p['Team']))},
     {k:'vp',     l:'VP',     v:uniq(ALL.map(p=>p['VP Name']))},
     {k:'pm',     l:'PM',     v:uniq(ALL.map(p=>pmKey(p['PM Name'])))},
-    {k:'status', l:'สถานะ',  v:uniq(ALL.map(p=>p['Status']))},
+    {k:'status', l:'สถานะ',  v:uniq(ALL.map(p=>projectStatus(p)))},
     {k:'health', l:'Health', v:uniq(ALL.map(p=>p['Project Health']))},
   ];
   const bar = document.getElementById('filters');
@@ -1359,8 +1414,11 @@ function renderKPIs(list){
   const total = list.length;
   const inprog = list.filter(p=>/inprogress|กำลัง/i.test(p['Status']||'')).length;
   const avg = total ? list.reduce((s,p)=>s+num(p['%Progress']),0)/total : 0;
-  const crit = list.filter(p=>H.cls(p['Project Health'])==='critical').length;
-  const warn = list.filter(p=>H.cls(p['Project Health'])==='warning').length;
+  // At Risk: ไม่นับโครงการที่ปิดงานแล้ว (Contract/Completely Closed) เพราะ Health ที่ค้างเป็น Warning/Critical
+  // มักเป็นค่าเก่าตั้งแต่ก่อนปิดงาน ไม่ได้สะท้อนความเสี่ยงจริงของงานที่จบไปแล้ว
+  const openList = list.filter(p=>{ const st=projectStatus(p); return st!=='Contract Closed' && st!=='Completely Closed'; });
+  const crit = openList.filter(p=>H.cls(p['Project Health'])==='critical').length;
+  const warn = openList.filter(p=>H.cls(p['Project Health'])==='warning').length;
   const risk = crit + warn;
   const value = list.reduce((s,p)=>s+num(p['Contract Value']),0);
 
@@ -1467,7 +1525,7 @@ function renderGantt(list){
   const today = new Date(); today.setHours(0,0,0,0);
 
   // เลือกเฉพาะโครงการที่มีวันสิ้นสุด และยังไม่ปิดงาน
-  let items = list.map(p=>{
+  let items = list.filter(p=>{ const st=projectStatus(p); return st!=='Contract Closed' && st!=='Completely Closed'; }).map(p=>{
     const s = parseD(p['Start Date']) || parseD(p['Plan Start Date']);
     const e = parseD(p['End Date']) || parseD(p['Plan End Date']);
     if(!e) return null;
@@ -1566,12 +1624,12 @@ function renderFree(list){
   const el = document.getElementById('freeList');
   const today = new Date(); today.setHours(0,0,0,0);
 
-  // วันที่ว่างของ PM = วันสิ้นสุดของโครงการที่จบช้าที่สุดในมือ
+  // วันที่ว่างของ PM = วันสิ้นสุดของโครงการที่จบช้าที่สุดในมือ (ไม่นับโครงการที่ปิดงานแล้ว เพราะไม่ได้กินเวลา PM อีกต่อไป)
   const g = {};
-  list.forEach(p=>{
+  list.filter(p=>{ const st=projectStatus(p); return st!=='Contract Closed' && st!=='Completely Closed'; }).forEach(p=>{
     const e = parseD(p['End Date']) || parseD(p['Plan End Date']);
     if(!e) return;
-    const pm = p['PM Name'] || 'ไม่ระบุ';
+    const pm = pmKey(p['PM Name']) || 'ไม่ระบุ';
     (g[pm] ||= {pm, n:0, free:e, last:p});
     g[pm].n++;
     if(e > g[pm].free){ g[pm].free = e; g[pm].last = p; }
@@ -1624,7 +1682,7 @@ function expectedProgress(ps, pe, asOf){
   return Math.max(0, Math.min(1, frac)) * 100;
 }
 
-// กราฟเทรนด์ภาพรวม — รับความกว้างเป็นพิกเซลจริงของกล่อง (วัดจาก DOM หลัง render)
+// กราฟเทรนด์ภาพรวม - รับความกว้างเป็นพิกเซลจริงของกล่อง (วัดจาก DOM หลัง render)
 // เพื่อให้ viewBox ตรงกับขนาดจริงเป๊ะ ไม่มีการยืด/บีบข้อความหรือจุดกลมให้เพี้ยนทั้งจอเล็กจอใหญ่
 function buildTrendChart(pts, weekPM, pxWidth){
   const chW = Math.max(pxWidth, 260), chH = 150;
@@ -1654,7 +1712,7 @@ function buildTrendChart(pts, weekPM, pxWidth){
       <text x="${padL-8}" y="${(gy+3).toFixed(1)}" font-size="9.5" fill="var(--faint)" text-anchor="end" font-family="IBM Plex Mono">${Math.round(v)}%</text>`;
   }).join('');
 
-  // ป้ายวันที่ใต้แกน X — จุดแรก/สุดท้ายชิดขอบจะโดนตัด เลยปรับ text-anchor กันล้น
+  // ป้ายวันที่ใต้แกน X - จุดแรก/สุดท้ายชิดขอบจะโดนตัด เลยปรับ text-anchor กันล้น
   const step = weekPM.length > 6 ? 2 : 1;
   const xLabels = weekPM.map((w,i)=>{
     if(i % step !== 0 && i !== weekPM.length-1) return '';
@@ -1710,7 +1768,7 @@ function renderWow(list){
   // "รอบ" = นับถอยหลังจากรายการล่าสุดของแต่ละโครงการ (ไม่ใช่ปฏิทินสัปดาห์)
   // รอบ 0 = ค่าล่าสุดที่แต่ละโครงการเคยรายงาน, รอบ 1 = ค่าก่อนหน้านั้น ฯลฯ
   // วิธีนี้เทียบ "รายงานล่าสุด vs รายงานก่อนหน้า" ของแต่ละโครงการได้ตรงจริง ต่อให้แต่ละคนอัปเดตไม่พร้อมกัน
-  // ใช้เฉพาะหาค่า "ก่อนหน้า" กับเทรนด์ย้อนหลัง — ค่า "ปัจจุบัน" ใช้ overallAvgNow/byPM ด้านบนเสมอ
+  // ใช้เฉพาะหาค่า "ก่อนหน้า" กับเทรนด์ย้อนหลัง - ค่า "ปัจจุบัน" ใช้ overallAvgNow/byPM ด้านบนเสมอ
   const roundsDesc = []; // index 0 = ล่าสุด, ไล่ย้อนหลังไป
   for(let r=0; r<6; r++){
     let any=false, overallSum=0, overallN=0, riskValue=0; const pmAgg={}; const dates=[];
@@ -1778,7 +1836,7 @@ function renderWow(list){
     return {avg, cls};
   }
 
-  // วันที่อัปเดตล่าสุดจริงของแต่ละ PM (จากโครงการปัจจุบันของเขา) — ไว้บอกว่า "เงียบไปกี่วันแล้ว"
+  // วันที่อัปเดตล่าสุดจริงของแต่ละ PM (จากโครงการปัจจุบันของเขา) - ไว้บอกว่า "เงียบไปกี่วันแล้ว"
   const lastSeenPM = {};
   list.forEach(p=>{
     const d = parseD(p['Update Date']);
@@ -1812,6 +1870,8 @@ function renderWow(list){
           prevNote: prev2 ? (prev2['Progress Update']||'').trim() : null,
           thisProg: num(cur2['%Progress']),
           prevProg: prev2 ? num(prev2['%Progress']) : null,
+          thisHealth: cur2['Project Health'] || 'ไม่ระบุ',
+          prevHealth: prev2 ? (prev2['Project Health'] || 'ไม่ระบุ') : null,
           isNew: !prev2,
           expProg: exp,
         };
@@ -1855,7 +1915,7 @@ function renderWow(list){
     if(d===null) return `<span class="ov-d flat">ยังไม่มีคู่เทียบ</span>`;
     const dir = Math.abs(d) < (unit==='pp'?0.05:1) ? 'flat' : (d>0 ? 'up' : 'down');
     const cls = invert ? (dir==='up'?'down':dir==='down'?'up':'flat') : dir;
-    const arrow = dir==='up'?'▲':dir==='down'?'▼':'—';
+    const arrow = dir==='up'?'▲':dir==='down'?'▼':'-';
     const txt = unit==='pp' ? `${d>0?'+':''}${d.toFixed(1)} pp` : `${d>0?'+':''}${compact(d)}`;
     return `<span class="ov-d ${cls}">${arrow} ${txt}</span>`;
   };
@@ -1930,7 +1990,7 @@ function renderWow(list){
         ? `<b>${nt.prevProg.toFixed(0)}%</b> → <b>${nt.thisProg.toFixed(0)}%</b>`
         : `<b>${nt.thisProg.toFixed(0)}%</b>`;
       const prevRow = nt.isNew
-        ? `<div class="nd-row prev"><span class="nd-tag">ก่อน</span><span class="nd-txt nd-empty">— ยังไม่เคยมีรายงานก่อนหน้า —</span></div>`
+        ? `<div class="nd-row prev"><span class="nd-tag">ก่อน</span><span class="nd-txt nd-empty">- ยังไม่เคยมีรายงานก่อนหน้า -</span></div>`
         : `<div class="nd-row prev"><span class="nd-tag">ก่อน</span><span class="nd-txt">${nt.prevNote || '<span class="nd-empty">ไม่มีบันทึก</span>'}</span></div>`;
       const thisRow = `<div class="nd-row this"><span class="nd-tag">ล่าสุด</span><span class="nd-txt">${nt.thisNote || '<span class="nd-empty">ไม่มีบันทึก</span>'}</span></div>`;
       const changed = nt.thisNote !== nt.prevNote;
@@ -1939,15 +1999,25 @@ function renderWow(list){
         const cls = diff>=5?'ahead':diff<=-10?'behind':'onpace';
         const icon = cls==='ahead'?'⚡':cls==='behind'?'🐢':'✓';
         const word = cls==='ahead'?'เร็วกว่าแผน':cls==='behind'?'ช้ากว่าแผน':'ตามแผน';
-        return `<div class="nd-row" style="margin-top:6px"><span class="nd-tag">แผน</span><span class="nd-txt" style="color:var(--faint)">ควรอยู่ที่ <b style="color:var(--ink-2)">${nt.expProg.toFixed(0)}%</b> ณ วันนี้ — <span class="pace-chip ${cls}" style="margin-left:2px">${icon} ${word} (${diff>0?'+':''}${diff.toFixed(0)}pp)</span></span></div>`;
+        return `<div class="nd-row" style="margin-top:6px"><span class="nd-tag">แผน</span><span class="nd-txt" style="color:var(--faint)">ควรอยู่ที่ <b style="color:var(--ink-2)">${nt.expProg.toFixed(0)}%</b> ณ วันนี้ - <span class="pace-chip ${cls}" style="margin-left:2px">${icon} ${word} (${diff>0?'+':''}${diff.toFixed(0)}pp)</span></span></div>`;
       })();
       const trans = transitions.find(t=>t.name===nt.name);
-      const transBadge = trans ? `<span class="nd-new" style="color:${trans.worsened?'var(--critical)':'var(--success)'};background:${trans.worsened?'var(--critical-tint)':'var(--success-tint)'}">${trans.from} → ${trans.to}</span>` : '';
+      // แสดง "Health" กับ "บันทึกความคืบหน้า" แยกกันชัดเจน 2 บรรทัดเสมอทุกโครงการ (ไม่ใช่โผล่มาบ้างหายไปบ้าง)
+      // กันสับสนว่า badge ที่เห็นพูดถึงอะไร - Health เปลี่ยนหรือบันทึกข้อความเปลี่ยน เป็นคนละเรื่องกัน
+      const healthBadge = nt.isNew
+        ? `<span class="nd-new">โครงการใหม่ - ยังไม่มีรอบก่อนให้เทียบ</span>`
+        : trans
+          ? `<span class="nd-new" style="color:${trans.worsened?'var(--critical)':'var(--success)'};background:${trans.worsened?'var(--critical-tint)':'var(--success-tint)'}">Health เปลี่ยน: ${trans.from} → ${trans.to}</span>`
+          : `<span class="nd-new" style="color:var(--faint);background:var(--neutral-tint)">Health ไม่เปลี่ยน (${nt.thisHealth})</span>`;
+      const noteBadge = nt.isNew ? '' : (!changed
+        ? `<span class="nd-new" style="color:var(--faint);background:var(--neutral-tint)">บันทึกความคืบหน้าเหมือนรอบก่อน (ยังไม่มีอัปเดตใหม่)</span>`
+        : `<span class="nd-new" style="color:var(--brand);background:var(--brand-tint)">บันทึกความคืบหน้าอัปเดตใหม่</span>`);
       return `<div class="nd">
         <div class="nd-top">
           <div style="min-width:0">
-            <span class="nd-name">${nt.name}${nt.isNew?'<span class="nd-new">ใหม่</span>':(!changed?'<span class="nd-new" style="color:var(--faint);background:var(--neutral-tint)">ไม่เปลี่ยน</span>':'')}${transBadge}</span>
+            <span class="nd-name">${nt.name}</span>
             ${nt.customer ? `<div class="nd-cust">${nt.customer}</div>` : ''}
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px">${healthBadge}${noteBadge}</div>
           </div>
           <span class="nd-prog">${progTxt}</span>
         </div>
@@ -2097,7 +2167,7 @@ function renderComplexity(list){
       ${(newAvg!==null || oldAvg!==null) ? `<div style="margin-top:10px;font-size:11.5px;color:var(--muted)">
         โครงการใหม่ล่าสุด (${newItems.length}): ความซับซ้อนเฉลี่ย <b style="color:var(--ink)">${newAvg!==null?newAvg.toFixed(1):'-'}</b>
         &nbsp;·&nbsp; โครงการเดิม (${oldItems.length}): เฉลี่ย <b style="color:var(--ink)">${oldAvg!==null?oldAvg.toFixed(1):'-'}</b>
-        ${(newAvg!==null && oldAvg!==null) ? (newAvg>oldAvg ? `<span style="color:var(--warning)"> — งานใหม่ที่เข้ามาซับซ้อนกว่าเดิม</span>` : newAvg<oldAvg ? `<span style="color:var(--success)"> — งานใหม่ที่เข้ามาซับซ้อนน้อยกว่าเดิม</span>` : '') : ''}
+        ${(newAvg!==null && oldAvg!==null) ? (newAvg>oldAvg ? `<span style="color:var(--warning)"> - งานใหม่ที่เข้ามาซับซ้อนกว่าเดิม</span>` : newAvg<oldAvg ? `<span style="color:var(--success)"> - งานใหม่ที่เข้ามาซับซ้อนน้อยกว่าเดิม</span>` : '') : ''}
       </div>` : ''}
     </div>
 
@@ -2118,6 +2188,75 @@ function renderComplexity(list){
   `;
 }
 
+function renderClosure(list){
+  const el = document.getElementById('cls');
+  const codes = new Set(list.map(p=>p['Project Code']));
+  const byCode = {};
+  HIST.filter(r=>codes.has(r['Project Code'])).forEach(r=>{ (byCode[r['Project Code']] ||= []).push(r); });
+  Object.values(byCode).forEach(arr=>arr.sort((a,b)=>{
+    const da=parseD(a['Update Date']), db=parseD(b['Update Date']);
+    if(da && db) return da-db;
+    if(da) return 1;
+    if(db) return -1;
+    return 0;
+  }));
+
+  const contractClosedN = list.filter(p=>projectStatus(p)==='Contract Closed').length;
+  const completelyClosedN = list.filter(p=>projectStatus(p)==='Completely Closed').length;
+
+  const alerts = [];
+  list.forEach(p=>{
+    const hist = byCode[p['Project Code']] || [p];
+    const contractClosed = !!p['Contract Closed Date'];
+    const completelyClosed = !!p['Completely Closed Date'];
+    const warrantyY = isY(p['Warranty Type']);
+    const hasTransferDate = !!p['Transfer Date'];
+
+    // Rule 3: ค้างอยู่ที่ Contract Closed (ยังไม่ขยับไป Completely Closed) ติดต่อกัน >= 2 รอบ
+    if(contractClosed && !completelyClosed){
+      const streak = trailingStreak(hist, e => !!e['Contract Closed Date'] && !e['Completely Closed Date']);
+      if(streak >= 2) alerts.push({ p, sev:'warning', msg:`Contract Closed มาแล้ว ${streak} รอบติดต่อกัน ยังไม่ทำ Completely Closed` });
+    }
+    // Rule 4: ปิดงานสมบูรณ์แล้ว มี Warranty แต่ยังไม่เริ่ม Transfer
+    if(completelyClosed && warrantyY && !hasTransferDate){
+      alerts.push({ p, sev:'critical', msg:'ปิดงานสมบูรณ์แล้ว (Completely Closed) มี Warranty แต่ยังไม่เริ่ม Transfer' });
+    }
+    // Rule 5: อยู่ระหว่าง Transfer แล้ว เช็คว่า BI/SL/KT ค้างอยู่จุดไหนไหม
+    if(warrantyY && hasTransferDate){
+      const stuck = [];
+      if(p['BI'] && !isCompleted(p['BI'])) stuck.push(`BI: ${p['BI']}`);
+      if(p['SL'] && !isCompleted(p['SL'])) stuck.push(`SL: ${p['SL']}`);
+      if(p['KT'] && !isCompleted(p['KT'])) stuck.push(`KT: ${p['KT']}`);
+      if(stuck.length) alerts.push({ p, sev:'warning', msg:`อยู่ระหว่าง Transfer แต่ค้างที่ ${stuck.join(' · ')}` });
+    }
+  });
+  alerts.sort((a,b)=> (b.sev==='critical')-(a.sev==='critical'));
+
+  document.getElementById('clsCount').textContent = `${alerts.length} รายการต้องดำเนินการ`;
+
+  const overview = `<div class="wow-overview">
+    <div class="ov-stats">
+      <div class="ov-stat"><div class="ov-l">Contract Closed</div><div class="ov-v">${contractClosedN}<span class="u" style="font-size:12px"> / ${list.length}</span></div></div>
+      <div class="ov-stat"><div class="ov-l">Completely Closed</div><div class="ov-v">${completelyClosedN}<span class="u" style="font-size:12px"> / ${list.length}</span></div></div>
+      <div class="ov-stat"><div class="ov-l">ต้องดำเนินการ (ปิดงาน/โอนงานค้าง)</div><div class="ov-v" style="color:${alerts.length?'var(--critical)':'var(--success)'}">${alerts.length}</div></div>
+    </div>
+  </div>`;
+
+  const list_html = alerts.length ? alerts.map(a=>{
+    const st = projectStatus(a.p);
+    return `<div class="cls-row">
+      <div class="av" style="background:${avatarColor(a.p['PM Name'])}">${initials(a.p['PM Name'])}</div>
+      <div style="min-width:0;flex:1">
+        <div class="cls-name">${a.p['Project Name']||a.p['Project Code']} <span class="code-tag">#${a.p['Project Code']}</span> <span class="chip ${st==='Completely Closed'?'success':'neutral'}">${st}</span></div>
+        <div class="cls-msg ${a.sev}">${a.msg}</div>
+      </div>
+      <div class="cls-pm">${a.p['PM Name']||'-'}</div>
+    </div>`;
+  }).join('') : `<div class="empty">ไม่มีโครงการที่ค้างดำเนินการเรื่องปิดงาน/โอนงานตอนนี้</div>`;
+
+  el.innerHTML = overview + `<div style="margin-top:14px">${list_html}</div>`;
+}
+
 function renderRevenue(list){
   const el = document.getElementById('rev');
   if(!REV.length){
@@ -2125,7 +2264,7 @@ function renderRevenue(list){
     document.getElementById('revCount').textContent = '';
     return;
   }
-  // เป้าที่ "แฟร์กับวันนี้" — เป้าสิ้นเดือน (Rev Plan%) ถูกปักไว้ที่วันสุดท้ายของเดือนเสมอ
+  // เป้าที่ "แฟร์กับวันนี้" - เป้าสิ้นเดือน (Rev Plan%) ถูกปักไว้ที่วันสุดท้ายของเดือนเสมอ
   // ถ้าเทียบ % ปัจจุบันกับเป้าสิ้นเดือนตรง ๆ จะดูล่าช้าเกินจริงเสมอในช่วงต้น-กลางเดือน
   // แก้โดย "เฉลี่ยเชิงเส้นตามสัดส่วนวันที่ผ่านไปแล้วในเดือน" ระหว่างเป้าสิ้นเดือนก่อน ➜ เป้าสิ้นเดือนนี้
   const today = new Date();
@@ -2133,7 +2272,7 @@ function renderRevenue(list){
   const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
   const dayFrac = today.getDate() / daysInMonth;
 
-  // join ด้วย Project Code — ถ้ามีหลายแถวต่อโครงการ (ต่อท้ายทุกสัปดาห์เหมือน Progress) ใช้แถวสุดท้าย
+  // join ด้วย Project Code - ถ้ามีหลายแถวต่อโครงการ (ต่อท้ายทุกสัปดาห์เหมือน Progress) ใช้แถวสุดท้าย
   const revByCode = {};
   REV.forEach(r=>{ if(r['Project Code']) revByCode[r['Project Code']] = r; });
 
@@ -2152,7 +2291,7 @@ function renderRevenue(list){
       let monIdx = months.indexOf(monthLabel);
       if(monIdx < 0) monIdx = months.length - 2;
       const prevCum = monIdx > 0 ? curvePts[monIdx-1] : 0;
-      const planToday = prevCum + (plan - prevCum) * dayFrac;  // เป้าปรับตามวันที่วันนี้ — ใช้ตัดสินสถานะจริง
+      const planToday = prevCum + (plan - prevCum) * dayFrac;  // เป้าปรับตามวันที่วันนี้ - ใช้ตัดสินสถานะจริง
       const diffPct = planToday - cur;              // ค่าที่ใช้จัดอันดับ/ให้สีจริง (แฟร์กว่า)
       const diffPctOfficial = plan - cur;           // เก็บไว้อ้างอิงเทียบให้เห็นส่วนต่าง
       const diffBaht = diffPct/100 * selling;        // คำนวณเองด้วยวิธีเดียวกับที่ชีทใช้ (ยืนยันแล้วว่า Diff(Baht)=diffPct/100*Selling Price)
@@ -2187,7 +2326,7 @@ function renderRevenue(list){
       <div class="ov-stat">
         <div class="ov-l">Revenue Attainment ถ่วงมูลค่า</div>
         <div class="ov-v">${wCur.toFixed(1)}%<span style="font-size:12px;color:var(--faint);font-weight:500"> / เป้าวันนี้ ${wPlanToday.toFixed(1)}%</span></div>
-        <div style="font-size:10.5px;color:var(--faint);margin-top:3px">เป้าสิ้นเดือนทางการ ${wPlanEOM.toFixed(1)}% — ปรับสัดส่วนตามวันที่ ${today.getDate()}/${daysInMonth}</div>
+        <div style="font-size:10.5px;color:var(--faint);margin-top:3px">เป้าสิ้นเดือนทางการ ${wPlanEOM.toFixed(1)}% - ปรับสัดส่วนตามวันที่ ${today.getDate()}/${daysInMonth}</div>
       </div>
       <div class="ov-stat">
         <div class="ov-l">ส่วนต่างรายได้สะสมรวม <span style="font-weight:400">(เทียบเป้าวันนี้)</span></div>
@@ -2297,7 +2436,7 @@ function sCurveSVG(pts, months, planEOM, planToday, cur, monIdx, dayFrac){
       <text x="${padL-6}" y="${(gy+3).toFixed(1)}" font-size="9" fill="var(--faint)" text-anchor="end" font-family="IBM Plex Mono">${v}%</text>`;
   }).join('');
 
-  // แสดงป้ายเดือนครบทุกเดือน ไม่ข้าม — กันความรู้สึกว่าเส้น "วันนี้" ตกอยู่ผิดตำแหน่งเพราะป้ายเดือนหายไป
+  // แสดงป้ายเดือนครบทุกเดือน ไม่ข้าม - กันความรู้สึกว่าเส้น "วันนี้" ตกอยู่ผิดตำแหน่งเพราะป้ายเดือนหายไป
   const labels = months.map((m,i)=>`<text x="${x(i).toFixed(1)}" y="${H-6}" font-size="9" fill="var(--faint)" text-anchor="middle" font-family="IBM Plex Mono">${m}</text>`).join('');
 
   // ตำแหน่ง x ต่อเนื่องของ "วันนี้" = ระหว่างจุดเดือนก่อน (monIdx-1) กับเดือนนี้ (monIdx) ตามสัดส่วนวันที่ผ่านไป
@@ -2327,7 +2466,7 @@ function sCurveSVG(pts, months, planEOM, planToday, cur, monIdx, dayFrac){
   </svg>`;
 }
 
-// หาชื่อโครงการ/ลูกค้าจาก Project Code — ใช้ PaymentW เป็นหลัก (ชื่อครบสุด) แล้ว fallback ไปที่ Progress1
+// หาชื่อโครงการ/ลูกค้าจาก Project Code - ใช้ PaymentW เป็นหลัก (ชื่อครบสุด) แล้ว fallback ไปที่ Progress1
 function codeInfo(code){
   const pw = PAYW.find(p=>p.projectCode===code);
   if(pw) return { name: pw.projectName || code, customer: pw.customer || '' };
@@ -2335,7 +2474,7 @@ function codeInfo(code){
   if(p) return { name: p['Project Name'] || code, customer: p['Customer'] || '' };
   return { name: code, customer: '' };
 }
-// Tab การเงิน/สต็อกต้องแสดง "เฉพาะโครงการที่ Progress1 ติดตามอยู่ตอนนี้" เท่านั้น — ไม่ map ตามชื่อ PM เพียงอย่างเดียว
+// Tab การเงิน/สต็อกต้องแสดง "เฉพาะโครงการที่ Progress1 ติดตามอยู่ตอนนี้" เท่านั้น - ไม่ map ตามชื่อ PM เพียงอย่างเดียว
 // โครงการอื่นที่มีข้อมูลการเงิน/สต็อกแต่ไม่ได้อยู่ใน Progress1 (เช่นปิดงานไปแล้ว) จะถูกตัดทิ้งตั้งแต่ต้น
 // ไม่ถูกนำไปคำนวณผลรวม/ค่าเฉลี่ยใด ๆ ทั้งสิ้น ไม่ใช่แค่ซ่อนไว้เฉย ๆ
 function activeCodeSet(){ return new Set(ALL.map(p=>p['Project Code'])); }
@@ -2400,12 +2539,24 @@ function renderPayment(){
     const cards = g.items.slice().sort((a,b)=>num(b.collecting)-num(a.collecting)).map(x=>{
       const rem = num(x.remainder), coll_ing = num(x.collecting), coll_ed = num(x.collected);
       const insts = (x.installments||[]).filter(i=>i.desc || i.collected!=null || i.invoiced!=null);
+      // AccType เป็นการขาย/ติดตั้ง + คำอธิบายงวดพูดถึงการส่งของ -> Collecting อาจเป็นใบกำกับภาษีตัดสต็อก
+      // ไม่ใช่การวางบิลเรียกเก็บลูกค้าจริง ๆ (ต่างจาก "ค้างเก็บเงิน" ทั่วไปที่ควรตามลูกค้า)
+      const SHIP_ACC_TYPES = ['Sale','Sale & Install','Sale & MA'];
+      const SHIP_KEYWORDS = ['ส่งของ','ส่งสินค้า','ของที่เหลือ','ส่งมอบของ','ส่งมอบสินค้า'];
+      const isShipType = SHIP_ACC_TYPES.includes((x.accType||'').trim());
       const installHtml = insts.map(inst=>{
         const pending = num(inst.collecting) > 0 && !inst.collectedDate;
+        const text = `${x.projectName||''} ${inst.desc||''}`;
+        const likelyStockInvoice = pending && isShipType && SHIP_KEYWORDS.some(k=>text.includes(k));
+        const pendingLabel = likelyStockInvoice
+          ? `อาจเป็นใบกำกับภาษีตัดสต็อก ไม่ใช่วางบิลเรียกเก็บจริง - ${thb(inst.collecting)}`
+          : `ยังไม่เก็บ - ค้าง ${thb(inst.collecting)}`;
+        const tagLabel = likelyStockInvoice ? 'ตัดสต็อก?' : (pending ? 'ค้าง' : 'เก็บแล้ว');
+        const tagColor = likelyStockInvoice ? 'var(--warning)' : (pending ? 'var(--critical)' : '');
         return `<div class="nd">
           <div class="nd-top"><span class="nd-name">${inst.desc||'-'}</span><span class="nd-prog">${inst.collected!=null ? thb(inst.collected) : '-'}</span></div>
           <div class="nd-row"><span class="nd-tag">Invoice</span><span class="nd-txt">${fmtDate(inst.invoiceDate)} · ${thb(inst.invoiced)}</span></div>
-          <div class="nd-row"><span class="nd-tag">${pending?'ค้าง':'เก็บแล้ว'}</span><span class="nd-txt" style="${pending?'color:var(--critical)':''}">${inst.collectedDate ? fmtDate(inst.collectedDate) : (pending ? 'ยังไม่เก็บ - ค้าง '+thb(inst.collecting) : '-')}</span></div>
+          <div class="nd-row"><span class="nd-tag">${tagLabel}</span><span class="nd-txt" style="${tagColor?'color:'+tagColor:''}">${inst.collectedDate ? fmtDate(inst.collectedDate) : (pending ? pendingLabel : '-')}</span></div>
         </div>`;
       }).join('');
       return `<div class="rv-card">
@@ -2603,6 +2754,8 @@ function renderCards(list){
     const c = H.cls(p['Project Health']);
     const col = H.color(c);
     const pr = Math.min(num(p['%Progress']),100);
+    const st = projectStatus(p);
+    const stClosed = st === 'Contract Closed' || st === 'Completely Closed';
     return `<div class="card" style="--cc:${col}">
       <div class="c-top">
         <div style="min-width:0">
@@ -2614,7 +2767,8 @@ function renderCards(list){
       </div>
       <div class="c-meta">
         <span class="tag">${svg(I.user)}${p['PM Name']||'-'}</span>
-        <span class="tag">${svg(I.play)}${p['Status']||'-'}</span>
+        <span class="tag" ${stClosed?'style="color:var(--brand);border-color:var(--brand-tint);background:var(--brand-tint)"':''}>${svg(I.play)}${st}</span>
+        ${p['Sale'] ? `<span class="tag">${svg(I.user)}Sale: ${p['Sale']}</span>` : ''}
         ${num(p['Contract Value']) ? `<span class="tag">${svg(I.money)}${compact(p['Contract Value'])}</span>` : ''}
       </div>
       <div class="c-prog">
@@ -2638,7 +2792,7 @@ function render(){
 }
 function renderFiltered(){
   const f = applyFilters(ALL);
-  renderKPIs(f); renderPM(f); renderDonut(f); renderWow(f); renderComplexity(f); renderRevenue(f); renderGantt(f); renderFree(f); renderCards(f);
+  renderKPIs(f); renderPM(f); renderDonut(f); renderWow(f); renderComplexity(f); renderClosure(f); renderRevenue(f); renderGantt(f); renderFree(f); renderCards(f);
   renderPayment(); renderPOPanel(); renderStock();
 }
 
@@ -2711,7 +2865,7 @@ document.getElementById('rev').addEventListener('click', (e)=>{
   row.classList.toggle('open', opening);
 });
 
-// Tab 2 (Payment / PO / Stock) ใช้กลไก expand แบบเดียวกับ Revenue เป๊ะ — ผูก listener ซ้ำกับอีก 3 กล่อง
+// Tab 2 (Payment / PO / Stock) ใช้กลไก expand แบบเดียวกับ Revenue เป๊ะ - ผูก listener ซ้ำกับอีก 3 กล่อง
 ['pw','poBox','stkBox'].forEach(id=>{
   const box = document.getElementById(id);
   if(!box) return;
@@ -2727,7 +2881,7 @@ document.getElementById('rev').addEventListener('click', (e)=>{
   });
 });
 
-// สลับแท็บ — ไม่ต้องดึงข้อมูลใหม่ แค่สลับว่ากลุ่ม panel ไหนโชว์/ซ่อน
+// สลับแท็บ - ไม่ต้องดึงข้อมูลใหม่ แค่สลับว่ากลุ่ม panel ไหนโชว์/ซ่อน
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
