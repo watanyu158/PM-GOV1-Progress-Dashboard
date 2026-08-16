@@ -1540,6 +1540,70 @@ function expectedProgress(ps, pe, asOf){
   return Math.max(0, Math.min(1, frac)) * 100;
 }
 
+// กราฟเทรนด์ภาพรวม — รับความกว้างเป็นพิกเซลจริงของกล่อง (วัดจาก DOM หลัง render)
+// เพื่อให้ viewBox ตรงกับขนาดจริงเป๊ะ ไม่มีการยืด/บีบข้อความหรือจุดกลมให้เพี้ยนทั้งจอเล็กจอใหญ่
+function buildTrendChart(pts, weekPM, pxWidth){
+  const chW = Math.max(pxWidth, 260), chH = 150;
+  const padL=34, padR=14, padT=22, padB=26;
+  const idxs = pts.map((v,i)=>v===null?null:i).filter(i=>i!==null);
+  if(idxs.length < 2) return `<div class="empty" style="padding:16px 0">ข้อมูลไม่พอวาดกราฟภาพรวม</div>`;
+
+  const vals = idxs.map(i=>pts[i]);
+  const dataMin = Math.min(...vals), dataMax = Math.max(...vals);
+  // ขยายช่วงแกน Y ให้เห็นความเปลี่ยนแปลงชัด แทนที่จะตรึง 0-100 เสมอ (เส้นจะแบนราบเกินไป)
+  const pad = Math.max((dataMax-dataMin)*0.35, 4);
+  let yMax = Math.min(100, Math.ceil(dataMax+pad));
+  let yMin = Math.max(0, Math.floor(dataMin-pad));
+  if(yMax-yMin < 8){ yMax = Math.min(100, yMax+4); yMin = Math.max(0, yMin-4); }
+
+  const x = i => padL + (i/(pts.length-1))*(chW-padL-padR);
+  const y = v => chH-padB - ((v-yMin)/(yMax-yMin))*(chH-padT-padB);
+  const line = idxs.map(i=>`${x(i).toFixed(1)},${y(pts[i]).toFixed(1)}`).join(' ');
+  const area = `${x(idxs[0]).toFixed(1)},${(chH-padB).toFixed(1)} ${line} ${x(idxs[idxs.length-1]).toFixed(1)},${(chH-padB).toFixed(1)}`;
+
+  // เส้นกริดแนวนอน 4 เส้น พร้อมป้ายค่า %
+  const gridN = 4;
+  const gridLines = Array.from({length:gridN+1}, (_,g)=>{
+    const v = yMin + (g/gridN)*(yMax-yMin);
+    const gy = y(v);
+    return `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${chW-padR}" y2="${gy.toFixed(1)}" stroke="#D2C7B6" stroke-width="1" ${g===0?'':'stroke-dasharray="2,3"'}/>
+      <text x="${padL-8}" y="${(gy+3).toFixed(1)}" font-size="9.5" fill="var(--faint)" text-anchor="end" font-family="IBM Plex Mono">${Math.round(v)}%</text>`;
+  }).join('');
+
+  // ป้ายวันที่ใต้แกน X — จุดแรก/สุดท้ายชิดขอบจะโดนตัด เลยปรับ text-anchor กันล้น
+  const step = weekPM.length > 6 ? 2 : 1;
+  const xLabels = weekPM.map((w,i)=>{
+    if(i % step !== 0 && i !== weekPM.length-1) return '';
+    const anchor = i===0 ? 'start' : i===weekPM.length-1 ? 'end' : 'middle';
+    return `<text x="${x(i).toFixed(1)}" y="${chH-6}" font-size="9.5" fill="var(--faint)" text-anchor="${anchor}" font-family="IBM Plex Mono">${fmtShort(w.labelDate)}</text>`;
+  }).join('');
+
+  // จุดข้อมูลทุกจุด + ป้ายตัวเลขกำกับ (สลับบน/ล่างกันชนกันเวลาจุดถี่)
+  const dots = idxs.map((i,k)=>{
+    const isLast = i===idxs[idxs.length-1];
+    const cx = x(i), cy = y(pts[i]);
+    const labelUp = k%2===0;
+    const ly = labelUp ? cy-10 : cy+16;
+    return `
+      <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${isLast?4.2:3.2}" fill="${isLast?'#7A5C3E':'#FFFDFA'}" stroke="#7A5C3E" stroke-width="1.8"/>
+      <text x="${cx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="10" font-weight="700" fill="#4E463C" text-anchor="middle" font-family="IBM Plex Mono">${pts[i].toFixed(1)}%</text>`;
+  }).join('');
+
+  return `<svg width="${chW}" height="${chH}" viewBox="0 0 ${chW} ${chH}" style="display:block">
+    <defs>
+      <linearGradient id="ovGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#7A5C3E" stop-opacity="0.22"/>
+        <stop offset="100%" stop-color="#7A5C3E" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    ${gridLines}
+    <polygon points="${area}" fill="url(#ovGrad)"/>
+    <polyline points="${line}" fill="none" stroke="#7A5C3E" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
+    ${dots}
+    ${xLabels}
+  </svg>`;
+}
+
 function renderWow(list){
   const el = document.getElementById('wow');
   const codes = new Set(list.map(p=>p['Project Code']));
@@ -1695,24 +1759,8 @@ function renderWow(list){
     return `<span class="ov-d ${cls}">${arrow} ${txt}</span>`;
   };
 
-  const chW=740,chH=76,padL=4,padR=4,padT=8,padB=18;
   const pts = weekPM.map(w=>w.overallAvg);
   if(pts.length) pts[pts.length-1] = overallAvgNow;
-  const idxs = pts.map((v,i)=>v===null?null:i).filter(i=>i!==null);
-  const chartSVG = idxs.length < 2 ? `<div class="empty" style="padding:16px 0">ข้อมูลไม่พอวาดกราฟภาพรวม</div>` : (()=>{
-    const x = i => padL + (i/(pts.length-1))*(chW-padL-padR);
-    const y = v => chH-padB - (v/100)*(chH-padT-padB);
-    const line = idxs.map(i=>`${x(i).toFixed(1)},${y(pts[i]).toFixed(1)}`).join(' ');
-    const area = `${x(idxs[0]).toFixed(1)},${(chH-padB).toFixed(1)} ${line} ${x(idxs[idxs.length-1]).toFixed(1)},${(chH-padB).toFixed(1)}`;
-    const labels = weekPM.map((w,i)=>`<text x="${x(i).toFixed(1)}" y="${chH-3}" font-size="9.5" fill="var(--faint)" text-anchor="middle" font-family="IBM Plex Mono">${fmtShort(w.labelDate)}</text>`).join('');
-    const lastI = idxs[idxs.length-1];
-    return `<svg width="100%" height="${chH}" viewBox="0 0 ${chW} ${chH}" preserveAspectRatio="none">
-      <polygon points="${area}" fill="#7A5C3E" opacity="0.07"/>
-      <polyline points="${line}" fill="none" stroke="#7A5C3E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="${x(lastI)}" cy="${y(pts[lastI])}" r="3.4" fill="#7A5C3E"/>
-      ${labels}
-    </svg>`;
-  })();
 
   const overview = `<div class="wow-overview">
     <div class="ov-stats">
@@ -1732,7 +1780,7 @@ function renderWow(list){
         <span class="ov-d ${worsenedN?'down':'flat'}">${worsenedN} แย่ลง · ${improvedN} ดีขึ้น</span>
       </div>
     </div>
-    <div class="ov-chart">${chartSVG}</div>
+    <div class="ov-chart" id="ovChartBox"></div>
     ${transitions.length ? `<div class="ov-trans">${transitions.slice(0,8).map(t=>`
       <span class="trans-chip ${t.worsened?'down':'up'}">${t.name} <b>${t.from} → ${t.to}</b></span>`).join('')}${
       transitions.length>8 ? `<span class="trans-chip flat">+${transitions.length-8} เพิ่มเติม</span>` : ''}</div>` : ''}
@@ -1828,6 +1876,16 @@ function renderWow(list){
   }).join('');
 
   el.innerHTML = overview + `<div class="wow-head">${rangeLabel}</div>${head}${body}`;
+
+  // วาดกราฟหลังแทรก DOM แล้วเท่านั้น เพื่อวัดความกว้างจริงของกล่อง แล้ว build SVG ให้ตรงพิกเซลเป๊ะ
+  // (กันปัญหาภาพยืด/บีบเวลาคนละขนาดจอ เพราะ viewBox กับความกว้างจริงไม่ตรงกัน)
+  const chartBox = document.getElementById('ovChartBox');
+  if(chartBox){
+    chartBox.__pts = pts;
+    chartBox.__weekPM = weekPM;
+    const boxW = Math.round(chartBox.getBoundingClientRect().width) || 700;
+    chartBox.innerHTML = buildTrendChart(pts, weekPM, boxW);
+  }
 }
 
 function renderComplexity(list){
@@ -2208,6 +2266,18 @@ async function syncNow(){
 }
 
 checkSession();
+window.addEventListener('resize', (()=>{
+  let t;
+  return ()=>{
+    clearTimeout(t);
+    t = setTimeout(()=>{
+      const box = document.getElementById('ovChartBox');
+      if(!box || !box.__pts) return;
+      const boxW = Math.round(box.getBoundingClientRect().width) || 700;
+      box.innerHTML = buildTrendChart(box.__pts, box.__weekPM, boxW);
+    }, 200);
+  };
+})());
 document.getElementById('syncBtn').addEventListener('click', syncNow);
 document.getElementById('logoutBtn').addEventListener('click', ()=>doLogout(false));
 document.getElementById('winSel').addEventListener('change', ()=>renderGantt(applyFilters(ALL)));
