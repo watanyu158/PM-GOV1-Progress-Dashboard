@@ -220,6 +220,7 @@
   .rv-plan-mark-eom{position:absolute;top:-4px;width:0;height:18px;border-left:1.5px dashed #C9B8C2;z-index:1;opacity:.85;}
   .rv-acc-mark{position:absolute;top:-2px;width:2px;height:14px;background:var(--faint);opacity:.7;}
   .rv-legend2{display:flex;gap:12px;font-size:10px;color:var(--faint);margin-top:5px;}
+  .code-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;color:var(--faint);background:var(--surface-2);border:1px solid var(--line-soft);padding:1px 6px;border-radius:5px;white-space:nowrap;}
   .pw-stack{display:flex;height:12px;border-radius:6px;overflow:hidden;margin-top:6px;background:var(--line);}
   .pw-seg{height:100%;min-width:0;}
   .pw-legend3{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:7px;flex-wrap:wrap;}
@@ -2317,6 +2318,15 @@ function sCurveSVG(pts, months, planEOM, planToday, cur, monIdx, dayFrac){
   </svg>`;
 }
 
+// หาชื่อโครงการ/ลูกค้าจาก Project Code — ใช้ PaymentW เป็นหลัก (ชื่อครบสุด) แล้ว fallback ไปที่ Progress1
+function codeInfo(code){
+  const pw = PAYW.find(p=>p.projectCode===code);
+  if(pw) return { name: pw.projectName || code, customer: pw.customer || '' };
+  const p = ALL.find(p=>p['Project Code']===code);
+  if(p) return { name: p['Project Name'] || code, customer: p['Customer'] || '' };
+  return { name: code, customer: '' };
+}
+
 /* ================= TAB 2: Finance & Stock ================= */
 
 function renderPayment(){
@@ -2386,7 +2396,7 @@ function renderPayment(){
       }).join('');
       return `<div class="rv-card">
         <div class="rv-card-top">
-          <div><div class="rv-card-name">${x.projectName||x.projectCode}</div><div class="rv-card-cust">${x.customer||''}</div></div>
+          <div><div class="rv-card-name">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span></div><div class="rv-card-cust">${x.customer||''}</div></div>
           <span class="chip ${coll_ing>num(x.sellingPrice)*0.1?'critical':coll_ing>1?'warning':'success'}">Collecting ${thb(coll_ing)}</span>
         </div>
         ${stackBar(rem, coll_ing, coll_ed, num(x.sellingPrice))}
@@ -2418,7 +2428,8 @@ function renderPayment(){
 function renderPOPanel(){
   const el = document.getElementById('poBox');
   const items = PO.filter(p => !filters.pm || nrm(p.pm)===nrm(filters.pm));
-  document.getElementById('poCount').textContent = `${items.length} PO`;
+  const projectCount = uniq(items.map(x=>x.projectCode)).length;
+  document.getElementById('poCount').textContent = `${items.length} PO · ${projectCount} โครงการ`;
   if(!items.length){ el.innerHTML = `<div class="empty">ไม่มี PO ตรงกับตัวกรองนี้</div>`; return; }
 
   const totalPrice = items.reduce((s,x)=>s+num(x.price),0);
@@ -2436,49 +2447,72 @@ function renderPOPanel(){
     </div>
   </div>`;
 
+  const statusCls = st => st==='รับครบ'?'success': st==='Partial'?'warning': st==='ค้างรับ'?'critical': 'neutral';
+
+  // จัดกลุ่ม PM -> โครงการ -> รายการ PO แต่ละใบ (3 ชั้น แต่ขยายแค่ระดับ PM เดียว ไม่ต้องคลิกซ้อนอีกชั้น)
   const byPM = {};
   items.forEach(x=>{
     const pm = x.pm || 'ไม่ระบุ';
-    (byPM[pm] ||= {pm, items:[], price:0, balanced:0});
+    (byPM[pm] ||= {pm, items:[], price:0, balanced:0, projects:{}});
     byPM[pm].items.push(x);
     byPM[pm].price += num(x.price);
     byPM[pm].balanced += num(x.balanced);
+    const pc = x.projectCode || 'ไม่ระบุ';
+    (byPM[pm].projects[pc] ||= {code:pc, items:[], price:0, balanced:0, received:0});
+    byPM[pm].projects[pc].items.push(x);
+    byPM[pm].projects[pc].price += num(x.price);
+    byPM[pm].projects[pc].balanced += num(x.balanced);
+    byPM[pm].projects[pc].received += num(x.receivedPrice);
   });
   const pmRows = Object.values(byPM).sort((a,b)=> b.balanced - a.balanced);
-  const statusCls = st => st==='รับครบ'?'success': st==='Partial'?'warning': st==='ค้างรับ'?'critical': 'neutral';
 
   const head = `<div class="rv-row head-row"><span>PM</span><span style="text-align:right">Σ มูลค่า PO</span><span>PO ที่ยังไม่ครบ</span><span style="text-align:right">ค้างรับ/ค้างจ่าย</span><span></span></div>`;
 
   const body = pmRows.map(g=>{
     const col = g.balanced > g.price*0.15 ? '#A8482F' : g.balanced>1 ? '#B07A28' : '#4F7A4A';
     const incomplete = g.items.filter(x=>num(x.balanced)>1).length;
-    const cards = g.items.slice().sort((a,b)=>num(b.balanced)-num(a.balanced)).map(x=>{
-      const cls = statusCls(x.status);
-      return `<div class="rv-card">
+
+    const projectGroups = Object.values(g.projects).sort((a,b)=>b.balanced-a.balanced).map(pg=>{
+      const info = codeInfo(pg.code);
+      const pgCol = pg.balanced > pg.price*0.15 ? '#A8482F' : pg.balanced>1 ? '#B07A28' : '#4F7A4A';
+      const poLines = pg.items.slice().sort((a,b)=>num(b.balanced)-num(a.balanced)).map(x=>{
+        const cls = statusCls(x.status);
+        return `<div class="nd">
+          <div class="nd-top">
+            <span class="nd-name">${x.poNumber||'-'} <span class="chip ${cls}" style="margin-left:6px">${x.status||'-'}</span></span>
+            <span class="nd-prog">${thb(x.price)}</span>
+          </div>
+          <div class="nd-row"><span class="nd-tag">Vendor</span><span class="nd-txt">${x.vendor||'-'}</span></div>
+          <div class="nd-row"><span class="nd-tag">รายการ</span><span class="nd-txt">${x.item||''}${x.product?' · '+x.product:''}</span></div>
+          <div class="nd-row"><span class="nd-tag">รับแล้ว</span><span class="nd-txt">${thb(x.receivedPrice)} <span style="color:${num(x.balanced)>1?'var(--critical)':'var(--success)'}">(ค้าง ${thb(x.balanced)})</span></span></div>
+          <div class="nd-row"><span class="nd-tag">วันที่</span><span class="nd-txt">PO ${fmtDate(x.poDate)} · Delivery ${fmtDate(x.deliveryDate)}</span></div>
+        </div>`;
+      }).join('');
+      return `<div class="rv-card" style="border-left:3px solid ${pgCol}">
         <div class="rv-card-top">
-          <div><div class="rv-card-name">${x.poNumber||'-'}</div><div class="rv-card-cust">${x.vendor||''}</div></div>
-          <span class="chip ${cls}">${x.status||'-'}</span>
+          <div><div class="rv-card-name">${info.name} <span class="code-tag">#${pg.code}</span></div><div class="rv-card-cust">${info.customer}</div></div>
+          <span class="chip ${pg.balanced>pg.price*0.15?'critical':pg.balanced>1?'warning':'success'}">${pg.items.length} PO</span>
         </div>
         <div class="rv-metrics" style="margin-top:9px">
-          <span>PO Value <b>${thb(x.price)}</b></span>
-          <span>Received <b>${thb(x.receivedPrice)}</b></span>
-          <span>Balanced <b style="color:${num(x.balanced)>1?'var(--critical)':'var(--success)'}">${thb(x.balanced)}</b></span>
+          <span>Σ PO Value <b>${thb(pg.price)}</b></span>
+          <span>Σ รับแล้ว <b>${thb(pg.received)}</b></span>
+          <span>Σ ค้างรับ/ค้างจ่าย <b style="color:${pg.balanced>1?'var(--critical)':'var(--success)'}">${thb(pg.balanced)}</b></span>
         </div>
-        <div class="rv-metrics" style="margin-top:5px;color:var(--muted)"><span>${x.item||''}${x.product?' · '+x.product:''}</span></div>
-        <div class="rv-metrics" style="margin-top:5px"><span>PO Date: ${fmtDate(x.poDate)}</span><span>Delivery: ${fmtDate(x.deliveryDate)}</span></div>
+        <div style="margin-top:10px">${poLines}</div>
       </div>`;
     }).join('');
+
     return `<div class="rv-row" style="--fc:${col}">
       <div class="wr-who">
         <div class="av" style="background:${avatarColor(g.pm)}">${initials(g.pm)}</div>
-        <div style="min-width:0"><div class="wr-n">${g.pm}</div><div class="wr-s">${g.items.length} PO</div></div>
+        <div style="min-width:0"><div class="wr-n">${g.pm}</div><div class="wr-s">${g.items.length} PO · ${Object.keys(g.projects).length} โครงการ</div></div>
       </div>
       <div class="wr-num">${thb(g.price)}</div>
       <div><span class="pct">${incomplete}</span> <span style="font-size:11px;color:var(--faint)">PO ยังไม่ครบ</span></div>
       <div class="wr-num" style="color:${g.balanced>1?'var(--critical)':'var(--success)'}">${thb(g.balanced)}</div>
       <span class="wr-chev">${svg(I.chevron,'')}</span>
     </div>
-    <div class="rv-detail">${cards}</div>`;
+    <div class="rv-detail">${projectGroups}</div>`;
   }).join('');
 
   el.innerHTML = overview + head + body;
