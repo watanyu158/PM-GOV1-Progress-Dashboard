@@ -2279,7 +2279,7 @@ function renderRevenue(list){
 // วางจุด "เป้าวันนี้" ตรงตำแหน่ง x ที่แท้จริงของวันนี้ (ระหว่างเดือน ไม่ปัดไปที่ขอบเดือน)
 // วงกลมทึบ = เป้าปรับตามวันที่วันนี้ (ใช้ตัดสินสถานะจริง), วงกลมโปร่ง = เป้าสิ้นเดือนทางการ (อ้างอิง)
 function sCurveSVG(pts, months, planEOM, planToday, cur, monIdx, dayFrac){
-  const W=900, H=170, padL=32, padR=10, padT=14, padB=22;
+  const W=900, H=178, padL=32, padR=10, padT=26, padB=22;
   const x = i => padL + (i/(pts.length-1))*(W-padL-padR);
   const y = v => H-padB - (Math.min(v,105)/105)*(H-padT-padB);
   const line = pts.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
@@ -2293,12 +2293,15 @@ function sCurveSVG(pts, months, planEOM, planToday, cur, monIdx, dayFrac){
       <text x="${padL-6}" y="${(gy+3).toFixed(1)}" font-size="9" fill="var(--faint)" text-anchor="end" font-family="IBM Plex Mono">${v}%</text>`;
   }).join('');
 
-  const step = months.length > 8 ? 2 : 1;
-  const labels = months.map((m,i)=> (i%step===0 || i===months.length-1) ? `<text x="${x(i).toFixed(1)}" y="${H-6}" font-size="9" fill="var(--faint)" text-anchor="middle" font-family="IBM Plex Mono">${m}</text>` : '').join('');
+  // แสดงป้ายเดือนครบทุกเดือน ไม่ข้าม — กันความรู้สึกว่าเส้น "วันนี้" ตกอยู่ผิดตำแหน่งเพราะป้ายเดือนหายไป
+  const labels = months.map((m,i)=>`<text x="${x(i).toFixed(1)}" y="${H-6}" font-size="9" fill="var(--faint)" text-anchor="middle" font-family="IBM Plex Mono">${m}</text>`).join('');
 
   // ตำแหน่ง x ต่อเนื่องของ "วันนี้" = ระหว่างจุดเดือนก่อน (monIdx-1) กับเดือนนี้ (monIdx) ตามสัดส่วนวันที่ผ่านไป
   const todayPos = monIdx>0 ? (monIdx-1) + dayFrac : 0;
   const todayX = x(todayPos);
+  const todayLabel = fmtShort(new Date());
+  const todayLabelW = todayLabel.length * 5.6 + 12;
+  const todayLabelX = Math.min(Math.max(todayX, todayLabelW/2 + padL), W - padR - todayLabelW/2);
 
   return `<svg width="100%" viewBox="0 0 ${W} ${H}" style="display:block">
     <defs>
@@ -2310,7 +2313,9 @@ function sCurveSVG(pts, months, planEOM, planToday, cur, monIdx, dayFrac){
     ${gridLines}
     <polygon points="${area}" fill="url(#scGrad${monIdx}${Math.round(cur*10)})"/>
     <polyline points="${line}" fill="none" stroke="#7A5C3E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <line x1="${todayX}" y1="${padT}" x2="${todayX}" y2="${H-padB}" stroke="#A8482F" stroke-width="1.3" stroke-dasharray="3,3" opacity="0.6"/>
+    <line x1="${todayX}" y1="${padT-2}" x2="${todayX}" y2="${H-padB}" stroke="#A8482F" stroke-width="1.3" stroke-dasharray="3,3" opacity="0.6"/>
+    <rect x="${(todayLabelX-todayLabelW/2).toFixed(1)}" y="2" width="${todayLabelW.toFixed(1)}" height="15" rx="7.5" fill="#F5E2DB"/>
+    <text x="${todayLabelX.toFixed(1)}" y="12.5" font-size="9" font-weight="700" fill="#A8482F" text-anchor="middle" font-family="IBM Plex Mono">วันนี้ ${todayLabel}</text>
     <circle cx="${x(monIdx)}" cy="${y(planEOM)}" r="3.6" fill="none" stroke="#8A5A72" stroke-width="1.8" opacity="0.75"/>
     <circle cx="${todayX}" cy="${y(planToday)}" r="4" fill="#8A5A72"/>
     <circle cx="${todayX}" cy="${y(cur)}" r="4" fill="${cur>=planToday?'#4F7A4A':'#A8482F'}"/>
