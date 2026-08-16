@@ -220,6 +220,12 @@
   .rv-plan-mark-eom{position:absolute;top:-4px;width:0;height:18px;border-left:1.5px dashed #C9B8C2;z-index:1;opacity:.85;}
   .rv-acc-mark{position:absolute;top:-2px;width:2px;height:14px;background:var(--faint);opacity:.7;}
   .rv-legend2{display:flex;gap:12px;font-size:10px;color:var(--faint);margin-top:5px;}
+  .pw-stack{display:flex;height:12px;border-radius:6px;overflow:hidden;margin-top:6px;background:var(--line);}
+  .pw-seg{height:100%;min-width:0;}
+  .pw-legend3{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:7px;flex-wrap:wrap;}
+  .pw-legend3 span{display:flex;align-items:center;gap:5px;}
+  .pw-legend3 i{width:9px;height:9px;border-radius:3px;flex:none;}
+  .pw-legend3 b{color:var(--ink);font-family:'IBM Plex Mono',monospace;font-weight:600;}
   .rv-legend2 span{display:flex;align-items:center;gap:4px;}
   .rv-legend2 i{width:8px;height:8px;border-radius:2px;display:inline-block;}
 
@@ -1832,7 +1838,21 @@ function renderWow(list){
     return `<span class="ov-d ${cls}">${arrow} ${txt}</span>`;
   };
 
-  const pts = weekPM.map(w=>w.overallAvg);
+  // กราฟเทรนด์ต้องใช้ "วันที่ปฏิทินจริง" ที่ไม่ซ้ำกัน แยกต่างหากจากตาราง WoW ด้านล่าง
+  // (ตาราง WoW ใช้ "รอบ" แบบนับถอยหลังต่อโครงการซึ่งถูกต้องสำหรับเทียบล่าสุด-ก่อนหน้า แต่ถ้าเอามาทำแกน X
+  // ของกราฟจะได้ป้ายวันที่ที่อาจซ้ำกันได้ เพราะแต่ละโครงการมีจำนวนรอบไม่เท่ากัน)
+  const distinctDates = [...new Set(hist.map(r=>{ const d=parseD(r['Update Date']); return d?d.getTime():null; }).filter(Boolean))]
+    .sort((a,b)=>a-b).slice(-6).map(t=>new Date(t));
+  const chartSeries = distinctDates.map(d=>{
+    let sum=0, n=0;
+    Object.values(byCode).forEach(arr=>{
+      let asOf=null;
+      for(const r of arr){ if(parseD(r['Update Date'])<=d) asOf=r; else break; }
+      if(asOf){ sum+=num(asOf['%Progress']); n++; }
+    });
+    return { labelDate:d, overallAvg: n?sum/n:null };
+  });
+  const pts = chartSeries.map(c=>c.overallAvg);
   if(pts.length) pts[pts.length-1] = overallAvgNow;
 
   const overview = `<div class="wow-overview">
@@ -1955,9 +1975,9 @@ function renderWow(list){
   const chartBox = document.getElementById('ovChartBox');
   if(chartBox){
     chartBox.__pts = pts;
-    chartBox.__weekPM = weekPM;
+    chartBox.__weekPM = chartSeries;
     const boxW = Math.round(chartBox.getBoundingClientRect().width) || 700;
-    chartBox.innerHTML = buildTrendChart(pts, weekPM, boxW);
+    chartBox.innerHTML = buildTrendChart(pts, chartSeries, boxW);
   }
 }
 
@@ -2258,22 +2278,41 @@ function renderRevenue(list){
 // วางจุด "เป้าวันนี้" ตรงตำแหน่ง x ที่แท้จริงของวันนี้ (ระหว่างเดือน ไม่ปัดไปที่ขอบเดือน)
 // วงกลมทึบ = เป้าปรับตามวันที่วันนี้ (ใช้ตัดสินสถานะจริง), วงกลมโปร่ง = เป้าสิ้นเดือนทางการ (อ้างอิง)
 function sCurveSVG(pts, months, planEOM, planToday, cur, monIdx, dayFrac){
-  const W=680,H=90,padL=6,padR=6,padT=10,padB=20;
+  const W=900, H=170, padL=32, padR=10, padT=14, padB=22;
   const x = i => padL + (i/(pts.length-1))*(W-padL-padR);
   const y = v => H-padB - (Math.min(v,105)/105)*(H-padT-padB);
   const line = pts.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
   const area = `${x(0).toFixed(1)},${(H-padB).toFixed(1)} ${line} ${x(pts.length-1).toFixed(1)},${(H-padB).toFixed(1)}`;
-  const labels = months.map((m,i)=> (i%2===0 || i===months.length-1) ? `<text x="${x(i).toFixed(1)}" y="${H-4}" font-size="8.5" fill="var(--faint)" text-anchor="middle" font-family="IBM Plex Mono">${m}</text>` : '').join('');
+
+  // เส้นกริดแนวนอน 0/25/50/75/100% พร้อมป้ายค่า ให้เทียบตำแหน่งเส้นได้จริงแทนลอย ๆ
+  const gridVals = [0,25,50,75,100];
+  const gridLines = gridVals.map(v=>{
+    const gy = y(v);
+    return `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="#D2C7B6" stroke-width="1" ${v===0?'':'stroke-dasharray="2,3"'}/>
+      <text x="${padL-6}" y="${(gy+3).toFixed(1)}" font-size="9" fill="var(--faint)" text-anchor="end" font-family="IBM Plex Mono">${v}%</text>`;
+  }).join('');
+
+  const step = months.length > 8 ? 2 : 1;
+  const labels = months.map((m,i)=> (i%step===0 || i===months.length-1) ? `<text x="${x(i).toFixed(1)}" y="${H-6}" font-size="9" fill="var(--faint)" text-anchor="middle" font-family="IBM Plex Mono">${m}</text>` : '').join('');
+
   // ตำแหน่ง x ต่อเนื่องของ "วันนี้" = ระหว่างจุดเดือนก่อน (monIdx-1) กับเดือนนี้ (monIdx) ตามสัดส่วนวันที่ผ่านไป
   const todayPos = monIdx>0 ? (monIdx-1) + dayFrac : 0;
   const todayX = x(todayPos);
-  return `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-    <polygon points="${area}" fill="#7A5C3E" opacity="0.06"/>
-    <polyline points="${line}" fill="none" stroke="#7A5C3E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    <line x1="${todayX}" y1="${padT}" x2="${todayX}" y2="${H-padB}" stroke="#A8482F" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.55"/>
-    <circle cx="${x(monIdx)}" cy="${y(planEOM)}" r="3" fill="none" stroke="#8A5A72" stroke-width="1.6" opacity="0.7"/>
-    <circle cx="${todayX}" cy="${y(planToday)}" r="3.4" fill="#8A5A72"/>
-    <circle cx="${todayX}" cy="${y(cur)}" r="3.4" fill="${cur>=planToday?'#4F7A4A':'#A8482F'}"/>
+
+  return `<svg width="100%" viewBox="0 0 ${W} ${H}" style="display:block">
+    <defs>
+      <linearGradient id="scGrad${monIdx}${Math.round(cur*10)}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#7A5C3E" stop-opacity="0.20"/>
+        <stop offset="100%" stop-color="#7A5C3E" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    ${gridLines}
+    <polygon points="${area}" fill="url(#scGrad${monIdx}${Math.round(cur*10)})"/>
+    <polyline points="${line}" fill="none" stroke="#7A5C3E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="${todayX}" y1="${padT}" x2="${todayX}" y2="${H-padB}" stroke="#A8482F" stroke-width="1.3" stroke-dasharray="3,3" opacity="0.6"/>
+    <circle cx="${x(monIdx)}" cy="${y(planEOM)}" r="3.6" fill="none" stroke="#8A5A72" stroke-width="1.8" opacity="0.75"/>
+    <circle cx="${todayX}" cy="${y(planToday)}" r="4" fill="#8A5A72"/>
+    <circle cx="${todayX}" cy="${y(cur)}" r="4" fill="${cur>=planToday?'#4F7A4A':'#A8482F'}"/>
     ${labels}
   </svg>`;
 }
@@ -2286,59 +2325,77 @@ function renderPayment(){
   document.getElementById('pwCount').textContent = `${items.length} โครงการ`;
   if(!items.length){ el.innerHTML = `<div class="empty">ไม่มีข้อมูลการเก็บเงินตรงกับตัวกรองนี้</div>`; return; }
 
+  // โมเดล 3 ส่วนที่ตรวจสอบแล้วว่าถูกต้องเป๊ะจากข้อมูลจริง:
+  // Selling Price = Remainder (ยังไม่ออกบิล) + Collecting (ออกบิลแล้ว รอเก็บ) + Collected (เก็บได้จริงแล้ว)
   const totalSelling = items.reduce((s,x)=>s+num(x.sellingPrice),0);
+  const totalRemainder = items.reduce((s,x)=>s+num(x.remainder),0);
+  const totalCollecting = items.reduce((s,x)=>s+num(x.collecting),0);
   const totalCollected = items.reduce((s,x)=>s+num(x.collected),0);
-  const totalInvoiced = items.reduce((s,x)=>s+num(x.invoiced),0);
-  const outstanding = totalInvoiced - totalCollected;
-  const rate = totalSelling ? (totalCollected/totalSelling*100) : 0;
+  const totalInvoiced = totalCollecting + totalCollected;
+
+  const stackBar = (remainder, collecting, collected, total) => {
+    if(!total) return '';
+    const pR = remainder/total*100, pC = collecting/total*100, pD = collected/total*100;
+    return `<div class="pw-stack">
+      <div class="pw-seg" style="width:${pD}%;background:#4F7A4A" title="Collected ${thb(collected)}"></div>
+      <div class="pw-seg" style="width:${pC}%;background:#B07A28" title="Collecting ${thb(collecting)}"></div>
+      <div class="pw-seg" style="width:${pR}%;background:var(--line)" title="Remainder ${thb(remainder)}"></div>
+    </div>`;
+  };
 
   const overview = `<div class="wow-overview">
     <div class="ov-stats">
-      <div class="ov-stat"><div class="ov-l">Σ Selling Price (ทีม)</div><div class="ov-v">${compact(totalSelling)}</div></div>
-      <div class="ov-stat"><div class="ov-l">เก็บเงินได้แล้ว</div><div class="ov-v">${compact(totalCollected)}<span style="font-size:12px;color:var(--faint)"> (${rate.toFixed(1)}%)</span></div></div>
-      <div class="ov-stat"><div class="ov-l">ออกใบแจ้งหนี้แล้วแต่ยังไม่เก็บ</div><div class="ov-v" style="color:${outstanding>1?'var(--critical)':'var(--success)'}">${compact(outstanding)}</div></div>
+      <div class="ov-stat"><div class="ov-l">Σ Selling Price (ทีม)</div><div class="ov-v" style="font-size:19px">${thb(totalSelling)}</div></div>
+      <div class="ov-stat"><div class="ov-l">ออกใบกำกับภาษี/ใบแจ้งหนี้แล้ว (Invoiced)</div><div class="ov-v" style="font-size:19px">${thb(totalInvoiced)}</div></div>
+      <div class="ov-stat"><div class="ov-l">เก็บเงินได้จริงแล้ว (Collected)</div><div class="ov-v" style="font-size:19px;color:var(--success)">${thb(totalCollected)}</div></div>
+    </div>
+    ${stackBar(totalRemainder, totalCollecting, totalCollected, totalSelling)}
+    <div class="pw-legend3">
+      <span><i style="background:#4F7A4A"></i>Collected เก็บแล้ว <b>${thb(totalCollected)}</b></span>
+      <span><i style="background:#B07A28"></i>Collecting ออกบิลแล้ว รอเก็บ <b>${thb(totalCollecting)}</b></span>
+      <span><i style="background:var(--line)"></i>Remainder ยังไม่ออกบิล <b>${thb(totalRemainder)}</b></span>
     </div>
   </div>`;
 
   const byPM = {};
   items.forEach(x=>{
     const pm = x.pm || 'ไม่ระบุ';
-    (byPM[pm] ||= {pm, items:[], selling:0, collected:0, invoiced:0});
+    (byPM[pm] ||= {pm, items:[], selling:0, collected:0, collecting:0, remainder:0});
     byPM[pm].items.push(x);
     byPM[pm].selling += num(x.sellingPrice);
     byPM[pm].collected += num(x.collected);
-    byPM[pm].invoiced += num(x.invoiced);
+    byPM[pm].collecting += num(x.collecting);
+    byPM[pm].remainder += num(x.remainder);
   });
-  const pmRows = Object.values(byPM).map(g=>({...g, outstanding: g.invoiced-g.collected, rate: g.selling? g.collected/g.selling*100:0}))
-    .sort((a,b)=> b.outstanding - a.outstanding);
+  const pmRows = Object.values(byPM).sort((a,b)=> b.collecting - a.collecting);
 
-  const head = `<div class="rv-row head-row"><span>PM</span><span style="text-align:right">Σ Selling Price</span><span>เก็บเงินแล้ว</span><span style="text-align:right">ค้างเก็บ</span><span></span></div>`;
+  const head = `<div class="rv-row head-row"><span>PM</span><span style="text-align:right">Σ Selling Price</span><span>Remainder · Collecting · Collected</span><span style="text-align:right">Collecting (AR ค้าง)</span><span></span></div>`;
 
   const body = pmRows.map(g=>{
-    const col = g.outstanding > g.selling*0.1 ? '#A8482F' : g.outstanding>1 ? '#B07A28' : '#4F7A4A';
-    const cards = g.items.slice().sort((a,b)=>(num(b.invoiced)-num(b.collected))-(num(a.invoiced)-num(a.collected))).map(x=>{
-      const inv = num(x.invoiced), coll = num(x.collected), out2 = inv-coll;
-      const barCol = out2 > num(x.sellingPrice)*0.1 ? '#A8482F' : out2>1 ? '#B07A28' : '#4F7A4A';
+    const col = g.collecting > g.selling*0.1 ? '#A8482F' : g.collecting>1 ? '#B07A28' : '#4F7A4A';
+    const cards = g.items.slice().sort((a,b)=>num(b.collecting)-num(a.collecting)).map(x=>{
+      const rem = num(x.remainder), coll_ing = num(x.collecting), coll_ed = num(x.collected);
       const insts = (x.installments||[]).filter(i=>i.desc || i.collected!=null || i.invoiced!=null);
       const installHtml = insts.map(inst=>{
         const pending = num(inst.collecting) > 0 && !inst.collectedDate;
         return `<div class="nd">
-          <div class="nd-top"><span class="nd-name">${inst.desc||'-'}</span><span class="nd-prog">${inst.collected!=null ? compact(inst.collected) : '-'}</span></div>
-          <div class="nd-row"><span class="nd-tag">Invoice</span><span class="nd-txt">${fmtDate(inst.invoiceDate)} · ${compact(inst.invoiced)}</span></div>
-          <div class="nd-row"><span class="nd-tag">${pending?'ค้าง':'เก็บแล้ว'}</span><span class="nd-txt" style="${pending?'color:var(--critical)':''}">${inst.collectedDate ? fmtDate(inst.collectedDate) : (pending ? 'ยังไม่เก็บ - ค้าง '+compact(inst.collecting) : '-')}</span></div>
+          <div class="nd-top"><span class="nd-name">${inst.desc||'-'}</span><span class="nd-prog">${inst.collected!=null ? thb(inst.collected) : '-'}</span></div>
+          <div class="nd-row"><span class="nd-tag">Invoice</span><span class="nd-txt">${fmtDate(inst.invoiceDate)} · ${thb(inst.invoiced)}</span></div>
+          <div class="nd-row"><span class="nd-tag">${pending?'ค้าง':'เก็บแล้ว'}</span><span class="nd-txt" style="${pending?'color:var(--critical)':''}">${inst.collectedDate ? fmtDate(inst.collectedDate) : (pending ? 'ยังไม่เก็บ - ค้าง '+thb(inst.collecting) : '-')}</span></div>
         </div>`;
       }).join('');
       return `<div class="rv-card">
         <div class="rv-card-top">
           <div><div class="rv-card-name">${x.projectName||x.projectCode}</div><div class="rv-card-cust">${x.customer||''}</div></div>
-          <span class="chip ${out2>num(x.sellingPrice)*0.1?'critical':out2>1?'warning':'success'}">ค้างเก็บ ${compact(out2)}</span>
+          <span class="chip ${coll_ing>num(x.sellingPrice)*0.1?'critical':coll_ing>1?'warning':'success'}">Collecting ${thb(coll_ing)}</span>
         </div>
-        <div class="rv-track"><div class="rv-fill" style="width:${Math.min(num(x.sellingPrice)?coll/num(x.sellingPrice)*100:0,100)}%;background:${barCol}"></div></div>
-        <div class="rv-legend2">
-          <span><i style="background:${barCol}"></i>เก็บแล้ว ${compact(coll)}</span>
-          <span><i style="background:var(--faint)"></i>Invoiced ${compact(inv)}</span>
-          <span><i style="background:#C9B8C2"></i>Selling ${compact(x.sellingPrice)}</span>
+        ${stackBar(rem, coll_ing, coll_ed, num(x.sellingPrice))}
+        <div class="pw-legend3">
+          <span><i style="background:#4F7A4A"></i>Collected <b>${thb(coll_ed)}</b></span>
+          <span><i style="background:#B07A28"></i>Collecting <b>${thb(coll_ing)}</b></span>
+          <span><i style="background:var(--line)"></i>Remainder <b>${thb(rem)}</b></span>
         </div>
+        <div class="rv-metrics" style="margin-top:8px"><span>Selling Price <b>${thb(x.sellingPrice)}</b></span></div>
         ${installHtml}
       </div>`;
     }).join('');
@@ -2347,9 +2404,9 @@ function renderPayment(){
         <div class="av" style="background:${avatarColor(g.pm)}">${initials(g.pm)}</div>
         <div style="min-width:0"><div class="wr-n">${g.pm}</div><div class="wr-s">${g.items.length} โครงการ</div></div>
       </div>
-      <div class="wr-num">${compact(g.selling)}</div>
-      <div><span class="pct">${g.rate.toFixed(1)}%</span><div class="bar"><i style="width:${Math.min(g.rate,100)}%;background:${col}"></i></div></div>
-      <div class="wr-num" style="color:${g.outstanding>1?'var(--critical)':'var(--success)'}">${compact(g.outstanding)}</div>
+      <div class="wr-num">${thb(g.selling)}</div>
+      <div>${stackBar(g.remainder, g.collecting, g.collected, g.selling)}</div>
+      <div class="wr-num" style="color:${g.collecting>1?'var(--warning)':'var(--success)'}">${thb(g.collecting)}</div>
       <span class="wr-chev">${svg(I.chevron,'')}</span>
     </div>
     <div class="rv-detail">${cards}</div>`;
@@ -2371,8 +2428,8 @@ function renderPOPanel(){
 
   const overview = `<div class="wow-overview">
     <div class="ov-stats">
-      <div class="ov-stat"><div class="ov-l">Σ มูลค่า PO (ทีม)</div><div class="ov-v">${compact(totalPrice)}</div></div>
-      <div class="ov-stat"><div class="ov-l">ยังไม่ได้รับของครบ/ค้างจ่าย</div><div class="ov-v" style="color:${totalBalanced>1?'var(--critical)':'var(--success)'}">${compact(totalBalanced)}</div></div>
+      <div class="ov-stat"><div class="ov-l">Σ มูลค่า PO (ทีม)</div><div class="ov-v">${thb(totalPrice)}</div></div>
+      <div class="ov-stat"><div class="ov-l">ยังไม่ได้รับของครบ/ค้างจ่าย</div><div class="ov-v" style="color:${totalBalanced>1?'var(--critical)':'var(--success)'}">${thb(totalBalanced)}</div></div>
       <div class="ov-stat"><div class="ov-l">สถานะ PO</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${Object.entries(statusCount).map(([k,v])=>`<span class="tag">${k}: ${v}</span>`).join('')}</div>
       </div>
@@ -2403,9 +2460,9 @@ function renderPOPanel(){
           <span class="chip ${cls}">${x.status||'-'}</span>
         </div>
         <div class="rv-metrics" style="margin-top:9px">
-          <span>PO Value <b>${compact(x.price)}</b></span>
-          <span>Received <b>${compact(x.receivedPrice)}</b></span>
-          <span>Balanced <b style="color:${num(x.balanced)>1?'var(--critical)':'var(--success)'}">${compact(x.balanced)}</b></span>
+          <span>PO Value <b>${thb(x.price)}</b></span>
+          <span>Received <b>${thb(x.receivedPrice)}</b></span>
+          <span>Balanced <b style="color:${num(x.balanced)>1?'var(--critical)':'var(--success)'}">${thb(x.balanced)}</b></span>
         </div>
         <div class="rv-metrics" style="margin-top:5px;color:var(--muted)"><span>${x.item||''}${x.product?' · '+x.product:''}</span></div>
         <div class="rv-metrics" style="margin-top:5px"><span>PO Date: ${fmtDate(x.poDate)}</span><span>Delivery: ${fmtDate(x.deliveryDate)}</span></div>
@@ -2416,9 +2473,9 @@ function renderPOPanel(){
         <div class="av" style="background:${avatarColor(g.pm)}">${initials(g.pm)}</div>
         <div style="min-width:0"><div class="wr-n">${g.pm}</div><div class="wr-s">${g.items.length} PO</div></div>
       </div>
-      <div class="wr-num">${compact(g.price)}</div>
+      <div class="wr-num">${thb(g.price)}</div>
       <div><span class="pct">${incomplete}</span> <span style="font-size:11px;color:var(--faint)">PO ยังไม่ครบ</span></div>
-      <div class="wr-num" style="color:${g.balanced>1?'var(--critical)':'var(--success)'}">${compact(g.balanced)}</div>
+      <div class="wr-num" style="color:${g.balanced>1?'var(--critical)':'var(--success)'}">${thb(g.balanced)}</div>
       <span class="wr-chev">${svg(I.chevron,'')}</span>
     </div>
     <div class="rv-detail">${cards}</div>`;
@@ -2439,7 +2496,7 @@ function renderStock(){
 
   const overview = `<div class="wow-overview">
     <div class="ov-stats">
-      <div class="ov-stat"><div class="ov-l">มูลค่าของค้างสต็อกรวม</div><div class="ov-v">${compact(totalValue)}</div></div>
+      <div class="ov-stat"><div class="ov-l">มูลค่าของค้างสต็อกรวม</div><div class="ov-v">${thb(totalValue)}</div></div>
       <div class="ov-stat"><div class="ov-l">อายุคงค้างเฉลี่ย</div><div class="ov-v">${avgAge.toFixed(0)}<span style="font-size:12px;color:var(--faint)"> วัน</span></div></div>
       <div class="ov-stat"><div class="ov-l">โครงการของยังไม่ครบ</div><div class="ov-v">${incomplete}<span class="u" style="font-size:12px"> / ${items.length}</span></div></div>
     </div>
@@ -2455,7 +2512,7 @@ function renderStock(){
     const complete = (x.poStatus||'').trim()==='ครบ';
     const detailItems = (byCode[x.projectCode]||[]).map(s=>`
       <div class="nd">
-        <div class="nd-top"><span class="nd-name">${s.partNumber||'-'}</span><span class="nd-prog">${compact(s.stockValueBaht)}</span></div>
+        <div class="nd-top"><span class="nd-name">${s.partNumber||'-'}</span><span class="nd-prog">${thb(s.stockValueBaht)}</span></div>
         <div class="nd-row"><span class="nd-tag">รายละเอียด</span><span class="nd-txt">${s.description||'-'}</span></div>
         <div class="nd-row"><span class="nd-tag">คงเหลือ</span><span class="nd-txt">${s.rest} หน่วย · PO ${s.poNo||'-'} · เข้าเมื่อ ${fmtDate(s.inDate)} (ค้างมา ${s.daysIn} วัน)</span></div>
       </div>`).join('');
@@ -2464,7 +2521,7 @@ function renderStock(){
         <div class="av" style="background:${avatarColor(x.pm)}">${initials(x.pm)}</div>
         <div style="min-width:0"><div class="wr-n">${x.projectName||x.projectCode}</div><div class="wr-s">${x.pm} · ${x.customer||''}</div></div>
       </div>
-      <div class="wr-num">${compact(x.stockValueCurr)}</div>
+      <div class="wr-num">${thb(x.stockValueCurr)}</div>
       <div><span class="chip ${complete?'success':'warning'}">${x.poStatus||'-'}</span></div>
       <div class="wr-num" style="color:${ageCol}">${age.toFixed(0)} วัน</div>
       <span class="wr-chev">${svg(I.chevron,'')}</span>
@@ -2473,7 +2530,7 @@ function renderStock(){
       <div class="rv-card">
         <div class="rv-metrics">
           <span>สินค้าเข้าครั้งแรก <b>${fmtDate(x.firstInDate)}</b></span>
-          <span>ต่างจากสัปดาห์ก่อน <b style="color:${num(x.diffStockValue)>1?'var(--critical)':'var(--success)'}">${num(x.diffStockValue)>0?'+':''}${compact(x.diffStockValue)}</b></span>
+          <span>ต่างจากสัปดาห์ก่อน <b style="color:${num(x.diffStockValue)>1?'var(--critical)':'var(--success)'}">${num(x.diffStockValue)>0?'+':''}${thb(x.diffStockValue)}</b></span>
         </div>
         ${x.stockRemarkCurr ? `<div class="rv-metrics" style="margin-top:7px;color:var(--muted)"><span>หมายเหตุสต็อก: ${x.stockRemarkCurr}</span></div>` : ''}
         ${x.pmRemarkCurr ? `<div class="rv-metrics" style="margin-top:4px;color:var(--muted)"><span>หมายเหตุ PM: ${x.pmRemarkCurr}</span></div>` : ''}
