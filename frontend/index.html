@@ -2326,6 +2326,12 @@ function codeInfo(code){
   if(p) return { name: p['Project Name'] || code, customer: p['Customer'] || '' };
   return { name: code, customer: '' };
 }
+// โครงการที่มีข้อมูลการเงิน/สต็อก แต่ไม่ได้อยู่ใน 13 โครงการที่ Progress1 ติดตามอยู่ตอนนี้
+// (เช่น ปิดงานไปแล้วแต่ยังเก็บเงิน/เคลียร์ของค้างไม่ครบ) — ติด badge กันสับสนว่าทำไมนับจำนวนไม่ตรงกับ Tab 1
+function notActiveBadge(code){
+  const active = new Set(ALL.map(p=>p['Project Code']));
+  return active.has(code) ? '' : `<span class="code-tag" style="color:var(--warning);border-color:#E8D4A8;background:var(--warning-tint)" title="ไม่อยู่ใน 13 โครงการที่ Progress1 ติดตามอยู่ตอนนี้ (อาจปิดงานแล้วแต่ยังเคลียร์การเงิน/ของค้างไม่ครบ)">ไม่อยู่ใน Progress1</span>`;
+}
 
 /* ================= TAB 2: Finance & Stock ================= */
 
@@ -2396,7 +2402,7 @@ function renderPayment(){
       }).join('');
       return `<div class="rv-card">
         <div class="rv-card-top">
-          <div><div class="rv-card-name">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span></div><div class="rv-card-cust">${x.customer||''}</div></div>
+          <div><div class="rv-card-name">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span> ${notActiveBadge(x.projectCode)}</div><div class="rv-card-cust">${x.customer||''}</div></div>
           <span class="chip ${coll_ing>num(x.sellingPrice)*0.1?'critical':coll_ing>1?'warning':'success'}">Collecting ${thb(coll_ing)}</span>
         </div>
         ${stackBar(rem, coll_ing, coll_ed, num(x.sellingPrice))}
@@ -2490,7 +2496,7 @@ function renderPOPanel(){
       }).join('');
       return `<div class="rv-card" style="border-left:3px solid ${pgCol}">
         <div class="rv-card-top">
-          <div><div class="rv-card-name">${info.name} <span class="code-tag">#${pg.code}</span></div><div class="rv-card-cust">${info.customer}</div></div>
+          <div><div class="rv-card-name">${info.name} <span class="code-tag">#${pg.code}</span> ${notActiveBadge(pg.code)}</div><div class="rv-card-cust">${info.customer}</div></div>
           <span class="chip ${pg.balanced>pg.price*0.15?'critical':pg.balanced>1?'warning':'success'}">${pg.items.length} PO</span>
         </div>
         <div class="rv-metrics" style="margin-top:9px">
@@ -2553,7 +2559,7 @@ function renderStock(){
     return `<div class="rv-row" style="--fc:${ageCol}">
       <div class="wr-who">
         <div class="av" style="background:${avatarColor(x.pm)}">${initials(x.pm)}</div>
-        <div style="min-width:0"><div class="wr-n">${x.projectName||x.projectCode}</div><div class="wr-s">${x.pm} · ${x.customer||''}</div></div>
+        <div style="min-width:0"><div class="wr-n">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span> ${notActiveBadge(x.projectCode)}</div><div class="wr-s">${x.pm} · ${x.customer||''}</div></div>
       </div>
       <div class="wr-num">${thb(x.stockValueCurr)}</div>
       <div><span class="chip ${complete?'success':'warning'}">${x.poStatus||'-'}</span></div>
