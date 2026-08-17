@@ -1321,6 +1321,7 @@ let PO = [];
 let STOCK = [];
 let STOCKSUM = [];
 let SCOPE = null;   // ชื่อ PM ที่ backend กรองมาให้ (null = เห็นทุกโครงการ)
+let lastKnownUpdatedAt = null; // updatedAt ล่าสุดที่ดึงมาได้จริง - ใช้เช็คว่า sync สำเร็จหรือยัง (poll จนกว่าค่านี้จะขยับ)
 let filters = { team:'', vp:'', pm:'', status:'', health:'' };
 
 async function loadData(auto){
@@ -1344,6 +1345,7 @@ async function loadData(auto){
       STOCK = j.stock || [];
       STOCKSUM = j.stockSummary || [];
       SCOPE = j.scope || null;
+      lastKnownUpdatedAt = j.updatedAt || null;
       setSource(true, j.updatedAt);
       render(); return;
     }
@@ -2436,8 +2438,19 @@ function sCurveSVG(pts, months, planEOM, planToday, cur, monIdx, dayFrac){
       <text x="${padL-6}" y="${(gy+3).toFixed(1)}" font-size="9" fill="var(--faint)" text-anchor="end" font-family="IBM Plex Mono">${v}%</text>`;
   }).join('');
 
+  // เส้นกริดแนวตั้งบาง ๆ ที่ตำแหน่งเดือนทุกเดือน - ลากสายตาจากป้ายเดือนด้านล่างขึ้นไปหาจุดบนเส้นให้ตรงกันชัดเจน
+  const vTicks = months.map((m,i)=>`<line x1="${x(i).toFixed(1)}" y1="${padT}" x2="${x(i).toFixed(1)}" y2="${H-padB}" stroke="#E5DDD0" stroke-width="1"/>`).join('');
+
   // แสดงป้ายเดือนครบทุกเดือน ไม่ข้าม - กันความรู้สึกว่าเส้น "วันนี้" ตกอยู่ผิดตำแหน่งเพราะป้ายเดือนหายไป
   const labels = months.map((m,i)=>`<text x="${x(i).toFixed(1)}" y="${H-6}" font-size="9" fill="var(--faint)" text-anchor="middle" font-family="IBM Plex Mono">${m}</text>`).join('');
+
+  // จุดข้อมูลทุกเดือน + hover เห็นค่าจริง (title = tooltip ของเบราว์เซอร์ ไม่ต้องเขียน JS เพิ่ม)
+  // วงกลมใหญ่โปร่งใสไว้ขยายพื้นที่ hover ให้จิ้มง่ายขึ้น ส่วนวงกลมเล็กทึบคือจุดที่มองเห็นจริงบนเส้น
+  const dots = pts.map((v,i)=>{
+    const cx=x(i).toFixed(1), cy=y(v).toFixed(1);
+    return `<circle cx="${cx}" cy="${cy}" r="9" fill="transparent" style="cursor:pointer"><title>${months[i]}: สะสม ${v.toFixed(1)}%</title></circle>
+      <circle cx="${cx}" cy="${cy}" r="2.4" fill="#7A5C3E"/>`;
+  }).join('');
 
   // ตำแหน่ง x ต่อเนื่องของ "วันนี้" = ระหว่างจุดเดือนก่อน (monIdx-1) กับเดือนนี้ (monIdx) ตามสัดส่วนวันที่ผ่านไป
   const todayPos = monIdx>0 ? (monIdx-1) + dayFrac : 0;
@@ -2454,14 +2467,18 @@ function sCurveSVG(pts, months, planEOM, planToday, cur, monIdx, dayFrac){
       </linearGradient>
     </defs>
     ${gridLines}
+    ${vTicks}
     <polygon points="${area}" fill="url(#scGrad${monIdx}${Math.round(cur*10)})"/>
     <polyline points="${line}" fill="none" stroke="#7A5C3E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     <line x1="${todayX}" y1="${padT-2}" x2="${todayX}" y2="${H-padB}" stroke="#A8482F" stroke-width="1.3" stroke-dasharray="3,3" opacity="0.6"/>
     <rect x="${(todayLabelX-todayLabelW/2).toFixed(1)}" y="2" width="${todayLabelW.toFixed(1)}" height="15" rx="7.5" fill="#F5E2DB"/>
     <text x="${todayLabelX.toFixed(1)}" y="12.5" font-size="9" font-weight="700" fill="#A8482F" text-anchor="middle" font-family="IBM Plex Mono">วันนี้ ${todayLabel}</text>
-    <circle cx="${x(monIdx)}" cy="${y(planEOM)}" r="3.6" fill="none" stroke="#8A5A72" stroke-width="1.8" opacity="0.75"/>
-    <circle cx="${todayX}" cy="${y(planToday)}" r="4" fill="#8A5A72"/>
-    <circle cx="${todayX}" cy="${y(cur)}" r="4" fill="${cur>=planToday?'#4F7A4A':'#A8482F'}"/>
+    ${dots}
+    <circle cx="${x(monIdx)}" cy="${y(planEOM)}" r="5" fill="none" stroke="#8A5A72" stroke-width="1.8" opacity="0.9" style="cursor:pointer"><title>เป้าสิ้นเดือน (ทางการ): ${planEOM.toFixed(1)}%</title></circle>
+    <circle cx="${todayX}" cy="${y(planToday)}" r="9" fill="transparent" style="cursor:pointer"><title>เป้าวันนี้ (ปรับสัดส่วนแล้ว): ${planToday.toFixed(1)}%</title></circle>
+    <circle cx="${todayX}" cy="${y(planToday)}" r="4.5" fill="#8A5A72"/>
+    <circle cx="${todayX}" cy="${y(cur)}" r="9" fill="transparent" style="cursor:pointer"><title>PMS Current % ณ วันนี้: ${cur.toFixed(1)}%</title></circle>
+    <circle cx="${todayX}" cy="${y(cur)}" r="4.5" fill="${cur>=planToday?'#4F7A4A':'#A8482F'}"/>
     ${labels}
   </svg>`;
 }
@@ -2750,7 +2767,17 @@ function renderCards(list){
   const el = document.getElementById('grid');
   if(!list.length){ el.innerHTML = `<div class="empty" style="grid-column:1/-1">ไม่มีโครงการตรงตามตัวกรองที่เลือก</div>`; return; }
 
-  el.innerHTML = list.map(p=>{
+  // เอาโครงการที่ปิดงานแล้ว (Completely Closed ก่อน แล้วค่อย Contract Closed) ขึ้นก่อนเสมอ
+  // ส่วนที่เหลือ (ยัง Inprogress) เรียงตามลำดับเดิม
+  const closedRank = p => {
+    const st = projectStatus(p);
+    if(st === 'Completely Closed') return 0;
+    if(st === 'Contract Closed') return 1;
+    return 2;
+  };
+  const sorted = list.slice().sort((a,b)=> closedRank(a) - closedRank(b));
+
+  el.innerHTML = sorted.map(p=>{
     const c = H.cls(p['Project Health']);
     const col = H.color(c);
     const pr = Math.min(num(p['%Progress']),100);
@@ -2801,10 +2828,22 @@ async function syncNow(){
   btn.disabled = true; txt.textContent = 'กำลังสั่งซิงก์...';
   try{
     await fetch(MAKE_WEBHOOK, { method:'POST', mode:'no-cors' });
+    const beforeUpdatedAt = lastKnownUpdatedAt;
     txt.textContent = 'รอข้อมูลใหม่...';
-    await new Promise(r=>setTimeout(r,6000));
-    await loadData();
-    txt.textContent = 'ซิงก์แล้ว';
+
+    // Make.com ต้องไปดึงไฟล์ + backend ต้องแกะทุก sheet (บาง sheet มีเป็นพันแถว) ใช้เวลาไม่แน่นอน
+    // เดิมรอตายตัว 6 วิแล้วดึงข้อมูลแค่ครั้งเดียว - ถ้า pipeline ยังไม่เสร็จจะได้ข้อมูลเก่า/ค้างไป
+    // (สังเกตชัดกับ PM ที่มีโครงการน้อย เช่น Watanyu มี 1 โครงการ พอพลาดจังหวะเดียวดูเหมือนหายหมดทั้งคน)
+    // แก้โดย "poll" เช็คซ้ำจนกว่า updatedAt จะขยับจริง แทนที่จะเดาเวลาคงที่
+    const MAX_ATTEMPTS = 10, INTERVAL_MS = 4000;
+    let succeeded = false;
+    for(let i=0; i<MAX_ATTEMPTS; i++){
+      await new Promise(r=>setTimeout(r, INTERVAL_MS));
+      txt.textContent = `รอข้อมูลใหม่... (${i+1}/${MAX_ATTEMPTS})`;
+      await loadData(true); // auto=true กันไม่ให้ไป trigger auto-heal ซ้อนกันเอง
+      if(lastKnownUpdatedAt && lastKnownUpdatedAt !== beforeUpdatedAt){ succeeded = true; break; }
+    }
+    txt.textContent = succeeded ? 'ซิงก์แล้ว' : 'ยังไม่เสร็จ - ลองใหม่อีกครั้ง';
   }catch(e){ txt.textContent = 'ซิงก์ไม่สำเร็จ'; }
   finally{ setTimeout(()=>{ txt.textContent = 'ซิงก์ข้อมูล'; btn.disabled = false; }, 2500); }
 }
