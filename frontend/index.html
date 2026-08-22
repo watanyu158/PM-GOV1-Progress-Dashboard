@@ -2101,7 +2101,7 @@ function renderWow(list){
       const e = arr[idx];
       overallSum += num(e['%Progress']); overallN++;
       dates.push(parseD(e['Update Date']));
-      const pm = e['PM Name'] || 'ไม่ระบุ';
+      const pm = pmKey(e['PM Name']) || 'ไม่ระบุ';
       (pmAgg[pm] ||= {sum:0,n:0}); pmAgg[pm].sum += num(e['%Progress']); pmAgg[pm].n++;
       if(['warning','critical'].includes(H.cls(e['Project Health']))) riskValue += num(e['Selling Price']);
     });
