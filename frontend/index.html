@@ -667,6 +667,38 @@
   .pi-co-val{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;color:var(--brand);white-space:nowrap;}
   .pi-co-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:7px;font-size:11px;color:var(--muted);}
   .pi-co-meta b{color:var(--ink-2);font-weight:600;}
+
+  /* ---------------- Punctuality podium infographic ---------------- */
+  .punc-wrap{padding:20px 18px;border-bottom:1px solid var(--line-soft);}
+  .punc-title{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:3px;}
+  .punc-sub{font-size:11px;color:var(--faint);margin-bottom:22px;}
+  .punc-podium{display:flex;align-items:flex-end;justify-content:center;gap:16px;margin-bottom:8px;}
+  .punc-pod-item{display:flex;flex-direction:column;align-items:center;width:112px;}
+  .punc-pod-av{
+    width:54px;height:54px;border-radius:50%;display:grid;place-items:center;
+    font-weight:800;font-size:16px;color:#fff;margin-bottom:9px;position:relative;
+    border:3px solid var(--surface);box-shadow:0 3px 10px rgba(0,0,0,.14);
+  }
+  .punc-pod-medal{position:absolute;top:-11px;right:-8px;font-size:21px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25));}
+  .punc-pod-name{font-size:11.5px;font-weight:700;color:var(--ink);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+  .punc-pod-pct{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:19px;margin-top:2px;}
+  .punc-pod-bar{width:100%;border-radius:10px 10px 0 0;margin-top:11px;display:flex;align-items:flex-start;justify-content:center;padding-top:9px;}
+  .punc-pod-bar.gold{height:92px;background:linear-gradient(180deg,#F2E2AC,#DABE72);}
+  .punc-pod-bar.silver{height:66px;background:linear-gradient(180deg,#E7E7E2,#C9C9C2);}
+  .punc-pod-bar.bronze{height:48px;background:linear-gradient(180deg,#E3C6A9,#C99A6A);}
+  .punc-pod-rank{font-family:'Plus Jakarta Sans',sans-serif;font-weight:900;font-size:22px;color:rgba(255,255,255,.65);}
+  .punc-rest{margin-top:18px;padding-top:16px;border-top:1px dashed var(--line-soft);}
+  .punc-rest-row{display:flex;align-items:center;gap:11px;padding:7px 4px;}
+  .punc-rest-rank{width:18px;text-align:center;font-weight:700;color:var(--faint);font-size:11.5px;}
+  .punc-rest-name{flex:1;font-size:12.5px;font-weight:600;color:var(--ink);}
+  .punc-rest-pct{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:13px;color:var(--brand);}
+  @media(max-width:480px){
+    .punc-podium{gap:8px;}
+    .punc-pod-item{width:84px;}
+    .punc-pod-av{width:42px;height:42px;font-size:13px;}
+    .punc-pod-name{font-size:10px;}
+    .punc-pod-pct{font-size:15px;}
+  }
   @media(max-width:560px){
     .pi-yoy-row{gap:8px;}
     .pi-yoy-vals{width:100%;order:3;margin-left:36px;}
@@ -1131,7 +1163,7 @@
     <div class="p-head">
       <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-        Data Freshness <span class="sep">-</span> <span class="th">ความสดของข้อมูล PMS</span>
+        Update PMS <span class="sep">-</span> <span class="th">การอัปเดต PMS</span>
       </div>
       <span class="p-count" id="freshCount"></span>
     </div>
@@ -2608,6 +2640,67 @@ function renderClosure(list){
 
 // ติดตามว่าโครงการไหน "ค้างอัปเดต PMS" นานเกินไป - ใช้ Update Date (วันที่บันทึก Progress Update ล่าสุด)
 // เทียบกับวันนี้ ไม่นับโครงการที่ปิดงานแล้ว (Contract/Completely Closed) เพราะไม่จำเป็นต้องอัปเดตรายสัปดาห์อีกต่อไป
+// คำนวณ "ความตรงเวลา" ของแต่ละ PM จากประวัติการอัปเดตทั้งหมด - กติกา: ต้องอัปเดต PMS ให้ทันภายในวันศุกร์ทุกสัปดาห์
+// จันทร์-ศุกร์ = ตรงเวลา (หรือเร็วกว่ากำหนด), เสาร์-อาทิตย์ = สาย
+function computePunctuality(list){
+  const codes = new Set(list.map(p=>p['Project Code']));
+  const hist = HIST.filter(r=>codes.has(r['Project Code']) && parseD(r['Update Date']));
+
+  const byPM = {};
+  hist.forEach(r=>{
+    const pm = pmKey(r['PM Name'])||'ไม่ระบุ';
+    const d = parseD(r['Update Date']);
+    const dow = d.getDay(); // 0=อา,1=จ,...5=ศ,6=ส
+    const onTime = dow>=1 && dow<=5;
+    (byPM[pm] ||= {pm, total:0, onTime:0, exactFriday:0});
+    byPM[pm].total++;
+    if(onTime) byPM[pm].onTime++;
+    if(dow===5) byPM[pm].exactFriday++;
+  });
+
+  return Object.values(byPM)
+    .map(x=>({...x, pct: x.total ? (x.onTime/x.total*100) : 0}))
+    .sort((a,b)=> b.pct-a.pct || b.total-a.total);
+}
+
+function renderPunctualityPodium(list){
+  const punctuality = computePunctuality(list);
+  if(!punctuality.length) return '';
+
+  const podiumItem = (entry, rankNum) => {
+    if(!entry) return '<div class="punc-pod-item"></div>';
+    const barCls = rankNum===1?'gold':rankNum===2?'silver':'bronze';
+    const medal = rankNum===1?'🥇':rankNum===2?'🥈':'🥉';
+    return `<div class="punc-pod-item">
+      <div class="punc-pod-av" style="background:${avatarColor(entry.pm)}">${initials(entry.pm)}<span class="punc-pod-medal">${medal}</span></div>
+      <div class="punc-pod-name">${entry.pm}</div>
+      <div class="punc-pod-pct" style="color:${avatarColor(entry.pm)}">${entry.pct.toFixed(0)}%</div>
+      <div class="punc-pod-bar ${barCls}"><span class="punc-pod-rank">#${rankNum}</span></div>
+    </div>`;
+  };
+
+  const top3 = punctuality.slice(0,3);
+  const rest = punctuality.slice(3);
+  const restHtml = rest.length ? `<div class="punc-rest">${rest.map((r,i)=>`
+    <div class="punc-rest-row">
+      <div class="punc-rest-rank">${i+4}</div>
+      <div class="av" style="width:26px;height:26px;font-size:10px;background:${avatarColor(r.pm)}">${initials(r.pm)}</div>
+      <div class="punc-rest-name">${r.pm}</div>
+      <div class="punc-rest-pct">${r.pct.toFixed(0)}%</div>
+    </div>`).join('')}</div>` : '';
+
+  return `<div class="punc-wrap">
+    <div class="punc-title">🏆 อัปเดตตรงเวลามากที่สุด</div>
+    <div class="punc-sub">กติกา: ต้องอัปเดต PMS ให้ทันภายในวันศุกร์ทุกสัปดาห์ - คำนวณจากประวัติการอัปเดตทั้งหมด (จันทร์-ศุกร์ = ตรงเวลา, เสาร์-อาทิตย์ = สาย)</div>
+    <div class="punc-podium">
+      ${podiumItem(top3[1], 2)}
+      ${podiumItem(top3[0], 1)}
+      ${podiumItem(top3[2], 3)}
+    </div>
+    ${restHtml}
+  </div>`;
+}
+
 function renderDataFreshness(list){
   const el = document.getElementById('fresh');
   const today = new Date(); today.setHours(0,0,0,0);
@@ -2665,7 +2758,7 @@ function renderDataFreshness(list){
     </div>`;
   }).join('') : `<div class="empty">ทุกโครงการที่กำลังดำเนินการอัปเดตข้อมูลภายใน ${STALE_DAYS} วันล่าสุดแล้ว</div>`;
 
-  el.innerHTML = overview + `<div style="margin-top:14px">${rows}</div>`;
+  el.innerHTML = renderPunctualityPodium(list) + overview + `<div style="margin-top:14px">${rows}</div>`;
 }
 
 function renderRevenue(list){
