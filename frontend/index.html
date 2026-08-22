@@ -1627,11 +1627,32 @@ function renderKPIs(list){
   const riskFoot = risk ? `Critical ${crit} / Warning ${warn}` : 'ไม่มีโครงการเสี่ยง';
   const statusFoot = `Contract Closed ${contractClosedN} · Completely Closed ${completelyClosedN}`;
 
+  // ใกล้ครบกำหนด — โครงการที่ยังไม่ปิดงาน และวันสิ้นสุด (จริงหรือตามแผน) อยู่ในอีกไม่เกิน 30 วัน
+  // นับรวมที่เลยกำหนดไปแล้วด้วย (overdue) เพราะยิ่งต้องรู้ตัวเร็วกว่าเดิม ไม่ใช่แค่ที่ยังไม่ถึง
+  const today0 = new Date(); today0.setHours(0,0,0,0);
+  const dueSoonList = openList.filter(p=>{
+    const e = parseD(p['End Date']) || parseD(p['Plan End Date']);
+    if(!e) return false;
+    const days = Math.round((e-today0)/DAY);
+    return days<=30;
+  });
+  const overdueN = dueSoonList.filter(p=>{
+    const e = parseD(p['End Date']) || parseD(p['Plan End Date']);
+    return Math.round((e-today0)/DAY) < 0;
+  }).length;
+  const dueSoon = dueSoonList.length;
+  const dueFoot = overdueN ? `เลยกำหนดแล้ว ${overdueN} · ที่เหลือใน 30 วัน ${dueSoon-overdueN}` : 'ภายใน 30 วันข้างหน้า';
+
+  const dueIco = overdueN ? I.alert : I.clock;
+  const dueCol = overdueN ? '#A8482F' : '#4A6B5C';
+  const dueTint = overdueN ? '#F5E2DB' : '#E3EBE5';
+
   const items = [
     {ic:I.folder,   c:'#7A5C3E', t:'#EFE6D9', en:'Total Projects', l:'โครงการทั้งหมด',  v:total,             u:'',            f:`จากทั้งหมด ${ALL.length} โครงการ`},
     {ic:I.activity, c:'#4A6B5C', t:'#E3EBE5', en:'In Progress',    l:'กำลังดำเนินการ',  v:inprog,            u:`/ ${total}`,  f:statusFoot},
     {ic:I.trending, c:'#9C7A55', t:'#EFE6D9', en:'Avg. Progress',  l:'ความคืบหน้าเฉลี่ย', v:avg.toFixed(1),  u:'%',           f:'ค่าเฉลี่ยของโครงการที่กรองอยู่'},
     {ic:riskIco,    c:riskCol,   t:riskTint,  en:'At Risk',        l:'โครงการเสี่ยง',    v:risk,              u:'',            f:riskFoot},
+    {ic:dueIco,     c:dueCol,    t:dueTint,   en:'Ending Soon',    l:'ใกล้ครบกำหนด',    v:dueSoon,           u:'',            f:dueFoot},
   ];
   const cardsHtml = items.map(k=>`
     <div class="kpi" style="--kc:${k.c};--kt:${k.t}">
