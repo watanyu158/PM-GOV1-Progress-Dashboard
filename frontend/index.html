@@ -621,14 +621,17 @@
   .pi-lb-bar i{display:block;height:100%;background:var(--brand);border-radius:3px;}
 
   .pi-ychart{padding:20px 18px 16px;}
+  .pi-mode-toggle{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
   .pi-ybar-wrap{display:flex;align-items:flex-end;gap:4px;height:150px;padding:0 2px;}
   .pi-ybar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;}
   .pi-ybar-n{font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;font-weight:800;color:var(--ink);}
-  .pi-ybar{width:100%;border-radius:4px 4px 0 0;background:var(--brand);min-height:2px;cursor:pointer;transition:.15s;position:relative;}
-  .pi-ybar:hover{background:var(--brand-2);}
+  .pi-ybar-stack{width:100%;border-radius:4px 4px 0 0;min-height:2px;overflow:hidden;display:flex;flex-direction:column;}
+  .pi-yseg{width:100%;cursor:pointer;transition:filter .15s;}
+  .pi-yseg:hover{filter:brightness(1.12);}
   .pi-ybar-lbl{font-size:9.5px;color:var(--faint);font-family:'IBM Plex Mono',monospace;white-space:nowrap;margin-top:3px;}
-  .pi-ybar-val{font-size:8.5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
-  @media(max-width:680px){.pi-ybar-val{display:none;}}
+  .pi-yleg-row{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line-soft);}
+  .pi-yleg-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);}
+  .pi-yleg-item i{width:9px;height:9px;border-radius:3px;display:inline-block;flex:none;}
 
   .pi-site-row{
     display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--line-soft);
@@ -1208,8 +1211,9 @@
         <span class="p-count" id="piSiteCount"></span>
       </div>
       <div class="p-body">
-        <div style="padding:13px 18px;border-bottom:1px solid var(--line-soft)">
-          <input type="text" id="piSiteSearch" placeholder="ค้นหาลูกค้า/หน่วยงาน..." style="width:100%;padding:9px 13px;border:1px solid var(--line);border-radius:9px;font-family:'Inter',sans-serif;font-size:13px;color:var(--ink);background:var(--surface);box-shadow:var(--sh-sm)">
+        <div style="padding:13px 18px;border-bottom:1px solid var(--line-soft);display:flex;gap:9px;flex-wrap:wrap">
+          <input type="text" id="piSiteSearch" placeholder="ค้นหาลูกค้า/หน่วยงาน..." style="flex:1;min-width:180px;padding:9px 13px;border:1px solid var(--line);border-radius:9px;font-family:'Inter',sans-serif;font-size:13px;color:var(--ink);background:var(--surface);box-shadow:var(--sh-sm)">
+          <button class="pi-win-btn" id="piSiteActiveToggle" style="flex:none">🟢 Active ใน 3 ปีล่าสุด</button>
         </div>
         <div id="piSites"></div>
       </div>
@@ -1393,8 +1397,19 @@ const H = {
 };
 
 /* ---------- helpers ---------- */
-const AV_COLORS = ['#7A5C3E','#4A6B5C','#8A5A72','#A9662E','#4A6B5C','#8A5A72','#5C7A3F'];
+const AV_COLORS = ['#7A5C3E','#4A6B5C','#8A5A72','#A9662E','#5C7A3F','#3D6B7A','#9B4A3F'];
+// ทีม PM-GOV1 มีแค่ 5 คนคงที่ — กำหนดสีตรงตัวให้แต่ละคนเลย กัน hash ชนกันเอง (ที่เคยเจอ 3 คนได้สีซ้ำกัน)
+// ชื่ออื่นที่ไม่อยู่ในลิสต์นี้ (เช่น "ไม่ระบุ") จะ fallback ไปใช้วิธี hash แบบเดิม
+const TEAM_COLOR_MAP = {
+  'antika prasadsil': '#7A5C3E',
+  'lomdetch puangsombut': '#8A5A72',
+  'virojt changyencham': '#4A6B5C',
+  'prapasiri rakkanpat': '#A9662E',
+  'watanyu anantakunakorn': '#3D6B7A',
+};
 function avatarColor(name){
+  const key = String(name||'').replace(/\s+/g,' ').trim().toLowerCase();
+  if(TEAM_COLOR_MAP[key]) return TEAM_COLOR_MAP[key];
   let h = 0; for (let i=0;i<(name||'').length;i++) h = (h*31 + name.charCodeAt(i)) >>> 0;
   return AV_COLORS[h % AV_COLORS.length];
 }
@@ -3036,20 +3051,20 @@ function renderPiOverview(){
   const customers = uniq(PROJINFO.map(p=>p['Customer']));
   // โครงการที่ไม่มีทั้ง Start Date และ Project Register Date เลย — "ประวัติย้อนหลัง N ปี" ด้านล่างคำนวณ
   // จากโครงการที่มีวันที่เท่านั้น กลุ่มนี้จึงไม่ถูกนับรวมในช่วงปีนั้น (แต่ยังนับใน "โครงการทั้งหมด" และ
-  // ตัวเลือก "ทั้งหมด (ตลอดกาล)" ของ Leaderboard อยู่ดี) แจ้งไว้ตรงนี้กันสับสนว่าทำไมตัวเลขไม่ตรงกัน
+  // ตัวเลือก "ทั้งหมด - ตลอดกาล" ของ Leaderboard อยู่ดี) แจ้งไว้ตรงนี้กันสับสนว่าทำไมตัวเลขไม่ตรงกัน
   const undated = PROJINFO.filter(p=>!piEffDate(p)).length;
   el.innerHTML = `<div class="pi-ov">
-    <div class="pi-ov-stat"><div class="pi-ov-l">โครงการทั้งหมด (ตลอดกาล)</div><div class="pi-ov-v">${totalProjects}</div></div>
+    <div class="pi-ov-stat"><div class="pi-ov-l">โครงการทั้งหมด - ตลอดกาล</div><div class="pi-ov-v">${totalProjects}</div></div>
     <div class="pi-ov-stat"><div class="pi-ov-l">มูลค่ารวมทั้งหมด</div><div class="pi-ov-v">${compact(totalValue)}</div></div>
-    <div class="pi-ov-stat"><div class="pi-ov-l">ประวัติย้อนหลัง (เฉพาะที่มีวันที่)</div><div class="pi-ov-v">${minYear?(new Date().getFullYear()-minYear+1)+' ปี':'-'}</div></div>
+    <div class="pi-ov-stat"><div class="pi-ov-l">ประวัติย้อนหลัง - เฉพาะที่มีวันที่</div><div class="pi-ov-v">${minYear?(new Date().getFullYear()-minYear+1)+' ปี':'-'}</div></div>
     <div class="pi-ov-stat"><div class="pi-ov-l">ลูกค้า/หน่วยงานที่เคยดูแล</div><div class="pi-ov-v">${customers.length}</div></div>
   </div>
-  ${undated ? `<div style="padding:0 18px 14px;font-size:11px;color:var(--faint)">⚠ ${undated} โครงการไม่มีวันที่เริ่มงานหรือวันที่ลงทะเบียนระบุไว้ในไฟล์ — จึงไม่ถูกนับในตัวเลือกช่วงปีใด ๆ ด้านล่าง (1/3/5/10/15 ปี) นับรวมได้เฉพาะเมื่อเลือก "ทั้งหมด (ตลอดกาล)" เท่านั้น ซึ่งเป็นสาเหตุที่ตัวเลขระหว่างช่วงปีกับ PM Profile ไม่ตรงกัน</div>` : ''}`;
+  ${undated ? `<div style="padding:0 18px 14px;font-size:11px;color:var(--faint)">⚠ ${undated} โครงการไม่มีวันที่เริ่มงานหรือวันที่ลงทะเบียนระบุไว้ในไฟล์ — จึงไม่ถูกนับในตัวเลือกช่วงปีใด ๆ ด้านล่าง (1/3/5/10/15 ปี) นับรวมได้เฉพาะเมื่อเลือก "ทั้งหมด - ตลอดกาล" เท่านั้น ซึ่งเป็นสาเหตุที่ตัวเลขระหว่างช่วงปีกับ PM Profile ไม่ตรงกัน</div>` : ''}`;
 }
 
 function renderPiLeaderboard(){
   const el = document.getElementById('piLeaderboard');
-  document.getElementById('piWinLabel').textContent = !PROJINFO.length ? '' : (piWindow==='all' ? 'ทั้งหมด (ตลอดกาล)' : `ย้อนหลัง ${piWindow} ปี`);
+  document.getElementById('piWinLabel').textContent = !PROJINFO.length ? '' : (piWindow==='all' ? 'ทั้งหมด - ตลอดกาล' : `ย้อนหลัง ${piWindow} ปี`);
   if(!PROJINFO.length){ el.innerHTML=''; return; }
 
   // piWindow === 'all' หมายถึงไม่มีเส้นตัดวันที่เลย เอาข้อมูลทุกแถวมาคิด — ให้ตัวเลขตรงกับ PM Profile
@@ -3095,13 +3110,13 @@ function renderPiLeaderboard(){
 
   const excludedFromWindow = PROJINFO.length - items.length;
   const windowNote = (piWindow!=='all' && excludedFromWindow>0)
-    ? `<div style="padding:2px 18px 12px;font-size:11px;color:var(--faint)">ช่วงนี้ไม่นับ ${excludedFromWindow} โครงการ (อยู่นอกช่วง ${piWindow} ปี หรือไม่มีวันที่ระบุ) — ดูครบทุกโครงการที่ปุ่ม "ทั้งหมด (ตลอดกาล)"</div>`
+    ? `<div style="padding:2px 18px 12px;font-size:11px;color:var(--faint)">ช่วงนี้ไม่นับ ${excludedFromWindow} โครงการ (อยู่นอกช่วง ${piWindow} ปี หรือไม่มีวันที่ระบุ) — ดูครบทุกโครงการที่ปุ่ม "ทั้งหมด - ตลอดกาล"</div>`
     : '';
 
   el.innerHTML = `
     <div class="pi-win" id="piWinBar">
       ${[1,3,5,10,15].map(y=>`<button class="pi-win-btn ${y===piWindow?'active':''}" data-yr="${y}">ย้อนหลัง ${y} ปี</button>`).join('')}
-      <button class="pi-win-btn ${piWindow==='all'?'active':''}" data-yr="all">ทั้งหมด (ตลอดกาล)</button>
+      <button class="pi-win-btn ${piWindow==='all'?'active':''}" data-yr="all">ทั้งหมด - ตลอดกาล</button>
     </div>
     ${windowNote}
     <div class="pi-lb-wrap">
@@ -3120,31 +3135,69 @@ function renderPiLeaderboard(){
   });
 }
 
+let piYearMode = 'count'; // 'count' | 'value' — สลับดู YoY เป็นจำนวนโครงการ หรือมูลค่ารวม
+let piSiteActiveOnly = false; // true = แสดงเฉพาะลูกค้าที่มีโครงการอย่างน้อย 1 รายการเริ่มในช่วง 3 ปีล่าสุด
+
 function renderPiYearChart(){
   const el = document.getElementById('piYearChart');
   if(!PROJINFO.length){ el.innerHTML=''; document.getElementById('piYearCount').textContent=''; return; }
-  const byYear = {};
+  const byYearPM = {};
   PROJINFO.forEach(p=>{
     const d = piEffDate(p); if(!d) return;
     const y = d.getFullYear();
-    (byYear[y] ||= {n:0, val:0});
-    byYear[y].n++; byYear[y].val += piValue(p);
+    const pm = pmKey(p['PM Name'])||'ไม่ระบุ';
+    (byYearPM[y] ||= {});
+    (byYearPM[y][pm] ||= {n:0, val:0});
+    byYearPM[y][pm].n++;
+    byYearPM[y][pm].val += piValue(p);
   });
-  const years = Object.keys(byYear).map(Number).sort((a,b)=>a-b);
+  const years = Object.keys(byYearPM).map(Number).sort((a,b)=>a-b);
   document.getElementById('piYearCount').textContent = years.length ? `${years[0]}-${years[years.length-1]}` : '';
   if(!years.length){ el.innerHTML = `<div class="empty">ไม่มีข้อมูลวันที่พอสร้างกราฟ</div>`; return; }
-  const maxN = Math.max(...years.map(y=>byYear[y].n));
+
+  // เรียง PM ตามจำนวนโครงการรวมทุกปี มาก→น้อย ให้สีที่เจอบ่อยอยู่ล่างสุดของแท่ง อ่านง่ายกว่าเรียงตามตัวอักษร
+  const pmTotals = {};
+  PROJINFO.forEach(p=>{ const pm=pmKey(p['PM Name'])||'ไม่ระบุ'; pmTotals[pm]=(pmTotals[pm]||0)+1; });
+  const allPMs = Object.keys(pmTotals).sort((a,b)=>pmTotals[b]-pmTotals[a]);
+
+  const metricOf = d => piYearMode==='count' ? d.n : d.val;
+  const yearTotal = y => Object.values(byYearPM[y]).reduce((s,x)=>s+metricOf(x),0);
+  const maxTotal = Math.max(...years.map(yearTotal), 1);
+
   const bars = years.map(y=>{
-    const d = byYear[y];
-    const h = Math.max(d.n/maxN*100, 3);
+    const total = yearTotal(y);
+    const h = Math.max(total/maxTotal*100, 2);
+    const segs = allPMs.map(pm=>{
+      const d = byYearPM[y][pm];
+      if(!d) return '';
+      const v = metricOf(d);
+      if(v<=0) return '';
+      const segPct = total ? (v/total*100) : 0;
+      const label = `${pm} (${y}): ${d.n} โครงการ · ${thb(d.val)}`;
+      return `<div class="pi-yseg" style="height:${segPct.toFixed(1)}%;background:${avatarColor(pm)}"><title>${label}</title></div>`;
+    }).join('');
+    const totalLabel = piYearMode==='count' ? total : compact(total);
     return `<div class="pi-ybar-col">
-      <div class="pi-ybar-n">${d.n}</div>
-      <div class="pi-ybar" style="height:${h.toFixed(0)}%"><title>${y}: ${d.n} โครงการ · ${thb(d.val)}</title></div>
+      <div class="pi-ybar-n">${totalLabel}</div>
+      <div class="pi-ybar-stack" style="height:${h.toFixed(0)}%">${segs}</div>
       <div class="pi-ybar-lbl">${y}</div>
-      <div class="pi-ybar-val">${compact(d.val)}</div>
     </div>`;
   }).join('');
-  el.innerHTML = `<div class="pi-ychart"><div class="pi-ybar-wrap">${bars}</div></div>`;
+
+  const legend = allPMs.map(pm=>`<span class="pi-yleg-item"><i style="background:${avatarColor(pm)}"></i>${pm}</span>`).join('');
+
+  el.innerHTML = `<div class="pi-ychart">
+    <div class="pi-mode-toggle" id="piYearModeBar">
+      <button class="pi-win-btn ${piYearMode==='count'?'active':''}" data-mode="count">จำนวนโครงการ</button>
+      <button class="pi-win-btn ${piYearMode==='value'?'active':''}" data-mode="value">มูลค่ารวม</button>
+    </div>
+    <div class="pi-ybar-wrap">${bars}</div>
+    <div class="pi-yleg-row">${legend}</div>
+  </div>`;
+
+  document.getElementById('piYearModeBar').querySelectorAll('.pi-win-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{ piYearMode = b.dataset.mode; renderPiYearChart(); });
+  });
 }
 
 function renderPiSites(query){
@@ -3158,14 +3211,25 @@ function renderPiSites(query){
     byCust[cust].pms.add(pmKey(p['PM Name'])||'ไม่ระบุ');
   });
   let list = Object.values(byCust);
+
+  // toggle "Active ใน 3 ปีล่าสุด" — เก็บลูกค้าที่มีอย่างน้อย 1 โครงการเริ่มในช่วง 3 ปีที่ผ่านมา
+  // (ดูได้ว่าลูกค้ารายไหนยังมีความเคลื่อนไหวจริงตอนนี้ ไม่ใช่แค่เคยมีประวัติเก่าเมื่อนานมาแล้ว)
+  if(piSiteActiveOnly){
+    const cutoff3 = new Date(); cutoff3.setFullYear(cutoff3.getFullYear()-3);
+    list = list.filter(c => c.items.some(p=>{ const d=piEffDate(p); return d && d>=cutoff3; }));
+  }
+
   if(query){
     const q = query.toLowerCase();
     list = list.filter(c=>c.cust.toLowerCase().includes(q));
   }
   list.sort((a,b)=>b.items.length-a.items.length);
-  document.getElementById('piSiteCount').textContent = `${list.length} ลูกค้า/หน่วยงาน`;
+  document.getElementById('piSiteCount').textContent = `${list.length} ลูกค้า/หน่วยงาน${piSiteActiveOnly ? ' (Active 3 ปี)' : ''}`;
 
-  if(!list.length){ el.innerHTML = `<div class="empty">ไม่พบลูกค้าตรงกับคำค้นหา</div>`; return; }
+  const toggleBtn = document.getElementById('piSiteActiveToggle');
+  if(toggleBtn) toggleBtn.classList.toggle('active', piSiteActiveOnly);
+
+  if(!list.length){ el.innerHTML = `<div class="empty">${piSiteActiveOnly ? 'ไม่มีลูกค้าที่ Active ในช่วง 3 ปีล่าสุดตรงกับคำค้นหา' : 'ไม่พบลูกค้าตรงกับคำค้นหา'}</div>`; return; }
 
   // ไม่ค้นหา: โชว์แค่ 15 อันดับแรก (ลูกค้าที่มีโครงการเยอะสุด) กันหน้ายาวเกินไปจากลูกค้า 1 โครงการเป็นร้อยราย
   // ค้นหาแล้ว: โชว์ผลลัพธ์ทั้งหมดที่ตรงคำค้น (ปกติจะเหลือไม่กี่รายการอยู่แล้ว)
@@ -3425,6 +3489,12 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 // ค้นหาลูกค้าใน Site History
 const piSiteSearchEl = document.getElementById('piSiteSearch');
 if(piSiteSearchEl) piSiteSearchEl.addEventListener('input', e => renderPiSites(e.target.value));
+
+const piSiteActiveToggleEl = document.getElementById('piSiteActiveToggle');
+if(piSiteActiveToggleEl) piSiteActiveToggleEl.addEventListener('click', ()=>{
+  piSiteActiveOnly = !piSiteActiveOnly;
+  renderPiSites(piSiteSearchEl ? piSiteSearchEl.value : '');
+});
 
 // คลิกขยายดูรายละเอียดโครงการของแต่ละลูกค้าใน Site History
 const piSitesEl = document.getElementById('piSites');
