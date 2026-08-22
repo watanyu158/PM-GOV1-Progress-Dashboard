@@ -1130,6 +1130,17 @@
   <div class="panel">
     <div class="p-head">
       <div class="p-title">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        Data Freshness <span class="sep">-</span> <span class="th">ความสดของข้อมูล PMS</span>
+      </div>
+      <span class="p-count" id="freshCount"></span>
+    </div>
+    <div class="p-body"><div id="fresh"></div></div>
+  </div>
+
+  <div class="panel">
+    <div class="p-head">
+      <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>
         Revenue Attainment <span class="sep">-</span> <span class="th">รายได้สะสมเทียบเป้าตามแผน</span>
       </div>
@@ -2513,7 +2524,7 @@ function renderComplexity(list){
 function renderClosure(list){
   const el = document.getElementById('cls');
   const today = new Date(); today.setHours(0,0,0,0);
-  const CLOSURE_GRACE_DAYS = 14; // เผื่อเวลาทำเอกสารปิดงานหลังงานเสร็จจริง ก่อนจะแจ้งเตือน (เท่ากับเกณฑ์ Contract->Completely Closed ที่ตั้งไว้)
+  const CLOSURE_GRACE_DAYS = 7; // เผื่อเวลาทำเอกสารปิดงานหลังงานเสร็จจริง ก่อนจะแจ้งเตือน - ใช้กับทุกโครงการในทีม ไม่ใช่แค่ตัวอย่างเดียว
   const codes = new Set(list.map(p=>p['Project Code']));
   const byCode = {};
   HIST.filter(r=>codes.has(r['Project Code'])).forEach(r=>{ (byCode[r['Project Code']] ||= []).push(r); });
@@ -2593,6 +2604,68 @@ function renderClosure(list){
   }).join('') : `<div class="empty">ไม่มีโครงการที่ค้างดำเนินการเรื่องปิดงาน/โอนงานตอนนี้</div>`;
 
   el.innerHTML = overview + `<div style="margin-top:14px">${list_html}</div>`;
+}
+
+// ติดตามว่าโครงการไหน "ค้างอัปเดต PMS" นานเกินไป - ใช้ Update Date (วันที่บันทึก Progress Update ล่าสุด)
+// เทียบกับวันนี้ ไม่นับโครงการที่ปิดงานแล้ว (Contract/Completely Closed) เพราะไม่จำเป็นต้องอัปเดตรายสัปดาห์อีกต่อไป
+function renderDataFreshness(list){
+  const el = document.getElementById('fresh');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const STALE_DAYS = 7;
+
+  const openList = list.filter(p=>{ const st=projectStatus(p); return st!=='Contract Closed' && st!=='Completely Closed'; });
+
+  const items = openList.map(p=>{
+    const upd = parseD(p['Update Date']);
+    const daysSince = upd ? Math.round((today-upd)/DAY) : null; // null = ไม่เคยมี Update Date เลยตั้งแต่ต้น
+    return {p, upd, daysSince};
+  });
+
+  const stale = items.filter(x=>x.daysSince===null || x.daysSince>=STALE_DAYS).sort((a,b)=>{
+    if(a.daysSince===null && b.daysSince===null) return 0;
+    if(a.daysSince===null) return -1; // ไม่เคยอัปเดตเลย ร้ายแรงสุด ขึ้นบนสุด
+    if(b.daysSince===null) return 1;
+    return b.daysSince - a.daysSince; // ค้างนานสุดขึ้นก่อน
+  });
+
+  document.getElementById('freshCount').textContent = `${stale.length} โครงการต้องอัปเดต`;
+
+  // สรุปแยกราย PM ด้วย - เห็นภาพว่าใครค้างกี่โครงการ ไม่ต้องนับเอง
+  const byPM = {};
+  stale.forEach(x=>{
+    const pm = pmKey(x.p['PM Name']) || 'ไม่ระบุ';
+    (byPM[pm] ||= 0); byPM[pm]++;
+  });
+  const pmChips = Object.entries(byPM).sort((a,b)=>b[1]-a[1])
+    .map(([pm,n])=>`<span class="tag" style="color:var(--critical);border-color:#F3C7CD;background:var(--critical-tint)">${pm}: ${n}</span>`).join('');
+
+  const overview = `<div class="wow-overview">
+    <div class="ov-stats">
+      <div class="ov-stat">
+        <div class="ov-l">โครงการที่ไม่อัปเดตเกิน ${STALE_DAYS} วัน</div>
+        <div class="ov-v" style="color:${stale.length?'var(--critical)':'var(--success)'}">${stale.length}<span class="u" style="font-size:12px"> / ${openList.length}</span></div>
+      </div>
+      <div class="ov-stat" style="flex:2">
+        <div class="ov-l">สรุปราย PM</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${pmChips || '<span class="tag" style="color:var(--success);border-color:#B9E6D2;background:var(--success-tint)">ทุกคนอัปเดตครบ</span>'}</div>
+      </div>
+    </div>
+  </div>`;
+
+  const rows = stale.length ? stale.map(x=>{
+    const dTxt = x.daysSince===null ? 'ไม่เคยอัปเดตเลย' : `ค้าง ${x.daysSince} วัน`;
+    const lastNote = (x.p['Progress Update']||'').trim();
+    return `<div class="cls-row">
+      <div class="av" style="background:${avatarColor(x.p['PM Name'])}">${initials(x.p['PM Name'])}</div>
+      <div style="min-width:0;flex:1">
+        <div class="cls-name">${x.p['Project Name']||x.p['Project Code']} <span class="code-tag">#${x.p['Project Code']}</span> <span class="chip ${x.daysSince===null?'critical':'warning'}">${dTxt}</span></div>
+        <div class="cls-msg warning">${x.upd?`อัปเดตล่าสุด ${fmtDate(x.upd)}`:'ไม่เคยมีวันที่อัปเดต'}${lastNote?` - "${lastNote}"`:''}</div>
+      </div>
+      <div class="cls-pm">${pmKey(x.p['PM Name'])||'-'}</div>
+    </div>`;
+  }).join('') : `<div class="empty">ทุกโครงการที่กำลังดำเนินการอัปเดตข้อมูลภายใน ${STALE_DAYS} วันล่าสุดแล้ว</div>`;
+
+  el.innerHTML = overview + `<div style="margin-top:14px">${rows}</div>`;
 }
 
 function renderRevenue(list){
@@ -3575,7 +3648,7 @@ function render(){
 }
 function renderFiltered(){
   const f = applyFilters(ALL);
-  renderKPIs(f); renderPM(f); renderDonut(f); renderWow(f); renderComplexity(f); renderClosure(f); renderRevenue(f); renderGantt(f); renderFree(f); renderCards(f);
+  renderKPIs(f); renderPM(f); renderDonut(f); renderWow(f); renderComplexity(f); renderClosure(f); renderDataFreshness(f); renderRevenue(f); renderGantt(f); renderFree(f); renderCards(f);
   renderPayment(); renderPOPanel(); renderStock();
   renderProjectInfo();
 }
