@@ -3164,34 +3164,10 @@ function renderPiYearChart(){
   document.getElementById('piYearCount').textContent = years.length ? `${years[0]}-${years[years.length-1]}` : '';
   if(!years.length){ el.innerHTML = `<div class="empty">ไม่มีข้อมูลวันที่พอสร้างกราฟ</div>`; return; }
 
-  // เรียง PM ตามจำนวนโครงการรวมทุกปี มาก→น้อย ให้สีที่เจอบ่อยอยู่ล่างสุดของแท่ง อ่านง่ายกว่าเรียงตามตัวอักษร
+  // เรียง PM ตามจำนวนโครงการรวมทุกปี มาก→น้อย ให้ legend ไล่จากคนที่มีงานเยอะสุดก่อน อ่านง่ายกว่าเรียงตามตัวอักษร
   const pmTotals = {};
   PROJINFO.forEach(p=>{ const pm=pmKey(p['PM Name'])||'ไม่ระบุ'; pmTotals[pm]=(pmTotals[pm]||0)+1; });
   const allPMs = Object.keys(pmTotals).sort((a,b)=>pmTotals[b]-pmTotals[a]);
-
-  const metricOf = d => piYearMode==='count' ? d.n : d.val;
-  const yearTotal = y => Object.values(byYearPM[y]).reduce((s,x)=>s+metricOf(x),0);
-  const maxTotal = Math.max(...years.map(yearTotal), 1);
-
-  const bars = years.map(y=>{
-    const total = yearTotal(y);
-    const h = Math.max(total/maxTotal*100, 2);
-    const segs = allPMs.map(pm=>{
-      const d = byYearPM[y][pm];
-      if(!d) return '';
-      const v = metricOf(d);
-      if(v<=0) return '';
-      const segPct = total ? (v/total*100) : 0;
-      const label = `${pm} (${y}): ${d.n} โครงการ · ${thb(d.val)}`;
-      return `<div class="pi-yseg" style="height:${segPct.toFixed(1)}%;background:${avatarColor(pm)}"><title>${label}</title></div>`;
-    }).join('');
-    const totalLabel = piYearMode==='count' ? total : compact(total);
-    return `<div class="pi-ybar-col">
-      <div class="pi-ybar-n">${totalLabel}</div>
-      <div class="pi-ybar-stack" style="height:${h.toFixed(0)}%">${segs}</div>
-      <div class="pi-ybar-lbl">${y}</div>
-    </div>`;
-  }).join('');
 
   const legend = allPMs.map(pm=>`<span class="pi-yleg-item"><i style="background:${avatarColor(pm)}"></i>${pm}</span>`).join('');
 
@@ -3200,13 +3176,72 @@ function renderPiYearChart(){
       <button class="pi-win-btn ${piYearMode==='count'?'active':''}" data-mode="count">จำนวนโครงการ</button>
       <button class="pi-win-btn ${piYearMode==='value'?'active':''}" data-mode="value">มูลค่ารวม</button>
     </div>
-    <div class="pi-ybar-wrap">${bars}</div>
+    <div id="piYoyChartBox"></div>
     <div class="pi-yleg-row">${legend}</div>
   </div>`;
+
+  // วาดกราฟหลังแทรก DOM แล้วเท่านั้น เพื่อวัดความกว้างจริงของกล่อง แล้ว build SVG ให้ตรงพิกเซลเป๊ะ
+  // (กันปัญหาภาพยืด/บีบเวลาคนละขนาดจอ ตามที่เคยแก้ไว้กับกราฟ trend หลัก)
+  const chartBox = document.getElementById('piYoyChartBox');
+  if(chartBox){
+    const boxW = Math.round(chartBox.getBoundingClientRect().width) || 700;
+    chartBox.innerHTML = buildPiYoyChart(byYearPM, years, allPMs, piYearMode, boxW);
+  }
 
   document.getElementById('piYearModeBar').querySelectorAll('.pi-win-btn').forEach(b=>{
     b.addEventListener('click', ()=>{ piYearMode = b.dataset.mode; renderPiYearChart(); });
   });
+}
+
+// กราฟเส้น YoY แยกเส้นตามคน - จุดประสงค์คือให้เห็นว่าแต่ละคน "จำนวน/มูลค่าโครงการต่างกันปีต่อปีเท่าไหร่"
+// ต่างจากกราฟแท่งซ้อน (stacked) เดิมที่ตอบคำถามนี้ไม่ได้ตรง ๆ เพราะต้องมาลบเลขเองระหว่างปี
+// จุดข้อมูลทุกจุด hover แล้วเห็นค่าจริง + ผลต่างจากปีก่อนหน้าทันที (เช่น "+15 จากปีก่อน" / "-8 จากปีก่อน")
+function buildPiYoyChart(byYearPM, years, allPMs, mode, pxWidth){
+  const W = Math.max(pxWidth, 280), H = 210;
+  const padL = 40, padR = 14, padT = 14, padB = 24;
+  const metricOf = d => mode==='count' ? d.n : d.val;
+  const seriesFor = pm => years.map(y => metricOf(byYearPM[y][pm] || {n:0,val:0}));
+  const allVals = allPMs.flatMap(seriesFor);
+  const maxV = Math.max(...allVals, 1);
+
+  const x = i => padL + (years.length<=1 ? 0 : (i/(years.length-1))*(W-padL-padR));
+  const y = v => H-padB - (v/maxV)*(H-padT-padB);
+
+  const gridN = 4;
+  const gridLines = Array.from({length:gridN+1}, (_,g)=>{
+    const v = maxV*g/gridN;
+    const gy = y(v);
+    const label = mode==='count' ? Math.round(v) : compact(v);
+    return `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="#D2C7B6" stroke-width="1" ${g===0?'':'stroke-dasharray="2,3"'}/>
+      <text x="${padL-6}" y="${(gy+3).toFixed(1)}" font-size="9" fill="var(--faint)" text-anchor="end" font-family="IBM Plex Mono">${label}</text>`;
+  }).join('');
+
+  const xLabels = years.map((yr,i)=>`<text x="${x(i).toFixed(1)}" y="${H-6}" font-size="9" fill="var(--faint)" text-anchor="middle" font-family="IBM Plex Mono">${yr}</text>`).join('');
+
+  const lines = allPMs.map(pm=>{
+    const series = seriesFor(pm);
+    const col = avatarColor(pm);
+    const pts = series.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    const dots = series.map((v,i)=>{
+      const prev = i>0 ? series[i-1] : null;
+      let deltaTxt = '';
+      if(prev!==null){
+        const diff = v - prev;
+        const diffLabel = mode==='count' ? `${diff>0?'+':''}${diff} โครงการ` : `${diff>0?'+':''}${compact(diff)}`;
+        deltaTxt = ` (${diffLabel} จากปีก่อน)`;
+      }
+      const valLabel = mode==='count' ? `${v} โครงการ` : thb(v);
+      return `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="8" fill="transparent" style="cursor:pointer"><title>${pm} ${years[i]}: ${valLabel}${deltaTxt}</title></circle>
+        <circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" fill="${col}"/>`;
+    }).join('');
+    return `<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>${dots}`;
+  }).join('');
+
+  return `<svg width="100%" viewBox="0 0 ${W} ${H}" style="display:block">
+    ${gridLines}
+    ${lines}
+    ${xLabels}
+  </svg>`;
 }
 
 function renderPiSites(query){
@@ -3418,9 +3453,11 @@ window.addEventListener('resize', (()=>{
     clearTimeout(t);
     t = setTimeout(()=>{
       const box = document.getElementById('ovChartBox');
-      if(!box || !box.__pts) return;
-      const boxW = Math.round(box.getBoundingClientRect().width) || 700;
-      box.innerHTML = buildTrendChart(box.__pts, box.__weekPM, boxW);
+      if(box && box.__pts){
+        const boxW = Math.round(box.getBoundingClientRect().width) || 700;
+        box.innerHTML = buildTrendChart(box.__pts, box.__weekPM, boxW);
+      }
+      if(document.getElementById('piYoyChartBox')) renderPiYearChart();
     }, 200);
   };
 })());
