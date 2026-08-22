@@ -107,6 +107,7 @@ let latestData = {
   po: [],
   stock: [],
   stockSummary: [],
+  projectInfo: [],
   updatedAt: null,
 };
 
@@ -130,6 +131,30 @@ function parseProgressSheet(wb) {
 
   const headerRow = aoa[0] || [];        // แถวแรกของ used-range (= แถว 2 ใน Excel เพราะแถว 1 ว่าง)
   const dataRows = aoa.slice(1);         // แถวถัดไปทั้งหมด (= แถว 3 เป็นต้นไปใน Excel)
+
+  const rows = dataRows
+    .filter(r => Array.isArray(r) && r.some(v => v !== null && v !== ''))
+    .map(r => {
+      const obj = {};
+      headerRow.forEach((h, i) => {
+        if (h === null || h === undefined || h === '') return;
+        obj[h] = r[i] !== undefined ? r[i] : null;
+      });
+      return obj;
+    });
+
+  return { rows, sheetName };
+}
+
+// --- แกะไฟล์ Excel: sheet "Project Info" (ประวัติโครงการทั้งหมดย้อนหลังหลายปี โครงสร้างคอลัมน์เหมือน Progress1) ---
+function parseProjectInfoSheet(wb) {
+  const sheetName = wb.SheetNames.find(n => n.trim().toUpperCase() === 'PROJECT INFO');
+  if (!sheetName) return { rows: [], sheetName: null };
+  const ws = wb.Sheets[sheetName];
+  const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: null, dateNF: 'yyyy-mm-dd' });
+
+  const headerRow = aoa[0] || [];
+  const dataRows = aoa.slice(1);
 
   const rows = dataRows
     .filter(r => Array.isArray(r) && r.some(v => v !== null && v !== ''))
@@ -306,6 +331,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const { rows: po, sheetName: poSheetName } = parsePaymentMPO(wb);
       const { rows: stock, sheetName: stockSheetName } = parseStockMovement(wb);
       const { rows: stockSummary, sheetName: stockSummarySheetName } = parseSumStockM(wb);
+      const { rows: projectInfo, sheetName: projectInfoSheetName } = parseProjectInfoSheet(wb);
 
       // PO ไม่มีคอลัมน์ PM ตรง ๆ — เดา PM เจ้าของจาก Project Code โดยอ้างอิงจาก Progress1 ก่อน (ครอบคลุมสุด)
       // แล้ว fallback ไปที่ PaymentW ถ้า Progress1 ไม่มีโครงการนั้น (เช่นโครงการเก่าที่ปิดไปแล้ว)
@@ -314,13 +340,14 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       paymentW.forEach(p => { if (p.projectCode && p.pm && !pmByCode[p.projectCode]) pmByCode[p.projectCode] = p.pm; });
       po.forEach(p => { p.pm = pmByCode[p.projectCode] || null; });
 
-      // ล็อกทั้ง 4 ชุดข้อมูลนี้ให้เหลือแค่ทีม PM-GOV1 (5 คน) เสมอ — sheet ต้นทางเป็นข้อมูลทั้งบริษัท
+      // ล็อกทั้ง 5 ชุดข้อมูลนี้ให้เหลือแค่ทีม PM-GOV1 (5 คน) เสมอ — sheet ต้นทางเป็นข้อมูลทั้งบริษัท/ทั้งบริษัทย้อนหลัง
       const paymentWTeam = paymentW.filter(p => inTeam(p.pm));
       const poTeam = po.filter(p => inTeam(p.pm));
       const stockTeam = stock.filter(s => inTeam(s.pmName));
       const stockSummaryTeam = stockSummary.filter(s => inTeam(s.pm));
+      const projectInfoTeam = projectInfo.filter(p => inTeam(p['PM Name']));
 
-      latestData = { rows, revenue, paymentW: paymentWTeam, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, updatedAt: new Date().toISOString() };
+      latestData = { rows, revenue, paymentW: paymentWTeam, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeam, updatedAt: new Date().toISOString() };
       lastRaw = {
         receivedAt: latestData.updatedAt,
         contentType: req.headers['content-type'] || null,
@@ -333,6 +360,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       };
       console.log(`✓ PM-GOV1 webhook: parsed ${rows.length} rows from "${sheetName}", ${revenue.length} revenue rows from "${revenueSheetName || '(not found)'}"`);
       console.log(`  + PaymentW ${paymentW.length}→${paymentWTeam.length} (team) from "${paymentWSheetName || '(not found)'}", PO ${po.length}→${poTeam.length} (team) from "${poSheetName || '(not found)'}", Stock ${stock.length}→${stockTeam.length} (team) from "${stockSheetName || '(not found)'}", StockSummary ${stockSummary.length}→${stockSummaryTeam.length} (team) from "${stockSummarySheetName || '(not found)'}" (${req.file.buffer.length} bytes)`);
+      console.log(`  + Project Info ${projectInfo.length}→${projectInfoTeam.length} (team) from "${projectInfoSheetName || '(not found)'}"`);
 
       // เตือนถ้ามีชื่อ PM ในไฟล์ที่ยังไม่มีบัญชีผูกไว้ (พิมพ์ชื่อผิด หรือมี PM ใหม่เข้าทีม)
       const linked = new Set(USERS.filter(u => u.pmName).map(u => normName(u.pmName)));
@@ -345,7 +373,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
         }
       }
 
-      return res.json({ ok: true, mode: 'file', sheet: sheetName, count: rows.length, revenueSheet: revenueSheetName, revenueCount: revenue.length, paymentWCount: paymentWTeam.length, poCount: poTeam.length, stockCount: stockTeam.length, stockSummaryCount: stockSummaryTeam.length, updatedAt: latestData.updatedAt });
+      return res.json({ ok: true, mode: 'file', sheet: sheetName, count: rows.length, revenueSheet: revenueSheetName, revenueCount: revenue.length, paymentWCount: paymentWTeam.length, poCount: poTeam.length, stockCount: stockTeam.length, stockSummaryCount: stockSummaryTeam.length, projectInfoCount: projectInfoTeam.length, updatedAt: latestData.updatedAt });
     }
 
     // ทางสำรอง: body เป็น JSON array ของแถวข้อมูลตรง ๆ
@@ -394,6 +422,9 @@ app.get('/api/projects', requireAuth, (req, res) => {
   const po = (latestData.po || []).filter(r => normName(r.pm) === target);
   const stock = (latestData.stock || []).filter(r => normName(r.pmName) === target);
   const stockSummary = (latestData.stockSummary || []).filter(r => normName(r.pm) === target);
+  // projectInfo ไม่กรองรายบุคคล — เป็น tab ภาพรวมทีม (leaderboard/ประวัติ site) ที่ทุกคนในทีมควรเห็นเหมือนกันหมด
+  // (ยังล็อกไว้แค่ทีม PM-GOV1 ตั้งแต่ตอนอ่านไฟล์แล้ว ไม่มีข้อมูลทีมอื่นหลุดออกมาแน่นอน)
+  const projectInfo = latestData.projectInfo || [];
 
   // ถ้าผูก pmName ไว้แล้วแต่ไม่เจอโครงการเลย มักเกิดจากชื่อใน Excel สะกดไม่ตรงกับที่ตั้งไว้
   if (latestData.rows.length && !rows.length) {
@@ -402,7 +433,7 @@ app.get('/api/projects', requireAuth, (req, res) => {
     console.log(`  ชื่อ PM ที่มีอยู่จริงในไฟล์: ${JSON.stringify(available)}`);
   }
 
-  res.json({ ...latestData, rows, revenue, paymentW, po, stock, stockSummary, scope: pmName });
+  res.json({ ...latestData, rows, revenue, paymentW, po, stock, stockSummary, projectInfo, scope: pmName });
 });
 
 app.get('/api/health', (req, res) => {

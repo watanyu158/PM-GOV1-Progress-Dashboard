@@ -575,6 +575,71 @@
 
   .empty{padding:38px 20px;text-align:center;color:var(--faint);font-size:13px;}
   footer{margin-top:24px;text-align:center;font-size:11.5px;color:var(--faint);}
+  /* ---------------- Tab 3: Project Information ---------------- */
+  .pi-win{display:flex;gap:6px;padding:14px 18px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap;}
+  .pi-win-btn{
+    padding:7px 15px;border-radius:20px;border:1px solid var(--line);background:var(--surface);
+    font-family:'Inter',sans-serif;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;transition:.15s;
+  }
+  .pi-win-btn:hover{border-color:var(--brand-2);color:var(--ink-2);}
+  .pi-win-btn.active{background:var(--brand);border-color:var(--brand);color:#fff;}
+
+  .pi-ov{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px 18px;border-bottom:1px solid var(--line-soft);}
+  .pi-ov-stat{text-align:center;}
+  .pi-ov-l{font-size:10.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;}
+  .pi-ov-v{font-family:'Plus Jakarta Sans',sans-serif;font-size:21px;font-weight:800;color:var(--ink);margin-top:4px;}
+  @media(max-width:680px){.pi-ov{grid-template-columns:repeat(2,1fr);}}
+
+  .pi-lb-wrap{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+  @media(max-width:780px){.pi-lb-wrap{grid-template-columns:1fr;}}
+  .pi-lb-col{padding:16px 18px;}
+  .pi-lb-col:first-child{border-right:1px solid var(--line-soft);}
+  @media(max-width:780px){.pi-lb-col:first-child{border-right:none;border-bottom:1px solid var(--line-soft);}}
+  .pi-lb-title{font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:11px;display:flex;align-items:center;gap:6px;}
+  .pi-lb-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line-soft);}
+  .pi-lb-row:last-child{border-bottom:none;}
+  .pi-lb-rank{
+    width:22px;height:22px;border-radius:7px;display:grid;place-items:center;flex:none;
+    font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;font-weight:800;background:var(--neutral-tint);color:var(--muted);
+  }
+  .pi-lb-rank.g1{background:#F0E2C0;color:#9C7A1F;}
+  .pi-lb-rank.g2{background:#E5E5E0;color:#6B6B65;}
+  .pi-lb-rank.g3{background:#EAD9C8;color:#96613A;}
+  .pi-lb-name{flex:1;min-width:0;font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pi-lb-val{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:700;color:var(--brand);flex:none;}
+  .pi-lb-bar{height:5px;background:var(--bg-tint);border-radius:3px;margin-top:5px;overflow:hidden;}
+  .pi-lb-bar i{display:block;height:100%;background:var(--brand);border-radius:3px;}
+
+  .pi-ychart{padding:16px 18px;}
+  .pi-ybar-wrap{display:flex;align-items:flex-end;gap:4px;height:150px;padding:0 2px;}
+  .pi-ybar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;}
+  .pi-ybar{width:100%;border-radius:4px 4px 0 0;background:var(--brand);min-height:2px;cursor:pointer;transition:.15s;position:relative;}
+  .pi-ybar:hover{background:var(--brand-2);}
+  .pi-ybar-lbl{font-size:9.5px;color:var(--faint);font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+
+  .pi-site-row{
+    display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--line-soft);
+    cursor:pointer;transition:.13s;
+  }
+  .pi-site-row:hover{background:var(--surface-2);}
+  .pi-site-name{flex:1;min-width:0;font-size:12.5px;font-weight:600;color:var(--ink);}
+  .pi-site-meta{font-size:11px;color:var(--faint);margin-top:2px;}
+  .pi-site-avs{display:flex;}
+  .pi-site-avs .av{width:24px;height:24px;font-size:9px;border:2px solid var(--surface);margin-left:-8px;}
+  .pi-site-avs .av:first-child{margin-left:0;}
+  .pi-site-detail{display:none;padding:4px 18px 16px 18px;border-bottom:1px solid var(--line-soft);background:var(--surface-2);}
+  .pi-site-detail.open{display:block;}
+
+  .pi-profile-card{
+    display:grid;grid-template-columns:auto 1fr auto auto auto;gap:16px;align-items:center;
+    padding:14px 18px;border-bottom:1px solid var(--line-soft);
+  }
+  .pi-profile-card:last-child{border-bottom:none;}
+  @media(max-width:780px){.pi-profile-card{grid-template-columns:auto 1fr;row-gap:8px;}}
+  .pi-pf-stat{text-align:center;}
+  .pi-pf-l{font-size:9.5px;color:var(--faint);text-transform:uppercase;}
+  .pi-pf-v{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:800;color:var(--ink);margin-top:2px;}
+
   /* ---------------- Tab navigation ---------------- */
   .tabbar{display:flex;gap:6px;margin-top:15px;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:5px;}
   .tab-btn{
@@ -588,7 +653,13 @@
   .tab-btn .tab-en{font-weight:700;}
   .tab-btn .tab-th{font-weight:500;color:var(--faint);font-size:11.5px;}
   .tab-btn.active .tab-th{color:var(--brand-2);}
+  @media(max-width:640px){
+    .tab-btn{padding:9px 8px;font-size:11.5px;}
+    .tab-btn .tab-th{display:none;}
+    .tab-btn svg{width:14px;height:14px;}
+  }
   #tab2Panels{display:none;}
+  #tab3Panels{display:none;}
 
   /* ---------------- Login screen ---------------- */
   #dashboardWrap{display:none;}
@@ -911,6 +982,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>
       <span><span class="tab-en">Finance & Stock</span> <span class="tab-th">· การเงินและสต็อกสินค้า</span></span>
     </button>
+    <button class="tab-btn" id="tabBtn3" data-tab="3">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M8.7 13.5L6 22l6-3.5L18 22l-2.7-8.5"/></svg>
+      <span><span class="tab-en">Project Information</span> <span class="tab-th">· ข้อมูลโครงการทั้งหมด</span></span>
+    </button>
   </div>
 
   <div class="panel">
@@ -1080,6 +1155,57 @@
       <div class="p-body"><div id="stkBox"></div></div>
     </div>
   </div><!-- /tab2Panels -->
+
+  <div id="tab3Panels">
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
+          Team Leaderboard <span class="sep">-</span> <span class="th">อันดับทีมย้อนหลัง</span>
+        </div>
+        <span class="p-count" id="piWinLabel"></span>
+      </div>
+      <div class="p-body"><div id="piOverview"></div><div id="piLeaderboard"></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          Projects by Year <span class="sep">-</span> <span class="th">จำนวน/มูลค่าโครงการรายปี</span>
+        </div>
+        <span class="p-count" id="piYearCount"></span>
+      </div>
+      <div class="p-body"><div id="piYearChart"></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          Site History <span class="sep">-</span> <span class="th">ใครเคยดูแลลูกค้ารายนี้บ้าง</span>
+        </div>
+        <span class="p-count" id="piSiteCount"></span>
+      </div>
+      <div class="p-body">
+        <div style="padding:13px 18px;border-bottom:1px solid var(--line-soft)">
+          <input type="text" id="piSiteSearch" placeholder="ค้นหาลูกค้า/หน่วยงาน..." style="width:100%;padding:9px 13px;border:1px solid var(--line);border-radius:9px;font-family:'Inter',sans-serif;font-size:13px;color:var(--ink);background:var(--surface);box-shadow:var(--sh-sm)">
+        </div>
+        <div id="piSites"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          PM Profile <span class="sep">-</span> <span class="th">ประวัติการทำงานราย PM</span>
+        </div>
+        <span class="p-count" id="piProfileCount"></span>
+      </div>
+      <div class="p-body"><div id="piProfiles"></div></div>
+    </div>
+  </div><!-- /tab3Panels -->
 
   <footer>PM-GOV1 Progress Dashboard - ข้อมูลอัปเดตอัตโนมัติจาก Excel ผ่าน Make.com</footer>
 </div>
@@ -1358,6 +1484,8 @@ let PAYW = [];
 let PO = [];
 let STOCK = [];
 let STOCKSUM = [];
+let PROJINFO = [];
+let piWindow = 5; // ค่าเริ่มต้น: ย้อนหลัง 5 ปี
 let SCOPE = null;   // ชื่อ PM ที่ backend กรองมาให้ (null = เห็นทุกโครงการ)
 let lastKnownUpdatedAt = null; // updatedAt ล่าสุดที่ดึงมาได้จริง - ใช้เช็คว่า sync สำเร็จหรือยัง (poll จนกว่าค่านี้จะขยับ)
 let filters = { team:'', vp:'', pm:'', status:'', health:'' };
@@ -1382,6 +1510,7 @@ async function loadData(auto){
       PO = j.po || [];
       STOCK = j.stock || [];
       STOCKSUM = j.stockSummary || [];
+      PROJINFO = j.projectInfo || [];
       SCOPE = j.scope || null;
       lastKnownUpdatedAt = j.updatedAt || null;
       setSource(true, j.updatedAt);
@@ -1402,7 +1531,7 @@ async function loadData(auto){
     HIST = SEED_DATA.map(normRow);
     ALL = latestPerProject(HIST);
     REV = SEED_REVENUE.map(normRow);
-    PAYW = []; PO = []; STOCK = []; STOCKSUM = [];
+    PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = [];
     setSource(false, null);
     render();
   }
@@ -2800,6 +2929,209 @@ function renderStock(){
   el.innerHTML = overview + head + rows;
 }
 
+/* ================= TAB 3: Project Information ================= */
+// ข้อมูลจาก sheet "Project Info" — ประวัติโครงการทั้งหมดของทีมย้อนหลังหลายปี (ไม่ใช่แค่ที่ Progress1 ติดตามอยู่)
+// ไม่กรองตามตัวกรองด้านบน (team/vp/pm/status/health) เพราะเป็นภาพรวมทั้งทีมตลอดกาล ไม่ใช่สแนปช็อตปัจจุบัน
+
+function piEffDate(p){ return parseD(p['Start Date']) || parseD(p['Project Register Date']); }
+function piValue(p){ return num(p['Contract Value']) || num(p['Selling Price']); }
+
+function renderProjectInfo(){
+  renderPiOverview();
+  renderPiLeaderboard();
+  renderPiYearChart();
+  renderPiSites();
+  renderPiProfiles();
+}
+
+function renderPiOverview(){
+  const el = document.getElementById('piOverview');
+  if(!PROJINFO.length){ el.innerHTML = `<div class="empty">ยังไม่มีข้อมูลจาก sheet "Project Info" — sync ข้อมูลแล้วลองใหม่</div>`; return; }
+  const totalProjects = PROJINFO.length;
+  const totalValue = PROJINFO.reduce((s,p)=>s+piValue(p),0);
+  const years = PROJINFO.map(piEffDate).filter(Boolean).map(d=>d.getFullYear());
+  const minYear = years.length ? Math.min(...years) : null;
+  const customers = uniq(PROJINFO.map(p=>p['Customer']));
+  el.innerHTML = `<div class="pi-ov">
+    <div class="pi-ov-stat"><div class="pi-ov-l">โครงการทั้งหมด (ตลอดกาล)</div><div class="pi-ov-v">${totalProjects}</div></div>
+    <div class="pi-ov-stat"><div class="pi-ov-l">มูลค่ารวมทั้งหมด</div><div class="pi-ov-v">${compact(totalValue)}</div></div>
+    <div class="pi-ov-stat"><div class="pi-ov-l">ประวัติย้อนหลัง</div><div class="pi-ov-v">${minYear?(new Date().getFullYear()-minYear+1)+' ปี':'-'}</div></div>
+    <div class="pi-ov-stat"><div class="pi-ov-l">ลูกค้า/หน่วยงานที่เคยดูแล</div><div class="pi-ov-v">${customers.length}</div></div>
+  </div>`;
+}
+
+function renderPiLeaderboard(){
+  const el = document.getElementById('piLeaderboard');
+  document.getElementById('piWinLabel').textContent = PROJINFO.length ? `ย้อนหลัง ${piWindow} ปี` : '';
+  if(!PROJINFO.length){ el.innerHTML=''; return; }
+
+  const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear()-piWindow);
+  const items = PROJINFO.filter(p=>{ const d=piEffDate(p); return d && d>=cutoff; });
+
+  const byPM = {};
+  items.forEach(p=>{
+    const pm = pmKey(p['PM Name'])||'ไม่ระบุ';
+    (byPM[pm] ||= {pm, n:0, val:0});
+    byPM[pm].n++;
+    byPM[pm].val += piValue(p);
+  });
+  const byCount = Object.values(byPM).sort((a,b)=>b.n-a.n);
+  const byValue = Object.values(byPM).slice().sort((a,b)=>b.val-a.val);
+  const maxN = byCount[0]?.n || 1;
+  const maxVal = byValue[0]?.val || 1;
+  const rankCls = i => i===0?'g1':i===1?'g2':i===2?'g3':'';
+
+  const rowsCount = byCount.map((g,i)=>`
+    <div class="pi-lb-row">
+      <div class="pi-lb-rank ${rankCls(i)}">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;gap:8px">
+          <span class="pi-lb-name">${g.pm}</span><span class="pi-lb-val">${g.n} โครงการ</span>
+        </div>
+        <div class="pi-lb-bar"><i style="width:${(g.n/maxN*100).toFixed(0)}%"></i></div>
+      </div>
+    </div>`).join('');
+  const rowsValue = byValue.map((g,i)=>`
+    <div class="pi-lb-row">
+      <div class="pi-lb-rank ${rankCls(i)}">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;gap:8px">
+          <span class="pi-lb-name">${g.pm}</span><span class="pi-lb-val" style="color:#4F7A4A">${compact(g.val)}</span>
+        </div>
+        <div class="pi-lb-bar"><i style="width:${(g.val/maxVal*100).toFixed(0)}%;background:#4F7A4A"></i></div>
+      </div>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div class="pi-win" id="piWinBar">
+      ${[1,3,5,10].map(y=>`<button class="pi-win-btn ${y===piWindow?'active':''}" data-yr="${y}">ย้อนหลัง ${y} ปี</button>`).join('')}
+    </div>
+    <div class="pi-lb-wrap">
+      <div class="pi-lb-col">
+        <div class="pi-lb-title">🏆 จำนวนโครงการมากที่สุด</div>
+        ${rowsCount || '<div class="empty">ไม่มีข้อมูลในช่วงเวลานี้</div>'}
+      </div>
+      <div class="pi-lb-col">
+        <div class="pi-lb-title">💰 มูลค่ารวมสูงสุด</div>
+        ${rowsValue || '<div class="empty">ไม่มีข้อมูลในช่วงเวลานี้</div>'}
+      </div>
+    </div>`;
+
+  document.getElementById('piWinBar').querySelectorAll('.pi-win-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{ piWindow = parseInt(b.dataset.yr,10); renderPiLeaderboard(); });
+  });
+}
+
+function renderPiYearChart(){
+  const el = document.getElementById('piYearChart');
+  if(!PROJINFO.length){ el.innerHTML=''; document.getElementById('piYearCount').textContent=''; return; }
+  const byYear = {};
+  PROJINFO.forEach(p=>{
+    const d = piEffDate(p); if(!d) return;
+    const y = d.getFullYear();
+    (byYear[y] ||= {n:0, val:0});
+    byYear[y].n++; byYear[y].val += piValue(p);
+  });
+  const years = Object.keys(byYear).map(Number).sort((a,b)=>a-b);
+  document.getElementById('piYearCount').textContent = years.length ? `${years[0]}-${years[years.length-1]}` : '';
+  if(!years.length){ el.innerHTML = `<div class="empty">ไม่มีข้อมูลวันที่พอสร้างกราฟ</div>`; return; }
+  const maxN = Math.max(...years.map(y=>byYear[y].n));
+  const bars = years.map(y=>{
+    const d = byYear[y];
+    const h = Math.max(d.n/maxN*100, 3);
+    return `<div class="pi-ybar-col">
+      <div class="pi-ybar" style="height:${h.toFixed(0)}%"><title>${y}: ${d.n} โครงการ · ${thb(d.val)}</title></div>
+      <div class="pi-ybar-lbl">${y}</div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div class="pi-ychart"><div class="pi-ybar-wrap">${bars}</div></div>`;
+}
+
+function renderPiSites(query){
+  const el = document.getElementById('piSites');
+  if(!PROJINFO.length){ el.innerHTML=''; document.getElementById('piSiteCount').textContent=''; return; }
+  const byCust = {};
+  PROJINFO.forEach(p=>{
+    const cust = (p['Customer']||'ไม่ระบุ').trim() || 'ไม่ระบุ';
+    (byCust[cust] ||= {cust, items:[], pms:new Set()});
+    byCust[cust].items.push(p);
+    byCust[cust].pms.add(pmKey(p['PM Name'])||'ไม่ระบุ');
+  });
+  let list = Object.values(byCust);
+  if(query){
+    const q = query.toLowerCase();
+    list = list.filter(c=>c.cust.toLowerCase().includes(q));
+  }
+  list.sort((a,b)=>b.items.length-a.items.length);
+  document.getElementById('piSiteCount').textContent = `${list.length} ลูกค้า/หน่วยงาน`;
+
+  if(!list.length){ el.innerHTML = `<div class="empty">ไม่พบลูกค้าตรงกับคำค้นหา</div>`; return; }
+
+  // ไม่ค้นหา: โชว์แค่ 15 อันดับแรก (ลูกค้าที่มีโครงการเยอะสุด) กันหน้ายาวเกินไปจากลูกค้า 1 โครงการเป็นร้อยราย
+  // ค้นหาแล้ว: โชว์ผลลัพธ์ทั้งหมดที่ตรงคำค้น (ปกติจะเหลือไม่กี่รายการอยู่แล้ว)
+  const showAll = !!query;
+  const shown = showAll ? list : list.slice(0,15);
+  const moreNote = (!showAll && list.length>15)
+    ? `<div style="padding:11px 18px;font-size:11.5px;color:var(--faint);text-align:center">แสดง 15 อันดับแรกจากทั้งหมด ${list.length} ราย — พิมพ์ค้นหาด้านบนเพื่อดูรายอื่น</div>`
+    : '';
+
+  el.innerHTML = shown.map(c=>{
+    const pmArr = [...c.pms];
+    const totalVal = c.items.reduce((s,p)=>s+piValue(p),0);
+    const avatars = pmArr.slice(0,5).map(pm=>`<div class="av" style="background:${avatarColor(pm)}" title="${pm}">${initials(pm)}</div>`).join('');
+    const projLines = c.items.slice().sort((a,b)=>(piEffDate(b)||0)-(piEffDate(a)||0)).map(p=>{
+      const d = piEffDate(p);
+      return `<div class="nd">
+        <div class="nd-top"><span class="nd-name">${p['Project Name']||'-'}</span><span class="nd-prog">${thb(piValue(p))}</span></div>
+        <div class="nd-row"><span class="nd-tag">PM</span><span class="nd-txt">${pmKey(p['PM Name'])||'-'}</span></div>
+        <div class="nd-row"><span class="nd-tag">วันที่</span><span class="nd-txt">${d?fmtDate(d):'-'} · ${projectStatus(p)}</span></div>
+      </div>`;
+    }).join('');
+    return `<div class="pi-site-row">
+      <div style="flex:1;min-width:0">
+        <div class="pi-site-name">${c.cust}</div>
+        <div class="pi-site-meta">${c.items.length} โครงการ · ${thb(totalVal)} · ${pmArr.length} PM เคยดูแล</div>
+      </div>
+      <div class="pi-site-avs">${avatars}</div>
+      <span class="wr-chev">${svg(I.chevron,'')}</span>
+    </div>
+    <div class="pi-site-detail">${projLines}</div>`;
+  }).join('') + moreNote;
+}
+
+function renderPiProfiles(){
+  const el = document.getElementById('piProfiles');
+  if(!PROJINFO.length){ el.innerHTML=''; document.getElementById('piProfileCount').textContent=''; return; }
+  const byPM = {};
+  PROJINFO.forEach(p=>{
+    const pm = pmKey(p['PM Name'])||'ไม่ระบุ';
+    (byPM[pm] ||= {pm, items:[], customers:new Set()});
+    byPM[pm].items.push(p);
+    if(p['Customer']) byPM[pm].customers.add(p['Customer'].trim());
+  });
+  const profiles = Object.values(byPM).map(g=>{
+    const dates = g.items.map(piEffDate).filter(Boolean);
+    const firstYear = dates.length ? Math.min(...dates.map(d=>d.getFullYear())) : null;
+    const totalVal = g.items.reduce((s,p)=>s+piValue(p),0);
+    const avgCx = g.items.length ? g.items.reduce((s,p)=>s+num(p['Complex Level']),0)/g.items.length : 0;
+    return {...g, firstYear, totalVal, avgCx};
+  }).sort((a,b)=>b.items.length-a.items.length);
+
+  document.getElementById('piProfileCount').textContent = `${profiles.length} คน`;
+
+  el.innerHTML = profiles.map(g=>`
+    <div class="pi-profile-card">
+      <div class="av" style="width:38px;height:38px;font-size:13px;background:${avatarColor(g.pm)}">${initials(g.pm)}</div>
+      <div style="min-width:0">
+        <div style="font-size:13.5px;font-weight:700;color:var(--ink)">${g.pm}</div>
+        <div style="font-size:11px;color:var(--faint)">ทำงานมาตั้งแต่ปี ${g.firstYear||'-'} · ${g.customers.size} ลูกค้า/หน่วยงาน</div>
+      </div>
+      <div class="pi-pf-stat"><div class="pi-pf-l">โครงการ</div><div class="pi-pf-v">${g.items.length}</div></div>
+      <div class="pi-pf-stat"><div class="pi-pf-l">มูลค่ารวม</div><div class="pi-pf-v" style="font-size:13px">${compact(g.totalVal)}</div></div>
+      <div class="pi-pf-stat"><div class="pi-pf-l">Complexity เฉลี่ย</div><div class="pi-pf-v">${g.avgCx.toFixed(1)}</div></div>
+    </div>`).join('');
+}
+
 function renderCards(list){
   document.getElementById('projCount').textContent = `${list.length} / ${ALL.length}`;
   const el = document.getElementById('grid');
@@ -2859,6 +3191,7 @@ function renderFiltered(){
   const f = applyFilters(ALL);
   renderKPIs(f); renderPM(f); renderDonut(f); renderWow(f); renderComplexity(f); renderClosure(f); renderRevenue(f); renderGantt(f); renderFree(f); renderCards(f);
   renderPayment(); renderPOPanel(); renderStock();
+  renderProjectInfo();
 }
 
 async function syncNow(){
@@ -2966,7 +3299,24 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     const tab = btn.dataset.tab;
     document.getElementById('tab1Panels').style.display = tab==='1' ? 'block' : 'none';
     document.getElementById('tab2Panels').style.display = tab==='2' ? 'block' : 'none';
+    document.getElementById('tab3Panels').style.display = tab==='3' ? 'block' : 'none';
   });
+});
+
+// ค้นหาลูกค้าใน Site History
+const piSiteSearchEl = document.getElementById('piSiteSearch');
+if(piSiteSearchEl) piSiteSearchEl.addEventListener('input', e => renderPiSites(e.target.value));
+
+// คลิกขยายดูรายละเอียดโครงการของแต่ละลูกค้าใน Site History
+const piSitesEl = document.getElementById('piSites');
+if(piSitesEl) piSitesEl.addEventListener('click', (e)=>{
+  const row = e.target.closest('.pi-site-row');
+  if(!row) return;
+  const detail = row.nextElementSibling;
+  if(!detail || !detail.classList.contains('pi-site-detail')) return;
+  const opening = !detail.classList.contains('open');
+  piSitesEl.querySelectorAll('.pi-site-detail.open').forEach(d=>{ if(d!==detail) d.classList.remove('open'); });
+  detail.classList.toggle('open', opening);
 });
 </script>
 </body>
