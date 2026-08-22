@@ -1654,7 +1654,7 @@ function buildFilters(){
     {k:'team',   l:'ทีม',    v:uniq(ALL.map(p=>p['Team']))},
     {k:'vp',     l:'VP',     v:uniq(ALL.map(p=>p['VP Name']))},
     {k:'pm',     l:'PM',     v:uniq(ALL.map(p=>pmKey(p['PM Name'])))},
-    {k:'status', l:'สถานะ',  v:uniq(ALL.map(p=>projectStatus(p)))},
+    {k:'status', l:'สถานะ',  v:uniq([...ALL.map(p=>projectStatus(p)), 'Contract Closed', 'Completely Closed'])},
     {k:'health', l:'Health', v:uniq(ALL.map(p=>p['Project Health']))},
   ];
   const bar = document.getElementById('filters');
@@ -2512,6 +2512,8 @@ function renderComplexity(list){
 
 function renderClosure(list){
   const el = document.getElementById('cls');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const CLOSURE_GRACE_DAYS = 14; // เผื่อเวลาทำเอกสารปิดงานหลังงานเสร็จจริง ก่อนจะแจ้งเตือน (เท่ากับเกณฑ์ Contract->Completely Closed ที่ตั้งไว้)
   const codes = new Set(list.map(p=>p['Project Code']));
   const byCode = {};
   HIST.filter(r=>codes.has(r['Project Code'])).forEach(r=>{ (byCode[r['Project Code']] ||= []).push(r); });
@@ -2534,6 +2536,20 @@ function renderClosure(list){
     const warrantyY = isY(p['Warranty Type']);
     const hasTransferDate = !!p['Transfer Date'];
 
+    // Rule 2 (ใหม่): งานเสร็จ 100% แล้ว (เลยวันจบมาสักพัก) แต่ยังไม่เริ่มทำ Contract Closed เลยด้วยซ้ำ
+    // ใช้วันสิ้นสุดจริงเป็นหลัก (ถ้าไม่มีค่อย fallback ไปวันอัปเดตล่าสุดที่รายงาน 100%) เผื่อ grace period
+    // เท่ากับเกณฑ์ Contract->Completely Closed (14 วัน) เพื่อไม่แจ้งเตือนเร็วเกินไปตอนเพิ่งปิดงานสด ๆ
+    if(!contractClosed && !completelyClosed && num(p['%Progress'])>=100){
+      const endD = parseD(p['End Date']) || parseD(p['Plan End Date']);
+      const lastUpdD = parseD(p['Update Date']);
+      const refDate = endD || lastUpdD;
+      if(refDate){
+        const daysSince = Math.round((today - refDate)/DAY);
+        if(daysSince >= CLOSURE_GRACE_DAYS){
+          alerts.push({ p, sev:'warning', msg:`งานเสร็จ 100% แล้วตั้งแต่ ${fmtDate(refDate)} (${daysSince} วันก่อน) แต่ยังไม่ทำ Contract Closed` });
+        }
+      }
+    }
     // Rule 3: ค้างอยู่ที่ Contract Closed (ยังไม่ขยับไป Completely Closed) ติดต่อกัน >= 2 รอบ
     if(contractClosed && !completelyClosed){
       const streak = trailingStreak(hist, e => !!e['Contract Closed Date'] && !e['Completely Closed Date']);
