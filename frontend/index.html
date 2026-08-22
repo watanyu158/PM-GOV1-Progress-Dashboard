@@ -3042,11 +3042,15 @@ function renderPiOverview(){
 
 function renderPiLeaderboard(){
   const el = document.getElementById('piLeaderboard');
-  document.getElementById('piWinLabel').textContent = PROJINFO.length ? `ย้อนหลัง ${piWindow} ปี` : '';
+  document.getElementById('piWinLabel').textContent = !PROJINFO.length ? '' : (piWindow==='all' ? 'ทั้งหมด (ตลอดกาล)' : `ย้อนหลัง ${piWindow} ปี`);
   if(!PROJINFO.length){ el.innerHTML=''; return; }
 
-  const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear()-piWindow);
-  const items = PROJINFO.filter(p=>{ const d=piEffDate(p); return d && d>=cutoff; });
+  // piWindow === 'all' หมายถึงไม่มีเส้นตัดวันที่เลย เอาข้อมูลทุกแถวมาคิด — ให้ตัวเลขตรงกับ PM Profile
+  // (ที่เป็น all-time เสมออยู่แล้ว) เป๊ะ ๆ ไม่ต้องเดาว่าเลือกกี่ปีถึงจะ "ครอบคลุมพอ" เพราะประวัติจะยาวขึ้นทุกปี
+  const items = piWindow==='all' ? PROJINFO.slice() : (()=>{
+    const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear()-piWindow);
+    return PROJINFO.filter(p=>{ const d=piEffDate(p); return d && d>=cutoff; });
+  })();
 
   const byPM = {};
   items.forEach(p=>{
@@ -3084,7 +3088,8 @@ function renderPiLeaderboard(){
 
   el.innerHTML = `
     <div class="pi-win" id="piWinBar">
-      ${[1,3,5,10].map(y=>`<button class="pi-win-btn ${y===piWindow?'active':''}" data-yr="${y}">ย้อนหลัง ${y} ปี</button>`).join('')}
+      ${[1,3,5,10,15].map(y=>`<button class="pi-win-btn ${y===piWindow?'active':''}" data-yr="${y}">ย้อนหลัง ${y} ปี</button>`).join('')}
+      <button class="pi-win-btn ${piWindow==='all'?'active':''}" data-yr="all">ทั้งหมด (ตลอดกาล)</button>
     </div>
     <div class="pi-lb-wrap">
       <div class="pi-lb-col">
@@ -3098,7 +3103,7 @@ function renderPiLeaderboard(){
     </div>`;
 
   document.getElementById('piWinBar').querySelectorAll('.pi-win-btn').forEach(b=>{
-    b.addEventListener('click', ()=>{ piWindow = parseInt(b.dataset.yr,10); renderPiLeaderboard(); });
+    b.addEventListener('click', ()=>{ piWindow = b.dataset.yr==='all' ? 'all' : parseInt(b.dataset.yr,10); renderPiLeaderboard(); });
   });
 }
 
