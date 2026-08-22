@@ -1,6 +1,6 @@
 // PM-GOV1 Progress Dashboard API
 // รับ "ไฟล์ Excel ทั้งไฟล์" จาก Make.com (multipart/form-data, field name = "file")
-// แล้วแกะ (parse) เองฝั่ง server จาก sheet "DATA" — เหมือน pattern เดียวกับ CNX/HDY/CEI
+// แล้วแกะ (parse) เองฝั่ง server จาก sheet "DATA" - เหมือน pattern เดียวกับ CNX/HDY/CEI
 // Deploy URL: https://pm-gov1-progress-api.onrender.com
 // Make.com scenario webhook (trigger): https://hook.eu1.make.com/m58fg8qhrhydcl5nru3md2dumc5c9xqu
 //
@@ -37,18 +37,18 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 //   และไม่สนช่องว่างซ้ำ เช่น "Prapasiri   Rakkanpat" กับ "Prapasiri Rakkanpat" ถือว่าคนเดียวกัน)
 //
 // สร้าง hash รหัสผ่านได้จาก: node generate-hash.js "รหัสผ่านจริง"
-// ⚠️ ถ้าไม่ตั้ง AUTH_USERS จะใช้ค่าเริ่มต้นด้านล่าง (username: admin / password: pmgov1) — เปลี่ยนก่อนใช้งานจริงเสมอ
+// ⚠️ ถ้าไม่ตั้ง AUTH_USERS จะใช้ค่าเริ่มต้นด้านล่าง (username: admin / password: pmgov1) - เปลี่ยนก่อนใช้งานจริงเสมอ
 let USERS;
 try { USERS = JSON.parse(process.env.AUTH_USERS || 'null'); } catch { USERS = null; }
 if (!Array.isArray(USERS) || !USERS.length) {
   USERS = [{ username: 'admin', name: 'PM-GOV1 Admin', role: 'admin', passwordHash: '$2b$10$bqSxasX72zv/WjwFMOYzden5FnVDWsATMQVD29KFMC3nvmWIhHLOi' }];
-  console.log('⚠ AUTH_USERS ไม่ได้ตั้งค่า — ใช้บัญชีเริ่มต้น admin/pmgov1 (ควรเปลี่ยนก่อนใช้งานจริง)');
+  console.log('⚠ AUTH_USERS ไม่ได้ตั้งค่า - ใช้บัญชีเริ่มต้น admin/pmgov1 (ควรเปลี่ยนก่อนใช้งานจริง)');
 }
 
 // เทียบชื่อ PM แบบยืดหยุ่น: ตัดช่องว่างซ้ำ/หัวท้าย และไม่สนตัวพิมพ์เล็กใหญ่
 const normName = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
 
-// ทีม PM-GOV1 (5 คน) — sheet PaymentW/PaymentM/Stock Movement/SumStockM เป็นข้อมูลทั้งบริษัท (ทุกทีม)
+// ทีม PM-GOV1 (5 คน) - sheet PaymentW/PaymentM/Stock Movement/SumStockM เป็นข้อมูลทั้งบริษัท (ทุกทีม)
 // ต้อง "ล็อก" ให้เหลือแค่ 5 คนนี้เสมอ ไม่ว่าใครจะ login เข้ามา (รวมถึง admin) เพราะ Tab การเงิน/สต็อก
 // ต้องไม่โชว์ข้อมูลของทีมอื่นเด็ดขาดตามที่ตกลงกันไว้
 const TEAM_PM_NAMES = ['Antika Prasadsil', 'Lomdetch Puangsombut', 'Virojt Changyencham', 'Prapasiri Rakkanpat', 'Watanyu Anantakunakorn'];
@@ -199,7 +199,7 @@ function parsePaymentW(wb) {
       };
       projects.push(cur);
     } else if (cur && (r[3] || r[12] != null || r[15] != null)) {
-      // แถวย่อย: งวด/ใบแจ้งหนี้ของโครงการปัจจุบัน — ข้ามถ้าเป็นแถวหัวข้อ section (col A มีตัวหนังสือ, col B ว่าง)
+      // แถวย่อย: งวด/ใบแจ้งหนี้ของโครงการปัจจุบัน - ข้ามถ้าเป็นแถวหัวข้อ section (col A มีตัวหนังสือ, col B ว่าง)
       if (typeof no === 'string' && !code) continue;
       cur.installments.push({
         desc: r[3], accType: r[4], invoiceDate: r[11], invoiced: r[12],
@@ -273,7 +273,7 @@ function parseSumStockM(wb) {
 
 // --- แกะไฟล์ Excel: sheet "Revenue" ---
 // โครงสร้างต่างจาก DATA: header 2 แถวซ้อนกัน (แถว 3 = หมวดหลัก/ไตรมาส, แถว 4 = เดือนย่อยใต้แต่ละไตรมาส)
-// ข้อมูลเริ่มแถว 5 เป็นต้นไป — แปลงเป็น key เดียวโดยรวมบริบทไตรมาสเข้ากับ "Total" ย่อยกันชนกัน
+// ข้อมูลเริ่มแถว 5 เป็นต้นไป - แปลงเป็น key เดียวโดยรวมบริบทไตรมาสเข้ากับ "Total" ย่อยกันชนกัน
 // (Q1_Total, Q2_Total, ...) ส่วนเดือน (Jan..Dec) ใช้ชื่อเดือนตรง ๆ เพราะไม่ซ้ำกันอยู่แล้ว
 function parseRevenueSheet(wb) {
   const sheetName = wb.SheetNames.find(n => n.trim().toUpperCase() === 'REVENUE');
@@ -333,14 +333,14 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const { rows: stockSummary, sheetName: stockSummarySheetName } = parseSumStockM(wb);
       const { rows: projectInfo, sheetName: projectInfoSheetName } = parseProjectInfoSheet(wb);
 
-      // PO ไม่มีคอลัมน์ PM ตรง ๆ — เดา PM เจ้าของจาก Project Code โดยอ้างอิงจาก Progress1 ก่อน (ครอบคลุมสุด)
+      // PO ไม่มีคอลัมน์ PM ตรง ๆ - เดา PM เจ้าของจาก Project Code โดยอ้างอิงจาก Progress1 ก่อน (ครอบคลุมสุด)
       // แล้ว fallback ไปที่ PaymentW ถ้า Progress1 ไม่มีโครงการนั้น (เช่นโครงการเก่าที่ปิดไปแล้ว)
       const pmByCode = {};
       rows.forEach(r => { if (r['Project Code'] && r['PM Name']) pmByCode[String(r['Project Code']).trim()] = r['PM Name']; });
       paymentW.forEach(p => { if (p.projectCode && p.pm && !pmByCode[p.projectCode]) pmByCode[p.projectCode] = p.pm; });
       po.forEach(p => { p.pm = pmByCode[p.projectCode] || null; });
 
-      // ล็อกทั้ง 5 ชุดข้อมูลนี้ให้เหลือแค่ทีม PM-GOV1 (5 คน) เสมอ — sheet ต้นทางเป็นข้อมูลทั้งบริษัท/ทั้งบริษัทย้อนหลัง
+      // ล็อกทั้ง 5 ชุดข้อมูลนี้ให้เหลือแค่ทีม PM-GOV1 (5 คน) เสมอ - sheet ต้นทางเป็นข้อมูลทั้งบริษัท/ทั้งบริษัทย้อนหลัง
       const paymentWTeam = paymentW.filter(p => inTeam(p.pm));
       const poTeam = po.filter(p => inTeam(p.pm));
       const stockTeam = stock.filter(s => inTeam(s.pmName));
@@ -422,7 +422,7 @@ app.get('/api/projects', requireAuth, (req, res) => {
   const po = (latestData.po || []).filter(r => normName(r.pm) === target);
   const stock = (latestData.stock || []).filter(r => normName(r.pmName) === target);
   const stockSummary = (latestData.stockSummary || []).filter(r => normName(r.pm) === target);
-  // projectInfo ไม่กรองรายบุคคล — เป็น tab ภาพรวมทีม (leaderboard/ประวัติ site) ที่ทุกคนในทีมควรเห็นเหมือนกันหมด
+  // projectInfo ไม่กรองรายบุคคล - เป็น tab ภาพรวมทีม (leaderboard/ประวัติ site) ที่ทุกคนในทีมควรเห็นเหมือนกันหมด
   // (ยังล็อกไว้แค่ทีม PM-GOV1 ตั้งแต่ตอนอ่านไฟล์แล้ว ไม่มีข้อมูลทีมอื่นหลุดออกมาแน่นอน)
   const projectInfo = latestData.projectInfo || [];
 
@@ -451,7 +451,7 @@ app.listen(PORT, () => {
 
   // --- Keep-alive: กันไม่ให้ Render free tier sleep (spin down หลังไม่มี request ~15 นาที) ---
   // ยิง request เข้าตัวเองทุก 10 นาที ผ่าน public URL ของ Render (RENDER_EXTERNAL_URL มีให้อัตโนมัติ
-  // บน Render เท่านั้น — รันในเครื่อง/ที่อื่นจะไม่ทำงาน ไม่กระทบอะไร)
+  // บน Render เท่านั้น - รันในเครื่อง/ที่อื่นจะไม่ทำงาน ไม่กระทบอะไร)
   const selfUrl = process.env.RENDER_EXTERNAL_URL;
   if (selfUrl) {
     setInterval(() => {
@@ -461,6 +461,6 @@ app.listen(PORT, () => {
     }, 10 * 60 * 1000); // ทุก 10 นาที (สั้นกว่า timeout ของ Render ที่ ~15 นาที)
     console.log(`♥ keep-alive enabled → pinging ${selfUrl}/api/health every 10 min`);
   } else {
-    console.log('ℹ keep-alive skipped (RENDER_EXTERNAL_URL not set — not running on Render, or running locally)');
+    console.log('ℹ keep-alive skipped (RENDER_EXTERNAL_URL not set - not running on Render, or running locally)');
   }
 });

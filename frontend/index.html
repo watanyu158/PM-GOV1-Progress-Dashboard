@@ -606,6 +606,13 @@
   .pi-lb-col:first-child{border-right:1px solid var(--line-soft);}
   @media(max-width:780px){.pi-lb-col:first-child{border-right:none;border-bottom:1px solid var(--line-soft);}}
   .pi-lb-title{font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:11px;display:flex;align-items:center;gap:6px;}
+  .pi-lb-total{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:9px 12px;margin-bottom:12px;border-radius:9px;
+    background:var(--surface-2);border:1px solid var(--line);
+    font-size:12px;font-weight:700;color:var(--ink);
+  }
+  .pi-lb-total-v{font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:800;color:var(--brand);}
   .pi-lb-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line-soft);}
   .pi-lb-row:last-child{border-bottom:none;}
   .pi-lb-rank{
@@ -1398,7 +1405,7 @@ const H = {
 
 /* ---------- helpers ---------- */
 const AV_COLORS = ['#7A5C3E','#4A6B5C','#8A5A72','#A9662E','#5C7A3F','#3D6B7A','#9B4A3F'];
-// ทีม PM-GOV1 มีแค่ 5 คนคงที่ — กำหนดสีตรงตัวให้แต่ละคนเลย กัน hash ชนกันเอง (ที่เคยเจอ 3 คนได้สีซ้ำกัน)
+// ทีม PM-GOV1 มีแค่ 5 คนคงที่ - กำหนดสีตรงตัวให้แต่ละคนเลย กัน hash ชนกันเอง (ที่เคยเจอ 3 คนได้สีซ้ำกัน)
 // ชื่ออื่นที่ไม่อยู่ในลิสต์นี้ (เช่น "ไม่ระบุ") จะ fallback ไปใช้วิธี hash แบบเดิม
 const TEAM_COLOR_MAP = {
   'antika prasadsil': '#7A5C3E',
@@ -1625,11 +1632,11 @@ function renderKPIs(list){
   const warn = openList.filter(p=>H.cls(p['Project Health'])==='warning').length;
   const risk = crit + warn;
 
-  // สถานะปิดงาน — โชว์คู่กับ Inprogress กันคนถามซ้ำว่า "ทำไมนับโครงการไม่ตรง Progress1"
+  // สถานะปิดงาน - โชว์คู่กับ Inprogress กันคนถามซ้ำว่า "ทำไมนับโครงการไม่ตรง Progress1"
   const contractClosedN = list.filter(p=>projectStatus(p)==='Contract Closed').length;
   const completelyClosedN = list.filter(p=>projectStatus(p)==='Completely Closed').length;
 
-  // มูลค่า — ใช้ Selling Price เป็นหลักในการคำนวณทุกที่เพื่อให้ตัวเลขตรงกันทุก card ทั่วทั้ง dashboard
+  // มูลค่า - ใช้ Selling Price เป็นหลักในการคำนวณทุกที่เพื่อให้ตัวเลขตรงกันทุก card ทั่วทั้ง dashboard
   // (Contract Value / PM Accountable Value / MA-Rent Value โชว์ไว้เป็นข้อมูลอ้างอิงประกอบ ไม่ใช้คำนวณ KPI อื่น)
   const sellingPrice = list.reduce((s,p)=>s+num(p['Selling Price']),0);
   const contractValue = list.reduce((s,p)=>s+num(p['Contract Value']),0);
@@ -1642,7 +1649,7 @@ function renderKPIs(list){
   const riskFoot = risk ? `Critical ${crit} / Warning ${warn}` : 'ไม่มีโครงการเสี่ยง';
   const statusFoot = `Contract Closed ${contractClosedN} · Completely Closed ${completelyClosedN}`;
 
-  // ใกล้ครบกำหนด — โครงการที่ยังไม่ปิดงาน และวันสิ้นสุด (จริงหรือตามแผน) อยู่ในอีกไม่เกิน 30 วัน
+  // ใกล้ครบกำหนด - โครงการที่ยังไม่ปิดงาน และวันสิ้นสุด (จริงหรือตามแผน) อยู่ในอีกไม่เกิน 30 วัน
   // นับรวมที่เลยกำหนดไปแล้วด้วย (overdue) เพราะยิ่งต้องรู้ตัวเร็วกว่าเดิม ไม่ใช่แค่ที่ยังไม่ถึง
   const today0 = new Date(); today0.setHours(0,0,0,0);
   const dueSoonList = openList.filter(p=>{
@@ -1679,7 +1686,7 @@ function renderKPIs(list){
       ${k.f ? `<div class="kpi-foot">${k.f}</div>` : ''}
     </div>`).join('');
 
-  // การ์ดมูลค่า — รวมทั้ง 4 ตัวเลขไว้แถวเดียวกัน (Selling Price เป็นตัวหลักที่ใช้คำนวณ ส่วนอีก 3 ตัวโชว์ประกอบ)
+  // การ์ดมูลค่า - รวมทั้ง 4 ตัวเลขไว้แถวเดียวกัน (Selling Price เป็นตัวหลักที่ใช้คำนวณ ส่วนอีก 3 ตัวโชว์ประกอบ)
   const valueCardHtml = `
     <div class="kpi kpi-wide" style="--kc:#8A5A72;--kt:#F0E6EA">
       <div class="kpi-top">
@@ -3025,10 +3032,10 @@ function renderStock(){
 }
 
 /* ================= TAB 3: Project Information ================= */
-// ข้อมูลจาก sheet "Project Info" — ประวัติโครงการทั้งหมดของทีมย้อนหลังหลายปี (ไม่ใช่แค่ที่ Progress1 ติดตามอยู่)
+// ข้อมูลจาก sheet "Project Info" - ประวัติโครงการทั้งหมดของทีมย้อนหลังหลายปี (ไม่ใช่แค่ที่ Progress1 ติดตามอยู่)
 // ไม่กรองตามตัวกรองด้านบน (team/vp/pm/status/health) เพราะเป็นภาพรวมทั้งทีมตลอดกาล ไม่ใช่สแนปช็อตปัจจุบัน
 
-// วันที่ใช้เป็น "จุดเริ่มโครงการ" สำหรับคำนวณช่วงปี — ลำดับ fallback: Start Date > Project Register Date > Project Accept Date
+// วันที่ใช้เป็น "จุดเริ่มโครงการ" สำหรับคำนวณช่วงปี - ลำดับ fallback: Start Date > Project Register Date > Project Accept Date
 // (ตรวจแล้วว่า Project Accept Date กรอกครบทุกแถว 100% ต่างจากอีก 2 ฟิลด์ที่มีบางแถวว่าง จึงใส่ไว้เป็นตัวสุดท้ายกันไม่ให้มีโครงการไหน "ไม่มีวันที่" เลย)
 function piEffDate(p){ return parseD(p['Start Date']) || parseD(p['Project Register Date']) || parseD(p['Project Accept Date']); }
 function piValue(p){ return num(p['Contract Value']) || num(p['Selling Price']); }
@@ -3043,13 +3050,13 @@ function renderProjectInfo(){
 
 function renderPiOverview(){
   const el = document.getElementById('piOverview');
-  if(!PROJINFO.length){ el.innerHTML = `<div class="empty">ยังไม่มีข้อมูลจาก sheet "Project Info" — sync ข้อมูลแล้วลองใหม่</div>`; return; }
+  if(!PROJINFO.length){ el.innerHTML = `<div class="empty">ยังไม่มีข้อมูลจาก sheet "Project Info" - sync ข้อมูลแล้วลองใหม่</div>`; return; }
   const totalProjects = PROJINFO.length;
   const totalValue = PROJINFO.reduce((s,p)=>s+piValue(p),0);
   const years = PROJINFO.map(piEffDate).filter(Boolean).map(d=>d.getFullYear());
   const minYear = years.length ? Math.min(...years) : null;
   const customers = uniq(PROJINFO.map(p=>p['Customer']));
-  // โครงการที่ไม่มีทั้ง Start Date และ Project Register Date เลย — "ประวัติย้อนหลัง N ปี" ด้านล่างคำนวณ
+  // โครงการที่ไม่มีทั้ง Start Date และ Project Register Date เลย - "ประวัติย้อนหลัง N ปี" ด้านล่างคำนวณ
   // จากโครงการที่มีวันที่เท่านั้น กลุ่มนี้จึงไม่ถูกนับรวมในช่วงปีนั้น (แต่ยังนับใน "โครงการทั้งหมด" และ
   // ตัวเลือก "ทั้งหมด - ตลอดกาล" ของ Leaderboard อยู่ดี) แจ้งไว้ตรงนี้กันสับสนว่าทำไมตัวเลขไม่ตรงกัน
   const undated = PROJINFO.filter(p=>!piEffDate(p)).length;
@@ -3059,7 +3066,7 @@ function renderPiOverview(){
     <div class="pi-ov-stat"><div class="pi-ov-l">ประวัติย้อนหลัง - เฉพาะที่มีวันที่</div><div class="pi-ov-v">${minYear?(new Date().getFullYear()-minYear+1)+' ปี':'-'}</div></div>
     <div class="pi-ov-stat"><div class="pi-ov-l">ลูกค้า/หน่วยงานที่เคยดูแล</div><div class="pi-ov-v">${customers.length}</div></div>
   </div>
-  ${undated ? `<div style="padding:0 18px 14px;font-size:11px;color:var(--faint)">⚠ ${undated} โครงการไม่มีวันที่เริ่มงานหรือวันที่ลงทะเบียนระบุไว้ในไฟล์ — จึงไม่ถูกนับในตัวเลือกช่วงปีใด ๆ ด้านล่าง (1/3/5/10/15 ปี) นับรวมได้เฉพาะเมื่อเลือก "ทั้งหมด - ตลอดกาล" เท่านั้น ซึ่งเป็นสาเหตุที่ตัวเลขระหว่างช่วงปีกับ PM Profile ไม่ตรงกัน</div>` : ''}`;
+  ${undated ? `<div style="padding:0 18px 14px;font-size:11px;color:var(--faint)">⚠ ${undated} โครงการไม่มีวันที่เริ่มงานหรือวันที่ลงทะเบียนระบุไว้ในไฟล์ - จึงไม่ถูกนับในตัวเลือกช่วงปีใด ๆ ด้านล่าง (1/3/5/10/15 ปี) นับรวมได้เฉพาะเมื่อเลือก "ทั้งหมด - ตลอดกาล" เท่านั้น ซึ่งเป็นสาเหตุที่ตัวเลขระหว่างช่วงปีกับ PM Profile ไม่ตรงกัน</div>` : ''}`;
 }
 
 function renderPiLeaderboard(){
@@ -3067,7 +3074,7 @@ function renderPiLeaderboard(){
   document.getElementById('piWinLabel').textContent = !PROJINFO.length ? '' : (piWindow==='all' ? 'ทั้งหมด - ตลอดกาล' : `ย้อนหลัง ${piWindow} ปี`);
   if(!PROJINFO.length){ el.innerHTML=''; return; }
 
-  // piWindow === 'all' หมายถึงไม่มีเส้นตัดวันที่เลย เอาข้อมูลทุกแถวมาคิด — ให้ตัวเลขตรงกับ PM Profile
+  // piWindow === 'all' หมายถึงไม่มีเส้นตัดวันที่เลย เอาข้อมูลทุกแถวมาคิด - ให้ตัวเลขตรงกับ PM Profile
   // (ที่เป็น all-time เสมออยู่แล้ว) เป๊ะ ๆ ไม่ต้องเดาว่าเลือกกี่ปีถึงจะ "ครอบคลุมพอ" เพราะประวัติจะยาวขึ้นทุกปี
   const items = piWindow==='all' ? PROJINFO.slice() : (()=>{
     const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear()-piWindow);
@@ -3108,24 +3115,26 @@ function renderPiLeaderboard(){
       </div>
     </div>`).join('');
 
-  const excludedFromWindow = PROJINFO.length - items.length;
-  const windowNote = (piWindow!=='all' && excludedFromWindow>0)
-    ? `<div style="padding:2px 18px 12px;font-size:11px;color:var(--faint)">ช่วงนี้ไม่นับ ${excludedFromWindow} โครงการ (อยู่นอกช่วง ${piWindow} ปี หรือไม่มีวันที่ระบุ) — ดูครบทุกโครงการที่ปุ่ม "ทั้งหมด - ตลอดกาล"</div>`
-    : '';
+  // ยอดรวมทั้งทีมของช่วงที่เลือกอยู่ - โชว์ไว้บนสุดของแต่ละคอลัมน์ เห็นภาพรวมคู่กับอันดับรายคนในทีเดียว
+  const totalCount = items.length;
+  const totalValue = items.reduce((s,p)=>s+piValue(p),0);
+  const totalCountHtml = `<div class="pi-lb-total"><span>รวมทั้งทีม</span><span class="pi-lb-total-v">${totalCount} โครงการ</span></div>`;
+  const totalValueHtml = `<div class="pi-lb-total"><span>รวมทั้งทีม</span><span class="pi-lb-total-v" style="color:#4F7A4A">${compact(totalValue)}</span></div>`;
 
   el.innerHTML = `
     <div class="pi-win" id="piWinBar">
       ${[1,3,5,10,15].map(y=>`<button class="pi-win-btn ${y===piWindow?'active':''}" data-yr="${y}">ย้อนหลัง ${y} ปี</button>`).join('')}
       <button class="pi-win-btn ${piWindow==='all'?'active':''}" data-yr="all">ทั้งหมด - ตลอดกาล</button>
     </div>
-    ${windowNote}
     <div class="pi-lb-wrap">
       <div class="pi-lb-col">
         <div class="pi-lb-title">🏆 จำนวนโครงการมากที่สุด</div>
+        ${totalCountHtml}
         ${rowsCount || '<div class="empty">ไม่มีข้อมูลในช่วงเวลานี้</div>'}
       </div>
       <div class="pi-lb-col">
         <div class="pi-lb-title">💰 มูลค่ารวมสูงสุด</div>
+        ${totalValueHtml}
         ${rowsValue || '<div class="empty">ไม่มีข้อมูลในช่วงเวลานี้</div>'}
       </div>
     </div>`;
@@ -3135,7 +3144,7 @@ function renderPiLeaderboard(){
   });
 }
 
-let piYearMode = 'count'; // 'count' | 'value' — สลับดู YoY เป็นจำนวนโครงการ หรือมูลค่ารวม
+let piYearMode = 'count'; // 'count' | 'value' - สลับดู YoY เป็นจำนวนโครงการ หรือมูลค่ารวม
 let piSiteActiveOnly = false; // true = แสดงเฉพาะลูกค้าที่มีโครงการอย่างน้อย 1 รายการเริ่มในช่วง 3 ปีล่าสุด
 
 function renderPiYearChart(){
@@ -3212,7 +3221,7 @@ function renderPiSites(query){
   });
   let list = Object.values(byCust);
 
-  // toggle "Active ใน 3 ปีล่าสุด" — เก็บลูกค้าที่มีอย่างน้อย 1 โครงการเริ่มในช่วง 3 ปีที่ผ่านมา
+  // toggle "Active ใน 3 ปีล่าสุด" - เก็บลูกค้าที่มีอย่างน้อย 1 โครงการเริ่มในช่วง 3 ปีที่ผ่านมา
   // (ดูได้ว่าลูกค้ารายไหนยังมีความเคลื่อนไหวจริงตอนนี้ ไม่ใช่แค่เคยมีประวัติเก่าเมื่อนานมาแล้ว)
   if(piSiteActiveOnly){
     const cutoff3 = new Date(); cutoff3.setFullYear(cutoff3.getFullYear()-3);
@@ -3236,7 +3245,7 @@ function renderPiSites(query){
   const showAll = !!query;
   const shown = showAll ? list : list.slice(0,15);
   const moreNote = (!showAll && list.length>15)
-    ? `<div style="padding:11px 18px;font-size:11.5px;color:var(--faint);text-align:center">แสดง 15 อันดับแรกจากทั้งหมด ${list.length} ราย — พิมพ์ค้นหาด้านบนเพื่อดูรายอื่น</div>`
+    ? `<div style="padding:11px 18px;font-size:11.5px;color:var(--faint);text-align:center">แสดง 15 อันดับแรกจากทั้งหมด ${list.length} ราย - พิมพ์ค้นหาด้านบนเพื่อดูรายอื่น</div>`
     : '';
 
   el.innerHTML = shown.map(c=>{
