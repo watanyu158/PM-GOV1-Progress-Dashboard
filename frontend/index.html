@@ -149,6 +149,16 @@
     .kpi-val.money{font-size:15px;white-space:normal;}
   }
 
+  .kpi-wide{grid-column:1/-1;}
+  .kpi-value-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:6px;}
+  .kpi-vg-item{border-left:2px solid var(--line);padding-left:12px;}
+  .kpi-vg-item.main{border-left-color:var(--kc,#8A5A72);}
+  .kpi-vg-l{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
+  .kpi-vg-v{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:800;color:var(--ink);margin-top:3px;overflow-wrap:break-word;}
+  .kpi-vg-item.main .kpi-vg-v{font-size:21px;color:var(--kc,#8A5A72);}
+  @media(max-width:900px){.kpi-value-row{grid-template-columns:repeat(2,1fr);row-gap:14px;}}
+  @media(max-width:420px){.kpi-vg-v{font-size:14px;}.kpi-vg-item.main .kpi-vg-v{font-size:17px;}}
+
   /* ---------------- Panels ---------------- */
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-md);margin-top:15px;overflow:hidden;}
   .p-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--surface-2);}
@@ -610,12 +620,15 @@
   .pi-lb-bar{height:5px;background:var(--bg-tint);border-radius:3px;margin-top:5px;overflow:hidden;}
   .pi-lb-bar i{display:block;height:100%;background:var(--brand);border-radius:3px;}
 
-  .pi-ychart{padding:16px 18px;}
+  .pi-ychart{padding:20px 18px 16px;}
   .pi-ybar-wrap{display:flex;align-items:flex-end;gap:4px;height:150px;padding:0 2px;}
-  .pi-ybar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;}
+  .pi-ybar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;}
+  .pi-ybar-n{font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;font-weight:800;color:var(--ink);}
   .pi-ybar{width:100%;border-radius:4px 4px 0 0;background:var(--brand);min-height:2px;cursor:pointer;transition:.15s;position:relative;}
   .pi-ybar:hover{background:var(--brand-2);}
-  .pi-ybar-lbl{font-size:9.5px;color:var(--faint);font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+  .pi-ybar-lbl{font-size:9.5px;color:var(--faint);font-family:'IBM Plex Mono',monospace;white-space:nowrap;margin-top:3px;}
+  .pi-ybar-val{font-size:8.5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+  @media(max-width:680px){.pi-ybar-val{display:none;}}
 
   .pi-site-row{
     display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--line-soft);
@@ -1589,21 +1602,31 @@ function renderKPIs(list){
   const crit = openList.filter(p=>H.cls(p['Project Health'])==='critical').length;
   const warn = openList.filter(p=>H.cls(p['Project Health'])==='warning').length;
   const risk = crit + warn;
-  const value = list.reduce((s,p)=>s+num(p['Contract Value']),0);
+
+  // สถานะปิดงาน — โชว์คู่กับ Inprogress กันคนถามซ้ำว่า "ทำไมนับโครงการไม่ตรง Progress1"
+  const contractClosedN = list.filter(p=>projectStatus(p)==='Contract Closed').length;
+  const completelyClosedN = list.filter(p=>projectStatus(p)==='Completely Closed').length;
+
+  // มูลค่า — ใช้ Selling Price เป็นหลักในการคำนวณทุกที่เพื่อให้ตัวเลขตรงกันทุก card ทั่วทั้ง dashboard
+  // (Contract Value / PM Accountable Value / MA-Rent Value โชว์ไว้เป็นข้อมูลอ้างอิงประกอบ ไม่ใช้คำนวณ KPI อื่น)
+  const sellingPrice = list.reduce((s,p)=>s+num(p['Selling Price']),0);
+  const contractValue = list.reduce((s,p)=>s+num(p['Contract Value']),0);
+  const pmAccValue = list.reduce((s,p)=>s+num(p['PM Accountable Value']),0);
+  const maRentValue = list.reduce((s,p)=>s+num(p['MA/Rent Value']),0);
 
   const riskIco = crit ? I.octagon : (warn ? I.alert : I.check);
   const riskCol = crit ? '#A8482F' : (warn ? '#B07A28' : '#4F7A4A');
   const riskTint = crit ? '#F5E2DB' : (warn ? '#F7EBD6' : '#E6EDDF');
   const riskFoot = risk ? `Critical ${crit} / Warning ${warn}` : 'ไม่มีโครงการเสี่ยง';
+  const statusFoot = `Contract Closed ${contractClosedN} · Completely Closed ${completelyClosedN}`;
 
   const items = [
     {ic:I.folder,   c:'#7A5C3E', t:'#EFE6D9', en:'Total Projects', l:'โครงการทั้งหมด',  v:total,             u:'',            f:`จากทั้งหมด ${ALL.length} โครงการ`},
-    {ic:I.activity, c:'#4A6B5C', t:'#E3EBE5', en:'In Progress',    l:'กำลังดำเนินการ',  v:inprog,            u:`/ ${total}`,  f:'สถานะ Inprogress'},
+    {ic:I.activity, c:'#4A6B5C', t:'#E3EBE5', en:'In Progress',    l:'กำลังดำเนินการ',  v:inprog,            u:`/ ${total}`,  f:statusFoot},
     {ic:I.trending, c:'#9C7A55', t:'#EFE6D9', en:'Avg. Progress',  l:'ความคืบหน้าเฉลี่ย', v:avg.toFixed(1),  u:'%',           f:'ค่าเฉลี่ยของโครงการที่กรองอยู่'},
     {ic:riskIco,    c:riskCol,   t:riskTint,  en:'At Risk',        l:'โครงการเสี่ยง',    v:risk,              u:'',            f:riskFoot},
-    {ic:I.money,    c:'#8A5A72', t:'#F0E6EA', en:'Contract Value', l:'มูลค่าสัญญารวม',  v:thb(value),        u:'THB',         f:'', money:true},
   ];
-  document.getElementById('kpis').innerHTML = items.map(k=>`
+  const cardsHtml = items.map(k=>`
     <div class="kpi" style="--kc:${k.c};--kt:${k.t}">
       <div class="kpi-top">
         <div class="kpi-ico">${svg(k.ic)}</div>
@@ -1612,6 +1635,35 @@ function renderKPIs(list){
       <div class="kpi-val ${k.money?'money':''}">${k.v}${k.u?`<span class="u">${k.u}</span>`:''}</div>
       ${k.f ? `<div class="kpi-foot">${k.f}</div>` : ''}
     </div>`).join('');
+
+  // การ์ดมูลค่า — รวมทั้ง 4 ตัวเลขไว้แถวเดียวกัน (Selling Price เป็นตัวหลักที่ใช้คำนวณ ส่วนอีก 3 ตัวโชว์ประกอบ)
+  const valueCardHtml = `
+    <div class="kpi kpi-wide" style="--kc:#8A5A72;--kt:#F0E6EA">
+      <div class="kpi-top">
+        <div class="kpi-ico">${svg(I.money)}</div>
+        <div class="kpi-label"><div class="kpi-en">Project Value</div><div class="kpi-th">มูลค่าโครงการ (คำนวณจาก Selling Price)</div></div>
+      </div>
+      <div class="kpi-value-row">
+        <div class="kpi-vg-item main">
+          <div class="kpi-vg-l">Selling Price</div>
+          <div class="kpi-vg-v">${thb(sellingPrice)}</div>
+        </div>
+        <div class="kpi-vg-item">
+          <div class="kpi-vg-l">Contract Value</div>
+          <div class="kpi-vg-v">${thb(contractValue)}</div>
+        </div>
+        <div class="kpi-vg-item">
+          <div class="kpi-vg-l">PM Accountable Value</div>
+          <div class="kpi-vg-v">${thb(pmAccValue)}</div>
+        </div>
+        <div class="kpi-vg-item">
+          <div class="kpi-vg-l">MA/Rent Value</div>
+          <div class="kpi-vg-v">${thb(maRentValue)}</div>
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById('kpis').innerHTML = cardsHtml + valueCardHtml;
 }
 
 function renderPM(list){
@@ -1926,7 +1978,7 @@ function renderWow(list){
   // ค่า "ปัจจุบัน" ที่แสดง ต้องคำนวณจาก `list` แบบเดียวกับ KPI card เป๊ะ (นับทุกโครงการที่กรองอยู่
   // รวมโครงการที่ไม่มี Update Date/ %Progress ด้วย) ไม่งั้นตัวเลขจะไม่ตรงกับ Avg. Progress ด้านบน
   const overallAvgNow = list.length ? list.reduce((s,p)=>s+num(p['%Progress']),0)/list.length : null;
-  const riskValueNow = list.reduce((s,p)=> s + (['warning','critical'].includes(H.cls(p['Project Health'])) ? num(p['Contract Value']) : 0), 0);
+  const riskValueNow = list.reduce((s,p)=> s + (['warning','critical'].includes(H.cls(p['Project Health'])) ? num(p['Selling Price']) : 0), 0);
   const byPM = {};
   list.forEach(p=>{ (byPM[pmKey(p['PM Name'])||'ไม่ระบุ'] ||= []).push(p); });
 
@@ -1950,7 +2002,7 @@ function renderWow(list){
       dates.push(parseD(e['Update Date']));
       const pm = e['PM Name'] || 'ไม่ระบุ';
       (pmAgg[pm] ||= {sum:0,n:0}); pmAgg[pm].sum += num(e['%Progress']); pmAgg[pm].n++;
-      if(['warning','critical'].includes(H.cls(e['Project Health']))) riskValue += num(e['Contract Value']);
+      if(['warning','critical'].includes(H.cls(e['Project Health']))) riskValue += num(e['Selling Price']);
     });
     if(!any) break;
     roundsDesc.push({ pmAgg, overallAvg: overallN ? overallSum/overallN : null, riskValue, labelDate: new Date(Math.max(...dates)) });
@@ -2282,7 +2334,7 @@ function renderComplexity(list){
     </div>`).join('');
 
   // --- 3. Top Risk Score (Health severity × Complex Level) ---
-  const topRisk = withCx.filter(x=>x.risk>0).sort((a,b)=> b.risk-a.risk || num(b.p['Contract Value'])-num(a.p['Contract Value'])).slice(0,6);
+  const topRisk = withCx.filter(x=>x.risk>0).sort((a,b)=> b.risk-a.risk || num(b.p['Selling Price'])-num(a.p['Selling Price'])).slice(0,6);
   const riskHtml = topRisk.length ? topRisk.map((x,i)=>`
     <div class="cx-risk-row">
       <div class="cx-risk-rank">${i+1}</div>
@@ -2293,7 +2345,7 @@ function renderComplexity(list){
       <div style="text-align:center"><span class="chip ${x.cls}">${svg(H.icon(x.cls))}${H.label(x.p['Project Health'])}</span></div>
       <div style="text-align:center"><span class="tag">Complex ${x.cx}</span></div>
       <div class="cx-risk-score">${x.risk}</div>
-      <div class="cx-risk-val">${compact(x.p['Contract Value'])}</div>
+      <div class="cx-risk-val">${compact(x.p['Selling Price'])}</div>
     </div>`).join('') : `<div class="empty">ไม่มีโครงการที่มีความเสี่ยงตอนนี้</div>`;
 
   // --- 4. Track record ของ PM กับโครงการซับซ้อนสูง (Complex >= 4) ---
@@ -3040,8 +3092,10 @@ function renderPiYearChart(){
     const d = byYear[y];
     const h = Math.max(d.n/maxN*100, 3);
     return `<div class="pi-ybar-col">
+      <div class="pi-ybar-n">${d.n}</div>
       <div class="pi-ybar" style="height:${h.toFixed(0)}%"><title>${y}: ${d.n} โครงการ · ${thb(d.val)}</title></div>
       <div class="pi-ybar-lbl">${y}</div>
+      <div class="pi-ybar-val">${compact(d.val)}</div>
     </div>`;
   }).join('');
   el.innerHTML = `<div class="pi-ychart"><div class="pi-ybar-wrap">${bars}</div></div>`;
@@ -3166,7 +3220,7 @@ function renderCards(list){
         <span class="tag">${svg(I.user)}${p['PM Name']||'-'}</span>
         <span class="tag" ${stClosed?'style="color:var(--brand);border-color:var(--brand-tint);background:var(--brand-tint)"':''}>${svg(I.play)}${st}</span>
         ${p['Sale'] ? `<span class="tag">${svg(I.user)}Sale: ${p['Sale']}</span>` : ''}
-        ${num(p['Contract Value']) ? `<span class="tag">${svg(I.money)}${compact(p['Contract Value'])}</span>` : ''}
+        ${num(p['Selling Price']) ? `<span class="tag">${svg(I.money)}${compact(p['Selling Price'])}</span>` : ''}
       </div>
       <div class="c-prog">
         <div class="c-prog-t"><span>ความคืบหน้า</span><b>${pr.toFixed(1)}%</b></div>
