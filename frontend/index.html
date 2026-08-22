@@ -640,6 +640,38 @@
   .pi-yleg-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);}
   .pi-yleg-item i{width:9px;height:9px;border-radius:3px;display:inline-block;flex:none;}
 
+  .pi-yoy-wrap{margin-top:16px;padding-top:14px;border-top:1px solid var(--line-soft);}
+  .pi-yoy-title{font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:10px;}
+  .pi-yoy-row{display:flex;align-items:center;gap:10px;padding:7px 0;flex-wrap:wrap;}
+  .pi-yoy-name{font-size:12.5px;font-weight:600;color:var(--ink);flex:1;min-width:120px;}
+  .pi-yoy-vals{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);white-space:nowrap;}
+  .pi-yoy-arrow-sep{color:var(--faint);}
+  .pi-yoy-badge{
+    font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:700;
+    padding:3px 9px;border-radius:20px;white-space:nowrap;min-width:64px;text-align:center;
+  }
+  .pi-yoy-badge.up{background:var(--success-tint);color:var(--success);}
+  .pi-yoy-badge.down{background:var(--critical-tint);color:var(--critical);}
+  .pi-yoy-badge.flat{background:var(--neutral-tint);color:var(--faint);}
+
+  .pi-co-group{padding:14px 18px;border-bottom:1px solid var(--line-soft);}
+  .pi-co-site{font-size:12.5px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:7px;margin-bottom:10px;}
+  .pi-co-site .cnt{font-weight:500;color:var(--faint);font-size:11px;}
+  .pi-co-card{
+    background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;
+    padding:11px 13px;margin-bottom:8px;
+  }
+  .pi-co-card:last-child{margin-bottom:0;}
+  .pi-co-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
+  .pi-co-name{font-size:12.5px;font-weight:700;color:var(--ink);}
+  .pi-co-val{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;color:var(--brand);white-space:nowrap;}
+  .pi-co-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:7px;font-size:11px;color:var(--muted);}
+  .pi-co-meta b{color:var(--ink-2);font-weight:600;}
+  @media(max-width:560px){
+    .pi-yoy-row{gap:8px;}
+    .pi-yoy-vals{width:100%;order:3;margin-left:36px;}
+  }
+
   .pi-site-row{
     display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--line-soft);
     cursor:pointer;transition:.13s;
@@ -1236,6 +1268,23 @@
       </div>
       <div class="p-body"><div id="piProfiles"></div></div>
     </div>
+
+    <div class="panel" style="border-color:#3D6B7A">
+      <div class="p-head" style="background:#EAF1F2">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#3D6B7A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          Company-wide Search <span class="sep">-</span> <span class="th">ค้นหาทั้งบริษัท ไม่จำกัดแค่ทีมนี้</span>
+        </div>
+        <span class="p-count" id="piCompanyCount"></span>
+      </div>
+      <div class="p-body">
+        <div style="padding:13px 18px;border-bottom:1px solid var(--line-soft)">
+          <div style="font-size:11px;color:#3D6B7A;font-weight:600;margin-bottom:9px;display:flex;align-items:center;gap:5px">🌐 ผลค้นหาครอบคลุมทุก PM ทุกทีมในบริษัท (535 โครงการ) - ต่างจาก 3 การ์ดด้านบนที่ล็อกแค่ทีมนี้</div>
+          <input type="text" id="piCompanySearch" placeholder="ค้นหาด้วยชื่อ site/ลูกค้า, รหัสโครงการ, หรือชื่อ PM..." style="width:100%;padding:9px 13px;border:1px solid var(--line);border-radius:9px;font-family:'Inter',sans-serif;font-size:13px;color:var(--ink);background:var(--surface);box-shadow:var(--sh-sm)">
+        </div>
+        <div id="piCompanyResults"></div>
+      </div>
+    </div>
   </div><!-- /tab3Panels -->
 
   <footer>PM-GOV1 Progress Dashboard - ข้อมูลอัปเดตอัตโนมัติจาก Excel ผ่าน Make.com</footer>
@@ -1527,6 +1576,7 @@ let PO = [];
 let STOCK = [];
 let STOCKSUM = [];
 let PROJINFO = [];
+let PROJINFO_ALL = []; // ไม่ล็อกทีม - ใช้เฉพาะ card "ค้นหาทั้งบริษัท"
 let piWindow = 5; // ค่าเริ่มต้น: ย้อนหลัง 5 ปี
 let SCOPE = null;   // ชื่อ PM ที่ backend กรองมาให้ (null = เห็นทุกโครงการ)
 let lastKnownUpdatedAt = null; // updatedAt ล่าสุดที่ดึงมาได้จริง - ใช้เช็คว่า sync สำเร็จหรือยัง (poll จนกว่าค่านี้จะขยับ)
@@ -1553,6 +1603,7 @@ async function loadData(auto){
       STOCK = j.stock || [];
       STOCKSUM = j.stockSummary || [];
       PROJINFO = (j.projectInfo || []).map(normRow);
+      PROJINFO_ALL = (j.projectInfoAll || []).map(normRow);
       SCOPE = j.scope || null;
       lastKnownUpdatedAt = j.updatedAt || null;
       setSource(true, j.updatedAt);
@@ -1573,7 +1624,7 @@ async function loadData(auto){
     HIST = SEED_DATA.map(normRow);
     ALL = latestPerProject(HIST);
     REV = SEED_REVENUE.map(normRow);
-    PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = [];
+    PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = []; PROJINFO_ALL = [];
     setSource(false, null);
     render();
   }
@@ -3046,6 +3097,8 @@ function renderProjectInfo(){
   renderPiYearChart();
   renderPiSites();
   renderPiProfiles();
+  const companySearchEl = document.getElementById('piCompanySearch');
+  renderCompanySearch(companySearchEl ? companySearchEl.value : '');
 }
 
 function renderPiOverview(){
@@ -3171,6 +3224,33 @@ function renderPiYearChart(){
 
   const legend = allPMs.map(pm=>`<span class="pi-yleg-item"><i style="background:${avatarColor(pm)}"></i>${pm}</span>`).join('');
 
+  // ตารางเทียบ YoY แบบเห็นตรง ๆ ไม่ต้องพึ่ง hover (มือถือกดค้างดู tooltip ไม่สะดวก) - เทียบ 2 ปีล่าสุดที่มีข้อมูล
+  const yoyRows = years.length>=2 ? (()=>{
+    const yPrev = years[years.length-2], yCur = years[years.length-1];
+    const metricOf = d => piYearMode==='count' ? d.n : d.val;
+    const rows = allPMs.map(pm=>{
+      const prev = metricOf(byYearPM[yPrev][pm] || {n:0,val:0});
+      const cur = metricOf(byYearPM[yCur][pm] || {n:0,val:0});
+      const diff = cur - prev;
+      const dir = diff>0?'up':diff<0?'down':'flat';
+      const arrow = dir==='up'?'▲':dir==='down'?'▼':'●';
+      const fmtV = v => piYearMode==='count' ? `${v} โครงการ` : compact(v);
+      const fmtD = v => piYearMode==='count' ? `${v>0?'+':''}${v}` : `${v>0?'+':''}${compact(v)}`;
+      return {pm, prev, cur, diff, dir, arrow, fmtV, fmtD};
+    }).sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff));
+    const yearRowsHtml = rows.map(r=>`
+      <div class="pi-yoy-row">
+        <div class="av" style="width:26px;height:26px;font-size:10px;background:${avatarColor(r.pm)}">${initials(r.pm)}</div>
+        <span class="pi-yoy-name">${r.pm}</span>
+        <span class="pi-yoy-vals">${r.fmtV(r.prev)} <span class="pi-yoy-arrow-sep">→</span> ${r.fmtV(r.cur)}</span>
+        <span class="pi-yoy-badge ${r.dir}">${r.arrow} ${r.fmtD(r.diff)}</span>
+      </div>`).join('');
+    return `<div class="pi-yoy-wrap">
+      <div class="pi-yoy-title">เทียบปีล่าสุด: ${yPrev} → ${yCur}</div>
+      ${yearRowsHtml}
+    </div>`;
+  })() : '';
+
   el.innerHTML = `<div class="pi-ychart">
     <div class="pi-mode-toggle" id="piYearModeBar">
       <button class="pi-win-btn ${piYearMode==='count'?'active':''}" data-mode="count">จำนวนโครงการ</button>
@@ -3178,6 +3258,7 @@ function renderPiYearChart(){
     </div>
     <div id="piYoyChartBox"></div>
     <div class="pi-yleg-row">${legend}</div>
+    ${yoyRows}
   </div>`;
 
   // วาดกราฟหลังแทรก DOM แล้วเท่านั้น เพื่อวัดความกว้างจริงของกล่อง แล้ว build SVG ให้ตรงพิกเซลเป๊ะ
@@ -3357,6 +3438,68 @@ function renderPiProfiles(){
     </div>
     <div class="pi-profile-detail">${projLines}</div>`;
   }).join('');
+}
+
+// ค้นหาทั้งบริษัท - ไม่ล็อกทีม (ต่างจากทุก panel อื่นใน Tab นี้) ใช้ PROJINFO_ALL โดยเฉพาะ
+// จัดกลุ่มผลลัพธ์ตาม "ลูกค้า/site" เพราะเป็นมิติที่มีประโยชน์สุดไม่ว่าจะค้นด้วย site, รหัสโครงการ, หรือชื่อ PM ก็ตาม
+// (ค้นด้วยชื่อ PM แล้วได้ผลลัพธ์เป็น "ทุก site ที่ PM คนนั้นเคยดูแล" จัดกลุ่มตาม site ก็ยังอ่านง่ายเหมือนเดิม)
+function renderCompanySearch(query){
+  const el = document.getElementById('piCompanyResults');
+  const countEl = document.getElementById('piCompanyCount');
+  if(!PROJINFO_ALL.length){ el.innerHTML=''; countEl.textContent=''; return; }
+
+  const q = (query||'').trim().toLowerCase();
+  if(q.length < 2){
+    el.innerHTML = `<div class="empty">พิมพ์อย่างน้อย 2 ตัวอักษรเพื่อค้นหา (ชื่อ site/ลูกค้า, รหัสโครงการ, หรือชื่อ PM)</div>`;
+    countEl.textContent = `${PROJINFO_ALL.length} โครงการทั้งบริษัท`;
+    return;
+  }
+
+  const matches = PROJINFO_ALL.filter(p=>{
+    const cust = String(p['Customer']||'').toLowerCase();
+    const code = String(p['Project Code']||'').toLowerCase();
+    const pm = String(p['PM Name']||'').toLowerCase();
+    const name = String(p['Project Name']||'').toLowerCase();
+    return cust.includes(q) || code.includes(q) || pm.includes(q) || name.includes(q);
+  });
+
+  countEl.textContent = `${matches.length} โครงการตรงกับคำค้นหา`;
+  if(!matches.length){ el.innerHTML = `<div class="empty">ไม่พบโครงการ/site/PM ที่ตรงกับ "${query}"</div>`; return; }
+
+  const byCust = {};
+  matches.forEach(p=>{
+    const cust = (p['Customer']||'ไม่ระบุ').trim() || 'ไม่ระบุ';
+    (byCust[cust] ||= {cust, items:[]});
+    byCust[cust].items.push(p);
+  });
+  let groups = Object.values(byCust).sort((a,b)=>b.items.length-a.items.length);
+
+  const MAX_GROUPS = 20;
+  const shown = groups.slice(0, MAX_GROUPS);
+  const moreNote = groups.length > MAX_GROUPS
+    ? `<div style="padding:11px 18px;font-size:11.5px;color:var(--faint);text-align:center">แสดง ${MAX_GROUPS} site แรกจากทั้งหมด ${groups.length} site ที่ตรงกับคำค้นหา - ลองค้นให้เจาะจงขึ้น</div>`
+    : '';
+
+  el.innerHTML = shown.map(g=>{
+    const cards = g.items.slice().sort((a,b)=>(piEffDate(b)||0)-(piEffDate(a)||0)).map(p=>{
+      const d = piEffDate(p);
+      return `<div class="pi-co-card">
+        <div class="pi-co-top">
+          <div class="pi-co-name">${p['Project Name']||'-'} <span class="code-tag">#${p['Project Code']||'-'}</span></div>
+          <span class="pi-co-val">${thb(piValue(p))}</span>
+        </div>
+        <div class="pi-co-meta">
+          <span>PM <b>${pmKey(p['PM Name'])||'ไม่ระบุ'}</b></span>
+          <span>วันที่ <b>${d?fmtDate(d):'ไม่ระบุ'}</b></span>
+          <span>สถานะ <b>${projectStatus(p)}</b></span>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="pi-co-group">
+      <div class="pi-co-site">📍 ${g.cust} <span class="cnt">${g.items.length} โครงการตรงกับคำค้นหา</span></div>
+      ${cards}
+    </div>`;
+  }).join('') + moreNote;
 }
 
 function renderCards(list){
@@ -3541,6 +3684,10 @@ if(piSiteActiveToggleEl) piSiteActiveToggleEl.addEventListener('click', ()=>{
   piSiteActiveOnly = !piSiteActiveOnly;
   renderPiSites(piSiteSearchEl ? piSiteSearchEl.value : '');
 });
+
+// ค้นหาทั้งบริษัท (ไม่ล็อกทีม)
+const piCompanySearchEl = document.getElementById('piCompanySearch');
+if(piCompanySearchEl) piCompanySearchEl.addEventListener('input', e => renderCompanySearch(e.target.value));
 
 // คลิกขยายดูรายละเอียดโครงการของแต่ละลูกค้าใน Site History
 const piSitesEl = document.getElementById('piSites');

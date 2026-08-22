@@ -108,6 +108,7 @@ let latestData = {
   stock: [],
   stockSummary: [],
   projectInfo: [],
+  projectInfoAll: [], // ไม่ล็อกทีม - ใช้เฉพาะ card "ค้นหา site/โครงการทั้งบริษัท" ที่ตั้งใจให้เห็นข้ามทีมได้
   updatedAt: null,
 };
 
@@ -347,7 +348,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const stockSummaryTeam = stockSummary.filter(s => inTeam(s.pm));
       const projectInfoTeam = projectInfo.filter(p => inTeam(p['PM Name']));
 
-      latestData = { rows, revenue, paymentW: paymentWTeam, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeam, updatedAt: new Date().toISOString() };
+      latestData = { rows, revenue, paymentW: paymentWTeam, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeam, projectInfoAll: projectInfo, updatedAt: new Date().toISOString() };
       lastRaw = {
         receivedAt: latestData.updatedAt,
         contentType: req.headers['content-type'] || null,
@@ -425,6 +426,8 @@ app.get('/api/projects', requireAuth, (req, res) => {
   // projectInfo ไม่กรองรายบุคคล - เป็น tab ภาพรวมทีม (leaderboard/ประวัติ site) ที่ทุกคนในทีมควรเห็นเหมือนกันหมด
   // (ยังล็อกไว้แค่ทีม PM-GOV1 ตั้งแต่ตอนอ่านไฟล์แล้ว ไม่มีข้อมูลทีมอื่นหลุดออกมาแน่นอน)
   const projectInfo = latestData.projectInfo || [];
+  // projectInfoAll ไม่ต้อง filter ตรงนี้เลย - ไม่อยู่ใน object ที่ spread ทับด้านล่าง จึงหลุดผ่าน ...latestData
+  // มาแบบเต็ม ไม่ล็อกทีม ตามที่ตั้งใจไว้สำหรับ card "ค้นหา site/โครงการทั้งบริษัท" โดยเฉพาะ
 
   // ถ้าผูก pmName ไว้แล้วแต่ไม่เจอโครงการเลย มักเกิดจากชื่อใน Excel สะกดไม่ตรงกับที่ตั้งไว้
   if (latestData.rows.length && !rows.length) {
