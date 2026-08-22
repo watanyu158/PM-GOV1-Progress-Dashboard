@@ -2642,24 +2642,62 @@ function renderClosure(list){
 // เทียบกับวันนี้ ไม่นับโครงการที่ปิดงานแล้ว (Contract/Completely Closed) เพราะไม่จำเป็นต้องอัปเดตรายสัปดาห์อีกต่อไป
 // คำนวณ "ความตรงเวลา" ของแต่ละ PM จากประวัติการอัปเดตทั้งหมด - กติกา: ต้องอัปเดต PMS ให้ทันภายในวันศุกร์ทุกสัปดาห์
 // จันทร์-ศุกร์ = ตรงเวลา (หรือเร็วกว่ากำหนด), เสาร์-อาทิตย์ = สาย
+function mondayOfWeek(d){
+  const day = d.getDay(); // 0=อา,1=จ,...6=ส
+  const diff = day===0 ? -6 : 1-day;
+  const monday = new Date(d);
+  monday.setDate(d.getDate()+diff);
+  monday.setHours(0,0,0,0);
+  return monday;
+}
+
 function computePunctuality(list){
+  const today = new Date(); today.setHours(0,0,0,0);
   const codes = new Set(list.map(p=>p['Project Code']));
   const hist = HIST.filter(r=>codes.has(r['Project Code']) && parseD(r['Update Date']));
 
+  const byCode = {};
+  hist.forEach(r=>{ (byCode[r['Project Code']] ||= []).push(r); });
+  Object.values(byCode).forEach(arr=>arr.sort((a,b)=>parseD(a['Update Date'])-parseD(b['Update Date'])));
+
+  // นับจาก "จำนวนสัปดาห์ปฏิทินที่ผ่านไปจริง" ตั้งแต่รอบแรกจนถึงวันนี้ ไม่ใช่แค่นับจำนวนรอบที่มีอยู่
+  // เพราะถ้านับแค่จำนวนรอบที่มี คนที่หายไปนาน ๆ แล้วนาน ๆ ทีถึงมาอัปเดต (แต่บังเอิญตรงศุกร์ทุกครั้งที่มา)
+  // จะได้ 100% ทั้งที่จริงเขาทิ้งไปหลายสัปดาห์ระหว่างนั้น - ต้องนับสัปดาห์ที่ "หายไปเฉย ๆ ไม่มีอัปเดตเลย" เป็นพลาดด้วย
   const byPM = {};
-  hist.forEach(r=>{
-    const pm = pmKey(r['PM Name'])||'ไม่ระบุ';
-    const d = parseD(r['Update Date']);
-    const dow = d.getDay(); // 0=อา,1=จ,...5=ศ,6=ส
-    const onTime = dow>=1 && dow<=5;
-    (byPM[pm] ||= {pm, total:0, onTime:0, exactFriday:0});
-    byPM[pm].total++;
-    if(onTime) byPM[pm].onTime++;
-    if(dow===5) byPM[pm].exactFriday++;
+  Object.values(byCode).forEach(arr=>{
+    if(!arr.length) return;
+    const firstD = parseD(arr[0]['Update Date']);
+    if(!firstD) return;
+    const pm = pmKey(arr[arr.length-1]['PM Name']) || 'ไม่ระบุ'; // นับเป็นของ PM ปัจจุบัน (คนล่าสุด) ของโครงการนี้
+
+    // สัปดาห์ไหนมีอัปเดตบ้าง (ตามวันจันทร์ของสัปดาห์นั้น) และในสัปดาห์นั้นตกวันศุกร์เป๊ะไหม
+    const hitWeeks = new Set();      // สัปดาห์ที่มีอัปเดต (ไม่ว่าวันไหน)
+    const onTimeWeeks = new Set();   // สัปดาห์ที่มีอัปเดต "ตรงวันศุกร์"
+    arr.forEach(r=>{
+      const d = parseD(r['Update Date']);
+      if(!d) return;
+      const wk = mondayOfWeek(d).getTime();
+      hitWeeks.add(wk);
+      if(d.getDay()===5) onTimeWeeks.add(wk);
+    });
+
+    // เดินนับทุกสัปดาห์ตั้งแต่รอบแรกจนถึง "วันนี้" (ไม่ใช่แค่ถึงรอบสุดท้าย) กันเคสหายเงียบช่วงหลังสุดด้วย
+    let cursor = mondayOfWeek(firstD);
+    const lastMonday = mondayOfWeek(today);
+    let expected = 0, onTime = 0;
+    while(cursor.getTime() <= lastMonday.getTime()){
+      expected++;
+      if(onTimeWeeks.has(cursor.getTime())) onTime++;
+      cursor = new Date(cursor.getTime() + 7*DAY);
+    }
+
+    (byPM[pm] ||= {pm, expected:0, onTime:0});
+    byPM[pm].expected += expected;
+    byPM[pm].onTime += onTime;
   });
 
   return Object.values(byPM)
-    .map(x=>({...x, pct: x.total ? (x.onTime/x.total*100) : 0}))
+    .map(x=>({...x, total: x.expected, pct: x.expected ? (x.onTime/x.expected*100) : 0}))
     .sort((a,b)=> b.pct-a.pct || b.total-a.total);
 }
 
@@ -2691,7 +2729,7 @@ function renderPunctualityPodium(list){
 
   return `<div class="punc-wrap">
     <div class="punc-title">🏆 อัปเดตตรงเวลามากที่สุด</div>
-    <div class="punc-sub">กติกา: ต้องอัปเดต PMS ให้ทันภายในวันศุกร์ทุกสัปดาห์ - คำนวณจากประวัติการอัปเดตทั้งหมด (จันทร์-ศุกร์ = ตรงเวลา, เสาร์-อาทิตย์ = สาย)</div>
+    <div class="punc-sub">กติกา: ต้องอัปเดต PMS ให้ทันภายในวันศุกร์ทุกสัปดาห์ - นับจากทุกสัปดาห์ปฏิทินที่ผ่านไปจริงตั้งแต่เริ่มโครงการจนถึงวันนี้ ไม่ใช่แค่นับจำนวนครั้งที่มีอัปเดต (คนที่หายไปนาน ๆ แล้วนาน ๆ ทีถึงมาอัปเดตตรงศุกร์ จะถูกนับว่าพลาดทุกสัปดาห์ที่หายไปด้วย)</div>
     <div class="punc-podium">
       ${podiumItem(top3[1], 2)}
       ${podiumItem(top3[0], 1)}
