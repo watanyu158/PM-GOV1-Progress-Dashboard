@@ -3013,7 +3013,9 @@ function renderStock(){
 // ข้อมูลจาก sheet "Project Info" — ประวัติโครงการทั้งหมดของทีมย้อนหลังหลายปี (ไม่ใช่แค่ที่ Progress1 ติดตามอยู่)
 // ไม่กรองตามตัวกรองด้านบน (team/vp/pm/status/health) เพราะเป็นภาพรวมทั้งทีมตลอดกาล ไม่ใช่สแนปช็อตปัจจุบัน
 
-function piEffDate(p){ return parseD(p['Start Date']) || parseD(p['Project Register Date']); }
+// วันที่ใช้เป็น "จุดเริ่มโครงการ" สำหรับคำนวณช่วงปี — ลำดับ fallback: Start Date > Project Register Date > Project Accept Date
+// (ตรวจแล้วว่า Project Accept Date กรอกครบทุกแถว 100% ต่างจากอีก 2 ฟิลด์ที่มีบางแถวว่าง จึงใส่ไว้เป็นตัวสุดท้ายกันไม่ให้มีโครงการไหน "ไม่มีวันที่" เลย)
+function piEffDate(p){ return parseD(p['Start Date']) || parseD(p['Project Register Date']) || parseD(p['Project Accept Date']); }
 function piValue(p){ return num(p['Contract Value']) || num(p['Selling Price']); }
 
 function renderProjectInfo(){
@@ -3032,12 +3034,17 @@ function renderPiOverview(){
   const years = PROJINFO.map(piEffDate).filter(Boolean).map(d=>d.getFullYear());
   const minYear = years.length ? Math.min(...years) : null;
   const customers = uniq(PROJINFO.map(p=>p['Customer']));
+  // โครงการที่ไม่มีทั้ง Start Date และ Project Register Date เลย — "ประวัติย้อนหลัง N ปี" ด้านล่างคำนวณ
+  // จากโครงการที่มีวันที่เท่านั้น กลุ่มนี้จึงไม่ถูกนับรวมในช่วงปีนั้น (แต่ยังนับใน "โครงการทั้งหมด" และ
+  // ตัวเลือก "ทั้งหมด (ตลอดกาล)" ของ Leaderboard อยู่ดี) แจ้งไว้ตรงนี้กันสับสนว่าทำไมตัวเลขไม่ตรงกัน
+  const undated = PROJINFO.filter(p=>!piEffDate(p)).length;
   el.innerHTML = `<div class="pi-ov">
     <div class="pi-ov-stat"><div class="pi-ov-l">โครงการทั้งหมด (ตลอดกาล)</div><div class="pi-ov-v">${totalProjects}</div></div>
     <div class="pi-ov-stat"><div class="pi-ov-l">มูลค่ารวมทั้งหมด</div><div class="pi-ov-v">${compact(totalValue)}</div></div>
-    <div class="pi-ov-stat"><div class="pi-ov-l">ประวัติย้อนหลัง</div><div class="pi-ov-v">${minYear?(new Date().getFullYear()-minYear+1)+' ปี':'-'}</div></div>
+    <div class="pi-ov-stat"><div class="pi-ov-l">ประวัติย้อนหลัง (เฉพาะที่มีวันที่)</div><div class="pi-ov-v">${minYear?(new Date().getFullYear()-minYear+1)+' ปี':'-'}</div></div>
     <div class="pi-ov-stat"><div class="pi-ov-l">ลูกค้า/หน่วยงานที่เคยดูแล</div><div class="pi-ov-v">${customers.length}</div></div>
-  </div>`;
+  </div>
+  ${undated ? `<div style="padding:0 18px 14px;font-size:11px;color:var(--faint)">⚠ ${undated} โครงการไม่มีวันที่เริ่มงานหรือวันที่ลงทะเบียนระบุไว้ในไฟล์ — จึงไม่ถูกนับในตัวเลือกช่วงปีใด ๆ ด้านล่าง (1/3/5/10/15 ปี) นับรวมได้เฉพาะเมื่อเลือก "ทั้งหมด (ตลอดกาล)" เท่านั้น ซึ่งเป็นสาเหตุที่ตัวเลขระหว่างช่วงปีกับ PM Profile ไม่ตรงกัน</div>` : ''}`;
 }
 
 function renderPiLeaderboard(){
@@ -3086,11 +3093,17 @@ function renderPiLeaderboard(){
       </div>
     </div>`).join('');
 
+  const excludedFromWindow = PROJINFO.length - items.length;
+  const windowNote = (piWindow!=='all' && excludedFromWindow>0)
+    ? `<div style="padding:2px 18px 12px;font-size:11px;color:var(--faint)">ช่วงนี้ไม่นับ ${excludedFromWindow} โครงการ (อยู่นอกช่วง ${piWindow} ปี หรือไม่มีวันที่ระบุ) — ดูครบทุกโครงการที่ปุ่ม "ทั้งหมด (ตลอดกาล)"</div>`
+    : '';
+
   el.innerHTML = `
     <div class="pi-win" id="piWinBar">
       ${[1,3,5,10,15].map(y=>`<button class="pi-win-btn ${y===piWindow?'active':''}" data-yr="${y}">ย้อนหลัง ${y} ปี</button>`).join('')}
       <button class="pi-win-btn ${piWindow==='all'?'active':''}" data-yr="all">ทั้งหมด (ตลอดกาล)</button>
     </div>
+    ${windowNote}
     <div class="pi-lb-wrap">
       <div class="pi-lb-col">
         <div class="pi-lb-title">🏆 จำนวนโครงการมากที่สุด</div>
