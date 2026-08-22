@@ -644,14 +644,21 @@
   .pi-site-detail.open{display:block;}
 
   .pi-profile-card{
-    display:grid;grid-template-columns:auto 1fr auto auto auto;gap:16px;align-items:center;
+    display:grid;grid-template-columns:auto 1fr auto auto auto auto;gap:16px;align-items:center;
     padding:14px 18px;border-bottom:1px solid var(--line-soft);
+    cursor:pointer;transition:.13s;
   }
-  .pi-profile-card:last-child{border-bottom:none;}
-  @media(max-width:780px){.pi-profile-card{grid-template-columns:auto 1fr;row-gap:8px;}}
+  .pi-profile-card:hover{background:var(--surface-2);}
+  .pi-profile-card:last-of-type{border-bottom:none;}
+  @media(max-width:780px){.pi-profile-card{grid-template-columns:auto 1fr auto;row-gap:8px;}
+    .pi-profile-card .pi-pf-stat{grid-column:span 1;}}
   .pi-pf-stat{text-align:center;}
   .pi-pf-l{font-size:9.5px;color:var(--faint);text-transform:uppercase;}
   .pi-pf-v{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:800;color:var(--ink);margin-top:2px;}
+  .pi-profile-card .wr-chev{justify-self:end;}
+  .pi-profile-card.open .wr-chev{transform:rotate(90deg);color:var(--brand);}
+  .pi-profile-detail{display:none;padding:4px 18px 16px 18px;border-bottom:1px solid var(--line-soft);background:var(--surface-2);}
+  .pi-profile-detail.open{display:block;}
 
   /* ---------------- Tab navigation ---------------- */
   .tabbar{display:flex;gap:6px;margin-top:15px;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:5px;}
@@ -1139,7 +1146,7 @@
       <div class="p-head">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
-          Payment Collection <span class="sep">-</span> <span class="th">การเก็บเงินจากลูกค้า (PaymentW รายสัปดาห์)</span>
+          Payment Collection <span class="sep">-</span> <span class="th">การเก็บเงินจากลูกค้า (อัปเดตรายสัปดาห์)</span>
         </div>
         <span class="p-count" id="pwCount"></span>
       </div>
@@ -1523,7 +1530,7 @@ async function loadData(auto){
       PO = j.po || [];
       STOCK = j.stock || [];
       STOCKSUM = j.stockSummary || [];
-      PROJINFO = j.projectInfo || [];
+      PROJINFO = (j.projectInfo || []).map(normRow);
       SCOPE = j.scope || null;
       lastKnownUpdatedAt = j.updatedAt || null;
       setSource(true, j.updatedAt);
@@ -3173,8 +3180,24 @@ function renderPiProfiles(){
 
   document.getElementById('piProfileCount').textContent = `${profiles.length} คน`;
 
-  el.innerHTML = profiles.map(g=>`
-    <div class="pi-profile-card">
+  el.innerHTML = profiles.map(g=>{
+    // เรียงจากวันที่เริ่มโครงการล่าสุดลงไปเก่าสุด (ใช้ Start Date เป็นหลัก ตกไป Project Register Date ถ้าไม่มี)
+    const sortedItems = g.items.slice().sort((a,b)=>{
+      const da = piEffDate(a), db = piEffDate(b);
+      if(!da && !db) return 0;
+      if(!da) return 1;
+      if(!db) return -1;
+      return db - da;
+    });
+    const projLines = sortedItems.map(p=>{
+      const d = piEffDate(p);
+      return `<div class="nd">
+        <div class="nd-top"><span class="nd-name">${p['Project Name']||'-'} <span class="code-tag">#${p['Project Code']||'-'}</span></span><span class="nd-prog">${thb(piValue(p))}</span></div>
+        <div class="nd-row"><span class="nd-tag">ลูกค้า</span><span class="nd-txt">${p['Customer']||'-'}</span></div>
+        <div class="nd-row"><span class="nd-tag">เริ่ม</span><span class="nd-txt">${d?fmtDate(d):'ไม่ระบุวันที่'} · ${projectStatus(p)}</span></div>
+      </div>`;
+    }).join('');
+    return `<div class="pi-profile-card">
       <div class="av" style="width:38px;height:38px;font-size:13px;background:${avatarColor(g.pm)}">${initials(g.pm)}</div>
       <div style="min-width:0">
         <div style="font-size:13.5px;font-weight:700;color:var(--ink)">${g.pm}</div>
@@ -3183,7 +3206,10 @@ function renderPiProfiles(){
       <div class="pi-pf-stat"><div class="pi-pf-l">โครงการ</div><div class="pi-pf-v">${g.items.length}</div></div>
       <div class="pi-pf-stat"><div class="pi-pf-l">มูลค่ารวม</div><div class="pi-pf-v" style="font-size:13px">${compact(g.totalVal)}</div></div>
       <div class="pi-pf-stat"><div class="pi-pf-l">Complexity เฉลี่ย</div><div class="pi-pf-v">${g.avgCx.toFixed(1)}</div></div>
-    </div>`).join('');
+      <span class="wr-chev">${svg(I.chevron,'')}</span>
+    </div>
+    <div class="pi-profile-detail">${projLines}</div>`;
+  }).join('');
 }
 
 function renderCards(list){
@@ -3371,6 +3397,19 @@ if(piSitesEl) piSitesEl.addEventListener('click', (e)=>{
   const opening = !detail.classList.contains('open');
   piSitesEl.querySelectorAll('.pi-site-detail.open').forEach(d=>{ if(d!==detail) d.classList.remove('open'); });
   detail.classList.toggle('open', opening);
+});
+
+// คลิกขยายดูรายชื่อโครงการทั้งหมดของแต่ละ PM ใน PM Profile (เรียงจากวันเริ่มล่าสุดลงไป)
+const piProfilesEl = document.getElementById('piProfiles');
+if(piProfilesEl) piProfilesEl.addEventListener('click', (e)=>{
+  const row = e.target.closest('.pi-profile-card');
+  if(!row) return;
+  const detail = row.nextElementSibling;
+  if(!detail || !detail.classList.contains('pi-profile-detail')) return;
+  const opening = !detail.classList.contains('open');
+  piProfilesEl.querySelectorAll('.pi-profile-detail.open').forEach(d=>{ if(d!==detail){ d.classList.remove('open'); d.previousElementSibling.classList.remove('open'); }});
+  detail.classList.toggle('open', opening);
+  row.classList.toggle('open', opening);
 });
 </script>
 </body>
