@@ -661,8 +661,12 @@
   .admin-chk-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-2);cursor:pointer;user-select:none;}
   .admin-chk-item input{cursor:pointer;width:14px;height:14px;accent-color:var(--brand);}
   .admin-chk-item.all-item{font-weight:700;padding-right:10px;border-right:1px solid var(--line-soft);}
+  .admin-scope-row{
+    margin-top:9px;padding-top:9px;border-top:1px dashed var(--line-soft);
+  }
+  .admin-scope-label{font-size:11.5px;font-weight:700;color:var(--brand);padding-right:4px;}
   .admin-update-btn{
-    margin-left:auto;padding:6px 16px;border-radius:8px;border:1px solid var(--brand);background:var(--brand);color:#fff;
+    display:block;margin-top:11px;margin-left:auto;padding:6px 16px;border-radius:8px;border:1px solid var(--brand);background:var(--brand);color:#fff;
     font-size:11.5px;font-weight:700;cursor:pointer;transition:.15s;
   }
   .admin-update-btn:hover{background:var(--brand-2);}
@@ -670,7 +674,7 @@
   .admin-update-btn.saved{background:var(--success);border-color:var(--success);}
   @media(max-width:640px){
     .admin-checkbox-row{gap:10px;}
-    .admin-update-btn{margin-left:0;margin-top:8px;width:100%;}
+    .admin-update-btn{margin-left:0;width:100%;}
   }
   @media(max-width:860px){
     .sc-head-row{display:none;}
@@ -1812,27 +1816,30 @@ let STOCKSUM = [];
 let PROJINFO = [];
 let PROJINFO_ALL = []; // ไม่ล็อกทีม - ใช้เฉพาะ card "ค้นหาทั้งบริษัท"
 let ROWS_TEAMWIDE = []; // Progress1 เต็มทั้งทีมเสมอ ไม่ว่าใคร login (ไม่ผ่านการกรองรายบุคคล) - ใช้กับการ์ดที่ตั้งเป็น team-wide
+let PAYW_TEAMWIDE = [], PO_TEAMWIDE = [], STOCK_TEAMWIDE = [], STOCKSUM_TEAMWIDE = []; // คู่ team-wide ของ Tab 2
+let CARD_DATA_SCOPE = {}; // ดึงจาก backend ทุกครั้งที่ loadData - key=cardId, value='team-wide' หรือไม่มี entry (=เฉพาะของตัวเอง)
+function hasTeamWideScope(cardId){ return CARD_DATA_SCOPE[cardId] === 'team-wide'; }
 
 // ==== ระบบสิทธิ์การมองเห็นการ์ดแบบยืดหยุ่น (จัดการเองได้จาก Tab "Admin") ====
 // รายชื่อการ์ดทั้งหมดที่ OAT จัดการสิทธิ์ได้ - จัดกลุ่มตาม tab เพื่อโชว์ใน Admin UI
 // เพิ่ม/ลบการ์ดในอนาคต แก้ตรงนี้ที่เดียว + เพิ่ม id="panel-<cardId>" ให้ตัว panel HTML จริงคู่กัน
 const CARD_REGISTRY = [
-  {tab:'1', tabLabel:'Project Tracking', id:'kpis', en:'KPI Cards', th:'การ์ดสรุปภาพรวม'},
-  {tab:'1', tabLabel:'Project Tracking', id:'pmWorkload', en:'PM Workload', th:'ภาระงานราย PM'},
-  {tab:'1', tabLabel:'Project Tracking', id:'projectHealth', en:'Project Health', th:'สถานะสุขภาพโครงการ'},
-  {tab:'1', tabLabel:'Project Tracking', id:'weekOverWeek', en:'Week-over-Week', th:'เทียบความคืบหน้ารายสัปดาห์'},
-  {tab:'1', tabLabel:'Project Tracking', id:'complexity', en:'Complexity Intelligence', th:'วิเคราะห์ความซับซ้อน'},
-  {tab:'1', tabLabel:'Project Tracking', id:'closureTransfer', en:'Closure & Transfer Tracking', th:'ปิดงาน / โอนงาน'},
-  {tab:'1', tabLabel:'Project Tracking', id:'stalledProgress', en:'Stalled Progress', th:'โครงการที่ค้างขั้นตอนเดิม'},
-  {tab:'1', tabLabel:'Project Tracking', id:'dataFreshness', en:'Update PMS', th:'การอัปเดต PMS'},
-  {tab:'1', tabLabel:'Project Tracking', id:'revenueAttainment', en:'Revenue Attainment', th:'รายได้สะสมเทียบเป้า'},
-  {tab:'1', tabLabel:'Project Tracking', id:'deliveryTimeline', en:'Delivery Timeline', th:'โครงการใกล้ครบกำหนด'},
-  {tab:'1', tabLabel:'Project Tracking', id:'pmAvailability', en:'PM Availability', th:'พร้อมรับงานใหม่'},
-  {tab:'1', tabLabel:'Project Tracking', id:'projectDetails', en:'Project Details', th:'รายละเอียดโครงการ'},
+  {tab:'1', tabLabel:'Project Tracking', id:'kpis', en:'KPI Cards', th:'การ์ดสรุปภาพรวม', scope:true},
+  {tab:'1', tabLabel:'Project Tracking', id:'pmWorkload', en:'PM Workload', th:'ภาระงานราย PM', scope:true},
+  {tab:'1', tabLabel:'Project Tracking', id:'projectHealth', en:'Project Health', th:'สถานะสุขภาพโครงการ', scope:true},
+  {tab:'1', tabLabel:'Project Tracking', id:'weekOverWeek', en:'Week-over-Week', th:'เทียบความคืบหน้ารายสัปดาห์', scope:true},
+  {tab:'1', tabLabel:'Project Tracking', id:'complexity', en:'Complexity Intelligence', th:'วิเคราะห์ความซับซ้อน', scope:true},
+  {tab:'1', tabLabel:'Project Tracking', id:'closureTransfer', en:'Closure & Transfer Tracking', th:'ปิดงาน / โอนงาน', scope:true},
+  {tab:'1', tabLabel:'Project Tracking', id:'stalledProgress', en:'Stalled Progress', th:'โครงการที่ค้างขั้นตอนเดิม', scope:true},
+  {tab:'1', tabLabel:'Project Tracking', id:'dataFreshness', en:'Update PMS', th:'การอัปเดต PMS', scope:true},
+  {tab:'1', tabLabel:'Project Tracking', id:'revenueAttainment', en:'Revenue Attainment', th:'รายได้สะสมเทียบเป้า', scope:true},
+  {tab:'1', tabLabel:'Project Tracking', id:'deliveryTimeline', en:'Delivery Timeline', th:'โครงการใกล้ครบกำหนด', scope:true},
+  {tab:'1', tabLabel:'Project Tracking', id:'pmAvailability', en:'PM Availability', th:'พร้อมรับงานใหม่', scope:true},
+  {tab:'1', tabLabel:'Project Tracking', id:'projectDetails', en:'Project Details', th:'รายละเอียดโครงการ', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'teamScorecard', en:'Team Performance Scorecard', th:'ภาพรวมผลงานทีม'},
-  {tab:'2', tabLabel:'Finance & Stock', id:'paymentCollection', en:'Payment Collection', th:'การเก็บเงินจากลูกค้า'},
-  {tab:'2', tabLabel:'Finance & Stock', id:'purchaseOrders', en:'Purchase Orders', th:'PO และการจ่ายเงินผู้รับเหมา'},
-  {tab:'2', tabLabel:'Finance & Stock', id:'stockOutstanding', en:'Stock Outstanding', th:'ของค้างสต็อก'},
+  {tab:'2', tabLabel:'Finance & Stock', id:'paymentCollection', en:'Payment Collection', th:'การเก็บเงินจากลูกค้า', scope:true},
+  {tab:'2', tabLabel:'Finance & Stock', id:'purchaseOrders', en:'Purchase Orders', th:'PO และการจ่ายเงินผู้รับเหมา', scope:true},
+  {tab:'2', tabLabel:'Finance & Stock', id:'stockOutstanding', en:'Stock Outstanding', th:'ของค้างสต็อก', scope:true},
   {tab:'3', tabLabel:'Project Information', id:'teamLeaderboard', en:'Team Leaderboard', th:'อันดับทีมย้อนหลัง'},
   {tab:'3', tabLabel:'Project Information', id:'projectsByYear', en:'Projects by Year', th:'จำนวน/มูลค่าโครงการรายปี'},
   {tab:'3', tabLabel:'Project Information', id:'siteHistory', en:'Site History', th:'ใครเคยดูแลลูกค้ารายนี้บ้าง'},
@@ -1856,15 +1863,7 @@ function applyCardVisibility(){
   });
 }
 
-// ==== ระบบตั้งค่า "ขอบเขตข้อมูล" ภายในการ์ดที่ยังเห็นอยู่ (คนละเรื่องกับ CARD_VISIBILITY ด้านล่าง) ====
-// ตั้งค่าตรงนี้จุดเดียว ควบคุมได้ว่าการ์ดไหนควรให้ "ทุกคนเห็นข้อมูลทีมเต็มเสมอ" (ไม่ขึ้นกับว่าใคร login มา
-// และไม่ถูกกรองตาม filter ด้านบนของหน้าด้วย) ส่วนการ์ดที่ไม่ได้ระบุในนี้ = พฤติกรรม default ปกติ
-// (แต่ละคนเห็นแค่โครงการตัวเอง + ตาม filter ที่เลือกอยู่) - ตัวนี้ยัง hardcode ในโค้ด (แก้เฉพาะ dev)
-// ต่างจาก CARD_VISIBILITY ที่ควบคุม "เห็นการ์ดทั้งใบหรือไม่เห็นเลย" และ OAT แก้เองได้จาก Tab Admin
-const PANEL_VISIBILITY = {
-  dataFreshness: 'team-wide', // Update PMS - OAT ต้องการให้ทุกคนเห็นสถานะทั้งทีม ไม่ใช่แค่โครงการตัวเอง
-};
-// คืนรายการโครงการล่าสุดต่อโครงการจากข้อมูลทีมเต็ม (ไม่กรองรายบุคคล/ไม่กรองตาม filter บนหน้า) - ใช้กับการ์ด team-wide
+// คืนรายการโครงการล่าสุดต่อโครงการจากข้อมูลทีมเต็ม (ไม่กรองรายบุคคล/ไม่กรองตาม filter บนหน้า) - ใช้กับการ์ดที่ hasTeamWideScope() คืน true
 function getTeamWideProjects(){ return latestPerProject(ROWS_TEAMWIDE); }
 let EVM = {}; // sheet EVM ละเอียดต่อโครงการ (key = Project Code) - มีเฉพาะโครงการที่ทำ sheet ไว้
 let piWindow = 5; // ค่าเริ่มต้น: ย้อนหลัง 5 ปี
@@ -1896,7 +1895,12 @@ async function loadData(auto){
       PROJINFO_ALL = (j.projectInfoAll || []).map(normRow);
       EVM = j.evm || {};
       ROWS_TEAMWIDE = (j.rowsTeamWide || []).map(normRow);
+      PAYW_TEAMWIDE = j.paymentWTeamWide || [];
+      PO_TEAMWIDE = j.poTeamWide || [];
+      STOCK_TEAMWIDE = j.stockTeamWide || [];
+      STOCKSUM_TEAMWIDE = j.stockSummaryTeamWide || [];
       CARD_VISIBILITY = j.cardVisibility || {};
+      CARD_DATA_SCOPE = j.cardDataScope || {};
       SCOPE = j.scope || null;
       lastKnownUpdatedAt = j.updatedAt || null;
       setSource(true, j.updatedAt);
@@ -1918,6 +1922,7 @@ async function loadData(auto){
     ALL = latestPerProject(HIST);
     REV = SEED_REVENUE.map(normRow);
     PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = []; PROJINFO_ALL = []; EVM = {}; ROWS_TEAMWIDE = [];
+    PAYW_TEAMWIDE = []; PO_TEAMWIDE = []; STOCK_TEAMWIDE = []; STOCKSUM_TEAMWIDE = [];
     setSource(false, null);
     render();
   }
@@ -3076,7 +3081,7 @@ function renderDataFreshness(list){
   const STALE_DAYS = 7;
   // ถ้าการ์ดนี้ตั้งเป็น team-wide ต้องใช้ประวัติ (HIST) แบบทีมเต็มด้วย ไม่งั้น Punctuality Podium จะยังเห็นแค่
   // ประวัติของคนที่ login อยู่ (เพราะ HIST ปกติถูกกรองรายบุคคลมาจาก backend ตั้งแต่ต้นสำหรับ user ที่ไม่ใช่ admin)
-  const histSource = PANEL_VISIBILITY.dataFreshness==='team-wide' ? ROWS_TEAMWIDE : HIST;
+  const histSource = hasTeamWideScope('dataFreshness') ? ROWS_TEAMWIDE : HIST;
 
   const openList = list.filter(p=>{ const st=projectStatus(p); return st!=='Contract Closed' && st!=='Completely Closed'; });
 
@@ -3374,14 +3379,14 @@ function codeInfo(code){
 // Tab การเงิน/สต็อกต้องแสดง "เฉพาะโครงการที่ Progress1 ติดตามอยู่ตอนนี้" เท่านั้น - ไม่ map ตามชื่อ PM เพียงอย่างเดียว
 // โครงการอื่นที่มีข้อมูลการเงิน/สต็อกแต่ไม่ได้อยู่ใน Progress1 (เช่นปิดงานไปแล้ว) จะถูกตัดทิ้งตั้งแต่ต้น
 // ไม่ถูกนำไปคำนวณผลรวม/ค่าเฉลี่ยใด ๆ ทั้งสิ้น ไม่ใช่แค่ซ่อนไว้เฉย ๆ
-function activeCodeSet(){ return new Set(ALL.map(p=>p['Project Code'])); }
+function activeCodeSet(list){ return new Set((list||ALL).map(p=>p['Project Code'])); }
 
 /* ================= TAB 2: Finance & Stock ================= */
 
-function renderPayment(){
+function renderPayment(paywSource, codeSetList){
   const el = document.getElementById('pw');
-  const activeCodes = activeCodeSet();
-  const items = PAYW.filter(p => activeCodes.has(p.projectCode) && (!filters.pm || nrm(p.pm)===nrm(filters.pm)));
+  const activeCodes = activeCodeSet(codeSetList);
+  const items = (paywSource||PAYW).filter(p => activeCodes.has(p.projectCode) && (!filters.pm || nrm(p.pm)===nrm(filters.pm)));
   document.getElementById('pwCount').textContent = `${items.length} โครงการ`;
   if(!items.length){ el.innerHTML = `<div class="empty">ไม่มีข้อมูลการเก็บเงินตรงกับตัวกรองนี้</div>`; return; }
 
@@ -3487,10 +3492,10 @@ function renderPayment(){
   el.innerHTML = overview + head + body;
 }
 
-function renderPOPanel(){
+function renderPOPanel(poSource, codeSetList){
   const el = document.getElementById('poBox');
-  const activeCodes = activeCodeSet();
-  const items = PO.filter(p => activeCodes.has(p.projectCode) && (!filters.pm || nrm(p.pm)===nrm(filters.pm)));
+  const activeCodes = activeCodeSet(codeSetList);
+  const items = (poSource||PO).filter(p => activeCodes.has(p.projectCode) && (!filters.pm || nrm(p.pm)===nrm(filters.pm)));
   const projectCount = uniq(items.map(x=>x.projectCode)).length;
   document.getElementById('poCount').textContent = `${items.length} PO · ${projectCount} โครงการ`;
   if(!items.length){ el.innerHTML = `<div class="empty">ไม่มี PO ตรงกับตัวกรองนี้</div>`; return; }
@@ -3581,10 +3586,10 @@ function renderPOPanel(){
   el.innerHTML = overview + head + body;
 }
 
-function renderStock(){
+function renderStock(stockSumSource, codeSetList, stockMovementSource){
   const el = document.getElementById('stkBox');
-  const activeCodes = activeCodeSet();
-  const items = STOCKSUM.filter(p => activeCodes.has(p.projectCode) && (!filters.pm || nrm(p.pm)===nrm(filters.pm)));
+  const activeCodes = activeCodeSet(codeSetList);
+  const items = (stockSumSource||STOCKSUM).filter(p => activeCodes.has(p.projectCode) && (!filters.pm || nrm(p.pm)===nrm(filters.pm)));
   document.getElementById('stkCount').textContent = `${items.length} โครงการ`;
   if(!items.length){ el.innerHTML = `<div class="empty">ไม่มีของค้างสต็อกตรงกับตัวกรองนี้</div>`; return; }
 
@@ -3602,7 +3607,7 @@ function renderStock(){
   </div>`;
 
   const byCode = {};
-  STOCK.forEach(s=>{ (byCode[s.pcode] ||= []).push(s); });
+  (stockMovementSource||STOCK).forEach(s=>{ (byCode[s.pcode] ||= []).push(s); });
 
   const rows = items.slice().sort((a,b)=>num(b.stockValueCurr)-num(a.stockValueCurr)).map(x=>{
     const age = num(x.stockAgeDays);
@@ -4458,12 +4463,18 @@ async function renderAdminTab(){
   const el = document.getElementById('adminCardList');
   const token = getToken();
   let visibility = CARD_VISIBILITY;
+  let dataScope = CARD_DATA_SCOPE;
   // ดึงค่าล่าสุดสด ๆ จาก server เสมอตอนเข้า tab นี้ (เผื่อมีการแก้จากที่อื่น/เบราว์เซอร์อื่นมาก่อนหน้า)
   try{
-    const res = await fetch(`${API_BASE}/api/admin/card-visibility`, { headers:{ Authorization:`Bearer ${token}` } });
-    if(res.ok){ const j = await res.json(); if(j.ok) visibility = j.visibility || {}; }
+    const [visRes, scopeRes] = await Promise.all([
+      fetch(`${API_BASE}/api/admin/card-visibility`, { headers:{ Authorization:`Bearer ${token}` } }),
+      fetch(`${API_BASE}/api/admin/card-data-scope`, { headers:{ Authorization:`Bearer ${token}` } }),
+    ]);
+    if(visRes.ok){ const j = await visRes.json(); if(j.ok) visibility = j.visibility || {}; }
+    if(scopeRes.ok){ const j = await scopeRes.json(); if(j.ok) dataScope = j.dataScope || {}; }
   }catch(e){ /* ใช้ค่าที่มีอยู่แล้วจาก loadData ถ้าดึงสดไม่สำเร็จ */ }
   CARD_VISIBILITY = visibility;
+  CARD_DATA_SCOPE = dataScope;
 
   document.getElementById('adminCardCount').textContent = `${CARD_REGISTRY.length} การ์ด`;
 
@@ -4481,10 +4492,25 @@ async function renderAdminTab(){
           <input type="checkbox" data-user="${u.username}" ${allowedSet.has(u.username)?'checked':''} ${isAll?'disabled':''}>
           ${u.name}
         </label>`).join('');
+
+      const isTeamWide = dataScope[c.id]==='team-wide';
+      const scopeRow = c.scope ? `
+        <div class="admin-checkbox-row admin-scope-row">
+          <span class="admin-scope-label">ข้อมูลที่เห็น:</span>
+          <label class="admin-chk-item">
+            <input type="radio" name="scope-${c.id}" class="admin-scope-radio" value="own" ${isTeamWide?'':'checked'}>
+            เฉพาะของตัวเอง
+          </label>
+          <label class="admin-chk-item">
+            <input type="radio" name="scope-${c.id}" class="admin-scope-radio" value="team-wide" ${isTeamWide?'checked':''}>
+            🌐 ทีมเต็ม (ไม่ผ่านการกรองรายบุคคล)
+          </label>
+        </div>` : '';
+
       return `<div class="admin-card-row" data-card-id="${c.id}">
         <div class="admin-card-top">
           <div class="admin-card-name">${c.en} <span class="th">· ${c.th}</span></div>
-          <span class="admin-status-badge ${isAll?'all':'custom'}">ตอนนี้: ${statusTxt}</span>
+          <span class="admin-status-badge ${isAll?'all':'custom'}">เห็นการ์ด: ${statusTxt}${c.scope?` · ข้อมูล: ${isTeamWide?'🌐 ทีมเต็ม':'เฉพาะตัวเอง'}`:''}</span>
         </div>
         <div class="admin-checkbox-row">
           <label class="admin-chk-item all-item">
@@ -4492,8 +4518,9 @@ async function renderAdminTab(){
             ทุกคน
           </label>
           ${chkItems}
-          <button class="admin-update-btn" type="button">อัปเดต</button>
         </div>
+        ${scopeRow}
+        <button class="admin-update-btn" type="button">อัปเดต</button>
       </div>`;
     }).join('');
     return `<div class="admin-tab-group-h">${tabLabel}</div>${rows}`;
@@ -4510,28 +4537,44 @@ async function renderAdminTab(){
     });
   });
 
-  // ปุ่มอัปเดตต่อการ์ด - ส่งค่าที่ติ๊กอยู่ตอนนี้ไปบันทึกที่ server ทันที
+  // ปุ่มอัปเดตต่อการ์ด - บันทึกทั้ง "เห็นการ์ดไหม" และ "เห็นข้อมูลแค่ไหน" (ถ้าการ์ดนี้รองรับ) พร้อมกันในคลิกเดียว
   el.querySelectorAll('.admin-update-btn').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const row = btn.closest('.admin-card-row');
       const cardId = row.dataset.cardId;
       const isAll = row.querySelector('.admin-chk-all').checked;
       const users = [...row.querySelectorAll('.admin-chk-item input[data-user]:checked')].map(c=>c.dataset.user);
+      const scopeRadio = row.querySelector('.admin-scope-radio:checked');
+      const teamWide = scopeRadio ? scopeRadio.value==='team-wide' : false;
 
       btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
       try{
-        const res = await fetch(`${API_BASE}/api/admin/card-visibility`, {
-          method:'POST',
-          headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${getToken()}` },
-          body: JSON.stringify({ cardId, mode: isAll?'all':'custom', users }),
-        });
-        const j = await res.json();
-        if(!res.ok || !j.ok) throw new Error(j.error||'บันทึกไม่สำเร็จ');
-        CARD_VISIBILITY = j.visibility || {};
+        const calls = [
+          fetch(`${API_BASE}/api/admin/card-visibility`, {
+            method:'POST',
+            headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${getToken()}` },
+            body: JSON.stringify({ cardId, mode: isAll?'all':'custom', users }),
+          }),
+        ];
+        if(scopeRadio){
+          calls.push(fetch(`${API_BASE}/api/admin/card-data-scope`, {
+            method:'POST',
+            headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${getToken()}` },
+            body: JSON.stringify({ cardId, teamWide }),
+          }));
+        }
+        const results = await Promise.all(calls);
+        const bodies = await Promise.all(results.map(r=>r.json()));
+        if(!results.every(r=>r.ok) || !bodies.every(j=>j.ok)) throw new Error(bodies.find(j=>j.error)?.error || 'บันทึกไม่สำเร็จ');
+
+        CARD_VISIBILITY = bodies[0].visibility || {};
+        if(bodies[1]) CARD_DATA_SCOPE = bodies[1].dataScope || {};
+
         btn.classList.add('saved'); btn.textContent = 'บันทึกแล้ว ✓';
         const badge = row.querySelector('.admin-status-badge');
         const statusTxt = isAll ? 'ทุกคนเห็น' : (users.length ? `เฉพาะ ${users.map(u=>TEAM_USERS.find(t=>t.username===u)?.name||u).join(', ')}` : 'ไม่มีใครเห็นเลย');
-        badge.textContent = `ตอนนี้: ${statusTxt}`;
+        const scopeTxt = scopeRadio ? ` · ข้อมูล: ${teamWide?'🌐 ทีมเต็ม':'เฉพาะตัวเอง'}` : '';
+        badge.textContent = `เห็นการ์ด: ${statusTxt}${scopeTxt}`;
         badge.className = `admin-status-badge ${isAll?'all':'custom'}`;
         setTimeout(()=>{ btn.classList.remove('saved'); btn.textContent = 'อัปเดต'; btn.disabled = false; }, 1500);
       }catch(e){
@@ -4561,10 +4604,32 @@ function render(){
 }
 function renderFiltered(){
   const f = applyFilters(ALL);
-  renderKPIs(f); renderPM(f); renderDonut(f); renderWow(f); renderComplexity(f); renderClosure(f); renderStalled(f);
-  renderDataFreshness(PANEL_VISIBILITY.dataFreshness==='team-wide' ? getTeamWideProjects() : f);
-  renderRevenue(f); renderGantt(f); renderFree(f); renderCards(f);
-  renderPayment(); renderPOPanel(); renderStock();
+  // สำหรับการ์ดที่ตั้งเป็น team-wide: ขยายฐานข้อมูลจาก "แค่ของตัวเอง" ไปเป็น "ทั้งทีม" ก่อน แล้วค่อยกรองด้วย filter
+  // บนหน้าตามปกติทับอีกที (Team/VP/PM/Status/Health ยังใช้งานได้เหมือนเดิม แค่ฐานข้อมูลกว้างขึ้น)
+  const listFor = (cardId) => hasTeamWideScope(cardId) ? applyFilters(getTeamWideProjects()) : f;
+
+  renderKPIs(listFor('kpis'));
+  renderPM(listFor('pmWorkload'));
+  renderDonut(listFor('projectHealth'));
+  renderWow(listFor('weekOverWeek'));
+  renderComplexity(listFor('complexity'));
+  renderClosure(listFor('closureTransfer'));
+  renderStalled(listFor('stalledProgress'));
+  renderDataFreshness(listFor('dataFreshness'));
+  renderRevenue(listFor('revenueAttainment'));
+  renderGantt(listFor('deliveryTimeline'));
+  renderFree(listFor('pmAvailability'));
+  renderCards(listFor('projectDetails'));
+
+  // Tab 2 - โครงสร้างข้อมูลคนละแบบกับ Tab 1 (ไม่ผ่าน applyFilters เดียวกัน) ต้องส่ง source + code-set แยกเป็นคู่
+  renderPayment(hasTeamWideScope('paymentCollection') ? PAYW_TEAMWIDE : PAYW, hasTeamWideScope('paymentCollection') ? getTeamWideProjects() : ALL);
+  renderPOPanel(hasTeamWideScope('purchaseOrders') ? PO_TEAMWIDE : PO, hasTeamWideScope('purchaseOrders') ? getTeamWideProjects() : ALL);
+  renderStock(
+    hasTeamWideScope('stockOutstanding') ? STOCKSUM_TEAMWIDE : STOCKSUM,
+    hasTeamWideScope('stockOutstanding') ? getTeamWideProjects() : ALL,
+    hasTeamWideScope('stockOutstanding') ? STOCK_TEAMWIDE : STOCK
+  );
+
   renderProjectInfo();
 }
 

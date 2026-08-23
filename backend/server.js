@@ -154,6 +154,30 @@ function saveCardVisibility(data) {
 let CARD_VISIBILITY = loadCardVisibility();
 if (!fs.existsSync(CARD_VISIBILITY_FILE)) saveCardVisibility(CARD_VISIBILITY); // สร้างไฟล์ตั้งแต่ startup รอบแรกเลย ไม่ต้องรอจนกว่าจะมีคนแก้ค่าครั้งแรก
 
+// การตั้งค่าที่สอง แยกจาก CARD_VISIBILITY ข้างบน (คนละคำถามกัน): "การ์ดที่เห็นอยู่แล้ว ให้เห็นข้อมูลแค่ไหน"
+// key = cardId, value = 'team-wide' (ทุกคนที่เห็นการ์ดนี้ได้ เห็นข้อมูลทีมเต็ม ไม่ผ่านการกรองรายบุคคล) หรือไม่มี entry
+// = ค่า default (แต่ละคนเห็นแค่โครงการของตัวเอง ตามปกติ) เก็บไฟล์แยกต่างหาก ถาวรแบบเดียวกับ CARD_VISIBILITY
+const CARD_DATA_SCOPE_FILE = path.join(__dirname, 'card-data-scope-store.json');
+const DEFAULT_CARD_DATA_SCOPE = {
+  dataFreshness: 'team-wide', // ค่าเริ่มต้น: Update PMS เคย hardcode ไว้เป็นทีมเต็มเสมอ - seed ไว้แบบเดิมก่อน OAT จะมาปรับเองทีหลังได้
+};
+function loadCardDataScope() {
+  try {
+    const raw = fs.readFileSync(CARD_DATA_SCOPE_FILE, 'utf8');
+    console.log(`✓ โหลดค่าขอบเขตข้อมูลการ์ดจากไฟล์ ${CARD_DATA_SCOPE_FILE} สำเร็จ`);
+    return JSON.parse(raw);
+  } catch (e) {
+    console.log(`ℹ ยังไม่มีไฟล์ขอบเขตข้อมูลการ์ด (${e.code === 'ENOENT' ? 'ไฟล์ยังไม่เคยถูกสร้าง' : e.message}) - ใช้ค่าเริ่มต้นไปก่อน`);
+    return { ...DEFAULT_CARD_DATA_SCOPE };
+  }
+}
+function saveCardDataScope(data) {
+  try { fs.writeFileSync(CARD_DATA_SCOPE_FILE, JSON.stringify(data, null, 2), 'utf8'); return true; }
+  catch (e) { console.log(`⚠ เขียนไฟล์ขอบเขตข้อมูลการ์ดไม่สำเร็จ: ${e.message}`); return false; }
+}
+let CARD_DATA_SCOPE = loadCardDataScope();
+if (!fs.existsSync(CARD_DATA_SCOPE_FILE)) saveCardDataScope(CARD_DATA_SCOPE);
+
 // เก็บข้อมูล debug ล่าสุดไว้เสมอ ดูผ่าน GET /api/debug/last-payload
 let lastRaw = {
   receivedAt: null,
@@ -580,11 +604,40 @@ app.post('/api/admin/card-visibility', requireAuth, (req, res) => {
   res.json({ ok: true, visibility: CARD_VISIBILITY, persisted });
 });
 
+// ==== Admin: ขอบเขตข้อมูลภายในการ์ดที่เห็นอยู่แล้ว (ทีมเต็ม vs เฉพาะของตัวเอง) - คนละเรื่องกับ card-visibility ด้านบน ====
+app.get('/api/admin/card-data-scope', requireAuth, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ ok: false, error: 'ต้องเป็น admin เท่านั้น' });
+  res.json({ ok: true, dataScope: CARD_DATA_SCOPE });
+});
+
+app.post('/api/admin/card-data-scope', requireAuth, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ ok: false, error: 'ต้องเป็น admin เท่านั้น' });
+  const { cardId, teamWide } = req.body || {};
+  if (!cardId || typeof cardId !== 'string') return res.status(400).json({ ok: false, error: 'ไม่มี cardId' });
+
+  if (teamWide) CARD_DATA_SCOPE[cardId] = 'team-wide';
+  else delete CARD_DATA_SCOPE[cardId]; // ค่า default = เห็นแค่ของตัวเอง ไม่ต้องเก็บ entry ไว้ก็ได้
+
+  const persisted = saveCardDataScope(CARD_DATA_SCOPE);
+  console.log(`✓ Admin (${req.user.username}) แก้ขอบเขตข้อมูลการ์ด "${cardId}" -> ${teamWide ? 'ทีมเต็ม' : 'เฉพาะของตัวเอง'} (เขียนไฟล์${persisted?'สำเร็จ':'ไม่สำเร็จ'})`);
+  res.json({ ok: true, dataScope: CARD_DATA_SCOPE, persisted });
+});
+
 app.get('/api/projects', requireAuth, (req, res) => {
   const { pmName, role } = req.user;
   // rowsTeamWide: ข้อมูลทีมเต็มเสมอ ไม่ว่าใคร login (ไม่ถูกกรองรายบุคคล) - ใช้กับการ์ดที่ตั้งค่าให้เห็นทีมเต็มเสมอ
   // เช่น "Update PMS" ที่ OAT อยากให้ทุกคนในทีมเห็นสถานะทั้งทีม ไม่ใช่แค่โครงการของตัวเอง
-  if (role === 'admin' || !pmName) return res.json({ ...latestData, rowsTeamWide: latestData.rows, cardVisibility: CARD_VISIBILITY });
+  // paymentWTeamWide/poTeamWide/stockTeamWide/stockSummaryTeamWide เป็นคู่เดียวกัน สำหรับ card ฝั่ง Tab 2 (Finance & Stock)
+  if (role === 'admin' || !pmName) return res.json({
+    ...latestData,
+    rowsTeamWide: latestData.rows,
+    paymentWTeamWide: latestData.paymentW,
+    poTeamWide: latestData.po,
+    stockTeamWide: latestData.stock,
+    stockSummaryTeamWide: latestData.stockSummary,
+    cardVisibility: CARD_VISIBILITY,
+    cardDataScope: CARD_DATA_SCOPE,
+  });
 
   const target = normName(pmName);
   const rows = latestData.rows.filter(r => normName(r['PM Name']) === target);
@@ -606,7 +659,18 @@ app.get('/api/projects', requireAuth, (req, res) => {
     console.log(`  ชื่อ PM ที่มีอยู่จริงในไฟล์: ${JSON.stringify(available)}`);
   }
 
-  res.json({ ...latestData, rows, revenue, paymentW, po, stock, stockSummary, projectInfo, rowsTeamWide: latestData.rows, cardVisibility: CARD_VISIBILITY, scope: pmName });
+  res.json({
+    ...latestData,
+    rows, revenue, paymentW, po, stock, stockSummary, projectInfo,
+    rowsTeamWide: latestData.rows,
+    paymentWTeamWide: latestData.paymentW,
+    poTeamWide: latestData.po,
+    stockTeamWide: latestData.stock,
+    stockSummaryTeamWide: latestData.stockSummary,
+    cardVisibility: CARD_VISIBILITY,
+    cardDataScope: CARD_DATA_SCOPE,
+    scope: pmName,
+  });
 });
 
 app.get('/api/health', (req, res) => {
