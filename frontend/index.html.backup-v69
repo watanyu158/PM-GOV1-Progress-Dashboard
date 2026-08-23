@@ -583,35 +583,6 @@
   .c-foot span{display:flex;align-items:center;gap:5px;}
   .c-foot svg{width:12px;height:12px;}
 
-  /* ---------------- EVM badge + inline expand (Project Details cards) ---------------- */
-  .c-evm-badge{
-    display:flex;align-items:center;justify-content:space-between;gap:8px;
-    margin-top:11px;padding:8px 12px;border-radius:9px;cursor:pointer;
-    background:#EDEFF7;border:1px solid #C7CCE6;color:#4A5578;
-    font-size:11.5px;font-weight:700;transition:.15s;
-  }
-  .c-evm-badge:hover{background:#E1E5F5;}
-  .c-evm-badge .wr-chev{transition:transform .15s;flex:none;}
-  .c-evm-badge.open .wr-chev{transform:rotate(90deg);}
-  .c-evm-detail{display:none;margin-top:11px;padding-top:12px;border-top:1px dashed var(--line-soft);}
-  .c-evm-detail.open{display:block;}
-  .c-evm-narrative{
-    font-size:12px;color:var(--ink-2);background:var(--critical-tint);border-left:3px solid var(--critical);
-    padding:9px 11px;border-radius:0 6px 6px 0;margin-bottom:12px;line-height:1.55;
-  }
-  .c-evm-phase-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;}
-  .c-evm-phase-name{flex:1.4;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .c-evm-phase-bar{flex:2;height:6px;background:var(--bg-tint);border-radius:3px;overflow:hidden;}
-  .c-evm-phase-bar i{display:block;height:100%;border-radius:3px;}
-  .c-evm-phase-w{width:36px;text-align:right;color:var(--faint);font-family:'IBM Plex Mono',monospace;font-size:10px;flex:none;}
-  .c-evm-legend{display:flex;gap:14px;font-size:10px;color:var(--faint);margin-top:5px;}
-  .c-evm-legend i{display:inline-block;width:9px;height:2px;margin-right:4px;vertical-align:middle;}
-  .c-evm-stat-row{display:flex;gap:16px;margin-top:12px;padding-top:11px;border-top:1px solid var(--line-soft);}
-  .c-evm-stat{text-align:center;}
-  .c-evm-stat-l{font-size:9.5px;color:var(--faint);text-transform:uppercase;}
-  .c-evm-stat-v{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16px;margin-top:2px;}
-  .c-evm-stock-alert{margin-top:11px;font-size:11px;color:var(--warning);background:var(--warning-tint);border-radius:7px;padding:8px 10px;line-height:1.5;}
-
   .empty{padding:38px 20px;text-align:center;color:var(--faint);font-size:13px;}
   footer{margin-top:24px;text-align:center;font-size:11.5px;color:var(--faint);}
   /* ---------------- Tab 3: Project Information ---------------- */
@@ -1660,7 +1631,6 @@ let STOCK = [];
 let STOCKSUM = [];
 let PROJINFO = [];
 let PROJINFO_ALL = []; // ไม่ล็อกทีม - ใช้เฉพาะ card "ค้นหาทั้งบริษัท"
-let EVM = {}; // sheet EVM ละเอียดต่อโครงการ (key = Project Code) - มีเฉพาะโครงการที่ทำ sheet ไว้
 let piWindow = 5; // ค่าเริ่มต้น: ย้อนหลัง 5 ปี
 let SCOPE = null;   // ชื่อ PM ที่ backend กรองมาให้ (null = เห็นทุกโครงการ)
 let lastKnownUpdatedAt = null; // updatedAt ล่าสุดที่ดึงมาได้จริง - ใช้เช็คว่า sync สำเร็จหรือยัง (poll จนกว่าค่านี้จะขยับ)
@@ -1688,7 +1658,6 @@ async function loadData(auto){
       STOCKSUM = j.stockSummary || [];
       PROJINFO = (j.projectInfo || []).map(normRow);
       PROJINFO_ALL = (j.projectInfoAll || []).map(normRow);
-      EVM = j.evm || {};
       SCOPE = j.scope || null;
       lastKnownUpdatedAt = j.updatedAt || null;
       setSource(true, j.updatedAt);
@@ -1709,7 +1678,7 @@ async function loadData(auto){
     HIST = SEED_DATA.map(normRow);
     ALL = latestPerProject(HIST);
     REV = SEED_REVENUE.map(normRow);
-    PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = []; PROJINFO_ALL = []; EVM = {};
+    PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = []; PROJINFO_ALL = [];
     setSource(false, null);
     render();
   }
@@ -3856,8 +3825,6 @@ function renderCards(list){
     const pr = Math.min(num(p['%Progress']),100);
     const st = projectStatus(p);
     const stClosed = st === 'Contract Closed' || st === 'Completely Closed';
-    const code = p['Project Code'];
-    const evmData = EVM[code];
     return `<div class="card" style="--cc:${col}">
       <div class="c-top">
         <div style="min-width:0">
@@ -3882,73 +3849,8 @@ function renderCards(list){
         <span>${svg(I.cal)}${fmtDate(p['Start Date'])} - ${fmtDate(p['End Date'])}</span>
         <span>${svg(I.clock)}${fmtDate(p['Update Date'])}</span>
       </div>
-      ${evmData ? `<div class="c-evm-badge" data-evm-code="${code}">
-        <span>📊 EVM ละเอียด - SPI ${evmData.spiCurrent!=null?evmData.spiCurrent.toFixed(2):'-'}</span>
-        <span class="wr-chev">${svg(I.chevron,'')}</span>
-      </div>
-      <div class="c-evm-detail" id="evmDetail_${code}"></div>` : ''}
     </div>`;
   }).join('');
-}
-
-// สร้างเนื้อหา EVM แบบ lazy - เรียกแค่ตอนคลิกขยายครั้งแรกเท่านั้น กันเปลือง render ตอนโหลดหน้าถ้าไม่มีใครกดดู
-function buildEvmDetailHtml(evm, projectCode){
-  // จุดที่ฉุดโครงการมากสุด - phase ที่ plan window ผ่านไปแล้วแต่ actual ยังไม่ 100% เรียงตามน้ำหนักมาก่อน
-  const overdue = evm.phases
-    .filter(ph => ph.lastPlanWeekIdx>=0 && evm.asOfWeekIdx>ph.lastPlanWeekIdx && ph.actualLatest<100)
-    .sort((a,b)=>b.weight-a.weight);
-  const topBlocker = overdue[0];
-  const narrative = topBlocker
-    ? `⚠️ จุดที่ฉุดโครงการมากสุด: <b>${topBlocker.name}</b> (น้ำหนัก ${topBlocker.weight}% ของทั้งโครงการ) ยังอยู่ที่ ${topBlocker.actualLatest.toFixed(0)}% ทั้งที่แผนควรเสร็จไปแล้ว`
-    : `ไม่มี phase ไหนเลยกำหนดตามแผนไปแล้วโดยยังไม่เสร็จ ณ ตอนนี้`;
-
-  const phaseRows = evm.phases.slice().sort((a,b)=>b.weight-a.weight).map(ph=>{
-    const isOverdue = ph.lastPlanWeekIdx>=0 && evm.asOfWeekIdx>ph.lastPlanWeekIdx && ph.actualLatest<100;
-    const barColor = ph.actualLatest>=100 ? '#4F7A4A' : isOverdue ? '#A8482F' : '#B07A28';
-    return `<div class="c-evm-phase-row">
-      <span class="c-evm-phase-name">${ph.name}</span>
-      <span class="c-evm-phase-bar"><i style="width:${Math.min(ph.actualLatest,100)}%;background:${barColor}"></i></span>
-      <span class="c-evm-phase-w">${ph.weight}%</span>
-    </div>`;
-  }).join('');
-
-  // S-curve เล็ก ตัดแค่ถึงสัปดาห์ล่าสุดที่มีข้อมูลจริง (ไม่ลากยาวไปถึงอนาคตที่ยังไม่ถึงเวลา)
-  const n = evm.asOfWeekIdx + 1;
-  const pvSlice = evm.pvCum.slice(0, n).map(v=>v==null?0:v);
-  const evSlice = evm.evCum.slice(0, n).map(v=>v==null?0:v);
-  const W=300, H=86, padL=4, padR=4, padT=6, padB=6;
-  const x = i => padL + (n<=1?0:(i/(n-1))*(W-padL-padR));
-  const y = v => H-padB - (Math.min(v,100)/100)*(H-padT-padB);
-  const pvPts = pvSlice.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-  const evPts = evSlice.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-  const sCurveHtml = `<svg width="100%" viewBox="0 0 ${W} ${H}" style="display:block;margin-top:11px">
-      <polyline points="${pvPts}" fill="none" stroke="#8A5A72" stroke-width="2" stroke-dasharray="3,2" opacity="0.85"/>
-      <polyline points="${evPts}" fill="none" stroke="#4A5578" stroke-width="2.4"/>
-    </svg>
-    <div class="c-evm-legend">
-      <span><i style="background:#8A5A72"></i>Plan สะสม</span>
-      <span><i style="background:#4A5578"></i>Actual สะสม</span>
-    </div>`;
-
-  // เชื่อมกับ Stock Outstanding ถ้ามีข้อมูลของโครงการเดียวกันค้างอยู่
-  const stockMatch = STOCKSUM.find(s=>s.projectCode===projectCode);
-  const stockAlert = (stockMatch && (stockMatch.poStatus||'').trim()!=='ครบ')
-    ? `<div class="c-evm-stock-alert">📦 มีของค้างสต็อก ${thb(stockMatch.stockValueCurr)} (สถานะ: ${stockMatch.poStatus}) - เช็คว่า phase ที่เกี่ยวกับการส่งของใน EVM นี้อัปเดตตรงกับความจริงหรือยัง</div>`
-    : '';
-
-  const spiColor = evm.spiCurrent==null ? 'var(--faint)' : evm.spiCurrent<0.7 ? 'var(--critical)' : evm.spiCurrent<0.9 ? 'var(--warning)' : 'var(--success)';
-
-  return `
-    <div class="c-evm-narrative">${narrative}</div>
-    ${phaseRows}
-    ${sCurveHtml}
-    <div class="c-evm-stat-row">
-      <div class="c-evm-stat"><div class="c-evm-stat-l">SPI</div><div class="c-evm-stat-v" style="color:${spiColor}">${evm.spiCurrent!=null?evm.spiCurrent.toFixed(2):'-'}</div></div>
-      <div class="c-evm-stat"><div class="c-evm-stat-l">ข้อมูล ณ</div><div class="c-evm-stat-v" style="font-size:12px">${evm.weekLabels[evm.asOfWeekIdx]||'-'}</div></div>
-    </div>
-    ${stockAlert}
-    <div style="font-size:9.5px;color:var(--faint);margin-top:9px">* ไม่แสดง CPI เพราะ Actual Cost ในชีตยังเป็น 0 ทุกสัปดาห์ ข้อมูลไม่น่าเชื่อถือพอ</div>
-  `;
 }
 
 function render(){
@@ -4088,23 +3990,6 @@ if(piSiteActiveToggleEl) piSiteActiveToggleEl.addEventListener('click', ()=>{
 // ค้นหาทั้งบริษัท (ไม่ล็อกทีม)
 const piCompanySearchEl = document.getElementById('piCompanySearch');
 if(piCompanySearchEl) piCompanySearchEl.addEventListener('input', e => renderCompanySearch(e.target.value));
-
-// คลิกขยายดูรายละเอียด EVM ในตัว card เดิม (Project Details) - build เนื้อหาแบบ lazy แค่ตอนคลิกครั้งแรกเท่านั้น
-const gridEl = document.getElementById('grid');
-if(gridEl) gridEl.addEventListener('click', (e)=>{
-  const badge = e.target.closest('.c-evm-badge');
-  if(!badge) return;
-  const code = badge.dataset.evmCode;
-  const detail = document.getElementById(`evmDetail_${code}`);
-  if(!detail) return;
-  const opening = !detail.classList.contains('open');
-  if(opening && !detail.dataset.built){
-    detail.innerHTML = buildEvmDetailHtml(EVM[code], code);
-    detail.dataset.built = '1';
-  }
-  detail.classList.toggle('open', opening);
-  badge.classList.toggle('open', opening);
-});
 
 // คลิกขยายดูรายละเอียดโครงการของแต่ละลูกค้าใน Site History
 const piSitesEl = document.getElementById('piSites');

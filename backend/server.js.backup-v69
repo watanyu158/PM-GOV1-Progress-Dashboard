@@ -109,7 +109,6 @@ let latestData = {
   stockSummary: [],
   projectInfo: [],
   projectInfoAll: [], // ไม่ล็อกทีม - ใช้เฉพาะ card "ค้นหา site/โครงการทั้งบริษัท" ที่ตั้งใจให้เห็นข้ามทีมได้
-  evm: {}, // sheet EVM ละเอียดต่อโครงการ (key = Project Code) - มีเฉพาะโครงการที่ทีมทำ sheet ไว้ ไม่ครบทุกโครงการ
   updatedAt: null,
 };
 
@@ -140,8 +139,7 @@ function parseProgressSheet(wb) {
       const obj = {};
       headerRow.forEach((h, i) => {
         if (h === null || h === undefined || h === '') return;
-        const key = String(h).trim(); // หัวคอลัมน์บางอันมีช่องว่างนำหน้า (เช่น " Project Code") ต้องตัดออกก่อนเสมอ
-        obj[key] = r[i] !== undefined ? r[i] : null;
+        obj[h] = r[i] !== undefined ? r[i] : null;
       });
       return obj;
     });
@@ -165,8 +163,7 @@ function parseProjectInfoSheet(wb) {
       const obj = {};
       headerRow.forEach((h, i) => {
         if (h === null || h === undefined || h === '') return;
-        const key = String(h).trim(); // หัวคอลัมน์บางอันมีช่องว่างนำหน้า (เช่น " Project Code") ต้องตัดออกก่อนเสมอ
-        obj[key] = r[i] !== undefined ? r[i] : null;
+        obj[h] = r[i] !== undefined ? r[i] : null;
       });
       return obj;
     });
@@ -174,73 +171,8 @@ function parseProjectInfoSheet(wb) {
   return { rows, sheetName };
 }
 
-// --- แกะไฟล์ Excel: sheet ที่ชื่อเป็นรหัสโครงการล้วน ๆ (เช่น "335261233") ---
-// เป็น sheet EVM (Earned Value Management) ละเอียดที่ทีมทำเองสำหรับโครงการที่ต้องเจาะลึกเป็นพิเศษ
-// ไม่ตายตัวว่าต้องมีกี่ sheet - สแกนหาทุก sheet ที่ชื่อเป็นตัวเลขล้วน แล้ว parse ให้หมด เผื่ออนาคตมีเพิ่ม
-// โครงสร้างคงที่: row1=หัวเรื่อง, row2=ป้ายสัปดาห์, row3-16=7 phase (คู่ Plan/Actual), row17-37=สรุป PV/EV/SPI/Health
-function parseEvmSheets(wb, knownProjectCodes) {
-  const evmByCode = {};
-  wb.SheetNames.forEach(sheetName => {
-    const trimmed = sheetName.trim();
-    if (!/^\d+$/.test(trimmed)) return;           // ต้องเป็นตัวเลขล้วนเท่านั้น
-    if (!knownProjectCodes.has(trimmed)) return;   // ต้องตรงกับโครงการที่มีจริงใน Progress1
-
-    try {
-      const ws = wb.Sheets[sheetName];
-      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
-      if (aoa.length < 37) return; // โครงสร้างไม่ครบตามที่คาด ข้ามอย่างปลอดภัย
-
-      const title = String(aoa[0]?.[0] || '');
-      const projectName = title.includes('-') ? title.split('-').slice(1).join('-').trim() : title;
-      const weekLabels = (aoa[1] || []).slice(3, 38).map(v => v === null ? null : String(v));
-
-      const PHASE_ROW_PAIRS = [[2,3],[4,5],[6,7],[8,9],[10,11],[12,13],[14,15]]; // 0-indexed: [P-row, A-row]
-      const phases = PHASE_ROW_PAIRS.map(([pIdx, aIdx]) => {
-        const pRow = aoa[pIdx] || [], aRow = aoa[aIdx] || [];
-        const planWeekly = pRow.slice(3, 38).map(v => typeof v === 'number' ? v : null);
-        let lastPlanWeekIdx = -1;
-        planWeekly.forEach((v, i) => { if (v !== null) lastPlanWeekIdx = i; });
-        const actualLatestRaw = aRow[38]; // คอลัมน์ AM = ค่า actual ล่าสุดที่บันทึกไว้ของ phase นี้
-        return {
-          name: String(pRow[0] || '').trim(),
-          weight: typeof pRow[1] === 'number' ? pRow[1] : 0,
-          lastPlanWeekIdx,
-          actualLatest: typeof actualLatestRaw === 'number' ? actualLatestRaw : 0,
-        };
-      }).filter(ph => ph.name);
-
-      const pvCumRow = aoa[17] || [];  // % Accumulate Planned Value
-      const evCumRow = aoa[21] || [];  // % Accumulate Earn Value
-      const spiRow = aoa[28] || [];    // แถวตัวเลข SPI (ใต้แถวสถานะ Good/Not Good)
-      const healthRow = aoa[35] || []; // PROJECT HEALTH
-
-      const pvCum = pvCumRow.slice(3, 38).map(v => typeof v === 'number' ? v : null);
-      const evCumFull = evCumRow.slice(3, 38).map(v => typeof v === 'number' ? v : null);
-      let asOfWeekIdx = -1;
-      evCumFull.forEach((v, i) => { if (v !== null) asOfWeekIdx = i; }); // คอลัมน์สุดท้ายที่มี Actual จริง = "ข้อมูล ณ วันนี้" ของชีตนี้
-
-      const spiWeekly = spiRow.slice(3, 38).map(v => typeof v === 'number' ? v : null);
-      const healthWeekly = healthRow.slice(3, 38).map(v => v === null ? null : String(v));
-
-      evmByCode[trimmed] = {
-        projectCode: trimmed,
-        projectName,
-        weekLabels,
-        phases,
-        pvCum,
-        evCum: evCumFull,
-        asOfWeekIdx,
-        spiCurrent: asOfWeekIdx >= 0 ? spiWeekly[asOfWeekIdx] : null,
-        healthCurrent: asOfWeekIdx >= 0 ? healthWeekly[asOfWeekIdx] : null,
-      };
-    } catch (e) {
-      console.log(`⚠ อ่าน EVM sheet "${sheetName}" ไม่สำเร็จ ข้ามไป: ${e.message}`);
-    }
-  });
-  return evmByCode;
-}
-
-
+// --- แกะไฟล์ Excel: sheet "PaymentW" (เก็บเงินจากลูกค้า อัปเดตรายสัปดาห์) ---
+// โครงสร้างพิเศษ: แถวโครงการ (มีเลขที่ No. + Project Code) ตามด้วยแถวย่อยรายงวด/ใบแจ้งหนี้
 // (ไม่มี No./Project Code ซ้ำ ใช้ค่าคอลัมน์ D เป็นคำอธิบายงวดแทนชื่อโครงการ) สลับกับแถวหัวข้อ section
 // (เช่น "TEAM 1", "Performed by PM") ที่ต้องข้ามทิ้ง
 function parsePaymentW(wb) {
@@ -416,12 +348,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const stockSummaryTeam = stockSummary.filter(s => inTeam(s.pm));
       const projectInfoTeam = projectInfo.filter(p => inTeam(p['PM Name']));
 
-      // Progress1 (rows) เป็นข้อมูลทีมเราอยู่แล้วโดยธรรมชาติ - ใช้รหัสโครงการจากตรงนี้เป็น whitelist
-      // ให้ parseEvmSheets เจอเฉพาะ sheet ที่ตรงกับโครงการทีมเราเท่านั้น ไม่มีทางหลุดข้ามทีมได้
-      const knownProjectCodes = new Set(rows.map(r => String(r['Project Code'] || '').trim()).filter(Boolean));
-      const evm = parseEvmSheets(wb, knownProjectCodes);
-
-      latestData = { rows, revenue, paymentW: paymentWTeam, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeam, projectInfoAll: projectInfo, evm, updatedAt: new Date().toISOString() };
+      latestData = { rows, revenue, paymentW: paymentWTeam, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeam, projectInfoAll: projectInfo, updatedAt: new Date().toISOString() };
       lastRaw = {
         receivedAt: latestData.updatedAt,
         contentType: req.headers['content-type'] || null,
@@ -435,7 +362,6 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       console.log(`✓ PM-GOV1 webhook: parsed ${rows.length} rows from "${sheetName}", ${revenue.length} revenue rows from "${revenueSheetName || '(not found)'}"`);
       console.log(`  + PaymentW ${paymentW.length}→${paymentWTeam.length} (team) from "${paymentWSheetName || '(not found)'}", PO ${po.length}→${poTeam.length} (team) from "${poSheetName || '(not found)'}", Stock ${stock.length}→${stockTeam.length} (team) from "${stockSheetName || '(not found)'}", StockSummary ${stockSummary.length}→${stockSummaryTeam.length} (team) from "${stockSummarySheetName || '(not found)'}" (${req.file.buffer.length} bytes)`);
       console.log(`  + Project Info ${projectInfo.length}→${projectInfoTeam.length} (team) from "${projectInfoSheetName || '(not found)'}"`);
-      console.log(`  + EVM sheets found: ${Object.keys(evm).length} (${Object.keys(evm).join(', ') || 'none'})`);
 
       // เตือนถ้ามีชื่อ PM ในไฟล์ที่ยังไม่มีบัญชีผูกไว้ (พิมพ์ชื่อผิด หรือมี PM ใหม่เข้าทีม)
       const linked = new Set(USERS.filter(u => u.pmName).map(u => normName(u.pmName)));
