@@ -3002,7 +3002,7 @@ function renderRevenue(list){
       const diffPctOfficial = plan - cur;           // เก็บไว้อ้างอิงเทียบให้เห็นส่วนต่าง
       const diffBaht = diffPct/100 * selling;        // คำนวณเองด้วยวิธีเดียวกับที่ชีทใช้ (ยืนยันแล้วว่า Diff(Baht)=diffPct/100*Selling Price)
 
-      return {p, r, acc, cur, plan, planToday, diffPct, diffPctOfficial, diffBaht, selling, curvePts, months, monIdx, dayFrac};
+      return {p, r, acc, cur, plan, planToday, diffPct, diffPctOfficial, diffBaht, selling, curvePts, months, monIdx, dayFrac, sendUpdate: r['Send Update']};
     });
 
   const missingN = list.length - items.length;
@@ -3021,6 +3021,10 @@ function renderRevenue(list){
   const totalDiffBaht = items.reduce((s,x)=>s+x.diffBaht,0);
   const behindN = items.filter(x=>x.diffPct>0.5).length;
   const aheadN = items.filter(x=>x.diffPct<-0.5).length;
+
+  // วันที่ "Send Update" ล่าสุดข้ามทุกโครงการ - บอกว่าข้อมูลรายได้ทั้งหมดนี้สดแค่ไหน (แยกจาก Progress1)
+  const updateDates = items.map(x=>parseD(x.sendUpdate)).filter(Boolean);
+  const latestUpdate = updateDates.length ? new Date(Math.max(...updateDates)) : null;
 
   const dChip2 = (v) => v>0
     ? `<span class="ov-d down">▼ ล่าช้า ${compact(v)} บาท</span>`
@@ -3046,6 +3050,7 @@ function renderRevenue(list){
       </div>
     </div>
     ${missingN>0 ? `<div style="margin-top:10px;font-size:11px;color:var(--faint)">${missingN} โครงการที่กรองอยู่ยังไม่มีข้อมูลใน sheet Revenue</div>` : ''}
+    ${latestUpdate ? `<div style="margin-top:${missingN>0?'4px':'10px'};font-size:11px;color:var(--faint)">🕐 ข้อมูลรายได้อัปเดตล่าสุด ${fmtDObj(latestUpdate)} (นับจากคอลัมน์ Send Update ใน sheet Revenue - แยกจาก Progress1)</div>` : ''}
   </div>`;
 
   // --- รวมต่อ PM ---
@@ -3099,6 +3104,7 @@ function renderRevenue(list){
           <span>Selling Price <b>${compact(x.selling)}</b></span>
           <span>ส่วนต่าง (เป้าวันนี้) <b style="color:${barCol}">${x.diffBaht>0?'-':x.diffBaht<0?'+':''}${compact(Math.abs(x.diffBaht))}</b></span>
           <span style="color:var(--faint)">เทียบเป้าสิ้นเดือน: ${x.diffPctOfficial>0?'-':'+'}${Math.abs(x.diffPctOfficial).toFixed(1)}pp</span>
+          ${x.sendUpdate ? `<span style="color:var(--faint)">🕐 อัปเดตล่าสุด ${fmtDate(x.sendUpdate)}</span>` : ''}
         </div>
         <div class="rv-scurve">${scurve}</div>
       </div>`;
