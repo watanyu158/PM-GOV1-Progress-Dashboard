@@ -177,7 +177,11 @@ function parseProjectInfoSheet(wb) {
 // --- แกะไฟล์ Excel: sheet ที่ชื่อเป็นรหัสโครงการล้วน ๆ (เช่น "335261233") ---
 // เป็น sheet EVM (Earned Value Management) ละเอียดที่ทีมทำเองสำหรับโครงการที่ต้องเจาะลึกเป็นพิเศษ
 // ไม่ตายตัวว่าต้องมีกี่ sheet - สแกนหาทุก sheet ที่ชื่อเป็นตัวเลขล้วน แล้ว parse ให้หมด เผื่ออนาคตมีเพิ่ม
-// โครงสร้างคงที่: row1=หัวเรื่อง, row2=ป้ายสัปดาห์, row3-16=7 phase (คู่ Plan/Actual), row17-37=สรุป PV/EV/SPI/Health
+//
+// สำคัญ: จำนวน phase และจำนวนสัปดาห์ "ไม่เท่ากัน" ในแต่ละโครงการ (พบจริง: โครงการที่มีของต้องส่งมี 7 phase/35 สัปดาห์
+// ส่วนโครงการที่ปรึกษา/MA ไม่มีของส่งมีแค่ 5 phase/40 สัปดาห์) - parser นี้จึงต้องหาโครงสร้างแบบไดนามิกทั้งหมด
+// ไม่ hardcode ตำแหน่งแถว/คอลัมน์เด็ดขาด: หาความยาวสัปดาห์จากแถวหัวตาราง, หา phase จาก pattern คู่ P/A ที่ต่อกัน,
+// และหาแถวสรุป (PV/EV/SPI/Health) จากการค้นชื่อ label ในคอลัมน์ A แทนตำแหน่งตายตัว
 function parseEvmSheets(wb, knownProjectCodes) {
   const evmByCode = {};
   wb.SheetNames.forEach(sheetName => {
@@ -188,39 +192,62 @@ function parseEvmSheets(wb, knownProjectCodes) {
     try {
       const ws = wb.Sheets[sheetName];
       const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
-      if (aoa.length < 37) return; // โครงสร้างไม่ครบตามที่คาด ข้ามอย่างปลอดภัย
+      if (aoa.length < 15) return; // สั้นเกินกว่าจะเป็นโครงสร้าง EVM จริง ข้ามอย่างปลอดภัย
 
       const title = String(aoa[0]?.[0] || '');
       const projectName = title.includes('-') ? title.split('-').slice(1).join('-').trim() : title;
-      const weekLabels = (aoa[1] || []).slice(3, 38).map(v => v === null ? null : String(v));
 
-      const PHASE_ROW_PAIRS = [[2,3],[4,5],[6,7],[8,9],[10,11],[12,13],[14,15]]; // 0-indexed: [P-row, A-row]
-      const phases = PHASE_ROW_PAIRS.map(([pIdx, aIdx]) => {
-        const pRow = aoa[pIdx] || [], aRow = aoa[aIdx] || [];
-        const planWeekly = pRow.slice(3, 38).map(v => typeof v === 'number' ? v : null);
+      // หาความยาวช่วงสัปดาห์แบบไดนามิก - เริ่มคอลัมน์ D (index 3) ไล่จนกว่าจะเจอ cell ว่าง
+      const headerRow = aoa[1] || [];
+      let numWeeks = 0;
+      while (headerRow[3 + numWeeks] !== null && headerRow[3 + numWeeks] !== undefined) numWeeks++;
+      if (numWeeks === 0) return;
+      const weekLabels = headerRow.slice(3, 3 + numWeeks).map(v => v === null ? null : String(v));
+      const latestActualCol = 3 + numWeeks; // คอลัมน์ถัดจากสัปดาห์สุดท้าย = ค่า actual ล่าสุดของแต่ละ phase เสมอ
+
+      // หา phase แบบไดนามิก - ไล่จากแถวที่ 3 (index 2) เป็นคู่ P/A ต่อเนื่องกันไปเรื่อย ๆ จนกว่า pattern จะขาด
+      const phases = [];
+      let i = 2;
+      while (i + 1 < aoa.length) {
+        const pRow = aoa[i] || [], aRow = aoa[i + 1] || [];
+        const pName = String(pRow[0] || '').trim();
+        const pMarker = String(pRow[2] || '').trim();
+        const aMarker = String(aRow[2] || '').trim();
+        if (pMarker !== 'P' || aMarker !== 'A' || !pName) break;
+        const planWeekly = pRow.slice(3, 3 + numWeeks).map(v => typeof v === 'number' ? v : null);
         let lastPlanWeekIdx = -1;
-        planWeekly.forEach((v, i) => { if (v !== null) lastPlanWeekIdx = i; });
-        const actualLatestRaw = aRow[38]; // คอลัมน์ AM = ค่า actual ล่าสุดที่บันทึกไว้ของ phase นี้
-        return {
-          name: String(pRow[0] || '').trim(),
+        planWeekly.forEach((v, idx) => { if (v !== null) lastPlanWeekIdx = idx; });
+        const actualLatestRaw = aRow[latestActualCol];
+        phases.push({
+          name: pName,
           weight: typeof pRow[1] === 'number' ? pRow[1] : 0,
           lastPlanWeekIdx,
           actualLatest: typeof actualLatestRaw === 'number' ? actualLatestRaw : 0,
-        };
-      }).filter(ph => ph.name);
+        });
+        i += 2;
+      }
+      if (!phases.length) return;
 
-      const pvCumRow = aoa[17] || [];  // % Accumulate Planned Value
-      const evCumRow = aoa[21] || [];  // % Accumulate Earn Value
-      const spiRow = aoa[28] || [];    // แถวตัวเลข SPI (ใต้แถวสถานะ Good/Not Good)
-      const healthRow = aoa[35] || []; // PROJECT HEALTH
+      // หาแถวสรุปด้วยการค้นชื่อ label ในคอลัมน์ A แทนตำแหน่งตายตัว (ตำแหน่งเลื่อนไปตามจำนวน phase ที่ไม่เท่ากัน)
+      const findRow = (label) => aoa.findIndex(r => r && String(r[0] || '').trim() === label);
+      const pvCumIdx = findRow('% Accumulate Planned Value [PV]');
+      const evCumIdx = findRow('% Accumulate Earn Value [EV]');
+      const spiStatusIdx = findRow('Schedule Performance Index [SPI]');
+      const healthIdx = findRow('PROJECT HEALTH');
+      if (pvCumIdx < 0 || evCumIdx < 0 || spiStatusIdx < 0 || healthIdx < 0) return; // โครงสร้างไม่ตรงตามที่คาด ข้ามอย่างปลอดภัย
 
-      const pvCum = pvCumRow.slice(3, 38).map(v => typeof v === 'number' ? v : null);
-      const evCumFull = evCumRow.slice(3, 38).map(v => typeof v === 'number' ? v : null);
+      const pvCumRow = aoa[pvCumIdx] || [];
+      const evCumRow = aoa[evCumIdx] || [];
+      const spiRow = aoa[spiStatusIdx + 1] || []; // แถวถัดจากแถวสถานะ SPI คือแถวตัวเลข SPI เสมอ (ไม่มี label ของตัวเอง)
+      const healthRow = aoa[healthIdx] || [];
+
+      const pvCum = pvCumRow.slice(3, 3 + numWeeks).map(v => typeof v === 'number' ? v : null);
+      const evCumFull = evCumRow.slice(3, 3 + numWeeks).map(v => typeof v === 'number' ? v : null);
       let asOfWeekIdx = -1;
-      evCumFull.forEach((v, i) => { if (v !== null) asOfWeekIdx = i; }); // คอลัมน์สุดท้ายที่มี Actual จริง = "ข้อมูล ณ วันนี้" ของชีตนี้
+      evCumFull.forEach((v, idx) => { if (v !== null) asOfWeekIdx = idx; }); // คอลัมน์สุดท้ายที่มี Actual จริง = "ข้อมูล ณ วันนี้" ของชีตนี้
 
-      const spiWeekly = spiRow.slice(3, 38).map(v => typeof v === 'number' ? v : null);
-      const healthWeekly = healthRow.slice(3, 38).map(v => v === null ? null : String(v));
+      const spiWeekly = spiRow.slice(3, 3 + numWeeks).map(v => typeof v === 'number' ? v : null);
+      const healthWeekly = healthRow.slice(3, 3 + numWeeks).map(v => v === null ? null : String(v));
 
       evmByCode[trimmed] = {
         projectCode: trimmed,
