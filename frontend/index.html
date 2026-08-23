@@ -643,6 +643,35 @@
     color:var(--brand);background:var(--surface-2);border-radius:8px;padding:5px 0;
   }
   .sc-note{padding:14px 18px;font-size:10.5px;color:var(--faint);line-height:1.7;border-top:1px dashed var(--line-soft);margin-top:4px;}
+
+  /* ---------------- Admin: Card Access Management ---------------- */
+  .admin-tab-group-h{
+    padding:11px 18px;background:var(--surface-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line-soft);
+    font-size:11.5px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.03em;
+  }
+  .admin-tab-group-h:first-child{border-top:none;}
+  .admin-card-row{padding:13px 18px;border-bottom:1px solid var(--line-soft);overflow-wrap:break-word;}
+  .admin-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
+  .admin-card-name{font-size:13px;font-weight:700;color:var(--ink);}
+  .admin-card-name .th{font-weight:500;color:var(--faint);font-size:11.5px;}
+  .admin-status-badge{font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:12px;max-width:100%;}
+  .admin-status-badge.all{background:var(--success-tint);color:var(--success);}
+  .admin-status-badge.custom{background:var(--warning-tint);color:var(--warning);}
+  .admin-checkbox-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;max-width:100%;}
+  .admin-chk-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-2);cursor:pointer;user-select:none;}
+  .admin-chk-item input{cursor:pointer;width:14px;height:14px;accent-color:var(--brand);}
+  .admin-chk-item.all-item{font-weight:700;padding-right:10px;border-right:1px solid var(--line-soft);}
+  .admin-update-btn{
+    margin-left:auto;padding:6px 16px;border-radius:8px;border:1px solid var(--brand);background:var(--brand);color:#fff;
+    font-size:11.5px;font-weight:700;cursor:pointer;transition:.15s;
+  }
+  .admin-update-btn:hover{background:var(--brand-2);}
+  .admin-update-btn:disabled{opacity:.5;cursor:default;}
+  .admin-update-btn.saved{background:var(--success);border-color:var(--success);}
+  @media(max-width:640px){
+    .admin-checkbox-row{gap:10px;}
+    .admin-update-btn{margin-left:0;margin-top:8px;width:100%;}
+  }
   @media(max-width:860px){
     .sc-head-row{display:none;}
     .sc-row{grid-template-columns:24px 26px 1fr auto;grid-template-areas:"rank av name comp" "metrics metrics metrics metrics";row-gap:8px;}
@@ -806,9 +835,9 @@
   .pi-profile-detail.open{display:block;}
 
   /* ---------------- Tab navigation ---------------- */
-  .tabbar{display:flex;gap:6px;margin-top:15px;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:5px;}
+  .tabbar{display:flex;flex-wrap:wrap;gap:6px;margin-top:15px;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:5px;}
   .tab-btn{
-    flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
+    flex:1 1 auto;min-width:0;display:flex;align-items:center;justify-content:center;gap:8px;
     padding:10px 14px;border-radius:8px;border:none;background:transparent;cursor:pointer;
     font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:var(--muted);transition:.15s;
   }
@@ -823,8 +852,13 @@
     .tab-btn .tab-th{display:none;}
     .tab-btn svg{width:14px;height:14px;}
   }
+  /* จอแคบมาก (มักเกิดกับ OAT ที่มี 4 แท็บ คนอื่นมีแค่ 3 แท็บซึ่งพอดีอยู่แล้ว) - ให้ขึ้นบรรทัดใหม่ 2x2 แทนที่จะล้นขอบจอ */
+  @media(max-width:400px){
+    .tab-btn{flex-basis:calc(50% - 3px);}
+  }
   #tab2Panels{display:none;}
   #tab3Panels{display:none;}
+  #tab4Panels{display:none;}
 
   /* ---------------- Login screen ---------------- */
   #dashboardWrap{display:none;}
@@ -1151,9 +1185,13 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M8.7 13.5L6 22l6-3.5L18 22l-2.7-8.5"/></svg>
       <span><span class="tab-en">Project Information</span> <span class="tab-th">· ข้อมูลโครงการทั้งหมด</span></span>
     </button>
+    <button class="tab-btn" id="tabBtn4" data-tab="4" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
+      <span><span class="tab-en">Admin</span> <span class="tab-th">· จัดการสิทธิ์การ์ด</span></span>
+    </button>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="panel-kpis">
     <div class="filters" id="filters"></div>
   </div>
 
@@ -1161,7 +1199,7 @@
   <div class="kpis" id="kpis"></div>
 
   <div class="row2">
-    <div class="panel">
+    <div class="panel" id="panel-pmWorkload">
       <div class="p-head">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -1180,7 +1218,7 @@
       </div>
     </div>
 
-    <div class="panel">
+    <div class="panel" id="panel-projectHealth">
       <div class="p-head">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
@@ -1197,7 +1235,7 @@
     </div>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="panel-weekOverWeek">
     <div class="p-head">
       <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>
@@ -1208,7 +1246,7 @@
     <div class="p-body"><div id="wow"></div></div>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="panel-complexity">
     <div class="p-head">
       <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
@@ -1219,7 +1257,7 @@
     <div class="p-body"><div id="cx"></div></div>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="panel-closureTransfer">
     <div class="p-head">
       <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
@@ -1230,7 +1268,7 @@
     <div class="p-body"><div id="cls"></div></div>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="panel-stalledProgress">
     <div class="p-head">
       <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>
@@ -1241,7 +1279,7 @@
     <div class="p-body"><div id="stalled"></div></div>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="panel-dataFreshness">
     <div class="p-head">
       <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -1252,7 +1290,7 @@
     <div class="p-body"><div id="fresh"></div></div>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="panel-revenueAttainment">
     <div class="p-head">
       <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>
@@ -1263,7 +1301,7 @@
     <div class="p-body"><div id="rev"></div></div>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="panel-deliveryTimeline">
     <div class="p-head">
       <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24"><path d="M3 6h18M3 12h12M3 18h7"/><circle cx="19" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg>
@@ -1285,7 +1323,7 @@
     </div>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="panel-pmAvailability">
     <div class="p-head">
       <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24"><path d="M6 2h12M6 22h12"/><path d="M6 2c0 5 6 5 6 10s-6 5-6 10"/><path d="M18 2c0 5-6 5-6 10s6 5 6 10"/></svg>
@@ -1296,7 +1334,7 @@
     <div class="p-body"><div id="freeList"></div></div>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="panel-projectDetails">
     <div class="p-head">
       <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="M8 14h3M8 17h6"/></svg>
@@ -1307,7 +1345,7 @@
     <div class="p-body"><div class="grid" id="grid"></div></div>
   </div>
 
-  <div class="panel" id="oatOnlyPanel" style="display:none;border-color:#5C6B9C">
+  <div class="panel" id="panel-teamScorecard" style="display:none;border-color:#5C6B9C">
     <div class="p-head" style="background:#EBEDF5">
       <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#5C6B9C" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
@@ -1320,7 +1358,7 @@
   </div><!-- /tab1Panels -->
 
   <div id="tab2Panels">
-    <div class="panel">
+    <div class="panel" id="panel-paymentCollection">
       <div class="p-head">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
@@ -1331,7 +1369,7 @@
       <div class="p-body"><div id="pw"></div></div>
     </div>
 
-    <div class="panel">
+    <div class="panel" id="panel-purchaseOrders">
       <div class="p-head">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M21 3l-7.5 7.5"/><path d="M3 21l7.5-7.5"/><circle cx="12" cy="12" r="2"/></svg>
@@ -1342,7 +1380,7 @@
       <div class="p-body"><div id="poBox"></div></div>
     </div>
 
-    <div class="panel">
+    <div class="panel" id="panel-stockOutstanding">
       <div class="p-head">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
@@ -1355,7 +1393,7 @@
   </div><!-- /tab2Panels -->
 
   <div id="tab3Panels">
-    <div class="panel">
+    <div class="panel" id="panel-teamLeaderboard">
       <div class="p-head">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
@@ -1366,7 +1404,7 @@
       <div class="p-body"><div id="piOverview"></div><div id="piLeaderboard"></div></div>
     </div>
 
-    <div class="panel">
+    <div class="panel" id="panel-projectsByYear">
       <div class="p-head">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
@@ -1377,7 +1415,7 @@
       <div class="p-body"><div id="piYearChart"></div></div>
     </div>
 
-    <div class="panel">
+    <div class="panel" id="panel-siteHistory">
       <div class="p-head">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -1394,7 +1432,7 @@
       </div>
     </div>
 
-    <div class="panel">
+    <div class="panel" id="panel-pmProfile">
       <div class="p-head">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -1405,7 +1443,7 @@
       <div class="p-body"><div id="piProfiles"></div></div>
     </div>
 
-    <div class="panel" style="border-color:#3D6B7A">
+    <div class="panel" id="panel-companySearch" style="border-color:#3D6B7A">
       <div class="p-head" style="background:#EAF1F2">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#3D6B7A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
@@ -1422,6 +1460,25 @@
       </div>
     </div>
   </div><!-- /tab3Panels -->
+
+  <div id="tab4Panels">
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
+          Card Access Management <span class="sep">-</span> <span class="th">จัดการสิทธิ์การมองเห็นการ์ด</span>
+        </div>
+        <span class="p-count" id="adminCardCount"></span>
+      </div>
+      <div class="p-body">
+        <div style="padding:13px 18px;border-bottom:1px solid var(--line-soft);font-size:11.5px;color:var(--faint);line-height:1.6">
+          เลือก "ทุกคน" ให้การ์ดนั้นเห็นได้ทุกคนในทีม หรือติ๊กเลือกเฉพาะบางคน แล้วกด "อัปเดต" ต่อการ์ด - มีผลทันทีตอนคนนั้นโหลด/รีเฟรชหน้าครั้งถัดไป<br>
+          ⚠️ การตั้งค่านี้เก็บใน memory ของ server - ถ้า redeploy backend จะรีเซ็ตกลับเป็นค่าเริ่มต้นทั้งหมด
+        </div>
+        <div id="adminCardList"></div>
+      </div>
+    </div>
+  </div><!-- /tab4Panels -->
 
   <footer>PM-GOV1 Progress Dashboard - ข้อมูลอัปเดตอัตโนมัติจาก Excel ผ่าน Make.com</footer>
 </div>
@@ -1441,15 +1498,17 @@ const MAKE_WEBHOOK = 'https://hook.eu1.make.com/m58fg8qhrhydcl5nru3md2dumc5c9xqu
 /* ---------- auth ---------- */
 const TOKEN_KEY = 'pmgov1_token';
 const NAME_KEY = 'pmgov1_name';
+const USERNAME_KEY = 'pmgov1_username'; // username จริงตอน login (ต่างจาก NAME_KEY ที่เป็นชื่อแสดงผล) - ใช้เช็คสิทธิ์การ์ด
 const getToken = () => localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
-function setToken(token, name, remember){
+function setToken(token, name, remember, username){
   const store = remember ? localStorage : sessionStorage;
   store.setItem(TOKEN_KEY, token);
   store.setItem(NAME_KEY, name || '');
+  store.setItem(USERNAME_KEY, username || '');
 }
 function clearToken(){
-  localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(NAME_KEY);
-  sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(NAME_KEY);
+  localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(NAME_KEY); localStorage.removeItem(USERNAME_KEY);
+  sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(NAME_KEY); sessionStorage.removeItem(USERNAME_KEY);
 }
 function hideAllScreens(){
   document.getElementById('appLoading').style.display = 'none';
@@ -1508,7 +1567,7 @@ async function doLogin(username, password, remember){
       errBox.classList.add('show');
       return;
     }
-    setToken(j.token, j.name, remember);
+    setToken(j.token, j.name, remember, j.username);
     showDashboard();
     loadData();
   }catch(e){
@@ -1527,6 +1586,10 @@ async function checkSession(){
       headers:{ Authorization:`Bearer ${token}` }, signal: AbortSignal.timeout(8000),
     });
     if(!res.ok) throw new Error('invalid session');
+    const j = await res.json();
+    // เก็บ username ไว้ใน storage เดียวกับที่ token อยู่แล้ว (เผื่อ session เก่าก่อนมี USERNAME_KEY ยังไม่มีค่านี้)
+    const store = localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
+    if(j?.user?.username) store.setItem(USERNAME_KEY, j.user.username);
     showDashboard();
     loadData();
   }catch(e){
@@ -1750,10 +1813,54 @@ let PROJINFO = [];
 let PROJINFO_ALL = []; // ไม่ล็อกทีม - ใช้เฉพาะ card "ค้นหาทั้งบริษัท"
 let ROWS_TEAMWIDE = []; // Progress1 เต็มทั้งทีมเสมอ ไม่ว่าใคร login (ไม่ผ่านการกรองรายบุคคล) - ใช้กับการ์ดที่ตั้งเป็น team-wide
 
-// ==== ระบบตั้งค่าการมองเห็นการ์ดแบบยืดหยุ่น (ยืดหยุ่นเรื่อง security ตามที่ OAT ขอ) ====
+// ==== ระบบสิทธิ์การมองเห็นการ์ดแบบยืดหยุ่น (จัดการเองได้จาก Tab "Admin") ====
+// รายชื่อการ์ดทั้งหมดที่ OAT จัดการสิทธิ์ได้ - จัดกลุ่มตาม tab เพื่อโชว์ใน Admin UI
+// เพิ่ม/ลบการ์ดในอนาคต แก้ตรงนี้ที่เดียว + เพิ่ม id="panel-<cardId>" ให้ตัว panel HTML จริงคู่กัน
+const CARD_REGISTRY = [
+  {tab:'1', tabLabel:'Project Tracking', id:'kpis', en:'KPI Cards', th:'การ์ดสรุปภาพรวม'},
+  {tab:'1', tabLabel:'Project Tracking', id:'pmWorkload', en:'PM Workload', th:'ภาระงานราย PM'},
+  {tab:'1', tabLabel:'Project Tracking', id:'projectHealth', en:'Project Health', th:'สถานะสุขภาพโครงการ'},
+  {tab:'1', tabLabel:'Project Tracking', id:'weekOverWeek', en:'Week-over-Week', th:'เทียบความคืบหน้ารายสัปดาห์'},
+  {tab:'1', tabLabel:'Project Tracking', id:'complexity', en:'Complexity Intelligence', th:'วิเคราะห์ความซับซ้อน'},
+  {tab:'1', tabLabel:'Project Tracking', id:'closureTransfer', en:'Closure & Transfer Tracking', th:'ปิดงาน / โอนงาน'},
+  {tab:'1', tabLabel:'Project Tracking', id:'stalledProgress', en:'Stalled Progress', th:'โครงการที่ค้างขั้นตอนเดิม'},
+  {tab:'1', tabLabel:'Project Tracking', id:'dataFreshness', en:'Update PMS', th:'การอัปเดต PMS'},
+  {tab:'1', tabLabel:'Project Tracking', id:'revenueAttainment', en:'Revenue Attainment', th:'รายได้สะสมเทียบเป้า'},
+  {tab:'1', tabLabel:'Project Tracking', id:'deliveryTimeline', en:'Delivery Timeline', th:'โครงการใกล้ครบกำหนด'},
+  {tab:'1', tabLabel:'Project Tracking', id:'pmAvailability', en:'PM Availability', th:'พร้อมรับงานใหม่'},
+  {tab:'1', tabLabel:'Project Tracking', id:'projectDetails', en:'Project Details', th:'รายละเอียดโครงการ'},
+  {tab:'1', tabLabel:'Project Tracking', id:'teamScorecard', en:'Team Performance Scorecard', th:'ภาพรวมผลงานทีม'},
+  {tab:'2', tabLabel:'Finance & Stock', id:'paymentCollection', en:'Payment Collection', th:'การเก็บเงินจากลูกค้า'},
+  {tab:'2', tabLabel:'Finance & Stock', id:'purchaseOrders', en:'Purchase Orders', th:'PO และการจ่ายเงินผู้รับเหมา'},
+  {tab:'2', tabLabel:'Finance & Stock', id:'stockOutstanding', en:'Stock Outstanding', th:'ของค้างสต็อก'},
+  {tab:'3', tabLabel:'Project Information', id:'teamLeaderboard', en:'Team Leaderboard', th:'อันดับทีมย้อนหลัง'},
+  {tab:'3', tabLabel:'Project Information', id:'projectsByYear', en:'Projects by Year', th:'จำนวน/มูลค่าโครงการรายปี'},
+  {tab:'3', tabLabel:'Project Information', id:'siteHistory', en:'Site History', th:'ใครเคยดูแลลูกค้ารายนี้บ้าง'},
+  {tab:'3', tabLabel:'Project Information', id:'pmProfile', en:'PM Profile', th:'ประวัติการทำงานราย PM'},
+  {tab:'3', tabLabel:'Project Information', id:'companySearch', en:'Company-wide Search', th:'ค้นหาทั้งบริษัท'},
+];
+let CARD_VISIBILITY = {}; // ดึงจาก backend ทุกครั้งที่ loadData - key=cardId, value='all' หรือ array ของ username
+function currentUsername(){ return (localStorage.getItem(USERNAME_KEY) || sessionStorage.getItem(USERNAME_KEY) || '').trim().toLowerCase(); }
+function canSeeCard(cardId){
+  if(currentUsername()==='oat') return true; // OAT (admin) เห็นทุกการ์ดเสมอไม่ว่าตั้งสิทธิ์ไว้ยังไง กันล็อกตัวเองออกโดยไม่ตั้งใจ
+  const rule = CARD_VISIBILITY[cardId];
+  if(!rule || rule==='all') return true; // ไม่มี entry = ค่า default ทุกคนเห็น
+  if(!Array.isArray(rule)) return true;
+  return rule.map(u=>String(u).toLowerCase()).includes(currentUsername());
+}
+// ซ่อน/โชว์ panel จริงตามสิทธิ์ - เรียกทุกครั้งหลัง render เสร็จ
+function applyCardVisibility(){
+  CARD_REGISTRY.forEach(c=>{
+    const el = document.getElementById('panel-'+c.id);
+    if(el) el.style.display = canSeeCard(c.id) ? '' : 'none';
+  });
+}
+
+// ==== ระบบตั้งค่า "ขอบเขตข้อมูล" ภายในการ์ดที่ยังเห็นอยู่ (คนละเรื่องกับ CARD_VISIBILITY ด้านล่าง) ====
 // ตั้งค่าตรงนี้จุดเดียว ควบคุมได้ว่าการ์ดไหนควรให้ "ทุกคนเห็นข้อมูลทีมเต็มเสมอ" (ไม่ขึ้นกับว่าใคร login มา
 // และไม่ถูกกรองตาม filter ด้านบนของหน้าด้วย) ส่วนการ์ดที่ไม่ได้ระบุในนี้ = พฤติกรรม default ปกติ
-// (แต่ละคนเห็นแค่โครงการตัวเอง + ตาม filter ที่เลือกอยู่) อยากเปิด/ปิดการ์ดไหนเพิ่ม แค่เพิ่ม/ลบบรรทัดในนี้พอ
+// (แต่ละคนเห็นแค่โครงการตัวเอง + ตาม filter ที่เลือกอยู่) - ตัวนี้ยัง hardcode ในโค้ด (แก้เฉพาะ dev)
+// ต่างจาก CARD_VISIBILITY ที่ควบคุม "เห็นการ์ดทั้งใบหรือไม่เห็นเลย" และ OAT แก้เองได้จาก Tab Admin
 const PANEL_VISIBILITY = {
   dataFreshness: 'team-wide', // Update PMS - OAT ต้องการให้ทุกคนเห็นสถานะทั้งทีม ไม่ใช่แค่โครงการตัวเอง
 };
@@ -1789,6 +1896,7 @@ async function loadData(auto){
       PROJINFO_ALL = (j.projectInfoAll || []).map(normRow);
       EVM = j.evm || {};
       ROWS_TEAMWIDE = (j.rowsTeamWide || []).map(normRow);
+      CARD_VISIBILITY = j.cardVisibility || {};
       SCOPE = j.scope || null;
       lastKnownUpdatedAt = j.updatedAt || null;
       setSource(true, j.updatedAt);
@@ -4336,21 +4444,120 @@ function renderOatScorecard(){
     </div>`;
 }
 
+// รายชื่อ username จริงในทีม (ไม่รวม oat เพราะ admin เห็นทุกการ์ดเสมออยู่แล้ว ไม่ต้องมี checkbox ให้ติ๊ก)
+// ถ้ามีคนเข้า/ออกทีมในอนาคต แก้รายการตรงนี้ที่เดียว
+const TEAM_USERS = [
+  {username:'antika', name:'Antika Prasadsil'},
+  {username:'lomdetch', name:'Lomdetch Puangsombut'},
+  {username:'virojt', name:'Virojt Changyencham'},
+  {username:'prapasiri', name:'Prapasiri Rakkanpat'},
+  {username:'watanyu', name:'Watanyu Anantakunakorn'},
+];
+
+async function renderAdminTab(){
+  const el = document.getElementById('adminCardList');
+  const token = getToken();
+  let visibility = CARD_VISIBILITY;
+  // ดึงค่าล่าสุดสด ๆ จาก server เสมอตอนเข้า tab นี้ (เผื่อมีการแก้จากที่อื่น/เบราว์เซอร์อื่นมาก่อนหน้า)
+  try{
+    const res = await fetch(`${API_BASE}/api/admin/card-visibility`, { headers:{ Authorization:`Bearer ${token}` } });
+    if(res.ok){ const j = await res.json(); if(j.ok) visibility = j.visibility || {}; }
+  }catch(e){ /* ใช้ค่าที่มีอยู่แล้วจาก loadData ถ้าดึงสดไม่สำเร็จ */ }
+  CARD_VISIBILITY = visibility;
+
+  document.getElementById('adminCardCount').textContent = `${CARD_REGISTRY.length} การ์ด`;
+
+  const groups = {};
+  CARD_REGISTRY.forEach(c=>{ (groups[c.tabLabel] ||= []).push(c); });
+
+  el.innerHTML = Object.entries(groups).map(([tabLabel, cards])=>{
+    const rows = cards.map(c=>{
+      const rule = visibility[c.id];
+      const isAll = !rule || rule==='all';
+      const allowedSet = new Set(isAll ? [] : (Array.isArray(rule)?rule:[]).map(u=>u.toLowerCase()));
+      const statusTxt = isAll ? 'ทุกคนเห็น' : (allowedSet.size ? `เฉพาะ ${[...allowedSet].map(u=>TEAM_USERS.find(t=>t.username===u)?.name||u).join(', ')}` : 'ไม่มีใครเห็นเลย');
+      const chkItems = TEAM_USERS.map(u=>`
+        <label class="admin-chk-item">
+          <input type="checkbox" data-user="${u.username}" ${allowedSet.has(u.username)?'checked':''} ${isAll?'disabled':''}>
+          ${u.name}
+        </label>`).join('');
+      return `<div class="admin-card-row" data-card-id="${c.id}">
+        <div class="admin-card-top">
+          <div class="admin-card-name">${c.en} <span class="th">· ${c.th}</span></div>
+          <span class="admin-status-badge ${isAll?'all':'custom'}">ตอนนี้: ${statusTxt}</span>
+        </div>
+        <div class="admin-checkbox-row">
+          <label class="admin-chk-item all-item">
+            <input type="checkbox" class="admin-chk-all" ${isAll?'checked':''}>
+            ทุกคน
+          </label>
+          ${chkItems}
+          <button class="admin-update-btn" type="button">อัปเดต</button>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="admin-tab-group-h">${tabLabel}</div>${rows}`;
+  }).join('');
+
+  // ติ๊ก "ทุกคน" แล้วปิด/ล้าง checkbox รายคนอัตโนมัติ (ทุกคน = ไม่ต้องเลือกใครเฉพาะเจาะจง)
+  el.querySelectorAll('.admin-chk-all').forEach(allChk=>{
+    allChk.addEventListener('change', ()=>{
+      const row = allChk.closest('.admin-card-row');
+      row.querySelectorAll('.admin-chk-item input[data-user]').forEach(chk=>{
+        chk.disabled = allChk.checked;
+        if(allChk.checked) chk.checked = false;
+      });
+    });
+  });
+
+  // ปุ่มอัปเดตต่อการ์ด - ส่งค่าที่ติ๊กอยู่ตอนนี้ไปบันทึกที่ server ทันที
+  el.querySelectorAll('.admin-update-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const row = btn.closest('.admin-card-row');
+      const cardId = row.dataset.cardId;
+      const isAll = row.querySelector('.admin-chk-all').checked;
+      const users = [...row.querySelectorAll('.admin-chk-item input[data-user]:checked')].map(c=>c.dataset.user);
+
+      btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+      try{
+        const res = await fetch(`${API_BASE}/api/admin/card-visibility`, {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${getToken()}` },
+          body: JSON.stringify({ cardId, mode: isAll?'all':'custom', users }),
+        });
+        const j = await res.json();
+        if(!res.ok || !j.ok) throw new Error(j.error||'บันทึกไม่สำเร็จ');
+        CARD_VISIBILITY = j.visibility || {};
+        btn.classList.add('saved'); btn.textContent = 'บันทึกแล้ว ✓';
+        const badge = row.querySelector('.admin-status-badge');
+        const statusTxt = isAll ? 'ทุกคนเห็น' : (users.length ? `เฉพาะ ${users.map(u=>TEAM_USERS.find(t=>t.username===u)?.name||u).join(', ')}` : 'ไม่มีใครเห็นเลย');
+        badge.textContent = `ตอนนี้: ${statusTxt}`;
+        badge.className = `admin-status-badge ${isAll?'all':'custom'}`;
+        setTimeout(()=>{ btn.classList.remove('saved'); btn.textContent = 'อัปเดต'; btn.disabled = false; }, 1500);
+      }catch(e){
+        btn.textContent = 'ผิดพลาด ลองใหม่'; btn.disabled = false;
+      }
+    });
+  });
+}
+
 function render(){
   buildFilters();
   document.getElementById('hProjects').textContent = ALL.length;
   document.getElementById('hPMs').textContent = uniq(ALL.map(p=>pmKey(p['PM Name']))).length;
   renderFiltered();
 
-  // การ์ด Team Performance Scorecard เห็นเฉพาะ OAT คนเดียวเท่านั้น เช็คจากชื่อที่ login เข้ามา
-  const loggedInName = (localStorage.getItem(NAME_KEY) || sessionStorage.getItem(NAME_KEY) || '').trim().toLowerCase();
-  const oatPanel = document.getElementById('oatOnlyPanel');
-  if(loggedInName === 'oat'){
-    oatPanel.style.display = '';
-    renderOatScorecard();
-  } else {
-    oatPanel.style.display = 'none';
-  }
+  // คำนวณ Scorecard เฉพาะตอนที่ user คนนี้มีสิทธิ์เห็นจริง ๆ (กันคำนวณทิ้งเปล่า ๆ สำหรับคนที่มองไม่เห็นอยู่แล้ว)
+  if(canSeeCard('teamScorecard')) renderOatScorecard();
+
+  // ซ่อน/โชว์การ์ดทั้งหมดตามสิทธิ์ที่ตั้งไว้ (ค่า default = ทุกคนเห็น ยกเว้นมี entry ระบุไว้ใน CARD_VISIBILITY)
+  applyCardVisibility();
+
+  // Tab "Admin" เป็นจุดจัดการสิทธิ์เอง - จำกัดเฉพาะ username "oat" ตรง ๆ เท่านั้น (ไม่ผ่านระบบ CARD_VISIBILITY
+  // ที่ OAT แก้เองได้ ป้องกันการล็อกตัวเองออกจากหน้าจัดการสิทธิ์โดยไม่ตั้งใจ)
+  const isOat = currentUsername() === 'oat';
+  document.getElementById('tabBtn4').style.display = isOat ? '' : 'none';
+  if(isOat) renderAdminTab();
 }
 function renderFiltered(){
   const f = applyFilters(ALL);
@@ -4469,6 +4676,7 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     document.getElementById('tab1Panels').style.display = tab==='1' ? 'block' : 'none';
     document.getElementById('tab2Panels').style.display = tab==='2' ? 'block' : 'none';
     document.getElementById('tab3Panels').style.display = tab==='3' ? 'block' : 'none';
+    document.getElementById('tab4Panels').style.display = tab==='4' ? 'block' : 'none';
   });
 });
 

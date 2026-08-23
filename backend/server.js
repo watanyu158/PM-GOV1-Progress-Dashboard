@@ -16,6 +16,8 @@ const multer = require('multer');
 const XLSX = require('xlsx');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -85,7 +87,7 @@ app.post('/api/login', async (req, res) => {
   const token = crypto.randomBytes(24).toString('hex');
   tokens.set(token, { username: user.username, name: user.name || user.username, pmName: user.pmName || null, role: user.role || 'pm', expires: Date.now() + TOKEN_TTL });
   console.log(`✓ Login: ${user.username}`);
-  res.json({ ok: true, token, name: user.name || user.username, scope: (user.role === 'admin' || !user.pmName) ? 'all' : user.pmName, expiresIn: TOKEN_TTL });
+  res.json({ ok: true, token, username: user.username, name: user.name || user.username, scope: (user.role === 'admin' || !user.pmName) ? 'all' : user.pmName, expiresIn: TOKEN_TTL });
 });
 
 app.post('/api/logout', requireAuth, (req, res) => {
@@ -112,6 +114,45 @@ let latestData = {
   evm: {}, // sheet EVM ละเอียดต่อโครงการ (key = Project Code) - มีเฉพาะโครงการที่ทีมทำ sheet ไว้ ไม่ครบทุกโครงการ
   updatedAt: null,
 };
+
+// การตั้งค่าว่าการ์ดไหนให้ใครเห็นได้บ้าง (OAT จัดการเองผ่าน Tab "Admin") - key = cardId, value = 'all' หรือ array
+// ของ username ที่อนุญาต การ์ดที่ไม่มี entry ในนี้ = ค่า default 'all' (ทุกคนเห็น)
+//
+// ⚠️ ความถาวรของการตั้งค่านี้ขึ้นกับที่เก็บ hosting: ระบบนี้เขียนค่าลงไฟล์ CARD_VISIBILITY_FILE บน disk เสมอ
+// (คนละกลไกกับ latestData/Excel ที่อยู่ใน memory ล้วน ๆ) ซึ่งจะอยู่ถาวรข้ามการ redeploy ได้ "ก็ต่อเมื่อ" service
+// บน Render ผูก Persistent Disk ไว้ที่ path ของไฟล์นี้เท่านั้น - ถ้าไม่ได้ผูกไว้ (ปกติ default ของ Render คือ
+// disk แบบ ephemeral หายทุกครั้งที่ redeploy) ค่าจะยังคงอยู่ระหว่างที่ server รันต่อเนื่อง/restart ปกติ
+// แต่จะรีเซ็ตกลับเป็นค่าเริ่มต้นเมื่อ redeploy โค้ดใหม่เหมือนเดิม - ถ้าอยากถาวรจริงข้ามทุกการ redeploy
+// ต้องไปเปิด Persistent Disk บน Render แล้วตั้ง mount path ให้ตรงกับโฟลเดอร์ของไฟล์นี้
+const CARD_VISIBILITY_FILE = path.join(__dirname, 'card-visibility-store.json');
+const DEFAULT_CARD_VISIBILITY = {
+  teamScorecard: ['oat'], // ค่าเริ่มต้น: การ์ดนี้เคย hardcode ไว้ให้ oat เห็นคนเดียว - seed ไว้แบบเดิมก่อน OAT จะมาปรับเองทีหลังได้
+};
+
+function loadCardVisibility() {
+  try {
+    const raw = fs.readFileSync(CARD_VISIBILITY_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    console.log(`✓ โหลดค่าสิทธิ์การ์ดจากไฟล์ ${CARD_VISIBILITY_FILE} สำเร็จ`);
+    return parsed;
+  } catch (e) {
+    console.log(`ℹ ยังไม่มีไฟล์ค่าสิทธิ์การ์ด (${e.code === 'ENOENT' ? 'ไฟล์ยังไม่เคยถูกสร้าง' : e.message}) - ใช้ค่าเริ่มต้นไปก่อน`);
+    return { ...DEFAULT_CARD_VISIBILITY };
+  }
+}
+
+function saveCardVisibility(data) {
+  try {
+    fs.writeFileSync(CARD_VISIBILITY_FILE, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  } catch (e) {
+    console.log(`⚠ เขียนไฟล์ค่าสิทธิ์การ์ดไม่สำเร็จ: ${e.message} (การตั้งค่าจะยังใช้ได้ในรอบรันนี้ แต่จะหายถ้า server restart)`);
+    return false;
+  }
+}
+
+let CARD_VISIBILITY = loadCardVisibility();
+if (!fs.existsSync(CARD_VISIBILITY_FILE)) saveCardVisibility(CARD_VISIBILITY); // สร้างไฟล์ตั้งแต่ startup รอบแรกเลย ไม่ต้องรอจนกว่าจะมีคนแก้ค่าครั้งแรก
 
 // เก็บข้อมูล debug ล่าสุดไว้เสมอ ดูผ่าน GET /api/debug/last-payload
 let lastRaw = {
@@ -513,11 +554,37 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
 // --- ให้ frontend ดึงข้อมูลไปแสดง (ต้อง login ก่อน) ---
 // ถ้าผู้ใช้ผูกกับ pmName ไว้ จะกรองให้เหลือเฉพาะโครงการของตัวเองตั้งแต่ฝั่ง server
 // (ปลอดภัยกว่ากรองฝั่งเบราว์เซอร์ เพราะข้อมูลคนอื่นไม่เคยถูกส่งออกไปเลย)
+// ==== Admin: จัดการว่าการ์ดไหนให้ใครเห็นได้บ้าง (Tab "Admin" เรียกใช้ 2 ตัวนี้) ====
+// เฉพาะ role admin เท่านั้นที่เรียกได้ (username เป็นเงื่อนไขเพิ่มเติมฝั่ง frontend สำหรับโชว์ tab แต่ backend
+// เช็คแค่ role พอ เพราะในระบบนี้มีแค่ oat คนเดียวที่เป็น admin - ถ้าอนาคตมี admin คนอื่นเพิ่ม จะจัดการได้ด้วยเหมือนกัน)
+app.get('/api/admin/card-visibility', requireAuth, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ ok: false, error: 'ต้องเป็น admin เท่านั้น' });
+  res.json({ ok: true, visibility: CARD_VISIBILITY });
+});
+
+app.post('/api/admin/card-visibility', requireAuth, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ ok: false, error: 'ต้องเป็น admin เท่านั้น' });
+  const { cardId, mode, users } = req.body || {};
+  if (!cardId || typeof cardId !== 'string') return res.status(400).json({ ok: false, error: 'ไม่มี cardId' });
+
+  if (mode === 'all') {
+    delete CARD_VISIBILITY[cardId]; // ค่า default = ทุกคนเห็น ไม่ต้องเก็บ entry ไว้ก็ได้ ชัดเจนกว่าว่าเป็นค่าปกติ
+  } else if (mode === 'custom') {
+    CARD_VISIBILITY[cardId] = Array.isArray(users) ? users.filter(u => typeof u === 'string') : [];
+  } else {
+    return res.status(400).json({ ok: false, error: 'mode ต้องเป็น "all" หรือ "custom"' });
+  }
+
+  const persisted = saveCardVisibility(CARD_VISIBILITY); // เขียนลงไฟล์ทันทีทุกครั้งที่แก้ - ดู CARD_VISIBILITY_FILE ด้านบนเรื่องความถาวรจริง
+  console.log(`✓ Admin (${req.user.username}) แก้สิทธิ์การ์ด "${cardId}" -> ${mode==='all' ? 'ทุกคนเห็น' : `เฉพาะ [${(CARD_VISIBILITY[cardId]||[]).join(', ')}]`} (เขียนไฟล์${persisted?'สำเร็จ':'ไม่สำเร็จ'})`);
+  res.json({ ok: true, visibility: CARD_VISIBILITY, persisted });
+});
+
 app.get('/api/projects', requireAuth, (req, res) => {
   const { pmName, role } = req.user;
   // rowsTeamWide: ข้อมูลทีมเต็มเสมอ ไม่ว่าใคร login (ไม่ถูกกรองรายบุคคล) - ใช้กับการ์ดที่ตั้งค่าให้เห็นทีมเต็มเสมอ
   // เช่น "Update PMS" ที่ OAT อยากให้ทุกคนในทีมเห็นสถานะทั้งทีม ไม่ใช่แค่โครงการของตัวเอง
-  if (role === 'admin' || !pmName) return res.json({ ...latestData, rowsTeamWide: latestData.rows });
+  if (role === 'admin' || !pmName) return res.json({ ...latestData, rowsTeamWide: latestData.rows, cardVisibility: CARD_VISIBILITY });
 
   const target = normName(pmName);
   const rows = latestData.rows.filter(r => normName(r['PM Name']) === target);
@@ -539,7 +606,7 @@ app.get('/api/projects', requireAuth, (req, res) => {
     console.log(`  ชื่อ PM ที่มีอยู่จริงในไฟล์: ${JSON.stringify(available)}`);
   }
 
-  res.json({ ...latestData, rows, revenue, paymentW, po, stock, stockSummary, projectInfo, rowsTeamWide: latestData.rows, scope: pmName });
+  res.json({ ...latestData, rows, revenue, paymentW, po, stock, stockSummary, projectInfo, rowsTeamWide: latestData.rows, cardVisibility: CARD_VISIBILITY, scope: pmName });
 });
 
 app.get('/api/health', (req, res) => {
