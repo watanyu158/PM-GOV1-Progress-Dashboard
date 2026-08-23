@@ -515,7 +515,9 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
 // (ปลอดภัยกว่ากรองฝั่งเบราว์เซอร์ เพราะข้อมูลคนอื่นไม่เคยถูกส่งออกไปเลย)
 app.get('/api/projects', requireAuth, (req, res) => {
   const { pmName, role } = req.user;
-  if (role === 'admin' || !pmName) return res.json(latestData);
+  // rowsTeamWide: ข้อมูลทีมเต็มเสมอ ไม่ว่าใคร login (ไม่ถูกกรองรายบุคคล) - ใช้กับการ์ดที่ตั้งค่าให้เห็นทีมเต็มเสมอ
+  // เช่น "Update PMS" ที่ OAT อยากให้ทุกคนในทีมเห็นสถานะทั้งทีม ไม่ใช่แค่โครงการของตัวเอง
+  if (role === 'admin' || !pmName) return res.json({ ...latestData, rowsTeamWide: latestData.rows });
 
   const target = normName(pmName);
   const rows = latestData.rows.filter(r => normName(r['PM Name']) === target);
@@ -537,7 +539,7 @@ app.get('/api/projects', requireAuth, (req, res) => {
     console.log(`  ชื่อ PM ที่มีอยู่จริงในไฟล์: ${JSON.stringify(available)}`);
   }
 
-  res.json({ ...latestData, rows, revenue, paymentW, po, stock, stockSummary, projectInfo, scope: pmName });
+  res.json({ ...latestData, rows, revenue, paymentW, po, stock, stockSummary, projectInfo, rowsTeamWide: latestData.rows, scope: pmName });
 });
 
 app.get('/api/health', (req, res) => {

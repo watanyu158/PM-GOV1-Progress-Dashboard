@@ -1748,6 +1748,17 @@ let STOCK = [];
 let STOCKSUM = [];
 let PROJINFO = [];
 let PROJINFO_ALL = []; // ไม่ล็อกทีม - ใช้เฉพาะ card "ค้นหาทั้งบริษัท"
+let ROWS_TEAMWIDE = []; // Progress1 เต็มทั้งทีมเสมอ ไม่ว่าใคร login (ไม่ผ่านการกรองรายบุคคล) - ใช้กับการ์ดที่ตั้งเป็น team-wide
+
+// ==== ระบบตั้งค่าการมองเห็นการ์ดแบบยืดหยุ่น (ยืดหยุ่นเรื่อง security ตามที่ OAT ขอ) ====
+// ตั้งค่าตรงนี้จุดเดียว ควบคุมได้ว่าการ์ดไหนควรให้ "ทุกคนเห็นข้อมูลทีมเต็มเสมอ" (ไม่ขึ้นกับว่าใคร login มา
+// และไม่ถูกกรองตาม filter ด้านบนของหน้าด้วย) ส่วนการ์ดที่ไม่ได้ระบุในนี้ = พฤติกรรม default ปกติ
+// (แต่ละคนเห็นแค่โครงการตัวเอง + ตาม filter ที่เลือกอยู่) อยากเปิด/ปิดการ์ดไหนเพิ่ม แค่เพิ่ม/ลบบรรทัดในนี้พอ
+const PANEL_VISIBILITY = {
+  dataFreshness: 'team-wide', // Update PMS - OAT ต้องการให้ทุกคนเห็นสถานะทั้งทีม ไม่ใช่แค่โครงการตัวเอง
+};
+// คืนรายการโครงการล่าสุดต่อโครงการจากข้อมูลทีมเต็ม (ไม่กรองรายบุคคล/ไม่กรองตาม filter บนหน้า) - ใช้กับการ์ด team-wide
+function getTeamWideProjects(){ return latestPerProject(ROWS_TEAMWIDE); }
 let EVM = {}; // sheet EVM ละเอียดต่อโครงการ (key = Project Code) - มีเฉพาะโครงการที่ทำ sheet ไว้
 let piWindow = 5; // ค่าเริ่มต้น: ย้อนหลัง 5 ปี
 let SCOPE = null;   // ชื่อ PM ที่ backend กรองมาให้ (null = เห็นทุกโครงการ)
@@ -1777,6 +1788,7 @@ async function loadData(auto){
       PROJINFO = (j.projectInfo || []).map(normRow);
       PROJINFO_ALL = (j.projectInfoAll || []).map(normRow);
       EVM = j.evm || {};
+      ROWS_TEAMWIDE = (j.rowsTeamWide || []).map(normRow);
       SCOPE = j.scope || null;
       lastKnownUpdatedAt = j.updatedAt || null;
       setSource(true, j.updatedAt);
@@ -1797,7 +1809,7 @@ async function loadData(auto){
     HIST = SEED_DATA.map(normRow);
     ALL = latestPerProject(HIST);
     REV = SEED_REVENUE.map(normRow);
-    PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = []; PROJINFO_ALL = []; EVM = {};
+    PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = []; PROJINFO_ALL = []; EVM = {}; ROWS_TEAMWIDE = [];
     setSource(false, null);
     render();
   }
@@ -2862,10 +2874,10 @@ function mondayOfWeek(d){
   return monday;
 }
 
-function computePunctuality(list){
+function computePunctuality(list, histSource){
   const today = new Date(); today.setHours(0,0,0,0);
   const codes = new Set(list.map(p=>p['Project Code']));
-  const hist = HIST.filter(r=>codes.has(r['Project Code']) && parseD(r['Update Date']));
+  const hist = (histSource || HIST).filter(r=>codes.has(r['Project Code']) && parseD(r['Update Date']));
 
   const byCode = {};
   hist.forEach(r=>{ (byCode[r['Project Code']] ||= []).push(r); });
@@ -2912,8 +2924,8 @@ function computePunctuality(list){
     .sort((a,b)=> b.pct-a.pct || b.total-a.total);
 }
 
-function renderPunctualityPodium(list){
-  const punctuality = computePunctuality(list);
+function renderPunctualityPodium(list, histSource){
+  const punctuality = computePunctuality(list, histSource);
   if(!punctuality.length) return '';
 
   const podiumItem = (entry, rankNum) => {
@@ -2954,6 +2966,9 @@ function renderDataFreshness(list){
   const el = document.getElementById('fresh');
   const today = new Date(); today.setHours(0,0,0,0);
   const STALE_DAYS = 7;
+  // ถ้าการ์ดนี้ตั้งเป็น team-wide ต้องใช้ประวัติ (HIST) แบบทีมเต็มด้วย ไม่งั้น Punctuality Podium จะยังเห็นแค่
+  // ประวัติของคนที่ login อยู่ (เพราะ HIST ปกติถูกกรองรายบุคคลมาจาก backend ตั้งแต่ต้นสำหรับ user ที่ไม่ใช่ admin)
+  const histSource = PANEL_VISIBILITY.dataFreshness==='team-wide' ? ROWS_TEAMWIDE : HIST;
 
   const openList = list.filter(p=>{ const st=projectStatus(p); return st!=='Contract Closed' && st!=='Completely Closed'; });
 
@@ -3007,7 +3022,7 @@ function renderDataFreshness(list){
     </div>`;
   }).join('') : `<div class="empty">ทุกโครงการที่กำลังดำเนินการอัปเดตข้อมูลภายใน ${STALE_DAYS} วันล่าสุดแล้ว</div>`;
 
-  el.innerHTML = renderPunctualityPodium(list) + overview + `<div style="margin-top:14px">${rows}</div>`;
+  el.innerHTML = renderPunctualityPodium(list, histSource) + overview + `<div style="margin-top:14px">${rows}</div>`;
 }
 
 function renderRevenue(list){
@@ -4339,7 +4354,9 @@ function render(){
 }
 function renderFiltered(){
   const f = applyFilters(ALL);
-  renderKPIs(f); renderPM(f); renderDonut(f); renderWow(f); renderComplexity(f); renderClosure(f); renderStalled(f); renderDataFreshness(f); renderRevenue(f); renderGantt(f); renderFree(f); renderCards(f);
+  renderKPIs(f); renderPM(f); renderDonut(f); renderWow(f); renderComplexity(f); renderClosure(f); renderStalled(f);
+  renderDataFreshness(PANEL_VISIBILITY.dataFreshness==='team-wide' ? getTeamWideProjects() : f);
+  renderRevenue(f); renderGantt(f); renderFree(f); renderCards(f);
   renderPayment(); renderPOPanel(); renderStock();
   renderProjectInfo();
 }
