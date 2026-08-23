@@ -1568,29 +1568,30 @@ const normRow = raw => { const o={}; for(const [k,v] of Object.entries(raw)) o[n
 function num(v){ const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n) ? 0 : n; }
 
 // กติกาที่ OAT ตั้งไว้: PM Accountable Value + MA/Rent Value ต้องรวมกันได้เท่ากับ Selling Price เสมอ
-// - ถ้า PM Accountable Value (ที่กรอกไว้) เท่ากับ Selling Price อยู่แล้ว = ไม่ต้องยุ่งกับ MA/Rent เลย (ถือว่า MA/Rent=0)
-// - ถ้า PM Accountable Value เป็น 0 และ MA/Rent Value ก็เป็น 0 ด้วยทั้งคู่ (ยังไม่ได้กรอกเลยสักช่อง) = ไม่เดาว่าควรเป็นของ PM
-//   หรือ MA/Rent - ปล่อยเป็น 0 ทั้งคู่ไปก่อน (ไม่บวก Selling Price เข้าไปแทนแบบสุ่มเดา) แล้วให้ hasValueDataGap()
-//   ไปโชว์ remark เตือนแทน เพื่อให้ OAT ไปกรอกข้อมูลจริงเองภายหลัง กันคำนวณผิดพลาดจากการเดา
-// - ถ้า PM Accountable Value เป็น 0 (แต่ MA/Rent Value มีค่า) = ให้คำนวณจาก Selling Price ลบ MA/Rent Value แทน
-// - กรณีอื่นนอกเหนือจากนี้ (ไม่ควรเกิดขึ้นบ่อยตามข้อมูลจริง) = เชื่อค่า PM ที่กรอกไว้ แล้วปรับ MA/Rent ให้สมการลงตัวแทน
+// (แก้ไขจากเดิม: เดิมถ้า PM=Selling Price จะทิ้ง MA/Rent Value ไปเป็น 0 ทันที แต่พบว่ามีโครงการจริง
+// ที่ PM=Selling Price บังเอิญพอดี ในขณะที่ MA/Rent Value ก็มีค่าจริงไม่ใช่ 0 ด้วย (เช่น Wifi Replacement,
+// MA - Security for GPPC) ทำให้ตัวเลขที่กรอกไว้จริงหายไปจาก dashboard โดยไม่ตั้งใจ - แก้โดยสลับลำดับ
+// ความสำคัญ: เชื่อ MA/Rent Value ก่อนเสมอถ้ามันไม่ใช่ 0 เพราะถ้ามีคนกรอกตัวเลขที่ไม่ใช่ 0 ไว้ ถือเป็นความตั้งใจจริง)
+// - ถ้า MA/Rent Value (ที่กรอกไว้) ไม่ใช่ 0 = เชื่อค่านั้นเลย แล้วคำนวณ PM Accountable Value จาก
+//   Selling Price ลบ MA/Rent Value แทน (ไม่สนว่า PM Accountable Value ที่กรอกไว้จะเป็นเท่าไหร่)
+// - ถ้า MA/Rent Value เป็น 0 แต่ PM Accountable Value ไม่ใช่ 0 = เชื่อค่า PM Accountable Value ที่กรอกไว้เลย
+// - ถ้าทั้งคู่เป็น 0 (ยังไม่ได้กรอกเลยสักช่อง) = ไม่เดาว่าควรเป็นของฝั่งไหน ปล่อยเป็น 0 ทั้งคู่ไปก่อน
+//   แล้วให้ hasValueDataGap() ไปโชว์ remark เตือนแทน เพื่อให้ OAT ไปกรอกข้อมูลจริงเองภายหลัง
 function effectivePMValue(p){
   const selling = num(p['Selling Price']);
   const pmRaw = num(p['PM Accountable Value']);
   const maRaw = num(p['MA/Rent Value']);
-  if (pmRaw === selling) return pmRaw;
-  if (pmRaw === 0 && maRaw === 0) return 0;
-  if (pmRaw === 0) return selling - maRaw;
-  return pmRaw;
+  if (maRaw !== 0) return selling - maRaw;
+  if (pmRaw !== 0) return pmRaw;
+  return 0;
 }
 function effectiveMARentValue(p){
   const selling = num(p['Selling Price']);
   const pmRaw = num(p['PM Accountable Value']);
   const maRaw = num(p['MA/Rent Value']);
-  if (pmRaw === selling) return 0;
-  if (pmRaw === 0 && maRaw === 0) return 0;
-  if (pmRaw === 0) return maRaw;
-  return selling - pmRaw;
+  if (maRaw !== 0) return maRaw;
+  if (pmRaw !== 0) return selling - pmRaw;
+  return 0;
 }
 // true = โครงการนี้มี Selling Price แล้ว แต่ PM Accountable Value กับ MA/Rent Value ยังไม่ได้กรอกเลยทั้งคู่
 // (ผลรวม PM+MA จะไม่เท่ากับ Selling Price ในเคสนี้โดยตั้งใจ - ไม่เดาให้ ต้องไปกรอกเองใน Excel)
@@ -3987,6 +3988,25 @@ function buildEvmDetailHtml(evm, projectCode){
     ? `<div class="c-evm-stock-alert">📦 มีของค้างสต็อก ${thb(stockMatch.stockValueCurr)} (สถานะ: ${stockMatch.poStatus}) - เช็คว่า phase ที่เกี่ยวกับการส่งของใน EVM นี้อัปเดตตรงกับความจริงหรือยัง</div>`
     : '';
 
+  // เชื่อมกับ PO ที่ยังค้างรับของโครงการเดียวกัน - ไฮไลต์ตัวที่เลยกำหนดส่งมากสุดเป็นพิเศษ เพราะมักเป็นตัวการหลักที่แท้จริง
+  // ที่ทำให้ phase งานล่าช้า ไม่ใช่แค่ทีม implementation ทำงานช้าเฉย ๆ
+  const today0 = new Date(); today0.setHours(0,0,0,0);
+  const poMatches = PO.filter(x=>x.projectCode===projectCode && (x.status||'').trim()!=='รับครบ');
+  let poAlert = '';
+  if(poMatches.length){
+    const totalOutstanding = poMatches.reduce((s,x)=>s+num(x.balanced),0);
+    const withDays = poMatches.map(x=>{
+      const dd = parseD(x.deliveryDate);
+      const daysOverdue = dd ? Math.round((today0-dd)/DAY) : null;
+      return {...x, daysOverdue};
+    }).sort((a,b)=>(b.daysOverdue||-999)-(a.daysOverdue||-999));
+    const worst = withDays[0];
+    const worstTxt = (worst.daysOverdue!==null && worst.daysOverdue>0)
+      ? `ตัวที่ค้างนานสุด: <b>${worst.vendor||'-'}</b> (${worst.product||worst.poNumber}) เลยกำหนดส่งมาแล้ว ${worst.daysOverdue} วัน มูลค่าค้าง ${thb(worst.balanced)}`
+      : `ตัวที่ค้างมูลค่าสูงสุด: <b>${worst.vendor||'-'}</b> (${worst.product||worst.poNumber}) มูลค่าค้าง ${thb(worst.balanced)}`;
+    poAlert = `<div class="c-evm-stock-alert">📋 มี PO ค้างรับ ${poMatches.length} รายการ รวม ${thb(totalOutstanding)} - ${worstTxt}</div>`;
+  }
+
   const spiColor = evm.spiCurrent==null ? 'var(--faint)' : evm.spiCurrent<0.7 ? 'var(--critical)' : evm.spiCurrent<0.9 ? 'var(--warning)' : 'var(--success)';
 
   return `
@@ -3997,6 +4017,7 @@ function buildEvmDetailHtml(evm, projectCode){
       <div class="c-evm-stat"><div class="c-evm-stat-l">SPI</div><div class="c-evm-stat-v" style="color:${spiColor}">${evm.spiCurrent!=null?evm.spiCurrent.toFixed(2):'-'}</div></div>
       <div class="c-evm-stat"><div class="c-evm-stat-l">ข้อมูล ณ</div><div class="c-evm-stat-v" style="font-size:12px">${evm.weekLabels[evm.asOfWeekIdx]||'-'}</div></div>
     </div>
+    ${poAlert}
     ${stockAlert}
     <div style="font-size:9.5px;color:var(--faint);margin-top:9px">* ไม่แสดง CPI เพราะ Actual Cost ในชีตยังเป็น 0 ทุกสัปดาห์ ข้อมูลไม่น่าเชื่อถือพอ</div>
   `;
