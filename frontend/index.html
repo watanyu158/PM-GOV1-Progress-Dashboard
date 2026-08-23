@@ -1868,7 +1868,7 @@ function renderKPIs(list){
   const gapProjects = list.filter(hasValueDataGap);
   const gapRemark = gapProjects.length ? `<div class="kpi-gap-remark">
       ⚠️ ${gapProjects.length} โครงการยังไม่ได้กรอกทั้ง PM Accountable Value และ MA/Rent Value เลย
-      (PM+MA จึงไม่เท่ากับ Selling Price ของโครงการเหล่านี้ - ไม่ได้เดาให้ ต้องไปกรอกเองใน Excel):
+      (PM+MA จึงไม่เท่ากับ Selling Price ของโครงการเหล่านี้):
       ${gapProjects.map(p=>`<span class="code-tag">#${p['Project Code']} ${p['Project Name']||''}</span>`).join(' ')}
     </div>` : '';
 
