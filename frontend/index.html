@@ -159,6 +159,12 @@
   @media(max-width:900px){.kpi-value-row{grid-template-columns:repeat(2,1fr);row-gap:14px;}}
   @media(max-width:420px){.kpi-vg-v{font-size:14px;}.kpi-vg-item.main .kpi-vg-v{font-size:17px;}}
 
+  .kpi-gap-remark{
+    margin-top:14px;padding-top:12px;border-top:1px dashed var(--line-soft);
+    font-size:11px;color:var(--warning);line-height:1.7;
+  }
+  .kpi-gap-remark .code-tag{margin-left:4px;color:var(--warning);border-color:#E8D4A8;background:var(--warning-tint);}
+
   /* ---------------- Panels ---------------- */
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-md);margin-top:15px;overflow:hidden;}
   .p-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--surface-2);}
@@ -1560,6 +1566,40 @@ function initials(name){
 const normKey = k => k.replace(/\s+/g,' ').trim();
 const normRow = raw => { const o={}; for(const [k,v] of Object.entries(raw)) o[normKey(k)] = v; return o; };
 function num(v){ const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n) ? 0 : n; }
+
+// กติกาที่ OAT ตั้งไว้: PM Accountable Value + MA/Rent Value ต้องรวมกันได้เท่ากับ Selling Price เสมอ
+// - ถ้า PM Accountable Value (ที่กรอกไว้) เท่ากับ Selling Price อยู่แล้ว = ไม่ต้องยุ่งกับ MA/Rent เลย (ถือว่า MA/Rent=0)
+// - ถ้า PM Accountable Value เป็น 0 และ MA/Rent Value ก็เป็น 0 ด้วยทั้งคู่ (ยังไม่ได้กรอกเลยสักช่อง) = ไม่เดาว่าควรเป็นของ PM
+//   หรือ MA/Rent - ปล่อยเป็น 0 ทั้งคู่ไปก่อน (ไม่บวก Selling Price เข้าไปแทนแบบสุ่มเดา) แล้วให้ hasValueDataGap()
+//   ไปโชว์ remark เตือนแทน เพื่อให้ OAT ไปกรอกข้อมูลจริงเองภายหลัง กันคำนวณผิดพลาดจากการเดา
+// - ถ้า PM Accountable Value เป็น 0 (แต่ MA/Rent Value มีค่า) = ให้คำนวณจาก Selling Price ลบ MA/Rent Value แทน
+// - กรณีอื่นนอกเหนือจากนี้ (ไม่ควรเกิดขึ้นบ่อยตามข้อมูลจริง) = เชื่อค่า PM ที่กรอกไว้ แล้วปรับ MA/Rent ให้สมการลงตัวแทน
+function effectivePMValue(p){
+  const selling = num(p['Selling Price']);
+  const pmRaw = num(p['PM Accountable Value']);
+  const maRaw = num(p['MA/Rent Value']);
+  if (pmRaw === selling) return pmRaw;
+  if (pmRaw === 0 && maRaw === 0) return 0;
+  if (pmRaw === 0) return selling - maRaw;
+  return pmRaw;
+}
+function effectiveMARentValue(p){
+  const selling = num(p['Selling Price']);
+  const pmRaw = num(p['PM Accountable Value']);
+  const maRaw = num(p['MA/Rent Value']);
+  if (pmRaw === selling) return 0;
+  if (pmRaw === 0 && maRaw === 0) return 0;
+  if (pmRaw === 0) return maRaw;
+  return selling - pmRaw;
+}
+// true = โครงการนี้มี Selling Price แล้ว แต่ PM Accountable Value กับ MA/Rent Value ยังไม่ได้กรอกเลยทั้งคู่
+// (ผลรวม PM+MA จะไม่เท่ากับ Selling Price ในเคสนี้โดยตั้งใจ - ไม่เดาให้ ต้องไปกรอกเองใน Excel)
+function hasValueDataGap(p){
+  const selling = num(p['Selling Price']);
+  const pmRaw = num(p['PM Accountable Value']);
+  const maRaw = num(p['MA/Rent Value']);
+  return selling > 0 && pmRaw === 0 && maRaw === 0;
+}
 function thb(v){ return new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(num(v)); }
 function compact(v){
   const n = num(v);
@@ -1773,11 +1813,13 @@ function renderKPIs(list){
   const completelyClosedN = list.filter(p=>projectStatus(p)==='Completely Closed').length;
 
   // มูลค่า - ใช้ Selling Price เป็นหลักในการคำนวณทุกที่เพื่อให้ตัวเลขตรงกันทุก card ทั่วทั้ง dashboard
-  // (Contract Value / PM Accountable Value / MA-Rent Value โชว์ไว้เป็นข้อมูลอ้างอิงประกอบ ไม่ใช้คำนวณ KPI อื่น)
+  // (Contract Value โชว์ไว้เป็นข้อมูลอ้างอิงประกอบ ไม่ใช้คำนวณ KPI อื่น)
+  // PM Accountable Value / MA-Rent Value ใช้ค่าที่ผ่านการ reconcile แล้ว (ดู effectivePMValue/effectiveMARentValue)
+  // เพื่อให้ PM Accountable Value + MA/Rent Value = Selling Price เสมอ ตามกติกาที่ตั้งไว้
   const sellingPrice = list.reduce((s,p)=>s+num(p['Selling Price']),0);
   const contractValue = list.reduce((s,p)=>s+num(p['Contract Value']),0);
-  const pmAccValue = list.reduce((s,p)=>s+num(p['PM Accountable Value']),0);
-  const maRentValue = list.reduce((s,p)=>s+num(p['MA/Rent Value']),0);
+  const pmAccValue = list.reduce((s,p)=>s+effectivePMValue(p),0);
+  const maRentValue = list.reduce((s,p)=>s+effectiveMARentValue(p),0);
 
   const riskIco = crit ? I.octagon : (warn ? I.alert : I.check);
   const riskCol = crit ? '#A8482F' : (warn ? '#B07A28' : '#4F7A4A');
@@ -1823,6 +1865,13 @@ function renderKPIs(list){
     </div>`).join('');
 
   // การ์ดมูลค่า - รวมทั้ง 4 ตัวเลขไว้แถวเดียวกัน (Selling Price เป็นตัวหลักที่ใช้คำนวณ ส่วนอีก 3 ตัวโชว์ประกอบ)
+  const gapProjects = list.filter(hasValueDataGap);
+  const gapRemark = gapProjects.length ? `<div class="kpi-gap-remark">
+      ⚠️ ${gapProjects.length} โครงการยังไม่ได้กรอกทั้ง PM Accountable Value และ MA/Rent Value เลย
+      (PM+MA จึงไม่เท่ากับ Selling Price ของโครงการเหล่านี้ - ไม่ได้เดาให้ ต้องไปกรอกเองใน Excel):
+      ${gapProjects.map(p=>`<span class="code-tag">#${p['Project Code']} ${p['Project Name']||''}</span>`).join(' ')}
+    </div>` : '';
+
   const valueCardHtml = `
     <div class="kpi kpi-wide" style="--kc:#8A5A72;--kt:#F0E6EA">
       <div class="kpi-top">
@@ -1847,6 +1896,7 @@ function renderKPIs(list){
           <div class="kpi-vg-v">${thb(maRentValue)}</div>
         </div>
       </div>
+      ${gapRemark}
     </div>`;
 
   document.getElementById('kpis').innerHTML = cardsHtml + valueCardHtml;
@@ -1859,7 +1909,7 @@ function renderPM(list){
     (g[pm] ||= {pm, team:p['Team']||'', n:0, sum:0, val:0, warn:0, crit:0, cx:0});
     g[pm].n++;
     g[pm].sum += num(p['%Progress']);
-    g[pm].val += num(p['PM Accountable Value']);
+    g[pm].val += effectivePMValue(p);
     g[pm].cx += num(p['Complex Level']);
     const hc = H.cls(p['Project Health']);
     if(hc === 'critical') g[pm].crit++;
@@ -3872,6 +3922,7 @@ function renderCards(list){
         <span class="tag" ${stClosed?'style="color:var(--brand);border-color:var(--brand-tint);background:var(--brand-tint)"':''}>${svg(I.play)}${st}</span>
         ${p['Sale'] ? `<span class="tag">${svg(I.user)}Sale: ${p['Sale']}</span>` : ''}
         ${num(p['Selling Price']) ? `<span class="tag">${svg(I.money)}${compact(p['Selling Price'])}</span>` : ''}
+        ${hasValueDataGap(p) ? `<span class="tag" style="color:var(--warning);border-color:#E8D4A8;background:var(--warning-tint)">⚠️ ยังไม่กรอก PM/MA Value</span>` : ''}
       </div>
       <div class="c-prog">
         <div class="c-prog-t"><span>ความคืบหน้า</span><b>${pr.toFixed(1)}%</b></div>
