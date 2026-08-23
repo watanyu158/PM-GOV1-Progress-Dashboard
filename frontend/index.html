@@ -4188,7 +4188,8 @@ function computeTeamScorecard(){
 
 // กราฟเรดาร์ (spider chart) เทียบ 5 มิติของทั้งทีมในภาพเดียว - infographic หลักของ scorecard นี้
 function buildRadarChart(scored){
-  const W = 380, H = 400, cx = W/2, cy = H/2 - 6, R = 128;
+  const W = 420, H = 430, cx = W/2, cy = H/2 - 6, R = 100; // R = รัศมีสูงสุดของข้อมูล (100 คะแนน) - เล็กกว่าเดิมเพื่อเผื่อที่ให้ป้ายชื่อรอบนอก
+  const LABEL_R = R + 42; // ป้ายชื่อแกนต้องอยู่ "นอก" ระยะข้อมูลเสมอ ไม่งั้นจะทับเส้น/รูปหลายเหลี่ยม (บั๊กเดิม: เคยตั้งไว้แค่ 120 ซึ่งน้อยกว่า R=128 เอง)
   const axes = [
     {key:'cPunc',   label:'ตรงเวลา'},
     {key:'cVal',    label:'มูลค่า'},
@@ -4198,9 +4199,9 @@ function buildRadarChart(scored){
   ];
   const nAxes = axes.length;
   const angleFor = i => (Math.PI*2*i/nAxes) - Math.PI/2; // เริ่มจากด้านบน (12 นาฬิกา) ไล่ตามเข็มนาฬิกา
-  const pointFor = (i, val) => {
+  const pointFor = (i, val, radius) => {
     const ang = angleFor(i);
-    const r = (Math.max(0,Math.min(100,val))/100) * R;
+    const r = (Math.max(0,Math.min(100,val))/100) * (radius ?? R);
     return [cx + r*Math.cos(ang), cy + r*Math.sin(ang)];
   };
 
@@ -4214,9 +4215,15 @@ function buildRadarChart(scored){
     return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#D2C7B6" stroke-width="1"/>`;
   }).join('');
 
+  // จัดตำแหน่งป้ายชื่อให้ "ยื่นออกจากศูนย์กลางเสมอ" ไม่ใช่วางกึ่งกลางบนจุดตายตัว
+  // ฝั่งซ้ายให้ข้อความชิดขวา(anchor=end), ฝั่งขวาชิดซ้าย(anchor=start), บน/ล่างกึ่งกลาง - กันไม่ให้ข้อความย้อนทับกราฟ
   const axisLabels = axes.map((a,i)=>{
-    const [x,y] = pointFor(i,120);
-    return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-size="11.5" font-weight="700" fill="#5C6B9C" text-anchor="middle" dominant-baseline="middle">${a.label}</text>`;
+    const ang = angleFor(i);
+    const [x,y] = pointFor(i,100,LABEL_R);
+    const cosA = Math.cos(ang), sinA = Math.sin(ang);
+    const anchor = cosA > 0.25 ? 'start' : cosA < -0.25 ? 'end' : 'middle';
+    const baseline = sinA > 0.25 ? 'hanging' : sinA < -0.25 ? 'auto' : 'middle';
+    return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-size="12" font-weight="700" fill="#5C6B9C" text-anchor="${anchor}" dominant-baseline="${baseline}">${a.label}</text>`;
   }).join('');
 
   const polys = scored.map(x=>{
