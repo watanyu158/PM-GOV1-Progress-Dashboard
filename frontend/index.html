@@ -1162,6 +1162,17 @@
   <div class="panel">
     <div class="p-head">
       <div class="p-title">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>
+        Stalled Progress <span class="sep">-</span> <span class="th">โครงการที่ค้างขั้นตอนเดิม</span>
+      </div>
+      <span class="p-count" id="stalledCount"></span>
+    </div>
+    <div class="p-body"><div id="stalled"></div></div>
+  </div>
+
+  <div class="panel">
+    <div class="p-head">
+      <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
         Update PMS <span class="sep">-</span> <span class="th">การอัปเดต PMS</span>
       </div>
@@ -2638,6 +2649,77 @@ function renderClosure(list){
   el.innerHTML = overview + `<div style="margin-top:14px">${list_html}</div>`;
 }
 
+// ตรวจจับโครงการที่ "ค้างขั้นตอนเดิม" - บันทึก Progress Update ไม่เปลี่ยนเลยหลายรอบติดกัน พร้อมช่องว่างจากแผน
+// (linear pacing) มากพอจะน่ากังวล - ตั้งใจไม่สนใจว่า Project Health จะขึ้นว่าอะไร เพราะ Health เป็นการประเมิน
+// ของ PM เองคนเดียว อาจไม่ทันสังเกตหรือไม่อยากขึ้นสถานะเตือนเอง กฎนี้เป็นการตรวจสอบซ้ำแบบอัตโนมัติ ไม่พึ่งการประเมินตัวเอง
+function renderStalled(list){
+  const el = document.getElementById('stalled');
+  const STALL_WEEKS = 3;     // บันทึกไม่เปลี่ยนติดกันกี่รอบ ถึงเริ่มนับว่าค้าง
+  const GAP_THRESHOLD = 15;  // ห่างจากแผน (pp) กี่ pp ถึงเริ่มนับว่าน่ากังวลพอจะแจ้งเตือน
+
+  const codes = new Set(list.map(p=>p['Project Code']));
+  const byCode = {};
+  HIST.filter(r=>codes.has(r['Project Code'])).forEach(r=>{ (byCode[r['Project Code']] ||= []).push(r); });
+  Object.values(byCode).forEach(arr=>arr.sort((a,b)=>{
+    const da=parseD(a['Update Date']), db=parseD(b['Update Date']);
+    if(da && db) return da-db;
+    if(da) return 1;
+    if(db) return -1;
+    return 0;
+  }));
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const flagged = [];
+  list.forEach(p=>{
+    const st = projectStatus(p);
+    if(st==='Contract Closed' || st==='Completely Closed') return; // ปิดงานแล้วไม่ต้องเช็คเรื่องนี้อีก
+
+    const hist = byCode[p['Project Code']] || [p];
+    const curNote = (p['Progress Update']||'').trim();
+    const noteStreak = trailingStreak(hist, e => (e['Progress Update']||'').trim() === curNote);
+
+    const planS = parseD(p['Plan Start Date']) || parseD(p['Start Date']);
+    const planE = parseD(p['Plan End Date']) || parseD(p['End Date']);
+    const expected = expectedProgress(planS, planE, today);
+    const actual = num(p['%Progress']);
+    if(expected===null) return; // ไม่มีวันที่แผนพอคำนวณ ข้ามไป ไม่เดา
+    const gap = expected - actual;
+
+    if(noteStreak >= STALL_WEEKS && gap >= GAP_THRESHOLD){
+      flagged.push({ p, noteStreak, gap, health: p['Project Health'] || 'ไม่ระบุ' });
+    }
+  });
+  flagged.sort((a,b)=> b.gap - a.gap);
+
+  document.getElementById('stalledCount').textContent = `${flagged.length} โครงการ`;
+
+  const overview = `<div class="wow-overview">
+    <div class="ov-stats">
+      <div class="ov-stat">
+        <div class="ov-l">ค้างขั้นตอนเดิม ≥${STALL_WEEKS} รอบ + ห่างแผน ≥${GAP_THRESHOLD}pp</div>
+        <div class="ov-v" style="color:${flagged.length?'var(--critical)':'var(--success)'}">${flagged.length}</div>
+      </div>
+    </div>
+    <div style="padding:0 18px 12px;font-size:11px;color:var(--faint)">ตรวจแยกจาก Project Health ที่ PM ประเมินเอง - จับเฉพาะกรณีบันทึกไม่เปลี่ยนเลยหลายรอบพร้อมช่องว่างจากแผนที่มากพอ ไม่สนใจว่า Health จะขึ้นว่าอะไร</div>
+  </div>`;
+
+  const rows = flagged.length ? flagged.map(f=>{
+    const notFlaggedByHealth = f.health!=='Warning' && f.health!=='Critical';
+    const noteShort = (f.p['Progress Update']||'').trim();
+    const noteDisplay = noteShort.length>90 ? noteShort.slice(0,90)+'...' : noteShort;
+    return `<div class="cls-row">
+      <div class="av" style="background:${avatarColor(f.p['PM Name'])}">${initials(f.p['PM Name'])}</div>
+      <div style="min-width:0;flex:1">
+        <div class="cls-name">${f.p['Project Name']||f.p['Project Code']} <span class="code-tag">#${f.p['Project Code']}</span> ${notFlaggedByHealth?`<span class="chip warning">Health: ${f.health}</span>`:''}</div>
+        <div class="cls-msg warning">บันทึกเดิมไม่เปลี่ยนมา ${f.noteStreak} รอบติดกัน · ห่างจากแผน ${f.gap.toFixed(1)}pp${noteDisplay?` - "${noteDisplay}"`:''}</div>
+      </div>
+      <div class="cls-pm">${pmKey(f.p['PM Name'])||'-'}</div>
+    </div>`;
+  }).join('') : `<div class="empty">ไม่มีโครงการที่เข้าเงื่อนไข "ค้างขั้นตอนเดิม" ตอนนี้</div>`;
+
+  el.innerHTML = overview + `<div style="margin-top:14px">${rows}</div>`;
+}
+
 // ติดตามว่าโครงการไหน "ค้างอัปเดต PMS" นานเกินไป - ใช้ Update Date (วันที่บันทึก Progress Update ล่าสุด)
 // เทียบกับวันนี้ ไม่นับโครงการที่ปิดงานแล้ว (Contract/Completely Closed) เพราะไม่จำเป็นต้องอัปเดตรายสัปดาห์อีกต่อไป
 // คำนวณ "ความตรงเวลา" ของแต่ละ PM จากประวัติการอัปเดตทั้งหมด - กติกา: ต้องอัปเดต PMS ให้ทันภายในวันศุกร์ทุกสัปดาห์
@@ -3779,7 +3861,7 @@ function render(){
 }
 function renderFiltered(){
   const f = applyFilters(ALL);
-  renderKPIs(f); renderPM(f); renderDonut(f); renderWow(f); renderComplexity(f); renderClosure(f); renderDataFreshness(f); renderRevenue(f); renderGantt(f); renderFree(f); renderCards(f);
+  renderKPIs(f); renderPM(f); renderDonut(f); renderWow(f); renderComplexity(f); renderClosure(f); renderStalled(f); renderDataFreshness(f); renderRevenue(f); renderGantt(f); renderFree(f); renderCards(f);
   renderPayment(); renderPOPanel(); renderStock();
   renderProjectInfo();
 }
