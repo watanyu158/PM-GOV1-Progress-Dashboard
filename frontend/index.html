@@ -3988,8 +3988,9 @@ function buildEvmDetailHtml(evm, projectCode){
     ? `<div class="c-evm-stock-alert">📦 มีของค้างสต็อก ${thb(stockMatch.stockValueCurr)} (สถานะ: ${stockMatch.poStatus}) - เช็คว่า phase ที่เกี่ยวกับการส่งของใน EVM นี้อัปเดตตรงกับความจริงหรือยัง</div>`
     : '';
 
-  // เชื่อมกับ PO ที่ยังค้างรับของโครงการเดียวกัน - ไฮไลต์ตัวที่เลยกำหนดส่งมากสุดเป็นพิเศษ เพราะมักเป็นตัวการหลักที่แท้จริง
-  // ที่ทำให้ phase งานล่าช้า ไม่ใช่แค่ทีม implementation ทำงานช้าเฉย ๆ
+  // เชื่อมกับ PO ที่ยังค้างรับของโครงการเดียวกัน - ไฮไลต์ 2 มุม: ตัวที่ค้างนานสุด (วัน) และตัวที่มูลค่าค้างสูงสุด (บาท)
+  // เพราะ 2 อย่างนี้อาจเป็นคนละตัวกัน (ค้างนานสุดอาจมูลค่าไม่มาก ในขณะที่มูลค่าสูงสุดอาจเพิ่งเลยกำหนดมาไม่นาน)
+  // ทั้งคู่เป็นสัญญาณ "ควรตามเรื่องกับผู้ขาย" ที่ต่างมุมกัน ไม่ใช่แค่ทีม implementation ทำงานช้าเฉย ๆ
   const today0 = new Date(); today0.setHours(0,0,0,0);
   const poMatches = PO.filter(x=>x.projectCode===projectCode && (x.status||'').trim()!=='รับครบ');
   let poAlert = '';
@@ -3999,12 +4000,23 @@ function buildEvmDetailHtml(evm, projectCode){
       const dd = parseD(x.deliveryDate);
       const daysOverdue = dd ? Math.round((today0-dd)/DAY) : null;
       return {...x, daysOverdue};
-    }).sort((a,b)=>(b.daysOverdue||-999)-(a.daysOverdue||-999));
-    const worst = withDays[0];
-    const worstTxt = (worst.daysOverdue!==null && worst.daysOverdue>0)
-      ? `ตัวที่ค้างนานสุด: <b>${worst.vendor||'-'}</b> (${worst.product||worst.poNumber}) เลยกำหนดส่งมาแล้ว ${worst.daysOverdue} วัน มูลค่าค้าง ${thb(worst.balanced)}`
-      : `ตัวที่ค้างมูลค่าสูงสุด: <b>${worst.vendor||'-'}</b> (${worst.product||worst.poNumber}) มูลค่าค้าง ${thb(worst.balanced)}`;
-    poAlert = `<div class="c-evm-stock-alert">📋 มี PO ค้างรับ ${poMatches.length} รายการ รวม ${thb(totalOutstanding)} - ${worstTxt}</div>`;
+    });
+    const byDays = withDays.slice().sort((a,b)=>(b.daysOverdue??-999)-(a.daysOverdue??-999));
+    const byValue = withDays.slice().sort((a,b)=>num(b.balanced)-num(a.balanced));
+    const worstDays = byDays[0];
+    const worstValue = byValue[0];
+
+    const fmtItem = (x, label) => {
+      const dayTxt = (x.daysOverdue!==null && x.daysOverdue>0) ? `เลยกำหนดส่งมาแล้ว ${x.daysOverdue} วัน` : 'ยังไม่เลยกำหนดส่ง';
+      return `${label}: <b>${x.vendor||'-'}</b> (${x.product||x.poNumber}) - ${dayTxt} มูลค่าค้าง ${thb(x.balanced)}`;
+    };
+
+    const sameItem = worstDays.poNumber && worstDays.poNumber === worstValue.poNumber;
+    const lines = sameItem
+      ? [fmtItem(worstDays, 'ค้างนานสุด และมูลค่าค้างสูงสุดด้วย')]
+      : [fmtItem(worstDays, 'ค้างนานสุด'), fmtItem(worstValue, 'มูลค่าค้างสูงสุด')];
+
+    poAlert = `<div class="c-evm-stock-alert">📋 มี PO ค้างรับ ${poMatches.length} รายการ รวม ${thb(totalOutstanding)}<br>${lines.join('<br>')}</div>`;
   }
 
   const spiColor = evm.spiCurrent==null ? 'var(--faint)' : evm.spiCurrent<0.7 ? 'var(--critical)' : evm.spiCurrent<0.9 ? 'var(--warning)' : 'var(--success)';
