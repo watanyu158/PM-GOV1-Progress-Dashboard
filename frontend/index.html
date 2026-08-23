@@ -618,6 +618,42 @@
   .c-evm-stat-v{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16px;margin-top:2px;}
   .c-evm-stock-alert{margin-top:11px;font-size:11px;color:var(--warning);background:var(--warning-tint);border-radius:7px;padding:8px 10px;line-height:1.5;}
 
+  /* ---------------- Team Performance Scorecard (OAT only) ---------------- */
+  .sc-winner{padding:14px 18px;background:#EBEDF5;border-bottom:1px solid var(--line-soft);font-size:13px;color:var(--ink);line-height:1.6;}
+  .sc-radar-wrap{padding:20px 18px 8px;border-bottom:1px solid var(--line-soft);}
+  .sc-radar-svg{max-width:380px;margin:0 auto;}
+  .sc-radar-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:12px 18px;margin-top:6px;padding-bottom:6px;}
+  .sc-radar-leg-item{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--ink-2);}
+  .sc-radar-leg-item i{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none;}
+  .sc-head-row, .sc-row{
+    display:grid;grid-template-columns:28px 30px 1.3fr repeat(5,0.85fr) 60px;
+    gap:8px;align-items:center;padding:9px 18px;
+  }
+  .sc-head-row{border-bottom:1px solid var(--line-soft);}
+  .sc-row{border-bottom:1px solid var(--line-soft);}
+  .sc-row:last-of-type{border-bottom:none;}
+  .sc-row.sc-top{background:#F7F3E8;}
+  .sc-rank{text-align:center;font-size:15px;}
+  .sc-name{font-size:12.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sc-metric{text-align:center;}
+  .sc-l{font-size:8.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.02em;}
+  .sc-v{font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:700;color:var(--ink);margin-top:1px;}
+  .sc-composite{
+    text-align:center;font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;
+    color:var(--brand);background:var(--surface-2);border-radius:8px;padding:5px 0;
+  }
+  .sc-note{padding:14px 18px;font-size:10.5px;color:var(--faint);line-height:1.7;border-top:1px dashed var(--line-soft);margin-top:4px;}
+  @media(max-width:860px){
+    .sc-head-row{display:none;}
+    .sc-row{grid-template-columns:24px 26px 1fr auto;grid-template-areas:"rank av name comp" "metrics metrics metrics metrics";row-gap:8px;}
+    .sc-rank{grid-area:rank;} .sc-row .av{grid-area:av;} .sc-name{grid-area:name;} .sc-composite{grid-area:comp;width:44px;justify-self:end;}
+    .sc-row .sc-metric{grid-area:auto;display:inline-block;margin-right:14px;text-align:left;}
+    .sc-row{display:flex;flex-wrap:wrap;}
+    .sc-row .sc-rank, .sc-row .av, .sc-row .sc-name{flex:none;}
+    .sc-row .sc-name{flex:1;min-width:80px;}
+    .sc-row > .sc-metric:nth-of-type(5){width:100%;order:99;margin-top:2px;}
+  }
+
   .empty{padding:38px 20px;text-align:center;color:var(--faint);font-size:13px;}
   footer{margin-top:24px;text-align:center;font-size:11.5px;color:var(--faint);}
   /* ---------------- Tab 3: Project Information ---------------- */
@@ -1269,6 +1305,17 @@
       <span class="p-count" id="projCount"></span>
     </div>
     <div class="p-body"><div class="grid" id="grid"></div></div>
+  </div>
+
+  <div class="panel" id="oatOnlyPanel" style="display:none;border-color:#5C6B9C">
+    <div class="p-head" style="background:#EBEDF5">
+      <div class="p-title">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#5C6B9C" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
+        Team Performance Scorecard <span class="sep">-</span> <span class="th">ภาพรวมผลงานทีมปีนี้ (ปฏิทิน)</span>
+      </div>
+      <span class="p-count">🔒 OAT เท่านั้น</span>
+    </div>
+    <div class="p-body"><div id="oatScorecard"></div></div>
   </div>
   </div><!-- /tab1Panels -->
 
@@ -3480,6 +3527,12 @@ function renderStock(){
 // (ตรวจแล้วว่า Project Accept Date กรอกครบทุกแถว 100% ต่างจากอีก 2 ฟิลด์ที่มีบางแถวว่าง จึงใส่ไว้เป็นตัวสุดท้ายกันไม่ให้มีโครงการไหน "ไม่มีวันที่" เลย)
 function piEffDate(p){ return parseD(p['Start Date']) || parseD(p['Project Register Date']) || parseD(p['Project Accept Date']); }
 function piValue(p){ return num(p['Contract Value']) || num(p['Selling Price']); }
+// true = โครงการนี้ยังไม่ปิดงาน (ยังทำอยู่ต่อเนื่องจนถึงตอนนี้) - ใช้ field "Status" ดิบของ Project Info โดยตรง
+// (ต่างจาก projectStatus() ที่ใช้กับ Progress1 เพราะ Project Info ไม่มี Contract/Completely Closed Date ให้เช็ค)
+function piIsStillActive(p){
+  const st = String(p['Status']||'').trim().toLowerCase();
+  return st !== 'completely closed' && st !== 'contract closed';
+}
 
 function renderProjectInfo(){
   renderPiOverview();
@@ -3519,9 +3572,15 @@ function renderPiLeaderboard(){
 
   // piWindow === 'all' หมายถึงไม่มีเส้นตัดวันที่เลย เอาข้อมูลทุกแถวมาคิด - ให้ตัวเลขตรงกับ PM Profile
   // (ที่เป็น all-time เสมออยู่แล้ว) เป๊ะ ๆ ไม่ต้องเดาว่าเลือกกี่ปีถึงจะ "ครอบคลุมพอ" เพราะประวัติจะยาวขึ้นทุกปี
+  // โครงการที่ "ยังไม่ปิดงาน" (เช่น AOT ของ Watanyu เริ่ม ม.ค. 68 แต่ยัง Inprogress ถึงตอนนี้) ให้นับในทุกช่วงปีเสมอ
+  // ไม่ว่าจะเริ่มนานแค่ไหนมาแล้ว เพราะยังทำงานต่อเนื่องมาจนถึงตอนนี้จริง ไม่ใช่แค่ "เคยเริ่ม" ในช่วงนั้น
   const items = piWindow==='all' ? PROJINFO.slice() : (()=>{
     const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear()-piWindow);
-    return PROJINFO.filter(p=>{ const d=piEffDate(p); return d && d>=cutoff; });
+    return PROJINFO.filter(p=>{
+      const d = piEffDate(p);
+      if(d && d>=cutoff) return true;
+      return piIsStillActive(p);
+    });
   })();
 
   const byPM = {};
@@ -4041,11 +4100,235 @@ function buildEvmDetailHtml(evm, projectCode){
   `;
 }
 
+// ================= Team Performance Scorecard (เห็นเฉพาะ OAT) =================
+// ออกแบบให้เป็น "กระดานคะแนนโปร่งใส" ไม่ใช่สูตรลับกล่องดำ - โชว์ทุกมิติแยกให้เห็น แล้วค่อยรวมเป็นอันดับ
+// ใช้การจัดอันดับ (rank-based) แทนตัวเลขดิบในการถ่วงน้ำหนัก กันไม่ให้ใครชนะแค่เพราะบังเอิญได้สัญญาก้อนใหญ่
+// (เช่น Watanyu มีโครงการ AOT มูลค่า 800M+ ตัวเดียว ซึ่งเป็นเรื่องการมอบหมายงาน ไม่ใช่ตัวชี้วัดฝีมือโดยตรง)
+// น้ำหนักเน้นมิติที่ "อยู่ในการควบคุมของ PM เอง" (ตรงเวลา) มากกว่ามิติที่อาจถูกปัจจัยภายนอกกระทบ (ผู้ขายส่งช้า ฯลฯ)
+function computeTeamScorecard(){
+  const today0 = new Date(); today0.setHours(0,0,0,0);
+  // ปี "1 ปี" ที่ OAT ต้องการคือปีปฏิทินเต็ม (1 ม.ค. - 31 ธ.ค. ของปีปัจจุบัน) ไม่ใช่ย้อนหลัง 365 วันจากวันนี้
+  const yearStart = new Date(today0.getFullYear(), 0, 1);
+  const yearEnd = new Date(today0.getFullYear(), 11, 31, 23, 59, 59);
+  const oneYearAgo = yearStart; // ใช้ชื่อเดิมต่อเพื่อไม่ต้องแก้จุดอ้างอิงด้านล่างทั้งหมด - ค่าตอนนี้คือ "ต้นปีปฏิทิน" แล้ว
+  const pmNames = [...new Set(ALL.map(p=>pmKey(p['PM Name'])).filter(Boolean))];
+
+  return pmNames.map(pm=>{
+    const pmProjects = ALL.filter(p=>pmKey(p['PM Name'])===pm);
+    const codes = new Set(pmProjects.map(p=>p['Project Code']));
+
+    // 1) ความตรงเวลาอัปเดต PMS - จำกัดแค่ 1 ปีย้อนหลัง (ไม่นับสัปดาห์ก่อนหน้านั้น)
+    const hist = HIST.filter(r=>codes.has(r['Project Code']) && parseD(r['Update Date']));
+    const byCode = {};
+    hist.forEach(r=>{ (byCode[r['Project Code']] ||= []).push(r); });
+    let expected=0, onTime=0;
+    Object.values(byCode).forEach(arr=>{
+      if(!arr.length) return;
+      const firstD = parseD(arr[0]['Update Date']);
+      if(!firstD) return;
+      const onTimeWeeks = new Set();
+      arr.forEach(r=>{ const d=parseD(r['Update Date']); if(d && d.getDay()===5) onTimeWeeks.add(mondayOfWeek(d).getTime()); });
+      const windowStart = firstD > oneYearAgo ? firstD : oneYearAgo;
+      let cursor = mondayOfWeek(windowStart);
+      const lastMonday = mondayOfWeek(today0 < yearEnd ? today0 : yearEnd);
+      while(cursor.getTime()<=lastMonday.getTime()){
+        expected++; if(onTimeWeeks.has(cursor.getTime())) onTime++;
+        cursor = new Date(cursor.getTime()+7*DAY);
+      }
+    });
+    const punctualityPct = expected ? (onTime/expected*100) : null;
+
+    // 2) จำนวน/มูลค่าโครงการที่มีความเคลื่อนไหว (อัปเดตอย่างน้อย 1 ครั้ง) ในปีปฏิทินนี้ (1 ม.ค. - 31 ธ.ค.)
+    // ใช้ Progress1 ไม่ใช่แค่วันเริ่มโครงการ เพราะโครงการใหญ่ระยะยาวที่เริ่มมานานแล้วแต่ยังทำงานต่อเนื่องอยู่
+    // (เช่นโครงการหลายปีที่เริ่มก่อนปีนี้) ก็ควรนับเป็นผลงานช่วงนี้ด้วย ไม่ใช่แค่โครงการที่เพิ่งเริ่มในปีนี้เท่านั้น
+    const activeCodesLastYear = new Set(
+      hist.filter(r=>{ const d=parseD(r['Update Date']); return d && d>=yearStart && d<=yearEnd; }).map(r=>r['Project Code'])
+    );
+    const activeProjectsLastYear = pmProjects.filter(p=>{
+      if(activeCodesLastYear.has(p['Project Code'])) return true;
+      const st = projectStatus(p);
+      return st!=='Contract Closed' && st!=='Completely Closed'; // ยังไม่ปิดงาน นับด้วยเสมอ แม้ Update Date ล่าสุดจะขยับออกนอกช่วงพอดี
+    });
+    const projCount1y = activeProjectsLastYear.length;
+    const projValue1y = activeProjectsLastYear.reduce((s,p)=>s+num(p['Selling Price']),0);
+
+    // 3) สัดส่วนโครงการ Health ปกติ ณ ตอนนี้ (เฉพาะที่ยังไม่ปิดงาน)
+    const openProjects = pmProjects.filter(p=>{ const st=projectStatus(p); return st!=='Contract Closed' && st!=='Completely Closed'; });
+    const normalN = openProjects.filter(p=>H.cls(p['Project Health'])==='success').length;
+    const healthyPct = openProjects.length ? (normalN/openProjects.length*100) : null;
+
+    // 4) ช่องว่าง Revenue Attainment ปัจจุบัน ถ่วงน้ำหนักด้วย Selling Price (บวก = ช้ากว่าแผนเฉลี่ย, ลบ = เร็วกว่า)
+    const revItems = REV.filter(r=>pmKey(r['PM Name'])===pm && r['Project Code']);
+    let revGapWeighted = null;
+    const totalSell = revItems.reduce((s,r)=>s+num(r['Selling Price']),0);
+    if(totalSell){
+      const gapSum = revItems.reduce((s,r)=>s+(num(r['Rev Plan%'])-num(r['PMS Current %']))*num(r['Selling Price']),0);
+      revGapWeighted = gapSum/totalSell;
+    }
+
+    // 5) จำนวนครั้งที่เข้าเงื่อนไข "ค้างขั้นตอนเดิม" ตอนนี้ (logic เดียวกับ panel Stalled Progress)
+    // เก็บไว้เป็นบริบทประกอบเท่านั้น น้ำหนักต่ำ เพราะบางเคสมาจากปัจจัยภายนอก (ผู้ขายส่งช้า ฯลฯ) ไม่ใช่ฝีมือ PM
+    let stalledCount = 0;
+    pmProjects.forEach(p=>{
+      const st = projectStatus(p);
+      if(st==='Contract Closed' || st==='Completely Closed') return;
+      const h = byCode[p['Project Code']] || [p];
+      const curNote = (p['Progress Update']||'').trim();
+      const streak = trailingStreak(h, e=>(e['Progress Update']||'').trim()===curNote);
+      const planS = parseD(p['Plan Start Date']) || parseD(p['Start Date']);
+      const planE = parseD(p['Plan End Date']) || parseD(p['End Date']);
+      const exp2 = expectedProgress(planS, planE, today0);
+      if(exp2===null) return;
+      if(streak>=3 && (exp2-num(p['%Progress']))>=15) stalledCount++;
+    });
+
+    return {pm, punctualityPct, projCount1y, projValue1y, healthyPct, revGapWeighted, stalledCount};
+  });
+}
+
+// กราฟเรดาร์ (spider chart) เทียบ 5 มิติของทั้งทีมในภาพเดียว - infographic หลักของ scorecard นี้
+function buildRadarChart(scored){
+  const W = 380, H = 400, cx = W/2, cy = H/2 - 6, R = 128;
+  const axes = [
+    {key:'cPunc',   label:'ตรงเวลา'},
+    {key:'cVal',    label:'มูลค่า'},
+    {key:'cHealth', label:'Health'},
+    {key:'cRev',    label:'Rev.Gap'},
+    {key:'cStall',  label:'ค้างขั้นตอน'},
+  ];
+  const nAxes = axes.length;
+  const angleFor = i => (Math.PI*2*i/nAxes) - Math.PI/2; // เริ่มจากด้านบน (12 นาฬิกา) ไล่ตามเข็มนาฬิกา
+  const pointFor = (i, val) => {
+    const ang = angleFor(i);
+    const r = (Math.max(0,Math.min(100,val))/100) * R;
+    return [cx + r*Math.cos(ang), cy + r*Math.sin(ang)];
+  };
+
+  const gridRings = [25,50,75,100].map(v=>{
+    const pts = axes.map((_,i)=>pointFor(i,v).join(',')).join(' ');
+    return `<polygon points="${pts}" fill="none" stroke="#D2C7B6" stroke-width="1" ${v<100?'stroke-dasharray="2,3"':''}/>`;
+  }).join('');
+
+  const axisLines = axes.map((_,i)=>{
+    const [x,y] = pointFor(i,100);
+    return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#D2C7B6" stroke-width="1"/>`;
+  }).join('');
+
+  const axisLabels = axes.map((a,i)=>{
+    const [x,y] = pointFor(i,120);
+    return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-size="11.5" font-weight="700" fill="#5C6B9C" text-anchor="middle" dominant-baseline="middle">${a.label}</text>`;
+  }).join('');
+
+  const polys = scored.map(x=>{
+    const col = avatarColor(x.pm);
+    const pts = axes.map(a=>pointFor(axes.indexOf(a), x[a.key]).join(',')).join(' ');
+    return `<polygon points="${pts}" fill="${col}" fill-opacity="0.12" stroke="${col}" stroke-width="2.3"/>`;
+  }).join('');
+
+  const dots = scored.map(x=>{
+    const col = avatarColor(x.pm);
+    return axes.map((a,i)=>{
+      const [px,py] = pointFor(i, x[a.key]);
+      return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="8" fill="transparent" style="cursor:pointer"><title>${x.pm} - ${a.label}: ${x[a.key].toFixed(0)}</title></circle><circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3" fill="${col}"/>`;
+    }).join('');
+  }).join('');
+
+  return `<svg width="100%" viewBox="0 0 ${W} ${H}" style="display:block">${gridRings}${axisLines}${polys}${dots}${axisLabels}</svg>`;
+}
+
+function renderOatScorecard(){
+  const el = document.getElementById('oatScorecard');
+  const data = computeTeamScorecard();
+  if(!data.length){ el.innerHTML = `<div class="empty">ยังไม่มีข้อมูลพอประมวลผล</div>`; return; }
+
+  // แปลงแต่ละมิติเป็นอันดับ (rank-based 100/75/50/25/0 ...) กันตัวเลขดิบที่สเกลต่างกันมากบิดผลลัพธ์
+  const rankScore = (arr, key, higherIsBetter, n) => {
+    const valid = arr.filter(x=>x[key]!==null);
+    const sorted = valid.slice().sort((a,b)=> higherIsBetter ? b[key]-a[key] : a[key]-b[key]);
+    const step = n>1 ? 100/(n-1) : 100;
+    const scoreMap = {};
+    sorted.forEach((x,i)=>{ scoreMap[x.pm] = Math.round(100 - i*step); });
+    return scoreMap;
+  };
+  const n = data.length;
+  const sPunc = rankScore(data, 'punctualityPct', true, n);
+  const sVal  = rankScore(data, 'projValue1y', true, n);
+  const sHealth = rankScore(data, 'healthyPct', true, n);
+  const sRev  = rankScore(data, 'revGapWeighted', false, n); // gap ยิ่งน้อย (หรือติดลบ=เร็วกว่า) ยิ่งดี
+  const sStall = rankScore(data, 'stalledCount', false, n); // ยิ่งน้อยยิ่งดี
+
+  const WEIGHTS = {punc:0.30, val:0.20, health:0.20, rev:0.15, stall:0.15};
+  const scored = data.map(x=>{
+    const cPunc = sPunc[x.pm] ?? 50, cVal = sVal[x.pm] ?? 50, cHealth = sHealth[x.pm] ?? 50, cRev = sRev[x.pm] ?? 50, cStall = sStall[x.pm] ?? 50;
+    const composite = cPunc*WEIGHTS.punc + cVal*WEIGHTS.val + cHealth*WEIGHTS.health + cRev*WEIGHTS.rev + cStall*WEIGHTS.stall;
+    return {...x, cPunc, cVal, cHealth, cRev, cStall, composite};
+  }).sort((a,b)=>b.composite-a.composite);
+
+  const top = scored[0];
+  const reasons = [];
+  if(top.cPunc>=75) reasons.push(`ตรงเวลาอัปเดต PMS ${top.punctualityPct.toFixed(0)}% (ปี ${new Date().getFullYear()+543})`);
+  if(top.cVal>=75) reasons.push(`รับผิดชอบโครงการมูลค่ารวมสูง ${compact(top.projValue1y)} (${top.projCount1y} โครงการใน 1 ปี)`);
+  if(top.cHealth>=75 && top.healthyPct!==null) reasons.push(`โครงการที่ดูแลอยู่ ${top.healthyPct.toFixed(0)}% อยู่ในสถานะ Normal`);
+  if(top.cRev>=75 && top.revGapWeighted!==null) reasons.push(`Revenue Attainment ${top.revGapWeighted<=0?'ล้ำหน้า':'ใกล้เคียง'}แผน (${top.revGapWeighted>0?'-':'+'}${Math.abs(top.revGapWeighted).toFixed(1)}pp)`);
+  const reasonTxt = reasons.length ? reasons.join(' · ') : 'คะแนนรวมสูงสุดจากทุกมิติเฉลี่ยกัน';
+
+  const rows = scored.map((x,i)=>{
+    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
+    return `<div class="sc-row ${i===0?'sc-top':''}">
+      <div class="sc-rank">${medal}</div>
+      <div class="av" style="background:${avatarColor(x.pm)}">${initials(x.pm)}</div>
+      <div class="sc-name">${x.pm}</div>
+      <div class="sc-metric"><div class="sc-l">ตรงเวลา</div><div class="sc-v">${x.punctualityPct!=null?x.punctualityPct.toFixed(0)+'%':'-'}</div></div>
+      <div class="sc-metric"><div class="sc-l">มูลค่า 1 ปี</div><div class="sc-v">${compact(x.projValue1y)}</div></div>
+      <div class="sc-metric"><div class="sc-l">Health ปกติ</div><div class="sc-v">${x.healthyPct!=null?x.healthyPct.toFixed(0)+'%':'-'}</div></div>
+      <div class="sc-metric"><div class="sc-l">Rev.Gap</div><div class="sc-v" style="color:${x.revGapWeighted>0?'var(--critical)':'var(--success)'}">${x.revGapWeighted!=null?(x.revGapWeighted>0?'-':'+')+Math.abs(x.revGapWeighted).toFixed(1)+'pp':'-'}</div></div>
+      <div class="sc-metric"><div class="sc-l">ค้างขั้นตอน</div><div class="sc-v" style="color:${x.stalledCount>0?'var(--warning)':'var(--success)'}">${x.stalledCount}</div></div>
+      <div class="sc-composite">${x.composite.toFixed(0)}</div>
+    </div>`;
+  }).join('');
+
+  const radarSvg = buildRadarChart(scored);
+  const radarLegend = scored.map(x=>`<span class="sc-radar-leg-item"><i style="background:${avatarColor(x.pm)}"></i>${x.pm}</span>`).join('');
+
+  el.innerHTML = `
+    <div class="sc-winner">🏆 <b>${top.pm}</b> มีคะแนนรวมสูงสุด (${top.composite.toFixed(0)}/100) - ${reasonTxt}</div>
+    <div class="sc-radar-wrap">
+      <div class="sc-radar-svg">${radarSvg}</div>
+      <div class="sc-radar-legend">${radarLegend}</div>
+    </div>
+    <div class="sc-head-row">
+      <div class="sc-rank"></div><div class="av" style="visibility:hidden"></div><div class="sc-name">PM</div>
+      <div class="sc-metric"><div class="sc-l">ตรงเวลา</div></div>
+      <div class="sc-metric"><div class="sc-l">มูลค่า 1 ปี</div></div>
+      <div class="sc-metric"><div class="sc-l">Health ปกติ</div></div>
+      <div class="sc-metric"><div class="sc-l">Rev.Gap</div></div>
+      <div class="sc-metric"><div class="sc-l">ค้างขั้นตอน</div></div>
+      <div class="sc-composite">คะแนนรวม</div>
+    </div>
+    ${rows}
+    <div class="sc-note">
+      <b>วิธีคิด:</b> แปลงแต่ละมิติเป็นอันดับ (ไม่ใช่ตัวเลขดิบ) แล้วถ่วงน้ำหนัก: ตรงเวลา 30% · มูลค่าโครงการ 20% · Health ปกติ 20% · Revenue Gap 15% · ค้างขั้นตอน 15%
+      (เน้นมิติที่อยู่ในการควบคุมของ PM เองมากกว่า)<br>
+      <b>ข้อควรระวัง:</b> "ค้างขั้นตอน" และ "Rev.Gap" อาจเกิดจากปัจจัยภายนอก (ผู้ขายส่งของช้า, รอราชการอนุมัติ ฯลฯ) ไม่ใช่ฝีมือ PM เสมอไป
+      ควรเปิดดู panel "Stalled Progress" และ EVM ประกอบก่อนสรุปด้วยตาตัวเอง ตัวเลขนี้เป็นจุดเริ่มให้ไปสืบต่อ ไม่ใช่คำตัดสินสุดท้าย
+    </div>`;
+}
+
 function render(){
   buildFilters();
   document.getElementById('hProjects').textContent = ALL.length;
   document.getElementById('hPMs').textContent = uniq(ALL.map(p=>pmKey(p['PM Name']))).length;
   renderFiltered();
+
+  // การ์ด Team Performance Scorecard เห็นเฉพาะ OAT คนเดียวเท่านั้น เช็คจากชื่อที่ login เข้ามา
+  const loggedInName = (localStorage.getItem(NAME_KEY) || sessionStorage.getItem(NAME_KEY) || '').trim().toLowerCase();
+  const oatPanel = document.getElementById('oatOnlyPanel');
+  if(loggedInName === 'oat'){
+    oatPanel.style.display = '';
+    renderOatScorecard();
+  } else {
+    oatPanel.style.display = 'none';
+  }
 }
 function renderFiltered(){
   const f = applyFilters(ALL);
