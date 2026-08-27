@@ -3480,15 +3480,20 @@ function renderPayment(paywSource, codeSetList){
       // งวดอื่นที่ยังไม่วางบิลของ "โครงการเดียวกันนี้" เท่านั้น - งวดที่อ้างอิงวงเงินเฉพาะข้อสัญญา (เช่น "ข้อ 6.4")
       // จะไม่ match กับ pattern นี้ จึงไม่มีวันถูกเดาค่าให้ ปลอดภัยเพราะไม่มีข้อมูลสนับสนุนเรื่องนั้นเลย
       //
-      // ⚠️ เช็คเพิ่ม (สำคัญ): สัญญาบางฉบับออกใบแจ้งหนี้ "รวมหลายงวดในใบเดียว" (เช่น "เพื่อส่งของ (งวดที่ 3, 9, 14)")
-      // ซึ่งอาจวางบิลมูลค่าส่วนหนึ่งของงวดที่ดูเหมือน invoiced=0 ไปแล้วจริงผ่านใบรวมนั้น ทำให้สูตร % คำนวณเกินจริงได้มาก
-      // (เจอเคสจริง: คำนวณได้ 121M ทั้งที่ยอดค้างวางบิลทั้งโครงการเหลือแค่ 45.7M) ป้องกันด้วยการเช็คว่าผลรวม
-      // ประมาณการทั้งหมดของโครงการต้องไม่เกิน remainder จริง - ถ้าเกิน แปลว่ามีบิลรวมหลายงวดแบบนี้ซ่อนอยู่
-      // ไม่น่าเชื่อถือพอ จึงไม่แสดงประมาณการให้เลยสักงวดในโครงการนั้น (ปลอดภัยไว้ก่อนดีกว่าโชว์เลขผิด)
       const PCT_OF_CONTRACT_RE = /ร้อยละ\s*([\d.]+)\s*ของเงินค่าจ้างตามสัญญา/;
       const estimateMap = (() => {
         const insts0 = x.installments||[];
         const sellingPrice = num(x.sellingPrice);
+        const remainderActual = num(x.remainder);
+        const unbilled = insts0.filter(i=>num(i.invoiced)===0);
+
+        // วิธีที่ 1 (แน่นอนที่สุด ไม่ต้องพึ่งข้อความในคำอธิบายเลย): ถ้าทั้งโครงการเหลืองวดที่ยังไม่วางบิล
+        // แค่งวดเดียว ยอดของงวดนั้นต้องเท่ากับ remainder ทั้งหมดพอดี เพราะไม่มีที่ไปอื่นให้เงินก้อนนี้แล้ว
+        if(unbilled.length===1 && remainderActual>0){
+          return { [(unbilled[0].desc||'').trim()]: {amount: remainderActual, method: 'elimination'} };
+        }
+
+        // วิธีที่ 2 (เมื่อมีมากกว่า 1 งวดค้าง ต้องอาศัยข้อความ "ร้อยละ X ของเงินค่าจ้างตามสัญญา" ที่ยืนยันได้เอง)
         if(!sellingPrice) return {};
         const verified = insts0.some(inst=>{
           const m = (inst.desc||'').match(PCT_OF_CONTRACT_RE);
@@ -3501,11 +3506,15 @@ function renderPayment(paywSource, codeSetList){
         insts0.forEach(inst=>{
           if(num(inst.invoiced)>0) return; // วางบิลไปแล้ว ไม่ต้องประมาณการซ้ำ
           const m = (inst.desc||'').match(PCT_OF_CONTRACT_RE);
-          if(m) map[(inst.desc||'').trim()] = sellingPrice * (parseFloat(m[1])/100);
+          if(m) map[(inst.desc||'').trim()] = {amount: sellingPrice * (parseFloat(m[1])/100), method: 'percent'};
         });
-        const totalEstimate = Object.values(map).reduce((s,v)=>s+v, 0);
-        const remainderActual = num(x.remainder);
-        if(totalEstimate > remainderActual + remainderActual*0.01) return {}; // เกิน remainder จริง (เผื่อ 1%) = มีบิลรวมหลายงวดซ่อนอยู่ ไม่แสดงเลย
+        // ⚠️ เช็คเพิ่ม (สำคัญ): สัญญาบางฉบับออกใบแจ้งหนี้ "รวมหลายงวดในใบเดียว" (เช่น "เพื่อส่งของ (งวดที่ 3, 9, 14)")
+        // ซึ่งอาจวางบิลมูลค่าส่วนหนึ่งของงวดที่ดูเหมือน invoiced=0 ไปแล้วจริงผ่านใบรวมนั้น ทำให้สูตร % คำนวณเกินจริงได้มาก
+        // (เจอเคสจริง: คำนวณได้ 121M ทั้งที่ยอดค้างวางบิลทั้งโครงการเหลือแค่ 45.7M) ป้องกันด้วยการเช็คว่าผลรวม
+        // ประมาณการทั้งหมดของโครงการต้องไม่เกิน remainder จริง - ถ้าเกิน แปลว่ามีบิลรวมหลายงวดแบบนี้ซ่อนอยู่
+        // ไม่น่าเชื่อถือพอ จึงไม่แสดงประมาณการให้เลยสักงวดในโครงการนั้น (ปลอดภัยไว้ก่อนดีกว่าโชว์เลขผิด)
+        const totalEstimate = Object.values(map).reduce((s,v)=>s+v.amount, 0);
+        if(totalEstimate > remainderActual + remainderActual*0.01) return {};
         return map;
       })();
       const insts = (x.installments||[]).filter(i=>i.desc || i.collected!=null || i.invoiced!=null);
@@ -3519,15 +3528,20 @@ function renderPayment(paywSource, codeSetList){
         const notYetInvoiced = num(inst.invoiced)===0 && num(inst.collecting)===0 && !inst.collectedDate; // ยังไม่วางบิลเลย ต่างจาก "เก็บแล้ว"
         const text = `${x.projectName||''} ${inst.desc||''}`;
         const likelyStockInvoice = pending && isShipType && SHIP_KEYWORDS.some(k=>text.includes(k));
-        const estimate = estimateMap[(inst.desc||'').trim()];
+        const est = estimateMap[(inst.desc||'').trim()];
         const pendingLabel = likelyStockInvoice
           ? `อาจเป็นใบกำกับภาษีตัดสต็อก ไม่ใช่วางบิลเรียกเก็บจริง - ${thb(inst.collecting)}`
           : `ออก Invoice แล้ว (${fmtDate(inst.invoiceDate)}) แต่ลูกค้ายังไม่จ่าย - ค้าง ${thb(inst.collecting)}`;
         const tagLabel = likelyStockInvoice ? 'ตัดสต็อก?' : notYetInvoiced ? 'ยังไม่วางบิล' : (pending ? 'ออกบิลแล้ว รอเก็บ' : 'เก็บแล้ว');
         const tagColor = likelyStockInvoice ? 'var(--warning)' : (notYetInvoiced || pending) ? 'var(--critical)' : '';
-        const statusTxt = inst.collectedDate ? fmtDate(inst.collectedDate) : notYetInvoiced ? 'ยังไม่วางบิล' : (pending ? pendingLabel : '-');
-        const estimateRow = estimate
-          ? `<div class="nd-row"><span class="nd-tag" style="color:var(--brand)">ประมาณการ</span><span class="nd-txt" style="color:var(--brand)">${thb(estimate)} (คำนวณจากสัดส่วนในสัญญา เทียบกับงวดที่จ่ายจริง - ยังไม่ใช่ยอดวางบิลจริง)</span></div>`
+        const statusTxt = inst.collectedDate ? fmtDate(inst.collectedDate)
+          : notYetInvoiced ? (est ? `ยังไม่วางบิล - จำนวน ${thb(est.amount)}` : 'ยังไม่วางบิล')
+          : (pending ? pendingLabel : '-');
+        const estimateNote = est?.method==='elimination'
+          ? '(เหลืองวดนี้งวดเดียวในโครงการ ยอดจึงต้องเท่ากับ Remainder ทั้งหมดพอดี)'
+          : '(คำนวณจากสัดส่วนในสัญญา เทียบกับงวดที่จ่ายจริง - ยังไม่ใช่ยอดวางบิลจริง)';
+        const estimateRow = est
+          ? `<div class="nd-row"><span class="nd-tag" style="color:var(--brand)">ประมาณการ</span><span class="nd-txt" style="color:var(--brand)">${thb(est.amount)} ${estimateNote}</span></div>`
           : '';
         return `<div class="nd">
           <div class="nd-top"><span class="nd-name">${inst.desc||'-'}</span><span class="nd-prog">${inst.collected!=null ? thb(inst.collected) : '-'}</span></div>
