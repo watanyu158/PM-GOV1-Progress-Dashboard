@@ -3017,11 +3017,14 @@ function computePunctuality(list, histSource){
       if(d.getDay()===5) onTimeWeeks.add(wk);
     });
 
-    // เดินนับทุกสัปดาห์ตั้งแต่รอบแรกจนถึง "วันนี้" (ไม่ใช่แค่ถึงรอบสุดท้าย) กันเคสหายเงียบช่วงหลังสุดด้วย
+    // เดินนับทุกสัปดาห์ตั้งแต่รอบแรกจนถึงสัปดาห์ล่าสุดที่ "ถึงวันศุกร์ของสัปดาห์นั้นแล้วจริง ๆ" เท่านั้น
+    // เทียบวันศุกร์ของแต่ละสัปดาห์กับวันนี้ตรง ๆ (ไม่ใช่แค่เช็คว่าเข้าสัปดาห์ใหม่หรือยัง) กันเคสวันนี้เป็นเสาร์-อาทิตย์
+    // ของสัปดาห์นั้นเอง (ซึ่งศุกร์ผ่านไปแล้วจริง ควรนับ) แต่ยังไม่ตัดสินสัปดาห์ที่ศุกร์ยังไม่มาถึง
     let cursor = mondayOfWeek(firstD);
-    const lastMonday = mondayOfWeek(today);
     let expected = 0, onTime = 0;
-    while(cursor.getTime() <= lastMonday.getTime()){
+    while(true){
+      const weekFriday = new Date(cursor.getTime() + 4*DAY);
+      if(weekFriday.getTime() > today.getTime()) break; // ศุกร์ของสัปดาห์นี้ยังไม่ถึง หยุด ไม่ตัดสินสัปดาห์นี้และสัปดาห์ถัดไป
       expected++;
       if(onTimeWeeks.has(cursor.getTime())) onTime++;
       cursor = new Date(cursor.getTime() + 7*DAY);
@@ -3440,6 +3443,13 @@ function renderPayment(paywSource, codeSetList){
     const col = g.collecting > g.selling*0.1 ? '#A8482F' : g.collecting>1 ? '#B07A28' : '#4F7A4A';
     const cards = g.items.slice().sort((a,b)=>num(b.collecting)-num(a.collecting)).map(x=>{
       const rem = num(x.remainder), coll_ing = num(x.collecting), coll_ed = num(x.collected);
+      // ประมาณการยอดที่ควรเรียกเก็บ สำหรับงวดที่ยังไม่วางบิลเลย (invoiced=0) ที่คำนวณย้อนจากสัญญาได้ชัดเจน
+      // (ตรวจสอบไขว้กับงวดที่จ่ายจริงแล้วเท่านั้น ไม่ใช่การเดา) - เพิ่ม/ลบรายการนี้ได้ตามที่ตรวจสอบเพิ่มในอนาคต
+      const KNOWN_ESTIMATES = {
+        '119250133': {
+          'งวดที่ 14 ร้อยละ 15 ของเงินค่าจ้างตามสัญญา (ทสภ. ทชม.) (ค่าติดตั้ง)': 121095000,
+        },
+      };
       const insts = (x.installments||[]).filter(i=>i.desc || i.collected!=null || i.invoiced!=null);
       // AccType เป็นการขาย/ติดตั้ง + คำอธิบายงวดพูดถึงการส่งของ -> Collecting อาจเป็นใบกำกับภาษีตัดสต็อก
       // ไม่ใช่การวางบิลเรียกเก็บลูกค้าจริง ๆ (ต่างจาก "ค้างเก็บเงิน" ทั่วไปที่ควรตามลูกค้า)
@@ -3448,17 +3458,24 @@ function renderPayment(paywSource, codeSetList){
       const isShipType = SHIP_ACC_TYPES.includes((x.accType||'').trim());
       const installHtml = insts.map(inst=>{
         const pending = num(inst.collecting) > 0 && !inst.collectedDate;
+        const notYetInvoiced = num(inst.invoiced)===0 && num(inst.collecting)===0 && !inst.collectedDate; // ยังไม่วางบิลเลย ต่างจาก "เก็บแล้ว"
         const text = `${x.projectName||''} ${inst.desc||''}`;
         const likelyStockInvoice = pending && isShipType && SHIP_KEYWORDS.some(k=>text.includes(k));
+        const estimate = KNOWN_ESTIMATES[x.projectCode]?.[(inst.desc||'').trim()];
         const pendingLabel = likelyStockInvoice
           ? `อาจเป็นใบกำกับภาษีตัดสต็อก ไม่ใช่วางบิลเรียกเก็บจริง - ${thb(inst.collecting)}`
           : `ยังไม่เก็บ - ค้าง ${thb(inst.collecting)}`;
-        const tagLabel = likelyStockInvoice ? 'ตัดสต็อก?' : (pending ? 'ค้าง' : 'เก็บแล้ว');
-        const tagColor = likelyStockInvoice ? 'var(--warning)' : (pending ? 'var(--critical)' : '');
+        const tagLabel = likelyStockInvoice ? 'ตัดสต็อก?' : notYetInvoiced ? 'ยังไม่วางบิล' : (pending ? 'ค้าง' : 'เก็บแล้ว');
+        const tagColor = likelyStockInvoice ? 'var(--warning)' : (notYetInvoiced || pending) ? 'var(--critical)' : '';
+        const statusTxt = inst.collectedDate ? fmtDate(inst.collectedDate) : notYetInvoiced ? 'ยังไม่วางบิล' : (pending ? pendingLabel : '-');
+        const estimateRow = estimate
+          ? `<div class="nd-row"><span class="nd-tag" style="color:var(--brand)">ประมาณการ</span><span class="nd-txt" style="color:var(--brand)">${thb(estimate)} (คำนวณจากสัดส่วนในสัญญา เทียบกับงวดที่จ่ายจริง - ยังไม่ใช่ยอดวางบิลจริง)</span></div>`
+          : '';
         return `<div class="nd">
           <div class="nd-top"><span class="nd-name">${inst.desc||'-'}</span><span class="nd-prog">${inst.collected!=null ? thb(inst.collected) : '-'}</span></div>
           <div class="nd-row"><span class="nd-tag">Invoice</span><span class="nd-txt">${fmtDate(inst.invoiceDate)} · ${thb(inst.invoiced)}</span></div>
-          <div class="nd-row"><span class="nd-tag">${tagLabel}</span><span class="nd-txt" style="${tagColor?'color:'+tagColor:''}">${inst.collectedDate ? fmtDate(inst.collectedDate) : (pending ? pendingLabel : '-')}</span></div>
+          <div class="nd-row"><span class="nd-tag">${tagLabel}</span><span class="nd-txt" style="${tagColor?'color:'+tagColor:''}">${statusTxt}</span></div>
+          ${estimateRow}
         </div>`;
       }).join('');
       return `<div class="rv-card">
@@ -4258,8 +4275,13 @@ function computeTeamScorecard(){
       arr.forEach(r=>{ const d=parseD(r['Update Date']); if(d && d.getDay()===5) onTimeWeeks.add(mondayOfWeek(d).getTime()); });
       const windowStart = firstD > oneYearAgo ? firstD : oneYearAgo;
       let cursor = mondayOfWeek(windowStart);
-      const lastMonday = mondayOfWeek(today0 < yearEnd ? today0 : yearEnd);
-      while(cursor.getTime()<=lastMonday.getTime()){
+      // เทียบวันศุกร์ของแต่ละสัปดาห์กับวันอ้างอิงตรง ๆ (ไม่ใช่แค่เช็คว่าเข้าสัปดาห์ใหม่หรือยัง) กันเคสวันนี้เป็น
+      // เสาร์-อาทิตย์ของสัปดาห์นั้นเอง (ซึ่งศุกร์ผ่านไปแล้วจริง ควรนับ) - ถ้าปีนี้ยังไม่จบใช้วันนี้จริงเป็นตัวเทียบ
+      // ถ้าเป็นปีที่ปิดไปแล้วเต็มปี ใช้วันสิ้นปีนั้นแทน (ทุกสัปดาห์ในปีที่จบไปแล้วนับได้ครบ ไม่มีสัปดาห์ไหน "ยังไม่ถึงเวลา")
+      const referenceDate = today0 < yearEnd ? today0 : yearEnd;
+      while(true){
+        const weekFriday = new Date(cursor.getTime() + 4*DAY);
+        if(weekFriday.getTime() > referenceDate.getTime()) break;
         expected++; if(onTimeWeeks.has(cursor.getTime())) onTime++;
         cursor = new Date(cursor.getTime()+7*DAY);
       }
