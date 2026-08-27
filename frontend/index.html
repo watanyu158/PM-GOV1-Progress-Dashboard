@@ -3479,6 +3479,12 @@ function renderPayment(paywSource, codeSetList){
       // ที่ย้อนคำนวณกลับมาตรงกับ Selling Price ไหม (ยืนยันได้เอง ไม่ใช่แค่เดา) ถ้าตรง ถึงจะเอาสูตรเดียวกันไปคำนวณ
       // งวดอื่นที่ยังไม่วางบิลของ "โครงการเดียวกันนี้" เท่านั้น - งวดที่อ้างอิงวงเงินเฉพาะข้อสัญญา (เช่น "ข้อ 6.4")
       // จะไม่ match กับ pattern นี้ จึงไม่มีวันถูกเดาค่าให้ ปลอดภัยเพราะไม่มีข้อมูลสนับสนุนเรื่องนั้นเลย
+      //
+      // ⚠️ เช็คเพิ่ม (สำคัญ): สัญญาบางฉบับออกใบแจ้งหนี้ "รวมหลายงวดในใบเดียว" (เช่น "เพื่อส่งของ (งวดที่ 3, 9, 14)")
+      // ซึ่งอาจวางบิลมูลค่าส่วนหนึ่งของงวดที่ดูเหมือน invoiced=0 ไปแล้วจริงผ่านใบรวมนั้น ทำให้สูตร % คำนวณเกินจริงได้มาก
+      // (เจอเคสจริง: คำนวณได้ 121M ทั้งที่ยอดค้างวางบิลทั้งโครงการเหลือแค่ 45.7M) ป้องกันด้วยการเช็คว่าผลรวม
+      // ประมาณการทั้งหมดของโครงการต้องไม่เกิน remainder จริง - ถ้าเกิน แปลว่ามีบิลรวมหลายงวดแบบนี้ซ่อนอยู่
+      // ไม่น่าเชื่อถือพอ จึงไม่แสดงประมาณการให้เลยสักงวดในโครงการนั้น (ปลอดภัยไว้ก่อนดีกว่าโชว์เลขผิด)
       const PCT_OF_CONTRACT_RE = /ร้อยละ\s*([\d.]+)\s*ของเงินค่าจ้างตามสัญญา/;
       const estimateMap = (() => {
         const insts0 = x.installments||[];
@@ -3497,6 +3503,9 @@ function renderPayment(paywSource, codeSetList){
           const m = (inst.desc||'').match(PCT_OF_CONTRACT_RE);
           if(m) map[(inst.desc||'').trim()] = sellingPrice * (parseFloat(m[1])/100);
         });
+        const totalEstimate = Object.values(map).reduce((s,v)=>s+v, 0);
+        const remainderActual = num(x.remainder);
+        if(totalEstimate > remainderActual + remainderActual*0.01) return {}; // เกิน remainder จริง (เผื่อ 1%) = มีบิลรวมหลายงวดซ่อนอยู่ ไม่แสดงเลย
         return map;
       })();
       const insts = (x.installments||[]).filter(i=>i.desc || i.collected!=null || i.invoiced!=null);
