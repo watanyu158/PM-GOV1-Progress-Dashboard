@@ -171,6 +171,8 @@
   .p-title{display:flex;align-items:center;gap:9px;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;color:var(--ink);}
   .p-title svg{width:17px;height:17px;color:var(--brand);}
   .p-title .th{font-family:'Inter',sans-serif;font-size:12.5px;font-weight:500;color:var(--muted);}
+  .p-subnote{font-size:11px;color:var(--faint);font-weight:400;margin-left:2px;}
+  @media(max-width:480px){.p-subnote{display:none;}}
   .p-title .sep{color:var(--line);font-weight:400;margin:0 -3px;}
   .p-count{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted);background:var(--bg-tint);padding:3px 9px;border-radius:20px;}
   .p-body{padding:16px 18px;}
@@ -1289,7 +1291,7 @@
     <div class="p-head">
       <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-        Update PMS <span class="sep">-</span> <span class="th">การอัปเดต PMS</span>
+        Update PMS <span class="sep">-</span> <span class="th">การอัปเดต PMS</span> <span class="p-subnote" id="freshWeeksNote"></span>
       </div>
       <span class="p-count" id="freshCount"></span>
     </div>
@@ -3047,12 +3049,27 @@ function renderPunctualityPodium(list, histSource){
   const punctuality = computePunctuality(list, histSource);
   if(!punctuality.length) return '';
 
-  // สัปดาห์ปฏิทินจริงที่เก็บข้อมูลมาทั้งหมด (นับจากวันที่มีการอัปเดตแรกสุดของทั้งทีม จนถึงวันนี้) - โชว์รวมครั้งเดียว
-  // ไม่ใช่ต่อคน เพื่อให้เห็นภาพรวมว่าระบบเก็บข้อมูลมานานแค่ไหนแล้ว แยกจาก "จำนวนโครงการ" ที่โชว์ต่อคน
+  // สัปดาห์ปฏิทินจริงที่เก็บข้อมูลมาทั้งหมด - นับจาก "จุดที่อย่างน้อยครึ่งทีมเริ่มอัปเดตพร้อมกันจริง" ไม่ใช่แค่แถวแรกสุด
+  // ที่เจอ (กันเคสมีแค่ 1-2 คนทดลองอัปเดตแรกเริ่มก่อนทีมอื่นจะเข้าร่วม ซึ่งจะทำให้ตัวเลขสูงเกินจริงและไม่ตรงกับ
+  // ความรู้สึกของทีมว่า "เริ่มนับจริง ๆ ตอนไหน") โชว์รวมครั้งเดียว ไม่ใช่ต่อคน
   const today0 = new Date(); today0.setHours(0,0,0,0);
   const hist = histSource || HIST;
-  const allDates = hist.map(r=>parseD(r['Update Date'])).filter(Boolean);
-  const weeksTracked = allDates.length ? Math.floor((today0 - Math.min(...allDates)) / (7*DAY)) : 0;
+  const byDatePMs = {}; // key = timestamp ของวันนั้น (0:00น.) -> Set ของ PM ที่มีแถวในวันนั้น
+  hist.forEach(r=>{
+    const d = parseD(r['Update Date']);
+    if(!d) return;
+    (byDatePMs[d.getTime()] ||= new Set()).add(pmKey(r['PM Name'])||'');
+  });
+  const totalPMs = new Set(hist.map(r=>pmKey(r['PM Name'])||'')).size;
+  const majorityThreshold = Math.ceil(totalPMs/2);
+  const sortedTs = Object.keys(byDatePMs).map(Number).sort((a,b)=>a-b);
+  const trackingStartTs = sortedTs.find(ts => byDatePMs[ts].size >= majorityThreshold) ?? sortedTs[0];
+  // นับ "จำนวนรอบที่ sync เข้ามาจริง" (จำนวนวันที่ distinct ที่ >= จุดเริ่มนับ) ไม่ใช่ระยะเวลาที่ผ่านไปหารด้วย 7
+  // เพราะถ้านับแบบระยะเวลา วันนี้อาจยังไม่ครบสัปดาห์ที่ 4 เต็ม ๆ (เช่น รอบ sync ล่าสุดคือศุกร์ที่แล้ว แต่วันนี้ยังไม่ถึง
+  // ศุกร์ถัดไป) ทำให้ตัวเลขดูน้อยกว่าจำนวนรอบที่เกิดขึ้นจริงตามที่ทีมสัมผัสได้เอง
+  const weeksTracked = trackingStartTs!=null ? sortedTs.filter(ts => ts >= trackingStartTs).length : 0;
+  const weeksNoteEl = document.getElementById('freshWeeksNote');
+  if(weeksNoteEl) weeksNoteEl.textContent = weeksTracked ? `· เก็บข้อมูลมาแล้ว ${weeksTracked} สัปดาห์` : '';
 
   const podiumItem = (entry, rankNum) => {
     if(!entry) return '<div class="punc-pod-item"></div>';
@@ -3081,7 +3098,7 @@ function renderPunctualityPodium(list, histSource){
   return `<div class="punc-wrap">
     <div class="punc-title">🏆 อัปเดตตรงเวลามากที่สุด</div>
     <div class="punc-sub">กติกา: ต้องอัปเดต PMS ให้ทันภายในวันศุกร์ทุกสัปดาห์ - นับจากทุกสัปดาห์ปฏิทินที่ผ่านไปจริงตั้งแต่เริ่มโครงการจนถึงวันนี้ ไม่ใช่แค่นับจำนวนครั้งที่มีอัปเดต (คนที่หายไปนาน ๆ แล้วนาน ๆ ทีถึงมาอัปเดตตรงศุกร์ จะถูกนับว่าพลาดทุกสัปดาห์ที่หายไปด้วย)<br>
-    <b>เก็บข้อมูลมาแล้ว ${weeksTracked} สัปดาห์</b> นับตั้งแต่มีการอัปเดตแรกสุดของทั้งทีมจนถึงวันนี้ - % จะขยับได้ทุกครั้งที่ผ่านวันศุกร์ใหม่หรือมีการ sync ข้อมูล ยิ่งเก็บข้อมูลมานานเท่าไหร่ ตัวเลขก็จะยิ่งนิ่งขึ้นเรื่อย ๆ (ตอนนี้ยังค่อนข้างใหม่ จึงขยับได้มากต่อรอบ ไม่ใช่ความผิดพลาดของระบบ)<br>
+    <b>หมายเหตุ:</b> % จะขยับได้ทุกครั้งที่ผ่านวันศุกร์ใหม่หรือมีการ sync ข้อมูล ยิ่งเก็บข้อมูลมานานเท่าไหร่ ตัวเลขก็จะยิ่งนิ่งขึ้นเรื่อย ๆ (ช่วงนี้ยังค่อนข้างใหม่ จึงขยับได้มากต่อรอบ ไม่ใช่ความผิดพลาดของระบบ)<br>
     ตัวเลขใต้ % ของแต่ละคนคือ "จำนวนโครงการที่ดูแล" - ยิ่งดูแลหลายโครงการ ยิ่งต้องอัปเดตถี่กว่าคนที่มีโครงการเดียว</div>
     <div class="punc-podium">
       ${podiumItem(top3[1], 2)}
