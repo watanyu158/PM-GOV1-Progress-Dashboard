@@ -786,6 +786,7 @@
   .punc-pod-medal{position:absolute;top:-11px;right:-8px;font-size:21px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25));}
   .punc-pod-name{font-size:11.5px;font-weight:700;color:var(--ink);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
   .punc-pod-pct{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:19px;margin-top:2px;}
+  .punc-pod-n{font-size:10px;color:var(--faint);margin-top:1px;}
   .punc-pod-bar{width:100%;border-radius:10px 10px 0 0;margin-top:11px;display:flex;align-items:flex-start;justify-content:center;padding-top:9px;}
   .punc-pod-bar.gold{height:92px;background:linear-gradient(180deg,#F2E2AC,#DABE72);}
   .punc-pod-bar.silver{height:66px;background:linear-gradient(180deg,#E7E7E2,#C9C9C2);}
@@ -796,6 +797,7 @@
   .punc-rest-rank{width:18px;text-align:center;font-weight:700;color:var(--faint);font-size:11.5px;}
   .punc-rest-name{flex:1;font-size:12.5px;font-weight:600;color:var(--ink);}
   .punc-rest-pct{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:13px;color:var(--brand);}
+  .punc-rest-n{font-size:10.5px;color:var(--faint);white-space:nowrap;}
   @media(max-width:480px){
     .punc-podium{gap:8px;}
     .punc-pod-item{width:84px;}
@@ -3052,6 +3054,7 @@ function renderPunctualityPodium(list, histSource){
       <div class="punc-pod-av" style="background:${avatarColor(entry.pm)}">${initials(entry.pm)}<span class="punc-pod-medal">${medal}</span></div>
       <div class="punc-pod-name">${entry.pm}</div>
       <div class="punc-pod-pct" style="color:${avatarColor(entry.pm)}">${entry.pct.toFixed(0)}%</div>
+      <div class="punc-pod-n">${entry.onTime}/${entry.total} สัปดาห์</div>
       <div class="punc-pod-bar ${barCls}"><span class="punc-pod-rank">#${rankNum}</span></div>
     </div>`;
   };
@@ -3063,12 +3066,14 @@ function renderPunctualityPodium(list, histSource){
       <div class="punc-rest-rank">${i+4}</div>
       <div class="av" style="width:26px;height:26px;font-size:10px;background:${avatarColor(r.pm)}">${initials(r.pm)}</div>
       <div class="punc-rest-name">${r.pm}</div>
+      <div class="punc-rest-n">${r.onTime}/${r.total} สัปดาห์</div>
       <div class="punc-rest-pct">${r.pct.toFixed(0)}%</div>
     </div>`).join('')}</div>` : '';
 
   return `<div class="punc-wrap">
     <div class="punc-title">🏆 อัปเดตตรงเวลามากที่สุด</div>
-    <div class="punc-sub">กติกา: ต้องอัปเดต PMS ให้ทันภายในวันศุกร์ทุกสัปดาห์ - นับจากทุกสัปดาห์ปฏิทินที่ผ่านไปจริงตั้งแต่เริ่มโครงการจนถึงวันนี้ ไม่ใช่แค่นับจำนวนครั้งที่มีอัปเดต (คนที่หายไปนาน ๆ แล้วนาน ๆ ทีถึงมาอัปเดตตรงศุกร์ จะถูกนับว่าพลาดทุกสัปดาห์ที่หายไปด้วย)</div>
+    <div class="punc-sub">กติกา: ต้องอัปเดต PMS ให้ทันภายในวันศุกร์ทุกสัปดาห์ - นับจากทุกสัปดาห์ปฏิทินที่ผ่านไปจริงตั้งแต่เริ่มโครงการจนถึงวันนี้ ไม่ใช่แค่นับจำนวนครั้งที่มีอัปเดต (คนที่หายไปนาน ๆ แล้วนาน ๆ ทีถึงมาอัปเดตตรงศุกร์ จะถูกนับว่าพลาดทุกสัปดาห์ที่หายไปด้วย)<br>
+    <b>หมายเหตุ:</b> % นี้ขยับได้ทุกครั้งที่ผ่านวันศุกร์ใหม่ (มีสัปดาห์ที่ตัดสินได้เพิ่มขึ้น) และทุกครั้งที่มีการ sync ข้อมูลใหม่ - ถ้าจำนวนสัปดาห์สะสม (ตัวเลขข้างล่างชื่อ) ยังน้อย แค่ 1 สัปดาห์ก็ทำให้ % ขยับได้หลายจุดต่อรอบ ไม่ใช่ความผิดพลาดของระบบ</div>
     <div class="punc-podium">
       ${podiumItem(top3[1], 2)}
       ${podiumItem(top3[0], 1)}
