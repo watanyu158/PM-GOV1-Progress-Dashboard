@@ -364,7 +364,7 @@ function parsePaymentW(wb) {
       if (typeof no === 'string' && !code) continue;
       cur.installments.push({
         desc: r[3], accType: r[4], invoiceDate: r[11], invoiced: r[12],
-        collecting: r[13], collectedDate: r[14], collected: r[15],
+        collecting: r[13], collectedDate: r[14], collected: r[15], remainder: r[10],
       });
     }
   }
