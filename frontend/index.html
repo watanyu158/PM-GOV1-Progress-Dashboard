@@ -3474,13 +3474,31 @@ function renderPayment(paywSource, codeSetList){
     const col = g.collecting > g.selling*0.1 ? '#A8482F' : g.collecting>1 ? '#B07A28' : '#4F7A4A';
     const cards = g.items.slice().sort((a,b)=>num(b.collecting)-num(a.collecting)).map(x=>{
       const rem = num(x.remainder), coll_ing = num(x.collecting), coll_ed = num(x.collected);
-      // ประมาณการยอดที่ควรเรียกเก็บ สำหรับงวดที่ยังไม่วางบิลเลย (invoiced=0) ที่คำนวณย้อนจากสัญญาได้ชัดเจน
-      // (ตรวจสอบไขว้กับงวดที่จ่ายจริงแล้วเท่านั้น ไม่ใช่การเดา) - เพิ่ม/ลบรายการนี้ได้ตามที่ตรวจสอบเพิ่มในอนาคต
-      const KNOWN_ESTIMATES = {
-        '119250133': {
-          'งวดที่ 14 ร้อยละ 15 ของเงินค่าจ้างตามสัญญา (ทสภ. ทชม.) (ค่าติดตั้ง)': 121095000,
-        },
-      };
+      // ประมาณการยอดที่ควรเรียกเก็บ สำหรับงวดที่ยังไม่วางบิลเลย (invoiced=0) - หาแบบทั่วไปทุกโครงการ ไม่ hardcode
+      // ทีละโครงการอีกต่อไป: เช็คว่างวดที่จ่ายจริงแล้วของโครงการนี้ มีข้อความ "ร้อยละ X ของเงินค่าจ้างตามสัญญา"
+      // ที่ย้อนคำนวณกลับมาตรงกับ Selling Price ไหม (ยืนยันได้เอง ไม่ใช่แค่เดา) ถ้าตรง ถึงจะเอาสูตรเดียวกันไปคำนวณ
+      // งวดอื่นที่ยังไม่วางบิลของ "โครงการเดียวกันนี้" เท่านั้น - งวดที่อ้างอิงวงเงินเฉพาะข้อสัญญา (เช่น "ข้อ 6.4")
+      // จะไม่ match กับ pattern นี้ จึงไม่มีวันถูกเดาค่าให้ ปลอดภัยเพราะไม่มีข้อมูลสนับสนุนเรื่องนั้นเลย
+      const PCT_OF_CONTRACT_RE = /ร้อยละ\s*([\d.]+)\s*ของเงินค่าจ้างตามสัญญา/;
+      const estimateMap = (() => {
+        const insts0 = x.installments||[];
+        const sellingPrice = num(x.sellingPrice);
+        if(!sellingPrice) return {};
+        const verified = insts0.some(inst=>{
+          const m = (inst.desc||'').match(PCT_OF_CONTRACT_RE);
+          if(!m || num(inst.invoiced)<=0) return false;
+          const impliedBase = num(inst.invoiced) / (parseFloat(m[1])/100);
+          return Math.abs(impliedBase - sellingPrice) < sellingPrice*0.005; // คลาดเคลื่อนได้ไม่เกิน 0.5% (เผื่อปัดเศษ)
+        });
+        if(!verified) return {};
+        const map = {};
+        insts0.forEach(inst=>{
+          if(num(inst.invoiced)>0) return; // วางบิลไปแล้ว ไม่ต้องประมาณการซ้ำ
+          const m = (inst.desc||'').match(PCT_OF_CONTRACT_RE);
+          if(m) map[(inst.desc||'').trim()] = sellingPrice * (parseFloat(m[1])/100);
+        });
+        return map;
+      })();
       const insts = (x.installments||[]).filter(i=>i.desc || i.collected!=null || i.invoiced!=null);
       // AccType เป็นการขาย/ติดตั้ง + คำอธิบายงวดพูดถึงการส่งของ -> Collecting อาจเป็นใบกำกับภาษีตัดสต็อก
       // ไม่ใช่การวางบิลเรียกเก็บลูกค้าจริง ๆ (ต่างจาก "ค้างเก็บเงิน" ทั่วไปที่ควรตามลูกค้า)
@@ -3492,7 +3510,7 @@ function renderPayment(paywSource, codeSetList){
         const notYetInvoiced = num(inst.invoiced)===0 && num(inst.collecting)===0 && !inst.collectedDate; // ยังไม่วางบิลเลย ต่างจาก "เก็บแล้ว"
         const text = `${x.projectName||''} ${inst.desc||''}`;
         const likelyStockInvoice = pending && isShipType && SHIP_KEYWORDS.some(k=>text.includes(k));
-        const estimate = KNOWN_ESTIMATES[x.projectCode]?.[(inst.desc||'').trim()];
+        const estimate = estimateMap[(inst.desc||'').trim()];
         const pendingLabel = likelyStockInvoice
           ? `อาจเป็นใบกำกับภาษีตัดสต็อก ไม่ใช่วางบิลเรียกเก็บจริง - ${thb(inst.collecting)}`
           : `ยังไม่เก็บ - ค้าง ${thb(inst.collecting)}`;
