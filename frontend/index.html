@@ -402,6 +402,29 @@
     padding:11px 13px;margin-top:8px;
   }
   .nd:first-child{margin-top:0;}
+
+  /* ---- สถานะงวดงาน 4 แบบ: ใช้เฉดน้ำตาลของธีมเดียวกัน ต่างที่ความเข้ม + ไอคอน (ไม่ใช้หลายสีให้ลายตา) ---- */
+  .nd-paid, .nd-billing, .nd-ship, .nd-waiting{border-left:3px solid transparent;}
+  .nd-paid{border-left-color:var(--brand);background:var(--surface-2);}
+  .nd-billing{border-left-color:var(--brand-2);background:#FBF7F0;}
+  .nd-ship{border-left-color:var(--line-soft);background:var(--surface-2);border-left-style:dashed;}
+  .nd-waiting{border-left-color:#DCD3C4;background:var(--surface);}
+  .nd-status{margin-top:7px;}
+  .nd-badge{
+    display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;
+    padding:3px 9px;border-radius:20px;line-height:1.5;
+  }
+  .nd-badge-paid{background:var(--brand);color:#FFF;}
+  .nd-badge-billing{background:#EFE3D2;color:var(--brand);}
+  .nd-badge-ship{background:var(--surface-2);color:var(--faint);border:1px dashed var(--line-soft);}
+  .nd-badge-waiting{background:transparent;color:var(--faint);border:1px solid var(--line-soft);}
+  .nd-detail{font-size:11.5px;color:var(--ink-2);line-height:1.6;margin-top:6px;overflow-wrap:break-word;}
+  .nd-waiting .nd-detail{color:var(--faint);}
+  .pw-legend{
+    display:flex;flex-wrap:wrap;gap:8px;padding:11px 18px;
+    border-bottom:1px solid var(--line-soft);background:var(--surface);
+  }
+
   .nd-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:7px;}
   .nd-name{font-size:12.5px;font-weight:600;color:var(--ink);flex:1;min-width:0;overflow-wrap:break-word;}
   .nd-cust{font-size:11px;color:var(--faint);margin-top:2px;}
@@ -3495,22 +3518,37 @@ function renderPayment(paywSource, codeSetList){
         const text = `${x.projectName||''} ${inst.desc||''}`;
         const likelyStockInvoice = pending && isShipType && SHIP_KEYWORDS.some(k=>text.includes(k));
         const est = estimateMap[(inst.desc||'').trim()];
-        const pendingLabel = likelyStockInvoice
-          ? `อาจเป็นใบกำกับภาษีตัดสต็อก ไม่ใช่วางบิลเรียกเก็บจริง - ${thb(inst.collecting)}`
-          : `ออก Invoice แล้ว (${fmtDate(inst.invoiceDate)}) แต่ลูกค้ายังไม่จ่าย - ค้าง ${thb(inst.collecting)}`;
-        const tagLabel = likelyStockInvoice ? 'ตัดสต็อก?' : notYetInvoiced ? 'ยังไม่วางบิล' : (pending ? 'ออกบิลแล้ว รอเก็บ' : 'เก็บแล้ว');
-        const tagColor = likelyStockInvoice ? 'var(--warning)' : (notYetInvoiced || pending) ? 'var(--critical)' : '';
-        const statusTxt = inst.collectedDate ? fmtDate(inst.collectedDate)
-          : notYetInvoiced ? (est ? `ยังไม่วางบิล - จำนวน ${thb(est.amount)}` : 'ยังไม่วางบิล')
-          : (pending ? pendingLabel : '-');
-        const estimateRow = est
-          ? `<div class="nd-row"><span class="nd-tag" style="color:var(--brand)">ยอดคงเหลือ</span><span class="nd-txt" style="color:var(--brand)">${thb(est.amount)}</span></div>`
-          : '';
-        return `<div class="nd">
-          <div class="nd-top"><span class="nd-name">${inst.desc||'-'}</span><span class="nd-prog">${inst.collected!=null ? thb(inst.collected) : '-'}</span></div>
-          <div class="nd-row"><span class="nd-tag">Invoice</span><span class="nd-txt">${fmtDate(inst.invoiceDate)} · ${thb(inst.invoiced)}</span></div>
-          <div class="nd-row"><span class="nd-tag">${tagLabel}</span><span class="nd-txt" style="${tagColor?'color:'+tagColor:''}">${statusTxt}</span></div>
-          ${estimateRow}
+
+        // 4 สถานะหลัก - ใช้เฉดสีน้ำตาลของธีมเดียวกันทั้งหมด ต่างกันที่ "ความเข้ม" + ไอคอน ไม่ใช้หลายสีให้ลายตา
+        //   paid    = เก็บเงินได้แล้ว (เข้มสุด ทึบ = จบแล้ว)
+        //   billing = ออก Invoice แล้ว รอเก็บเงิน (เข้มปานกลาง = กำลังดำเนินการ ต้องตามต่อ)
+        //   ship    = ใบกำกับตัดสต็อก/ส่งของ (เส้นประ = คนละเรื่องกับการเรียกเก็บเงินลูกค้า)
+        //   waiting = ยังไม่ออก Invoice (จางสุด = ยังไม่เริ่ม)
+        let state, stateLabel, stateIcon;
+        if(inst.collectedDate){ state='paid'; stateLabel='เก็บเงินแล้ว'; stateIcon='✓'; }
+        else if(likelyStockInvoice){ state='ship'; stateLabel='ส่งของ / ตัดสต็อก'; stateIcon='📦'; }
+        else if(pending){ state='billing'; stateLabel='ออก Invoice แล้ว รอเก็บเงิน'; stateIcon='◕'; }
+        else { state='waiting'; stateLabel='ยังไม่ออก Invoice'; stateIcon='○'; }
+
+        // บรรทัดรายละเอียดใต้ badge - เขียนให้อ่านจบในบรรทัดเดียว ไม่ต้องเชื่อมโยงกับบรรทัดอื่นเอง
+        const detailTxt = state==='paid'
+            ? `ออก Invoice ${fmtDate(inst.invoiceDate)} · เก็บเงินได้ ${fmtDate(inst.collectedDate)}`
+          : state==='ship'
+            ? `ออกใบกำกับ ${fmtDate(inst.invoiceDate)} · ${thb(inst.collecting)} - อาจเป็นใบตัดสต็อก ไม่ใช่บิลเรียกเก็บลูกค้า`
+          : state==='billing'
+            ? `ออก Invoice ${fmtDate(inst.invoiceDate)} · ลูกค้ายังไม่จ่าย ค้าง ${thb(inst.collecting)}`
+            : (est ? `กำหนดวางบิล ${fmtDate(inst.invoiceDate)} · ยอดที่จะเรียกเก็บ ${thb(est.amount)}`
+                   : `กำหนดวางบิล ${fmtDate(inst.invoiceDate)}`);
+
+        // ตัวเลขมุมขวา: งวดที่เก็บแล้วโชว์ยอดที่เก็บได้, งวดที่ยังไม่วางบิลโชว์ยอดคงเหลือที่จะเรียกเก็บ
+        const amountTxt = state==='paid' ? thb(inst.collected)
+          : state==='waiting' ? (est ? thb(est.amount) : '-')
+          : thb(inst.collecting);
+
+        return `<div class="nd nd-${state}">
+          <div class="nd-top"><span class="nd-name">${inst.desc||'-'}</span><span class="nd-prog">${amountTxt}</span></div>
+          <div class="nd-status"><span class="nd-badge nd-badge-${state}">${stateIcon} ${stateLabel}</span></div>
+          <div class="nd-detail">${detailTxt}</div>
         </div>`;
       }).join('');
       return `<div class="rv-card">
@@ -3541,7 +3579,16 @@ function renderPayment(paywSource, codeSetList){
     <div class="rv-detail">${cards}</div>`;
   }).join('');
 
-  el.innerHTML = overview + head + body;
+
+  // คำอธิบายสถานะ 4 แบบ - วางไว้บนสุด ให้ดูครั้งเดียวแล้วเข้าใจทุกงวดที่อยู่ข้างล่าง
+  const legend = `<div class="pw-legend">
+    <span class="nd-badge nd-badge-paid">✓ เก็บเงินแล้ว</span>
+    <span class="nd-badge nd-badge-billing">◕ ออก Invoice แล้ว รอเก็บเงิน</span>
+    <span class="nd-badge nd-badge-ship">📦 ส่งของ / ตัดสต็อก</span>
+    <span class="nd-badge nd-badge-waiting">○ ยังไม่ออก Invoice</span>
+  </div>`;
+
+  el.innerHTML = overview + legend + head + body;
 }
 
 function renderPOPanel(poSource, codeSetList){
