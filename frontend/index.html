@@ -3047,6 +3047,13 @@ function renderPunctualityPodium(list, histSource){
   const punctuality = computePunctuality(list, histSource);
   if(!punctuality.length) return '';
 
+  // สัปดาห์ปฏิทินจริงที่เก็บข้อมูลมาทั้งหมด (นับจากวันที่มีการอัปเดตแรกสุดของทั้งทีม จนถึงวันนี้) - โชว์รวมครั้งเดียว
+  // ไม่ใช่ต่อคน เพื่อให้เห็นภาพรวมว่าระบบเก็บข้อมูลมานานแค่ไหนแล้ว แยกจาก "จำนวนโครงการ" ที่โชว์ต่อคน
+  const today0 = new Date(); today0.setHours(0,0,0,0);
+  const hist = histSource || HIST;
+  const allDates = hist.map(r=>parseD(r['Update Date'])).filter(Boolean);
+  const weeksTracked = allDates.length ? Math.floor((today0 - Math.min(...allDates)) / (7*DAY)) : 0;
+
   const podiumItem = (entry, rankNum) => {
     if(!entry) return '<div class="punc-pod-item"></div>';
     const barCls = rankNum===1?'gold':rankNum===2?'silver':'bronze';
@@ -3055,7 +3062,7 @@ function renderPunctualityPodium(list, histSource){
       <div class="punc-pod-av" style="background:${avatarColor(entry.pm)}">${initials(entry.pm)}<span class="punc-pod-medal">${medal}</span></div>
       <div class="punc-pod-name">${entry.pm}</div>
       <div class="punc-pod-pct" style="color:${avatarColor(entry.pm)}">${entry.pct.toFixed(0)}%</div>
-      <div class="punc-pod-n">${entry.onTime}/${entry.total} จุดตรวจ${entry.projectCount>1?` (${entry.projectCount} โครงการ)`:''}</div>
+      <div class="punc-pod-n">${entry.projectCount} โครงการ</div>
       <div class="punc-pod-bar ${barCls}"><span class="punc-pod-rank">#${rankNum}</span></div>
     </div>`;
   };
@@ -3067,15 +3074,15 @@ function renderPunctualityPodium(list, histSource){
       <div class="punc-rest-rank">${i+4}</div>
       <div class="av" style="width:26px;height:26px;font-size:10px;background:${avatarColor(r.pm)}">${initials(r.pm)}</div>
       <div class="punc-rest-name">${r.pm}</div>
-      <div class="punc-rest-n">${r.onTime}/${r.total} จุดตรวจ${r.projectCount>1?` (${r.projectCount} โครงการ)`:''}</div>
+      <div class="punc-rest-n">${r.projectCount} โครงการ</div>
       <div class="punc-rest-pct">${r.pct.toFixed(0)}%</div>
     </div>`).join('')}</div>` : '';
 
   return `<div class="punc-wrap">
     <div class="punc-title">🏆 อัปเดตตรงเวลามากที่สุด</div>
     <div class="punc-sub">กติกา: ต้องอัปเดต PMS ให้ทันภายในวันศุกร์ทุกสัปดาห์ - นับจากทุกสัปดาห์ปฏิทินที่ผ่านไปจริงตั้งแต่เริ่มโครงการจนถึงวันนี้ ไม่ใช่แค่นับจำนวนครั้งที่มีอัปเดต (คนที่หายไปนาน ๆ แล้วนาน ๆ ทีถึงมาอัปเดตตรงศุกร์ จะถูกนับว่าพลาดทุกสัปดาห์ที่หายไปด้วย)<br>
-    <b>หมายเหตุ:</b> % นี้ขยับได้ทุกครั้งที่ผ่านวันศุกร์ใหม่ (มีจุดตรวจที่ตัดสินได้เพิ่มขึ้น) และทุกครั้งที่มีการ sync ข้อมูลใหม่ - ถ้าจำนวนจุดตรวจสะสม (ตัวเลขข้างล่างชื่อ) ยังน้อย แค่ 1 จุดก็ทำให้ % ขยับได้หลายจุดต่อรอบ ไม่ใช่ความผิดพลาดของระบบ<br>
-    <b>"จุดตรวจ" คือ 1 สัปดาห์ต่อ 1 โครงการ</b> - ถ้าดูแลหลายโครงการพร้อมกัน จำนวนจุดตรวจจะมากกว่าจำนวนสัปดาห์ปฏิทินจริง เพราะนับรวมทุกโครงการเข้าด้วยกัน</div>
+    <b>เก็บข้อมูลมาแล้ว ${weeksTracked} สัปดาห์</b> นับตั้งแต่มีการอัปเดตแรกสุดของทั้งทีมจนถึงวันนี้ - % จะขยับได้ทุกครั้งที่ผ่านวันศุกร์ใหม่หรือมีการ sync ข้อมูล ยิ่งเก็บข้อมูลมานานเท่าไหร่ ตัวเลขก็จะยิ่งนิ่งขึ้นเรื่อย ๆ (ตอนนี้ยังค่อนข้างใหม่ จึงขยับได้มากต่อรอบ ไม่ใช่ความผิดพลาดของระบบ)<br>
+    ตัวเลขใต้ % ของแต่ละคนคือ "จำนวนโครงการที่ดูแล" - ยิ่งดูแลหลายโครงการ ยิ่งต้องอัปเดตถี่กว่าคนที่มีโครงการเดียว</div>
     <div class="punc-podium">
       ${podiumItem(top3[1], 2)}
       ${podiumItem(top3[0], 1)}
