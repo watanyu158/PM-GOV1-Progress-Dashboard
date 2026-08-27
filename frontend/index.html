@@ -3032,9 +3032,10 @@ function computePunctuality(list, histSource){
       cursor = new Date(cursor.getTime() + 7*DAY);
     }
 
-    (byPM[pm] ||= {pm, expected:0, onTime:0});
+    (byPM[pm] ||= {pm, expected:0, onTime:0, projectCount:0});
     byPM[pm].expected += expected;
     byPM[pm].onTime += onTime;
+    if(expected>0) byPM[pm].projectCount++; // นับเฉพาะโครงการที่มีสัปดาห์ตัดสินได้จริง กันโครงการใหม่เอี่ยมที่ยังไม่มีประวัติมาดันจำนวนเกินจริง
   });
 
   return Object.values(byPM)
@@ -3054,7 +3055,7 @@ function renderPunctualityPodium(list, histSource){
       <div class="punc-pod-av" style="background:${avatarColor(entry.pm)}">${initials(entry.pm)}<span class="punc-pod-medal">${medal}</span></div>
       <div class="punc-pod-name">${entry.pm}</div>
       <div class="punc-pod-pct" style="color:${avatarColor(entry.pm)}">${entry.pct.toFixed(0)}%</div>
-      <div class="punc-pod-n">${entry.onTime}/${entry.total} สัปดาห์</div>
+      <div class="punc-pod-n">${entry.onTime}/${entry.total} จุดตรวจ${entry.projectCount>1?` (${entry.projectCount} โครงการ)`:''}</div>
       <div class="punc-pod-bar ${barCls}"><span class="punc-pod-rank">#${rankNum}</span></div>
     </div>`;
   };
@@ -3066,14 +3067,15 @@ function renderPunctualityPodium(list, histSource){
       <div class="punc-rest-rank">${i+4}</div>
       <div class="av" style="width:26px;height:26px;font-size:10px;background:${avatarColor(r.pm)}">${initials(r.pm)}</div>
       <div class="punc-rest-name">${r.pm}</div>
-      <div class="punc-rest-n">${r.onTime}/${r.total} สัปดาห์</div>
+      <div class="punc-rest-n">${r.onTime}/${r.total} จุดตรวจ${r.projectCount>1?` (${r.projectCount} โครงการ)`:''}</div>
       <div class="punc-rest-pct">${r.pct.toFixed(0)}%</div>
     </div>`).join('')}</div>` : '';
 
   return `<div class="punc-wrap">
     <div class="punc-title">🏆 อัปเดตตรงเวลามากที่สุด</div>
     <div class="punc-sub">กติกา: ต้องอัปเดต PMS ให้ทันภายในวันศุกร์ทุกสัปดาห์ - นับจากทุกสัปดาห์ปฏิทินที่ผ่านไปจริงตั้งแต่เริ่มโครงการจนถึงวันนี้ ไม่ใช่แค่นับจำนวนครั้งที่มีอัปเดต (คนที่หายไปนาน ๆ แล้วนาน ๆ ทีถึงมาอัปเดตตรงศุกร์ จะถูกนับว่าพลาดทุกสัปดาห์ที่หายไปด้วย)<br>
-    <b>หมายเหตุ:</b> % นี้ขยับได้ทุกครั้งที่ผ่านวันศุกร์ใหม่ (มีสัปดาห์ที่ตัดสินได้เพิ่มขึ้น) และทุกครั้งที่มีการ sync ข้อมูลใหม่ - ถ้าจำนวนสัปดาห์สะสม (ตัวเลขข้างล่างชื่อ) ยังน้อย แค่ 1 สัปดาห์ก็ทำให้ % ขยับได้หลายจุดต่อรอบ ไม่ใช่ความผิดพลาดของระบบ</div>
+    <b>หมายเหตุ:</b> % นี้ขยับได้ทุกครั้งที่ผ่านวันศุกร์ใหม่ (มีจุดตรวจที่ตัดสินได้เพิ่มขึ้น) และทุกครั้งที่มีการ sync ข้อมูลใหม่ - ถ้าจำนวนจุดตรวจสะสม (ตัวเลขข้างล่างชื่อ) ยังน้อย แค่ 1 จุดก็ทำให้ % ขยับได้หลายจุดต่อรอบ ไม่ใช่ความผิดพลาดของระบบ<br>
+    <b>"จุดตรวจ" คือ 1 สัปดาห์ต่อ 1 โครงการ</b> - ถ้าดูแลหลายโครงการพร้อมกัน จำนวนจุดตรวจจะมากกว่าจำนวนสัปดาห์ปฏิทินจริง เพราะนับรวมทุกโครงการเข้าด้วยกัน</div>
     <div class="punc-podium">
       ${podiumItem(top3[1], 2)}
       ${podiumItem(top3[0], 1)}
