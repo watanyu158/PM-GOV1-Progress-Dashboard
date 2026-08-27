@@ -3513,8 +3513,8 @@ function renderPayment(paywSource, codeSetList){
         const estimate = estimateMap[(inst.desc||'').trim()];
         const pendingLabel = likelyStockInvoice
           ? `อาจเป็นใบกำกับภาษีตัดสต็อก ไม่ใช่วางบิลเรียกเก็บจริง - ${thb(inst.collecting)}`
-          : `ยังไม่เก็บ - ค้าง ${thb(inst.collecting)}`;
-        const tagLabel = likelyStockInvoice ? 'ตัดสต็อก?' : notYetInvoiced ? 'ยังไม่วางบิล' : (pending ? 'ค้าง' : 'เก็บแล้ว');
+          : `ออก Invoice แล้ว (${fmtDate(inst.invoiceDate)}) แต่ลูกค้ายังไม่จ่าย - ค้าง ${thb(inst.collecting)}`;
+        const tagLabel = likelyStockInvoice ? 'ตัดสต็อก?' : notYetInvoiced ? 'ยังไม่วางบิล' : (pending ? 'ออกบิลแล้ว รอเก็บ' : 'เก็บแล้ว');
         const tagColor = likelyStockInvoice ? 'var(--warning)' : (notYetInvoiced || pending) ? 'var(--critical)' : '';
         const statusTxt = inst.collectedDate ? fmtDate(inst.collectedDate) : notYetInvoiced ? 'ยังไม่วางบิล' : (pending ? pendingLabel : '-');
         const estimateRow = estimate
