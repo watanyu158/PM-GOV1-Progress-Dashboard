@@ -420,6 +420,38 @@
   .nd-badge-waiting{background:transparent;color:var(--faint);border:1px solid var(--line-soft);}
   .nd-detail{font-size:11.5px;color:var(--ink-2);line-height:1.6;margin-top:6px;overflow-wrap:break-word;}
   .nd-waiting .nd-detail{color:var(--faint);}
+  /* ---------------- Progress Timeline (heatmap) ---------------- */
+  .pt-legend{
+    display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;
+    padding:11px 18px;border-bottom:1px solid var(--line-soft);
+    font-size:10.5px;color:var(--faint);line-height:1.6;
+  }
+  .pt-legend-k{display:inline-flex;align-items:center;gap:5px;}
+  .pt-legend-k i{width:12px;height:12px;border-radius:3px;background:var(--surface-2);display:inline-block;}
+  .pt-legend-k i.stall{box-shadow:inset 0 0 0 1.5px var(--critical);}
+  .pt-legend-k i.jump{box-shadow:inset 0 0 0 1.5px #3D6B7A;}
+  .pt-sum{padding:9px 18px;font-size:11.5px;color:var(--ink-2);background:var(--surface-2);border-bottom:1px solid var(--line-soft);}
+  .pt-wrap{padding:12px 18px 14px;overflow-x:auto;}
+  .pt-table{width:100%;border-collapse:separate;border-spacing:2px;font-size:11px;}
+  .pt-table th{font-size:9px;font-weight:700;color:var(--faint);padding:3px 2px;text-align:center;white-space:nowrap;}
+  .pt-table th.pt-name{text-align:left;min-width:250px;font-size:9.5px;text-transform:uppercase;letter-spacing:.03em;}
+  td.pt-name{padding:5px 8px 5px 0;min-width:250px;}
+  .pt-n{font-size:11.5px;font-weight:600;color:var(--ink);line-height:1.4;}
+  .pt-sub{font-size:9.5px;color:var(--faint);margin-top:1px;}
+  .pt-cell{
+    text-align:center;padding:6px 3px;min-width:34px;border-radius:4px;
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;
+  }
+  .pt-cell.pt-none{background:transparent;color:var(--line);font-weight:400;}
+  .pt-cell.pt-same{box-shadow:inset 0 0 0 1.5px var(--critical);}
+  .pt-cell.pt-jump{box-shadow:inset 0 0 0 1.5px #3D6B7A;}
+  .pt-flag{font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px;vertical-align:middle;white-space:nowrap;}
+  .pt-flag.stall{background:var(--critical-tint);color:var(--critical);}
+  .pt-flag.gap{background:var(--warning-tint);color:var(--warning);}
+  @media(max-width:760px){
+    .pt-table th.pt-name, td.pt-name{min-width:170px;}
+  }
+
   /* ---------------- Revenue Plan ---------------- */
   .rp-chart-wrap{padding:14px 18px 4px;border-bottom:1px solid var(--line-soft);}
   .rp-chart-title{font-size:11.5px;font-weight:700;color:var(--ink-2);margin-bottom:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
@@ -1422,6 +1454,17 @@
     <div class="p-body"><div id="stalled"></div></div>
   </div>
 
+  <div class="panel" id="panel-progressTimeline">
+    <div class="p-head">
+      <div class="p-title">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16M13 4v16"/></svg>
+        Progress Timeline <span class="sep">-</span> <span class="th">ความคืบหน้ารายสัปดาห์ย้อนหลัง</span>
+      </div>
+      <span class="p-count" id="ptCount"></span>
+    </div>
+    <div class="p-body"><div id="ptBox"></div></div>
+  </div>
+
   <div class="panel" id="panel-dataFreshness">
     <div class="p-head">
       <div class="p-title">
@@ -1990,6 +2033,7 @@ const CARD_REGISTRY = [
   {tab:'1', tabLabel:'Project Tracking', id:'complexity', en:'Complexity Intelligence', th:'วิเคราะห์ความซับซ้อน', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'closureTransfer', en:'Closure & Transfer Tracking', th:'ปิดงาน / โอนงาน', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'stalledProgress', en:'Stalled Progress', th:'โครงการที่ค้างขั้นตอนเดิม', scope:true},
+  {tab:'1', tabLabel:'Project Tracking', id:'progressTimeline', en:'Progress Timeline', th:'ความคืบหน้ารายสัปดาห์ย้อนหลัง', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'dataFreshness', en:'Update PMS', th:'การอัปเดต PMS', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'deliveryTimeline', en:'Delivery Timeline', th:'โครงการใกล้ครบกำหนด', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'pmAvailability', en:'PM Availability', th:'พร้อมรับงานใหม่', scope:true},
@@ -3072,6 +3116,93 @@ function renderClosure(list){
 // ตรวจจับโครงการที่ "ค้างขั้นตอนเดิม" - บันทึก Progress Update ไม่เปลี่ยนเลยหลายรอบติดกัน พร้อมช่องว่างจากแผน
 // (linear pacing) มากพอจะน่ากังวล - ตั้งใจไม่สนใจว่า Project Health จะขึ้นว่าอะไร เพราะ Health เป็นการประเมิน
 // ของ PM เองคนเดียว อาจไม่ทันสังเกตหรือไม่อยากขึ้นสถานะเตือนเอง กฎนี้เป็นการตรวจสอบซ้ำแบบอัตโนมัติ ไม่พึ่งการประเมินตัวเอง
+// ===================== Progress Timeline (heatmap ความคืบหน้ารายสัปดาห์) =====================
+// อ่านจากประวัติ Progress1 ทุกแถว (ไม่ใช่แค่แถวล่าสุดต่อโครงการ) เพื่อเห็นย้อนหลังว่าแต่ละสัปดาห์ทำได้เท่าไหร่
+// จุดที่การ์ดอื่นบอกไม่ได้: (1) สัปดาห์ที่ไม่ได้อัปเดตเลย (2) งานนิ่งติดกันหลายสัปดาห์ (3) กระโดดทีเดียวหลายสิบ %
+function renderProgressTimeline(list, histSource){
+  const el = document.getElementById('ptBox');
+  if(!el) return;
+  const hist = histSource || HIST;
+  const codes = new Set(list.map(p=>p['Project Code']));
+
+  // เก็บ %Progress ล่าสุดของแต่ละ (โครงการ, สัปดาห์) - ถ้าสัปดาห์เดียวกันมีหลายแถวให้ใช้แถวท้ายสุด
+  const byCode = {};
+  const weekSet = new Set();
+  hist.forEach(r=>{
+    const code = r['Project Code'];
+    if(!codes.has(code)) return;
+    const d = parseD(r['Update Date']);
+    if(!d) return;
+    const wk = mondayOfWeek(d).getTime();
+    weekSet.add(wk);
+    (byCode[code] ||= {info:r, cells:{}});
+    byCode[code].info = r;                       // แถวล่าสุดไว้ใช้ชื่อ/PM
+    byCode[code].cells[wk] = num(r['%Progress']);
+  });
+
+  const weeks = [...weekSet].sort((a,b)=>a-b);
+  const items = Object.entries(byCode).map(([code,v])=>({code, ...v}));
+  document.getElementById('ptCount').textContent = `${items.length} โครงการ · ${weeks.length} สัปดาห์`;
+  if(!items.length || !weeks.length){ el.innerHTML = `<div class="empty">ยังไม่มีประวัติความคืบหน้าพอจะแสดงเป็นไทม์ไลน์</div>`; return; }
+
+  // เรียงตาม "ความน่าสนใจ": งานที่นิ่งนานสุดขึ้นก่อน แล้วค่อยตามด้วย %Progress น้อยสุด
+  const enrich = items.map(x=>{
+    const vals = weeks.map(w=>x.cells[w]);
+    const seen = vals.filter(v=>v!==undefined);
+    const latest = seen.length ? seen[seen.length-1] : null;
+    // นับสัปดาห์ท้ายสุดที่ค่าไม่ขยับติดกัน (นับเฉพาะสัปดาห์ที่มีข้อมูล)
+    let flat = 0;
+    for(let i=seen.length-1;i>0;i--){ if(seen[i]===seen[i-1]) flat++; else break; }
+    const missing = weeks.length - seen.length;
+    return {...x, vals, latest, flat, missing, name:(x.info['Project Name']||x.code), pm:x.info['PM Name']||''};
+  }).sort((a,b)=> b.flat-a.flat || (a.latest??999)-(b.latest??999));
+
+  const flatMax = Math.max(...enrich.map(x=>x.flat), 0);
+  const rows = enrich.map(x=>{
+    const cells = weeks.map((w,i)=>{
+      const v = x.vals[i];
+      if(v===undefined) return `<td class="pt-cell pt-none" title="${fmtDObj(new Date(w))} - ไม่ได้อัปเดต">·</td>`;
+      const prev = x.vals.slice(0,i).filter(z=>z!==undefined).pop();
+      const delta = prev===undefined ? null : v-prev;
+      const intensity = Math.min(1, v/100);
+      const bg = `rgba(122,92,62,${(0.08+intensity*0.62).toFixed(2)})`;
+      const fg = intensity>0.55 ? '#fff' : 'var(--ink-2)';
+      const jump = delta!==null && delta>=25 ? ' pt-jump' : '';
+      const same = delta===0 ? ' pt-same' : '';
+      const tip = `${fmtDObj(new Date(w))} - ${v.toFixed(0)}%` + (delta===null?' (รอบแรก)':delta===0?' (ไม่ขยับจากรอบก่อน)':` (${delta>0?'+':''}${delta.toFixed(0)} จากรอบก่อน)`);
+      return `<td class="pt-cell${jump}${same}" style="background:${bg};color:${fg}" title="${tip}">${v.toFixed(0)}</td>`;
+    }).join('');
+    const flagTxt = x.flat>=3 ? `<span class="pt-flag stall">นิ่ง ${x.flat} สัปดาห์</span>`
+                  : x.missing>=Math.ceil(weeks.length/2) ? `<span class="pt-flag gap">ขาด ${x.missing} สัปดาห์</span>` : '';
+    return `<tr>
+      <td class="pt-name"><div class="pt-n">${x.name} <span class="code-tag">#${x.code}</span> ${flagTxt}</div><div class="pt-sub">${x.pm}</div></td>
+      ${cells}
+    </tr>`;
+  }).join('');
+
+  const headCells = weeks.map(w=>{
+    const d = new Date(w);
+    return `<th class="pt-cell">${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}</th>`;
+  }).join('');
+
+  const stalled = enrich.filter(x=>x.flat>=3).length;
+  const gappy = enrich.filter(x=>x.missing>=Math.ceil(weeks.length/2)).length;
+
+  el.innerHTML = `
+    <div class="pt-legend">
+      <span>สีเข้ม = %Progress สูง · <b>·</b> = สัปดาห์นั้นไม่ได้อัปเดต · ชี้เมาส์เพื่อดูส่วนต่างจากรอบก่อน</span>
+      <span class="pt-legend-k"><i class="stall"></i>ขอบแดง = ค่าไม่ขยับจากรอบก่อน</span>
+      <span class="pt-legend-k"><i class="jump"></i>ขอบน้ำเงิน = กระโดด 25%+ รวดเดียว</span>
+    </div>
+    ${(stalled||gappy) ? `<div class="pt-sum">${stalled?`<b>${stalled} โครงการ</b>ค่าไม่ขยับติดกัน 3 สัปดาห์ขึ้นไป`:''}${stalled&&gappy?' · ':''}${gappy?`<b>${gappy} โครงการ</b>ขาดอัปเดตเกินครึ่งของช่วงเวลา`:''}</div>` : ''}
+    <div class="pt-wrap">
+      <table class="pt-table">
+        <thead><tr><th class="pt-name">โครงการ</th>${headCells}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
 function renderStalled(list){
   const el = document.getElementById('stalled');
   const STALL_WEEKS = 3;     // บันทึกไม่เปลี่ยนติดกันกี่รอบ ถึงเริ่มนับว่าค้าง
@@ -5296,6 +5427,8 @@ function renderFiltered(){
   renderComplexity(listFor('complexity'));
   renderClosure(listFor('closureTransfer'));
   renderStalled(listFor('stalledProgress'));
+  renderProgressTimeline(listFor('progressTimeline'),
+    hasTeamWideScope('progressTimeline') && ROWS_TEAMWIDE.length ? ROWS_TEAMWIDE : HIST);
   renderDataFreshness(listFor('dataFreshness'));
   renderRevenuePlan(listFor('revenuePlan'));
   renderRevenue(listFor('revenueAttainment'));
