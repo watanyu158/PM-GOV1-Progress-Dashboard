@@ -420,6 +420,32 @@
   .nd-badge-waiting{background:transparent;color:var(--faint);border:1px solid var(--line-soft);}
   .nd-detail{font-size:11.5px;color:var(--ink-2);line-height:1.6;margin-top:6px;overflow-wrap:break-word;}
   .nd-waiting .nd-detail{color:var(--faint);}
+  /* ---------------- Risk Finder ---------------- */
+  .rf-sum{display:flex;flex-wrap:wrap;gap:8px;padding:11px 18px;border-bottom:1px solid var(--line-soft);}
+  .rf-chip{font-size:11px;font-weight:700;padding:4px 11px;border-radius:20px;}
+  .rf-chip.crit{background:var(--critical-tint);color:var(--critical);}
+  .rf-chip.warn{background:var(--warning-tint);color:var(--warning);}
+  .rf-chip.num{background:var(--surface-2);color:var(--ink-2);border:1px dashed var(--line-soft);}
+  .rf-list{padding:10px 18px 14px;}
+  .rf-i{padding:10px 12px;border-radius:8px;margin-top:7px;background:var(--surface-2);border-left:4px solid var(--line-soft);}
+  .rf-i:first-child{margin-top:0;}
+  .rf-i.rf-critical{border-left-color:var(--critical);background:#FCF2EF;}
+  .rf-i.rf-warning{border-left-color:var(--warning);background:#FDF8EE;}
+  .rf-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+  .rf-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;}
+  .rf-b-critical{background:var(--critical-tint);color:var(--critical);}
+  .rf-b-warning{background:var(--warning-tint);color:var(--warning);}
+  .rf-b-success,.rf-b-neutral{background:var(--surface-2);color:var(--faint);border:1px solid var(--line-soft);}
+  .rf-name{font-size:12.5px;font-weight:700;color:var(--ink);}
+  .rf-meta{font-size:11px;color:var(--ink-2);margin-top:4px;line-height:1.6;}
+  .rf-pp{font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:20px;background:var(--surface);color:var(--faint);}
+  .rf-pp.bad{background:var(--critical-tint);color:var(--critical);}
+  .rf-bad{color:var(--critical);}
+  .rf-nodata{color:var(--faint);font-style:italic;}
+  .rf-due{font-size:10.5px;color:var(--faint);margin-left:4px;}
+  .rf-progress{font-size:10.5px;color:var(--ink-2);margin-top:5px;padding:5px 9px;background:var(--surface);border-radius:6px;line-height:1.6;}
+  .rf-note{font-size:10.5px;line-height:1.6;margin-top:5px;padding-left:8px;border-left:2px solid var(--warning);color:var(--ink-2);}
+
   /* ---------------- Progress Timeline (heatmap) ---------------- */
   .pt-legend{
     display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;
@@ -428,8 +454,9 @@
   }
   .pt-legend-k{display:inline-flex;align-items:center;gap:5px;}
   .pt-legend-k i{width:12px;height:12px;border-radius:3px;background:var(--surface-2);display:inline-block;}
-  .pt-legend-k i.stall{box-shadow:inset 0 0 0 1.5px var(--critical);}
-  .pt-legend-k i.jump{box-shadow:inset 0 0 0 1.5px #3D6B7A;}
+  .pt-legend-k i.stall{background:#E8C4B8;}
+  .pt-legend-k i.jump{background:#BBD4DC;}
+  .pt-legend-k i.done{background:#DDE8DA;}
   .pt-sum{padding:9px 18px;font-size:11.5px;color:var(--ink-2);background:var(--surface-2);border-bottom:1px solid var(--line-soft);}
   .pt-wrap{padding:12px 18px 14px;overflow-x:auto;}
   .pt-table{width:100%;border-collapse:separate;border-spacing:2px;font-size:11px;}
@@ -442,12 +469,15 @@
     text-align:center;padding:6px 3px;min-width:34px;border-radius:4px;
     font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;
   }
-  .pt-cell.pt-none{background:transparent;color:var(--line);font-weight:400;}
-  .pt-cell.pt-same{box-shadow:inset 0 0 0 1.5px var(--critical);}
-  .pt-cell.pt-jump{box-shadow:inset 0 0 0 1.5px #3D6B7A;}
+  .pt-cell.pt-gap{background:transparent;color:var(--line);font-weight:400;}
+  .pt-cell.pt-before{background:transparent;}
+  .pt-cell.pt-done{background:#DDE8DA;color:#3B5C35;font-weight:500;}
+  .pt-cell.pt-same{font-weight:700;}
+  .pt-cell.pt-jump{font-weight:700;}
   .pt-flag{font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px;vertical-align:middle;white-space:nowrap;}
   .pt-flag.stall{background:var(--critical-tint);color:var(--critical);}
   .pt-flag.gap{background:var(--warning-tint);color:var(--warning);}
+  .pt-flag.done{background:#DDE8DA;color:#3B5C35;}
   @media(max-width:760px){
     .pt-table th.pt-name, td.pt-name{min-width:170px;}
   }
@@ -1455,6 +1485,17 @@
     <div class="p-body"><div id="stalled"></div></div>
   </div>
 
+  <div class="panel" id="panel-riskFinder">
+    <div class="p-head">
+      <div class="p-title">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+        Risk Finder <span class="sep">-</span> <span class="th">โครงการเสี่ยง - Critical / Warning</span>
+      </div>
+      <span class="p-count" id="rfCount"></span>
+    </div>
+    <div class="p-body"><div id="rfBox"></div></div>
+  </div>
+
   <div class="panel" id="panel-progressTimeline">
     <div class="p-head">
       <div class="p-title">
@@ -2034,6 +2075,7 @@ const CARD_REGISTRY = [
   {tab:'1', tabLabel:'Project Tracking', id:'complexity', en:'Complexity Intelligence', th:'วิเคราะห์ความซับซ้อน', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'closureTransfer', en:'Closure & Transfer Tracking', th:'ปิดงาน / โอนงาน', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'stalledProgress', en:'Stalled Progress', th:'โครงการที่ค้างขั้นตอนเดิม', scope:true},
+  {tab:'1', tabLabel:'Project Tracking', id:'riskFinder', en:'Risk Finder', th:'โครงการเสี่ยง Critical/Warning', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'progressTimeline', en:'Progress Timeline', th:'ความคืบหน้ารายสัปดาห์ย้อนหลัง', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'dataFreshness', en:'Update PMS', th:'การอัปเดต PMS', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'deliveryTimeline', en:'Delivery Timeline', th:'โครงการใกล้ครบกำหนด', scope:true},
@@ -2837,10 +2879,18 @@ function renderWow(list){
       const changed = nt.thisNote !== nt.prevNote;
       const paceLine = nt.expProg===null ? '' : (()=>{
         const diff = nt.thisProg - nt.expProg;
-        const cls = diff>=5?'ahead':diff<=-10?'behind':'onpace';
+        // เกณฑ์เดิม -10pp ถึงจะนับว่าช้า ทำให้ -8pp ขึ้นว่า "ตามแผน" ซึ่งขัดกับความจริงและขัดกับ Health ที่เป็น Critical
+        // ปรับเป็น ±5pp และแยกระดับ "ช้ามาก" ที่ -15pp เพื่อให้เห็นความรุนแรงต่างกัน
+        const cls = diff>=5?'ahead':diff<=-15?'behind':diff<=-5?'behind':'onpace';
+        const severe = diff<=-15;
         const icon = cls==='ahead'?'⚡':cls==='behind'?'🐢':'✓';
-        const word = cls==='ahead'?'เร็วกว่าแผน':cls==='behind'?'ช้ากว่าแผน':'ตามแผน';
-        return `<div class="nd-row" style="margin-top:6px"><span class="nd-tag">แผน</span><span class="nd-txt" style="color:var(--faint)">ควรอยู่ที่ <b style="color:var(--ink-2)">${nt.expProg.toFixed(0)}%</b> ณ วันนี้ - <span class="pace-chip ${cls}" style="margin-left:2px">${icon} ${word} (${diff>0?'+':''}${diff.toFixed(0)}pp)</span></span></div>`;
+        const word = cls==='ahead'?'เร็วกว่าแผน':severe?'ช้ากว่าแผนมาก':cls==='behind'?'ช้ากว่าแผน':'ตามแผน';
+        // ถ้า Health ที่ PM กรอกบอกว่าเสี่ยง แต่การคำนวณบอกว่าตามแผน (หรือกลับกัน) ให้เตือนว่าไม่สอดคล้อง
+        // ใช้ thisHealth (ชื่อ field จริงในอ็อบเจกต์ note) - เดิมเผลอเขียน nt.health ซึ่งไม่มีอยู่ เงื่อนไขเลยไม่เคยทำงาน
+        const hNow = nt.thisHealth || '';
+        const mismatch = (cls==='onpace' && /Critical|Warning/i.test(hNow))
+          ? `<span class="pace-chip mixed" style="margin-left:4px">⚠ แต่ Health = ${hNow} - ควรตรวจสอบ</span>` : '';
+        return `<div class="nd-row" style="margin-top:6px"><span class="nd-tag">แผน</span><span class="nd-txt" style="color:var(--faint)">ควรอยู่ที่ <b style="color:var(--ink-2)">${nt.expProg.toFixed(0)}%</b> ณ วันนี้ - <span class="pace-chip ${cls}" style="margin-left:2px">${icon} ${word} (${diff>0?'+':''}${diff.toFixed(0)}pp)</span>${mismatch}</span></div>`;
       })();
       const trans = transitions.find(t=>t.name===nt.name);
       // แสดง "Health" กับ "บันทึกความคืบหน้า" แยกกันชัดเจน 2 บรรทัดเสมอทุกโครงการ (ไม่ใช่โผล่มาบ้างหายไปบ้าง)
@@ -3120,6 +3170,88 @@ function renderClosure(list){
 // ===================== Progress Timeline (heatmap ความคืบหน้ารายสัปดาห์) =====================
 // อ่านจากประวัติ Progress1 ทุกแถว (ไม่ใช่แค่แถวล่าสุดต่อโครงการ) เพื่อเห็นย้อนหลังว่าแต่ละสัปดาห์ทำได้เท่าไหร่
 // จุดที่การ์ดอื่นบอกไม่ได้: (1) สัปดาห์ที่ไม่ได้อัปเดตเลย (2) งานนิ่งติดกันหลายสัปดาห์ (3) กระโดดทีเดียวหลายสิบ %
+// หา "จุดเริ่มเก็บข้อมูลจริง" = สัปดาห์แรกที่อย่างน้อยครึ่งทีมอัปเดตพร้อมกัน
+// (ก่อนหน้านั้นมักมีแค่ 1-2 คนทดลองใช้ ไม่ควรนับเป็นช่วงเก็บข้อมูลจริง)
+// ใช้ร่วมกันทั้ง Update PMS และ Progress Timeline จะได้ไม่ขัดกันเอง
+function trackingStartTs(hist){
+  const byDatePMs = {};
+  hist.forEach(r=>{
+    const d = parseD(r['Update Date']);
+    if(!d) return;
+    (byDatePMs[d.getTime()] ||= new Set()).add(pmKey(r['PM Name'])||'');
+  });
+  const totalPMs = new Set(hist.map(r=>pmKey(r['PM Name'])||'').filter(Boolean)).size;
+  const threshold = Math.max(2, Math.ceil(totalPMs/2));
+  const sorted = Object.keys(byDatePMs).map(Number).sort((a,b)=>a-b);
+  return sorted.find(ts => byDatePMs[ts].size >= threshold) ?? sorted[0] ?? null;
+}
+
+// ===================== Risk Finder =====================
+// รวมโครงการเสี่ยงไว้ที่เดียว ดูจาก 2 มุมพร้อมกัน:
+//   1) Health ที่ PM กรอกเอง (Critical / Warning)
+//   2) ความเสี่ยงจริงจากตัวเลข = ช้ากว่าแผนกี่ pp (คำนวณจาก Plan Start/End เทียบวันนี้)
+// ถ้า 2 มุมนี้ไม่ตรงกัน = สัญญาณว่าต้องตรวจสอบ (เช่น Health บอก Critical แต่ตัวเลขบอกตามแผน)
+function renderRiskFinder(list){
+  const el = document.getElementById('rfBox');
+  if(!el) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const rows = list.map(p=>{
+    const st = projectStatus(p);
+    if(st==='Contract Closed' || st==='Completely Closed') return null;
+    const health = (p['Project Health']||'').trim();
+    const hcls = H.cls(health);
+    const prog = p['%Progress']===null || p['%Progress']===undefined || p['%Progress']==='' ? null : num(p['%Progress']);
+    const ps = parseD(p['Plan Start Date']) || parseD(p['Start Date']);
+    const pe = parseD(p['Plan End Date']) || parseD(p['End Date']);
+    const exp = expectedProgress(ps, pe, today);
+    const gap = (exp===null || prog===null) ? null : prog - exp;
+    const isHealthRisk = /critical/i.test(health) || /warning/i.test(health);
+    const isNumRisk = gap!==null && gap <= -5;
+    if(!isHealthRisk && !isNumRisk) return null;
+    // จัดลำดับความรุนแรง: Critical > ช้ามาก > Warning > ช้า
+    const sev = /critical/i.test(health) ? 4 : (gap!==null && gap<=-15) ? 3 : /warning/i.test(health) ? 2 : 1;
+    return {p, health, hcls, prog, exp, gap, isHealthRisk, isNumRisk, sev,
+            name:p['Project Name']||p['Project Code'], code:p['Project Code'], pm:p['PM Name']||'',
+            note:(p['Progress Update']||'').trim(), end:pe};
+  }).filter(Boolean).sort((a,b)=> b.sev-a.sev || (a.gap??0)-(b.gap??0));
+
+  const nCrit = rows.filter(x=>/critical/i.test(x.health)).length;
+  const nWarn = rows.filter(x=>/warning/i.test(x.health)).length;
+  const nNumOnly = rows.filter(x=>!x.isHealthRisk && x.isNumRisk).length;
+  document.getElementById('rfCount').textContent = `${rows.length} โครงการเสี่ยง`;
+
+  if(!rows.length){ el.innerHTML = `<div class="empty">ไม่มีโครงการที่เข้าเกณฑ์เสี่ยง (Health ปกติ และไม่ช้ากว่าแผนเกิน 5pp)</div>`; return; }
+
+  const items = rows.map(x=>{
+    const gapTxt = x.gap===null ? '<span class="rf-nodata">ยังไม่มี %Progress</span>'
+      : `<b class="${x.gap<=-5?'rf-bad':''}">${x.prog.toFixed(0)}%</b> เทียบแผน ${x.exp.toFixed(0)}% <span class="rf-pp ${x.gap<=-5?'bad':''}">${x.gap>0?'+':''}${x.gap.toFixed(0)}pp</span>`;
+    const mismatch = (x.isHealthRisk && x.gap!==null && x.gap>-5)
+      ? `<div class="rf-note warn">⚠ Health = ${x.health} แต่ตัวเลขยังตามแผน (${x.gap>0?'+':''}${x.gap.toFixed(0)}pp) - ตรวจสอบว่า Health ยังตรงกับสถานการณ์จริงไหม</div>`
+      : (!x.isHealthRisk && x.isNumRisk)
+      ? `<div class="rf-note warn">⚠ Health = ${x.health||'ไม่ระบุ'} แต่งานช้ากว่าแผน ${Math.abs(x.gap).toFixed(0)}pp - ควรพิจารณาปรับ Health ให้ตรงความจริง</div>`
+      : '';
+    const dueTxt = x.end ? `<span class="rf-due">ครบกำหนด ${fmtDObj(x.end)}${x.end<today?' <b class="rf-bad">(เลยกำหนดแล้ว)</b>':''}</span>` : '';
+    return `<div class="rf-i rf-${x.hcls}">
+      <div class="rf-top">
+        <span class="rf-badge rf-b-${x.hcls}">${/critical/i.test(x.health)?'🔴':/warning/i.test(x.health)?'🟠':'⚪'} ${x.health||'ไม่ระบุ'}</span>
+        <span class="rf-name">${x.name}</span> <span class="code-tag">#${x.code}</span>
+      </div>
+      <div class="rf-meta">${x.pm} · ${gapTxt} ${dueTxt}</div>
+      ${x.note?`<div class="rf-progress">${x.note}</div>`:''}
+      ${mismatch}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="rf-sum">
+      <span class="rf-chip crit">🔴 Critical ${nCrit}</span>
+      <span class="rf-chip warn">🟠 Warning ${nWarn}</span>
+      ${nNumOnly?`<span class="rf-chip num">📉 ช้ากว่าแผนแต่ Health ยังปกติ ${nNumOnly}</span>`:''}
+    </div>
+    <div class="rf-list">${items}</div>`;
+}
+
 function renderProgressTimeline(list, histSource){
   const el = document.getElementById('ptBox');
   if(!el) return;
@@ -3141,40 +3273,84 @@ function renderProgressTimeline(list, histSource){
     byCode[code].cells[wk] = num(r['%Progress']);
   });
 
-  const weeks = [...weekSet].sort((a,b)=>a-b);
+  // ตัดสัปดาห์ก่อน "จุดเริ่มเก็บข้อมูลจริง" ออก ให้ตรงกับที่การ์ด Update PMS นับ (เดิมโชว์ทุกสัปดาห์ที่มีข้อมูล
+  // รวมช่วงทดลองที่มีแค่ 1-2 คน ทำให้จำนวนสัปดาห์ไม่ตรงกับการ์ดอื่นและดูเหมือนทุกคนขาดอัปเดตเยอะเกินจริง)
+  const startTs = trackingStartTs(hist);
+  const weeks = [...weekSet].sort((a,b)=>a-b).filter(w => startTs===null || w >= mondayOfWeek(new Date(startTs)).getTime());
   const items = Object.entries(byCode).map(([code,v])=>({code, ...v}));
   document.getElementById('ptCount').textContent = `${items.length} โครงการ · ${weeks.length} สัปดาห์`;
   if(!items.length || !weeks.length){ el.innerHTML = `<div class="empty">ยังไม่มีประวัติความคืบหน้าพอจะแสดงเป็นไทม์ไลน์</div>`; return; }
 
   // เรียงตาม "ความน่าสนใจ": งานที่นิ่งนานสุดขึ้นก่อน แล้วค่อยตามด้วย %Progress น้อยสุด
   const enrich = items.map(x=>{
-    const vals = weeks.map(w=>x.cells[w]);
-    const seen = vals.filter(v=>v!==undefined);
-    const latest = seen.length ? seen[seen.length-1] : null;
-    // นับสัปดาห์ท้ายสุดที่ค่าไม่ขยับติดกัน (นับเฉพาะสัปดาห์ที่มีข้อมูล)
+    const raw = weeks.map(w=>x.cells[w]);
+    // ค่าล่าสุดที่บันทึกไว้ "ก่อน" ช่วงเวลาที่แสดง - ใช้เป็นค่าตั้งต้น เช่นโครงการที่ปิดงาน 100% ไปตั้งแต่ก่อนหน้า
+    // จะได้เห็นว่าเสร็จแล้ว ไม่ใช่แถวว่างเปล่าจนดูเหมือนไม่มีข้อมูล
+    const w0 = weeks.length ? weeks[0] : 0;
+    const priorKeys = Object.keys(x.cells).map(Number).filter(t=>t < w0).sort((a,b)=>a-b);
+    const priorVal = priorKeys.length ? x.cells[priorKeys[priorKeys.length-1]] : undefined;
+    // สัปดาห์แรกที่โครงการนี้เริ่มมีข้อมูล - ก่อนหน้านั้นคือ "ยังไม่เริ่มโครงการ" ไม่ใช่ "ขาดอัปเดต"
+    const firstIdxRaw = raw.findIndex(v=>v!==undefined);
+    // ถ้ามีข้อมูลก่อนช่วงนี้อยู่แล้ว ถือว่าโครงการเริ่มไปก่อนแล้ว (ไม่ใช่ 'ยังไม่เริ่ม')
+    const firstIdx = priorVal!==undefined ? 0 : firstIdxRaw;
+    // โครงการที่ปิดงาน/100% แล้ว: เติมค่าไปข้างหน้าให้เห็นว่าเสร็จแล้ว ไม่ใช่หายไปเฉย ๆ
+    const st = projectStatus(x.info);
+    const closed = st==='Contract Closed' || st==='Completely Closed';
+    const vals = []; const kind = [];   // kind: 'has' | 'before' | 'gap' | 'done'
+    let carry = priorVal, doneFrom = (priorVal!==undefined && priorVal>=100) ? 0 : -1;
+    raw.forEach((v,i)=>{
+      if(v!==undefined){
+        carry = v; vals.push(v); kind.push('has');
+        if(v>=100 && doneFrom<0) doneFrom = i;
+      } else if(firstIdx<0 || i<firstIdx){
+        vals.push(undefined); kind.push('before');       // ยังไม่เริ่มโครงการ
+      } else if((doneFrom>=0 && i>=doneFrom) || (closed && carry!==undefined)){
+        vals.push(carry); kind.push('done');             // เสร็จแล้ว - เติมค่าต่อให้เห็นภาพ
+      } else {
+        vals.push(undefined); kind.push('gap');          // ขาดอัปเดตจริง
+      }
+    });
+    const seen = raw.filter(v=>v!==undefined);
+    const latest = seen.length ? seen[seen.length-1] : (priorVal!==undefined ? priorVal : null);
+    // นับ "นิ่ง" เฉพาะโครงการที่ยังทำงานอยู่ - โครงการเสร็จแล้วค่าไม่ขยับเป็นเรื่องปกติ
     let flat = 0;
-    for(let i=seen.length-1;i>0;i--){ if(seen[i]===seen[i-1]) flat++; else break; }
-    const missing = weeks.length - seen.length;
-    return {...x, vals, latest, flat, missing, name:(x.info['Project Name']||x.code), pm:x.info['PM Name']||''};
+    if(!(latest!==null && latest>=100) && !closed){
+      for(let i=seen.length-1;i>0;i--){ if(seen[i]===seen[i-1]) flat++; else break; }
+    }
+    // นับ "ขาด" เฉพาะช่วงที่โครงการเริ่มแล้วและยังไม่เสร็จเท่านั้น
+    const missing = kind.filter(k=>k==='gap').length;
+    const activeWeeks = kind.filter(k=>k!=='before').length;
+    return {...x, vals, kind, latest, flat, missing, activeWeeks, closed,
+            name:(x.info['Project Name']||x.code), pm:x.info['PM Name']||''};
   }).sort((a,b)=> b.flat-a.flat || (a.latest??999)-(b.latest??999));
 
   const flatMax = Math.max(...enrich.map(x=>x.flat), 0);
   const rows = enrich.map(x=>{
     const cells = weeks.map((w,i)=>{
-      const v = x.vals[i];
-      if(v===undefined) return `<td class="pt-cell pt-none" title="${fmtDObj(new Date(w))} - ไม่ได้อัปเดต">·</td>`;
-      const prev = x.vals.slice(0,i).filter(z=>z!==undefined).pop();
-      const delta = prev===undefined ? null : v-prev;
-      const intensity = Math.min(1, v/100);
-      const bg = `rgba(122,92,62,${(0.08+intensity*0.62).toFixed(2)})`;
-      const fg = intensity>0.55 ? '#fff' : 'var(--ink-2)';
-      const jump = delta!==null && delta>=25 ? ' pt-jump' : '';
-      const same = delta===0 ? ' pt-same' : '';
-      const tip = `${fmtDObj(new Date(w))} - ${v.toFixed(0)}%` + (delta===null?' (รอบแรก)':delta===0?' (ไม่ขยับจากรอบก่อน)':` (${delta>0?'+':''}${delta.toFixed(0)} จากรอบก่อน)`);
-      return `<td class="pt-cell${jump}${same}" style="background:${bg};color:${fg}" title="${tip}">${v.toFixed(0)}</td>`;
+      const v = x.vals[i], k = x.kind[i];
+      const wl = fmtDObj(new Date(w));
+      if(k==='before') return `<td class="pt-cell pt-before" title="${wl} - ยังไม่เริ่มโครงการ"></td>`;
+      if(k==='gap')    return `<td class="pt-cell pt-gap" title="${wl} - ไม่ได้อัปเดต">·</td>`;
+      if(k==='done')   return `<td class="pt-cell pt-done" title="${wl} - เสร็จแล้ว (${v.toFixed(0)}%) ไม่ต้องอัปเดตต่อ">${v.toFixed(0)}</td>`;
+      // สัปดาห์ที่มีข้อมูลจริง - ใช้ "สีพื้น" บอกสถานะแทนเส้นขอบ (ขอบบางเกินไป มองไม่ชัด)
+      const prevSeen = x.vals.slice(0,i).filter((z,j)=>z!==undefined && x.kind[j]==='has').pop();
+      const delta = prevSeen===undefined ? null : v-prevSeen;
+      let cls='', bg, fg='var(--ink-2)';
+      if(delta===0){                      // ไม่ขยับ = งานค้าง
+        cls=' pt-same'; bg='#E8C4B8'; fg='#7A2E1A';
+      } else if(delta!==null && delta>=25){ // กระโดดหลายสิบ % รวดเดียว
+        cls=' pt-jump'; bg='#BBD4DC'; fg='#1E4652';
+      } else {
+        const t = Math.min(1, v/100);
+        bg = `rgba(122,92,62,${(0.08+t*0.62).toFixed(2)})`;
+        fg = t>0.55 ? '#fff' : 'var(--ink-2)';
+      }
+      const tip = `${wl} - ${v.toFixed(0)}%` + (delta===null?' (รอบแรก)':delta===0?' (ไม่ขยับจากรอบก่อน)':` (${delta>0?'+':''}${delta.toFixed(0)} จากรอบก่อน)`);
+      return `<td class="pt-cell${cls}" style="background:${bg};color:${fg}" title="${tip}">${v.toFixed(0)}</td>`;
     }).join('');
-    const flagTxt = x.flat>=3 ? `<span class="pt-flag stall">นิ่ง ${x.flat} สัปดาห์</span>`
-                  : x.missing>=Math.ceil(weeks.length/2) ? `<span class="pt-flag gap">ขาด ${x.missing} สัปดาห์</span>` : '';
+    const flagTxt = (x.latest!==null && x.latest>=100) || x.closed ? `<span class="pt-flag done">เสร็จแล้ว</span>`
+                  : x.flat>=3 ? `<span class="pt-flag stall">นิ่ง ${x.flat} สัปดาห์</span>`
+                  : (x.missing>0 && x.missing>=Math.ceil(x.activeWeeks/2)) ? `<span class="pt-flag gap">ขาด ${x.missing} สัปดาห์</span>` : '';
     return `<tr>
       <td class="pt-name"><div class="pt-n">${x.name} <span class="code-tag">#${x.code}</span> ${flagTxt}</div><div class="pt-sub">${x.pm}</div></td>
       ${cells}
@@ -3187,15 +3363,16 @@ function renderProgressTimeline(list, histSource){
   }).join('');
 
   const stalled = enrich.filter(x=>x.flat>=3).length;
-  const gappy = enrich.filter(x=>x.missing>=Math.ceil(weeks.length/2)).length;
+  const gappy = enrich.filter(x=>x.missing>0 && x.missing>=Math.ceil(x.activeWeeks/2)).length;
 
   el.innerHTML = `
     <div class="pt-legend">
       <span>สีเข้ม = %Progress สูง · <b>·</b> = สัปดาห์นั้นไม่ได้อัปเดต · ชี้เมาส์เพื่อดูส่วนต่างจากรอบก่อน</span>
-      <span class="pt-legend-k"><i class="stall"></i>ขอบแดง = ค่าไม่ขยับจากรอบก่อน</span>
-      <span class="pt-legend-k"><i class="jump"></i>ขอบน้ำเงิน = กระโดด 25%+ รวดเดียว</span>
+      <span class="pt-legend-k"><i class="stall"></i>ส้มแดง = ค่าไม่ขยับจากรอบก่อน (งานค้าง)</span>
+      <span class="pt-legend-k"><i class="jump"></i>ฟ้า = กระโดด 25%+ รวดเดียว</span>
+      <span class="pt-legend-k"><i class="done"></i>เขียวจาง = เสร็จแล้ว</span>
     </div>
-    ${(stalled||gappy) ? `<div class="pt-sum">${stalled?`<b>${stalled} โครงการ</b>ค่าไม่ขยับติดกัน 3 สัปดาห์ขึ้นไป`:''}${stalled&&gappy?' · ':''}${gappy?`<b>${gappy} โครงการ</b>ขาดอัปเดตเกินครึ่งของช่วงเวลา`:''}</div>` : ''}
+    ${(stalled||gappy) ? `<div class="pt-sum">${stalled?`<b>${stalled} โครงการ</b>ค่าไม่ขยับติดกัน 3 สัปดาห์ขึ้นไป`:''}${stalled&&gappy?' · ':''}${gappy?`<b>${gappy} โครงการ</b>ขาดอัปเดตเกินครึ่งของช่วงที่โครงการดำเนินอยู่`:''}</div>` : ''}
     <div class="pt-wrap">
       <table class="pt-table">
         <thead><tr><th class="pt-name">โครงการ</th>${headCells}</tr></thead>
@@ -5434,6 +5611,7 @@ function renderFiltered(){
   renderComplexity(listFor('complexity'));
   renderClosure(listFor('closureTransfer'));
   renderStalled(listFor('stalledProgress'));
+  renderRiskFinder(listFor('riskFinder'));
   renderProgressTimeline(listFor('progressTimeline'),
     hasTeamWideScope('progressTimeline') && ROWS_TEAMWIDE.length ? ROWS_TEAMWIDE : HIST);
   renderDataFreshness(listFor('dataFreshness'));
