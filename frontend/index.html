@@ -463,6 +463,10 @@
   .rp-month-i.behind{border-left-color:var(--critical);}
   .rp-month-i.onplan{border-left-color:var(--success);}
   .rp-month-i.ahead{border-left-color:#3D6B7A;}
+  .rp-month-i.notstarted{border-left-color:var(--faint);background:var(--surface-2);}
+  .rp-badge-notstarted{background:var(--surface-2);color:var(--faint);border:1px dashed var(--line-soft);}
+  .rp-month-msg.notstarted{color:var(--faint);}
+  .rp-ms-v.new{color:var(--faint);}
   .rp-month-n{font-size:11.5px;color:var(--ink);}
   .rp-month-b{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:700;color:var(--brand);}
   .rp-month-p{font-size:10px;color:var(--faint);}
@@ -3475,16 +3479,27 @@ function renderRevenuePlan(list){
   const thisMonthItems = items.filter(x=>x.monthPct[nowM] > 0).map(x=>{
     const planCum = x.bfPct + x.monthPct.slice(0, nowM+1).reduce((s,v)=>s+v,0);
     const gap = x.pmsCur - planCum;
-    // 3 สถานะ: ahead = งานล้ำหน้าแผนรับรู้ (ควรพิจารณาเร่งรับรู้เข้ามา), behind = ช้ากว่า, onplan = อยู่ในเกณฑ์
-    const st = gap >= RP_SIG ? 'ahead' : gap <= -RP_SIG ? 'behind' : 'onplan';
-    return {...x, thisPct:x.monthPct[nowM], thisBaht:x.monthBaht[nowM], planCum, gap, st};
+    // แยก "ยังไม่เริ่มโครงการ" ออกจาก "เริ่มแล้วแต่ช้า" - 2 อย่างนี้ต้องจัดการคนละแบบ
+    // ยังไม่เริ่ม = ยังไม่มี %Progress / Start Date ใน Progress1 เลย (มักอยู่ช่วงรอเซ็นสัญญา)
+    // ตามนโยบายบริษัท: ตั้ง WIP ได้ตั้งแต่เดือนที่เซ็นสัญญา จึงไม่ควรถูกนับว่า "ช้ากว่าแผน"
+    const p = x.p || {};
+    const noProgressData = (p['%Progress']===null || p['%Progress']===undefined || p['%Progress']==='')
+                           && !p['Start Date'];
+    const st = noProgressData ? 'notstarted'
+             : gap >= RP_SIG ? 'ahead'
+             : gap <= -RP_SIG ? 'behind'
+             : 'onplan';
+    return {...x, thisPct:x.monthPct[nowM], thisBaht:x.monthBaht[nowM], planCum, gap, st,
+            note:(p['Progress Update']||'').trim()};
   }).sort((a,b)=>b.thisBaht - a.thisBaht);
   const thisMonthTotal = thisMonthItems.reduce((s,x)=>s+x.thisBaht,0);
   const mBehind = thisMonthItems.filter(x=>x.st==='behind');
   const mAhead  = thisMonthItems.filter(x=>x.st==='ahead');
   const mOnplan = thisMonthItems.filter(x=>x.st==='onplan');
+  const mNew    = thisMonthItems.filter(x=>x.st==='notstarted');
   const behindBaht = mBehind.reduce((s,x)=>s+x.thisBaht,0);
   const aheadBaht  = mAhead.reduce((s,x)=>s+x.thisBaht,0);
+  const newBaht    = mNew.reduce((s,x)=>s+x.thisBaht,0);
   const readyBaht  = mOnplan.reduce((s,x)=>s+x.thisBaht,0) + aheadBaht;
 
   // สรุป "ควรทำอะไร" ตามสถานการณ์จริงของเดือนนี้ - เปลี่ยนตามจำนวนวันที่เหลือด้วย
@@ -3494,11 +3509,13 @@ function renderRevenuePlan(list){
     ? `เร่งตัดสินใจ ${mBehind.length} โครงการ (${thb(behindBaht)} บาท) - เหลือ ${dLeft} วัน ถ้าไม่ทันควรเลื่อนแผนไปเดือนหน้าตั้งแต่ตอนนี้ อย่ารอให้ตกเดือน`
     : `ตาม ${mBehind.length} โครงการที่งานช้ากว่าแผน (${thb(behindBaht)} บาท) - ยังเหลือ ${dLeft} วัน พอเร่งได้`);
   if(mAhead.length) todos.push(`ทบทวนแผน ${mAhead.length} โครงการที่งานเร็วกว่าแผน (${thb(aheadBaht)} บาท) - อาจดึงรับรู้รายได้เข้ามาเร็วขึ้นได้`);
+  if(mNew.length) todos.push(`ติดตาม ${mNew.length} โครงการที่เพิ่งเริ่ม/รอเซ็นสัญญา (${thb(newBaht)} บาท) - ตั้ง WIP ตามนโยบายได้ แต่ต้องเติม Start Date และ %Progress ใน PMS ให้ครบ ระบบจะได้ประเมินได้ถูกต้อง`);
 
   const RP_ST = {
-    ahead:  {icon:'\u25B2', label:'เร็วกว่าแผน', cls:'ahead'},
-    behind: {icon:'\u25BC', label:'ช้ากว่าแผน',  cls:'behind'},
-    onplan: {icon:'\u25CF', label:'ตรงแผน',      cls:'onplan'},
+    ahead:      {icon:'\u25B2', label:'เร็วกว่าแผน',   cls:'ahead'},
+    behind:     {icon:'\u25BC', label:'ช้ากว่าแผน',    cls:'behind'},
+    onplan:     {icon:'\u25CF', label:'ตรงแผน',        cls:'onplan'},
+    notstarted: {icon:'\u25CB', label:'ยังไม่เริ่มงาน', cls:'notstarted'},
   };
   const monthlyHtml = thisMonthItems.length ? `<div class="rp-month">
     <div class="rp-month-h">📅 โฟกัสเดือน${RP_MONTH_TH[nowM]} - ${dLeft>0?`เหลืออีก ${dLeft} วัน`:'วันสุดท้ายของเดือน'} (วันที่ ${today2.getDate()}/${dInMonth})</div>
@@ -3510,11 +3527,14 @@ function renderRevenuePlan(list){
       <div><span class="rp-ms-l">ต้องรับรู้เดือนนี้</span><span class="rp-ms-v">${thb(thisMonthTotal)}</span><span class="rp-ms-s">${thisMonthItems.length} โครงการ</span></div>
       <div><span class="rp-ms-l">พร้อมรับรู้</span><span class="rp-ms-v ok">${thb(readyBaht)}</span><span class="rp-ms-s">${mOnplan.length+mAhead.length} โครงการ</span></div>
       <div><span class="rp-ms-l">ต้องตาม</span><span class="rp-ms-v ${behindBaht>0?'risk':''}">${thb(behindBaht)}</span><span class="rp-ms-s">${mBehind.length} โครงการงานช้ากว่าแผน</span></div>
+      ${mNew.length?`<div><span class="rp-ms-l">เพิ่งเริ่ม</span><span class="rp-ms-v new">${thb(newBaht)}</span><span class="rp-ms-s">${mNew.length} โครงการรอเซ็น/เริ่มงาน</span></div>`:''}
     </div>
     ${thisMonthItems.map(x=>{
       const st = RP_ST[x.st];
       const need = Math.abs(x.gap);
-      const msg = x.st==='behind'
+      const msg = x.st==='notstarted'
+        ? `ยังไม่มีข้อมูลความคืบหน้าใน PMS (ยังไม่ได้กรอก %Progress / Start Date)${x.note?` - สถานะล่าสุด: "${x.note}"`:''} · ตั้ง WIP ${x.thisPct.toFixed(2)}% ตามนโยบายบริษัทได้ แต่ควรเติมข้อมูลใน PMS ให้ครบ ระบบจะเทียบแผนกับงานจริงได้ถูกต้องตั้งแต่เดือนหน้า`
+        : x.st==='behind'
         ? `งานทำได้ ${x.pmsCur.toFixed(1)}% แต่แผนต้องถึง ${x.planCum.toFixed(1)}% - ต้องเร่งอีก ${need.toFixed(1)}pp ${dLeft>0?`ใน ${dLeft} วัน`:'ภายในวันนี้'} ไม่งั้นยอดนี้จะรับรู้ไม่ทันสิ้นเดือน ควรเลื่อนแผนไปเดือนหน้าหรือคุยกับลูกค้า/ทีมด่วน`
         : x.st==='ahead'
         ? `งานทำได้ ${x.pmsCur.toFixed(1)}% เกินแผน ${x.planCum.toFixed(1)}% อยู่ ${need.toFixed(1)}pp - ควรทบทวนแผน อาจดึงรับรู้รายได้เข้ามาเร็วกว่าที่วางไว้ได้`
@@ -3522,7 +3542,7 @@ function renderRevenuePlan(list){
       // ---- เสนอแผนใหม่: เกลี่ย gap ไปเดือนที่เหลือตามสัดส่วนเดิม (คงยอดรวม 100% เท่าเดิมเสมอ) ----
       // ซ่อนไว้ใน <details> ให้กดเปิดเอง จะได้ไม่รกหน้าจอ - เปิดดูเฉพาะตัวที่สนใจจะปรับจริง
       let proposal = '';
-      if(x.st !== 'onplan'){
+      if(x.st !== 'onplan' && x.st !== 'notstarted'){
         const remainIdx = [];
         for(let i=nowM+1;i<12;i++) if(x.monthPct[i] > 0) remainIdx.push(i);
         const remainSum = remainIdx.reduce((s2,i)=>s2+x.monthPct[i],0) + x.beyondPct;
@@ -3561,7 +3581,7 @@ function renderRevenuePlan(list){
         }
       }
       return `<div class="rp-month-i ${st.cls}">
-        <div class="rp-month-n"><b>${x.name}</b> <span class="code-tag">#${x.code}</span> <span class="rp-badge rp-badge-${st.cls}">${st.icon} ${st.label} ${x.gap>0?'+':''}${x.gap.toFixed(1)}pp</span></div>
+        <div class="rp-month-n"><b>${x.name}</b> <span class="code-tag">#${x.code}</span> <span class="rp-badge rp-badge-${st.cls}">${st.icon} ${st.label}${x.st==='notstarted'?'':` ${x.gap>0?'+':''}${x.gap.toFixed(1)}pp`}</span></div>
         <div class="rp-month-d">
           <span class="rp-month-b">${thb(x.thisBaht)}</span> <span class="rp-month-p">(${x.thisPct.toFixed(2)}% ของสัญญา)</span>
           <div class="rp-month-msg ${st.cls}">${st.icon} ${msg}</div>
