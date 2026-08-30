@@ -420,6 +420,35 @@
   .nd-badge-waiting{background:transparent;color:var(--faint);border:1px solid var(--line-soft);}
   .nd-detail{font-size:11.5px;color:var(--ink-2);line-height:1.6;margin-top:6px;overflow-wrap:break-word;}
   .nd-waiting .nd-detail{color:var(--faint);}
+  /* ---------------- Invoice Timeline ---------------- */
+  .it-s{font-size:10px;color:var(--faint);margin-top:3px;}
+  .it-legend{display:flex;flex-wrap:wrap;gap:8px 18px;padding:10px 18px;border-bottom:1px solid var(--line-soft);font-size:10.5px;color:var(--faint);}
+  .it-lk{display:inline-flex;align-items:center;gap:4px;}
+  .it-lk i{font-style:normal;font-weight:700;}
+  .it-lk i.plan{color:var(--brand-2);}
+  .it-lk i.ar{color:var(--warning);}
+  .it-wrap{padding:12px 18px 14px;overflow-x:auto;}
+  .it-table{width:100%;border-collapse:separate;border-spacing:2px;font-size:11px;}
+  .it-table th{font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;padding:4px 2px;text-align:center;white-space:nowrap;}
+  .it-table th.it-name{text-align:left;min-width:230px;letter-spacing:.03em;}
+  .it-table th.now{color:var(--brand);}
+  .it-cell{text-align:center;padding:5px 3px;min-width:46px;border-radius:4px;vertical-align:middle;}
+  .it-cell.now{box-shadow:inset 0 0 0 1.5px var(--brand);}
+  .it-cell.fut{opacity:.92;}
+  .it-cell.edge{background:var(--surface-2);}
+  .it-amt{font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;color:var(--ink-2);line-height:1.3;}
+  .it-ar{font-family:'IBM Plex Mono',monospace;font-size:8.5px;color:var(--warning);line-height:1.25;}
+  .it-plan{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--brand-2);line-height:1.3;}
+  .it-cum{font-size:8px;color:var(--faint);line-height:1.2;}
+  .it-dash{color:var(--line);font-size:11px;}
+  td.it-name{padding:6px 8px 6px 0;min-width:230px;}
+  .it-n{font-size:11.5px;font-weight:600;color:var(--ink);line-height:1.4;}
+  .it-sub{font-size:9.5px;color:var(--faint);margin-top:1px;}
+  .it-total td{border-top:2px solid var(--line);background:var(--surface-2);padding-top:7px;}
+  .it-total td.it-name{font-size:11px;font-weight:700;color:var(--ink-2);}
+  .it-note-sm{font-size:8.5px;font-weight:400;color:var(--faint);}
+  @media(max-width:760px){ .it-table th.it-name, td.it-name{min-width:160px;} }
+
   /* ---------------- Risk Finder ---------------- */
   .rf-sum{display:flex;flex-wrap:wrap;gap:8px;padding:11px 18px;border-bottom:1px solid var(--line-soft);}
   .rf-chip{font-size:11px;font-weight:700;padding:4px 11px;border-radius:20px;}
@@ -1598,6 +1627,17 @@
     <div class="p-body"><div id="rev"></div></div>
   </div>
 
+    <div class="panel" id="panel-invoiceTimeline">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>
+          Invoice Timeline <span class="sep">-</span> <span class="th">วางบิลรายเดือน + ยอดที่จะเก็บ</span>
+        </div>
+        <span class="p-count" id="itCount"></span>
+      </div>
+      <div class="p-body"><div id="itBox"></div></div>
+    </div>
+
     <div class="panel" id="panel-paymentCollection">
       <div class="p-head">
         <div class="p-title">
@@ -2084,6 +2124,7 @@ const CARD_REGISTRY = [
   {tab:'1', tabLabel:'Project Tracking', id:'teamScorecard', en:'Team Performance Scorecard', th:'ภาพรวมผลงานทีม'},
   {tab:'2', tabLabel:'Finance & Stock', id:'revenuePlan', en:'Revenue Plan', th:'แผนรับรู้รายได้รายเดือน', scope:true},
   {tab:'2', tabLabel:'Finance & Stock', id:'revenueAttainment', en:'Revenue Attainment', th:'รายได้สะสมเทียบเป้า', scope:true},
+  {tab:'2', tabLabel:'Finance & Stock', id:'invoiceTimeline', en:'Invoice Timeline', th:'วางบิลรายเดือน', scope:true},
   {tab:'2', tabLabel:'Finance & Stock', id:'paymentCollection', en:'Payment Collection', th:'การเก็บเงินจากลูกค้า', scope:true},
   {tab:'2', tabLabel:'Finance & Stock', id:'purchaseOrders', en:'Purchase Orders', th:'PO และการจ่ายเงินผู้รับเหมา', scope:true},
   {tab:'2', tabLabel:'Finance & Stock', id:'stockOutstanding', en:'Stock Outstanding', th:'ของค้างสต็อก', scope:true},
@@ -4323,6 +4364,147 @@ function activeCodeSet(list){ return new Set((list||ALL).map(p=>p['Project Code'
 
 /* ================= TAB 2: Finance & Stock ================= */
 
+// ===================== Invoice Timeline =====================
+// สรุปว่าแต่ละเดือน "วางบิลไปแล้วเท่าไหร่" (เดือนที่ผ่านมา) และ "จะวางบิลอีกเท่าไหร่" (เดือนข้างหน้า)
+// อ่านจาก PaymentW: invoiceDate = เดือนที่วาง/จะวางบิล, invoiced>0 = วางแล้วจริง, invoiced=0 = ยังเป็นแผน
+// แยกสีให้เห็นว่าอันไหนของจริง อันไหนแผน และเดือนไหนยังมีเงินค้างเก็บอยู่
+const IT_MONTH_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+function renderInvoiceTimeline(paywSource, codeSetList){
+  const el = document.getElementById('itBox');
+  if(!el) return;
+  const activeCodes = activeCodeSet(codeSetList);
+  const src = (paywSource||PAYW).filter(p => activeCodes.has(p.projectCode) && (!filters.pm || pmKey(p.pm)===pmKey(filters.pm)));
+  const YEAR = new Date().getFullYear();
+  const nowM = new Date().getMonth();
+  const today0 = new Date(); today0.setHours(0,0,0,0);
+
+  const rows = src.map(x=>{
+    const mBilled = Array(12).fill(0);   // วางบิลจริงในเดือนนั้น
+    const mPlan   = Array(12).fill(0);   // แผนจะวางบิลเดือนนั้น (ยังไม่วาง)
+    const mAR     = Array(12).fill(0);   // ในยอดที่วางบิลแล้ว ยังเก็บไม่ได้เท่าไหร่
+    let before=0, after=0, planBefore=0, planAfter=0;
+    (x.installments||[]).forEach(i=>{
+      const d = parseD(i.invoiceDate);
+      const inv = num(i.invoiced), rem = num(i.remainder);
+      const collected = !!i.collectedDate, collecting = num(i.collecting);
+      if(!d) return;
+      const y = d.getFullYear(), m = d.getMonth();
+      if(inv > 0){
+        if(y < YEAR) before += inv;
+        else if(y > YEAR) after += inv;
+        else { mBilled[m] += inv; if(!collected && collecting>0) mAR[m] += collecting; }
+      } else if(rem > 0){
+        if(y < YEAR) planBefore += rem;
+        else if(y > YEAR) planAfter += rem;
+        else mPlan[m] += rem;
+      }
+    });
+    const yrBilled = mBilled.reduce((a,b)=>a+b,0);
+    const yrPlan = mPlan.reduce((a,b)=>a+b,0);
+    return {x, mBilled, mPlan, mAR, before, after, planBefore, planAfter, yrBilled, yrPlan,
+            name:x.projectName||x.projectCode, code:x.projectCode, pm:x.pm||''};
+  }).filter(r => r.yrBilled>0 || r.yrPlan>0 || r.before>0 || r.after>0 || r.planAfter>0)
+    .sort((a,b)=> (b.yrBilled+b.yrPlan) - (a.yrBilled+a.yrPlan));
+
+  document.getElementById('itCount').textContent = `${rows.length} โครงการ · ปี ${YEAR+543-1900+1900}`;
+  if(!rows.length){ el.innerHTML = `<div class="empty">ไม่มีข้อมูลการวางบิลของโครงการที่กรองอยู่</div>`; return; }
+
+  const tBilled = IT_MONTH_TH.map((_,i)=>rows.reduce((s2,r)=>s2+r.mBilled[i],0));
+  const tPlan   = IT_MONTH_TH.map((_,i)=>rows.reduce((s2,r)=>s2+r.mPlan[i],0));
+  const tAR     = IT_MONTH_TH.map((_,i)=>rows.reduce((s2,r)=>s2+r.mAR[i],0));
+  const sumBilledYr = tBilled.reduce((a,b)=>a+b,0);
+  const sumPlanYr   = tPlan.reduce((a,b)=>a+b,0);
+  const sumARYr     = tAR.reduce((a,b)=>a+b,0);
+  const sumBefore   = rows.reduce((s2,r)=>s2+r.before,0);
+  const sumAfter    = rows.reduce((s2,r)=>s2+r.after+r.planAfter,0);
+  // AR ทั้งหมด (รวมบิลปีก่อนที่ยังเก็บไม่ได้) - ดูจาก collecting ที่ยังไม่มี collectedDate
+  let arAll = 0, arOld = 0;
+  src.forEach(x=>(x.installments||[]).forEach(i=>{
+    const cg = num(i.collecting);
+    if(cg>0 && !i.collectedDate){
+      arAll += cg;
+      const d = parseD(i.invoiceDate);
+      if(d && (today0 - d)/DAY > 90) arOld += cg;
+    }
+  }));
+  const cum = []; let acc=0; tBilled.forEach((v,i)=>{ acc += v + tPlan[i]; cum.push(acc); });
+
+  const cell = (billed, plan, ar, i) => {
+    const isFuture = i > nowM;
+    if(billed<=0 && plan<=0) return `<td class="it-cell ${i===nowM?'now':''}"><span class="it-dash">-</span></td>`;
+    const parts = [];
+    if(billed>0){
+      const t = Math.min(1, billed/Math.max(...tBilled,1));
+      parts.push(`<div class="it-amt" title="วางบิลแล้ว ${thb(billed)}${ar>0?` · ยังเก็บไม่ได้ ${thb(ar)}`:''}">${compact(billed)}</div>`);
+      if(ar>0) parts.push(`<div class="it-ar" title="ยังเก็บเงินไม่ได้ ${thb(ar)}">◷ ${compact(ar)}</div>`);
+    }
+    if(plan>0) parts.push(`<div class="it-plan" title="แผนจะวางบิล ${thb(plan)} (ยังไม่วาง)">◇ ${compact(plan)}</div>`);
+    const bg = billed>0 ? `rgba(122,92,62,${(0.10+Math.min(1,billed/Math.max(...tBilled,1))*0.5).toFixed(2)})` : 'transparent';
+    return `<td class="it-cell ${i===nowM?'now':''} ${isFuture?'fut':''}" style="background:${bg}">${parts.join('')}</td>`;
+  };
+
+  const body = rows.map(r=>`
+    <tr>
+      <td class="it-name">
+        <div class="it-n">${r.name} <span class="code-tag">#${r.code}</span></div>
+        <div class="it-sub">${r.pm} · วางบิลปีนี้ ${compact(r.yrBilled)}${r.yrPlan>0?` · แผนอีก ${compact(r.yrPlan)}`:''}</div>
+      </td>
+      <td class="it-cell edge">${r.before>0?`<div class="it-amt">${compact(r.before)}</div>`:'<span class="it-dash">-</span>'}</td>
+      ${r.mBilled.map((b,i)=>cell(b, r.mPlan[i], r.mAR[i], i)).join('')}
+      <td class="it-cell edge">${(r.after+r.planAfter)>0?`<div class="it-amt">${compact(r.after+r.planAfter)}</div>`:'<span class="it-dash">-</span>'}</td>
+    </tr>`).join('');
+
+  const totalRow = `
+    <tr class="it-total">
+      <td class="it-name">รวมทุกโครงการ <span class="it-note-sm">(บน = วางบิล · ล่าง = สะสมทั้งปี)</span></td>
+      <td class="it-cell edge"><div class="it-amt">${sumBefore>0?compact(sumBefore):'-'}</div><div class="it-cum">ก่อนปีนี้</div></td>
+      ${tBilled.map((v,i)=>`<td class="it-cell ${i===nowM?'now':''} ${i>nowM?'fut':''}">
+        <div class="it-amt">${(v+tPlan[i])>0?compact(v+tPlan[i]):'-'}</div>
+        <div class="it-cum">${compact(cum[i])}</div>
+      </td>`).join('')}
+      <td class="it-cell edge"><div class="it-amt">${sumAfter>0?compact(sumAfter):'-'}</div><div class="it-cum">หลังปีนี้</div></td>
+    </tr>`;
+
+  el.innerHTML = `
+    <div class="wow-overview">
+      <div class="ov-stats">
+        <div class="ov-stat">
+          <div class="ov-l">วางบิลแล้วปีนี้</div>
+          <div class="ov-v">${compact(sumBilledYr)}</div>
+          <div class="it-s">${rows.filter(r=>r.yrBilled>0).length} โครงการ</div>
+        </div>
+        <div class="ov-stat">
+          <div class="ov-l">แผนวางบิลที่เหลือปีนี้</div>
+          <div class="ov-v">${compact(sumPlanYr)}</div>
+          <div class="it-s">${nowM<11?`${IT_MONTH_TH[nowM+1]}-ธ.ค.`:'ธ.ค.'}</div>
+        </div>
+        <div class="ov-stat">
+          <div class="ov-l">รอเก็บเงิน (AR)</div>
+          <div class="ov-v" style="color:${arAll>0?'var(--warning)':'var(--success)'}">${compact(arAll)}</div>
+          <div class="it-s">${arOld>0?`<b style="color:var(--critical)">ค้างเกิน 90 วัน ${compact(arOld)}</b>`:'ไม่มีรายการค้างนาน'}</div>
+        </div>
+      </div>
+    </div>
+    <div class="it-legend">
+      <span><b>ตัวเลขเข้ม</b> = วางบิลแล้วจริง (สีเข้มตามมูลค่า)</span>
+      <span class="it-lk"><i class="plan">◇</i> = แผนจะวางบิล (ยังไม่วาง)</span>
+      <span class="it-lk"><i class="ar">◷</i> = วางบิลแล้วแต่ยังเก็บเงินไม่ได้</span>
+    </div>
+    <div class="it-wrap">
+      <table class="it-table">
+        <thead><tr>
+          <th class="it-name">โครงการ</th>
+          <th class="it-cell edge">ก่อนปีนี้</th>
+          ${IT_MONTH_TH.map((m,i)=>`<th class="it-cell ${i===nowM?'now':''}">${m.replace('.','')}</th>`).join('')}
+          <th class="it-cell edge">หลังปีนี้</th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+        <tfoot>${totalRow}</tfoot>
+      </table>
+    </div>`;
+}
+
 function renderPayment(paywSource, codeSetList){
   const el = document.getElementById('pw');
   const activeCodes = activeCodeSet(codeSetList);
@@ -5673,6 +5855,7 @@ function renderFiltered(){
     (hasTeamWideScope(cardId) && teamWideArr && teamWideArr.length) ? getTeamWideProjects() : ALL;
 
   renderPayment(pickSrc('paymentCollection', PAYW_TEAMWIDE, PAYW), pickList('paymentCollection', PAYW_TEAMWIDE));
+  renderInvoiceTimeline(pickSrc('invoiceTimeline', PAYW_TEAMWIDE, PAYW), pickList('invoiceTimeline', PAYW_TEAMWIDE));
   renderPOPanel(pickSrc('purchaseOrders', PO_TEAMWIDE, PO), pickList('purchaseOrders', PO_TEAMWIDE));
   renderStock(
     pickSrc('stockOutstanding', STOCKSUM_TEAMWIDE, STOCKSUM),
