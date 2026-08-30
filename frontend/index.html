@@ -420,6 +420,45 @@
   .nd-badge-waiting{background:transparent;color:var(--faint);border:1px solid var(--line-soft);}
   .nd-detail{font-size:11.5px;color:var(--ink-2);line-height:1.6;margin-top:6px;overflow-wrap:break-word;}
   .nd-waiting .nd-detail{color:var(--faint);}
+  /* ---------------- Revenue Plan ---------------- */
+  .rp-chart-wrap{padding:14px 18px 4px;border-bottom:1px solid var(--line-soft);}
+  .rp-chart-title{font-size:11.5px;font-weight:700;color:var(--ink-2);margin-bottom:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .rp-legend{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:400;color:var(--faint);}
+  .rp-legend i{display:inline-block;width:16px;height:0;border-top:2px solid var(--brand);margin-right:2px;}
+  .rp-legend i.dash{border-top:2px dashed var(--brand-2);}
+  .rp-qs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 18px;border-bottom:1px solid var(--line-soft);}
+  .rp-q{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:9px;padding:10px 12px;}
+  .rp-q.now{border-color:var(--brand);background:#FBF7F0;}
+  .rp-q.past{opacity:.62;}
+  .rp-q-name{font-size:11px;font-weight:700;color:var(--ink-2);}
+  .rp-q-tag{font-size:8.5px;font-weight:700;color:#fff;background:var(--brand);padding:1px 5px;border-radius:20px;vertical-align:middle;}
+  .rp-q-val{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:800;color:var(--brand);margin:3px 0 5px;}
+  .rp-q-bar{height:4px;background:var(--line-soft);border-radius:4px;overflow:hidden;}
+  .rp-q-bar i{display:block;height:100%;background:var(--brand-2);}
+  .rp-q-sub{font-size:9.5px;color:var(--faint);margin-top:5px;}
+  .rp-table-wrap{padding:12px 18px 14px;overflow-x:auto;}
+  .rp-table{width:100%;border-collapse:collapse;font-size:11px;}
+  .rp-table th{font-size:9.5px;font-weight:700;color:var(--faint);text-transform:uppercase;padding:5px 3px;border-bottom:1px solid var(--line-soft);text-align:center;}
+  .rp-table th.rp-name{text-align:left;min-width:230px;}
+  .rp-table th.now{color:var(--brand);}
+  .rp-cell{text-align:center;padding:6px 3px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;min-width:34px;border-radius:3px;}
+  .rp-cell.now{box-shadow:inset 0 0 0 1.5px var(--brand);}
+  .rp-cell.bf,.rp-cell.beyond{color:var(--faint);background:var(--surface-2);}
+  td.rp-name{padding:7px 6px 7px 0;border-bottom:1px solid var(--line-soft);font-size:11.5px;font-weight:600;color:var(--ink);}
+  .rp-name-sub{font-size:10px;font-weight:400;color:var(--faint);margin-top:2px;}
+  .rp-hint{font-size:10px;color:var(--faint);margin-top:9px;line-height:1.6;}
+  .rp-advice{padding:13px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2);}
+  .rp-advice-h{font-size:11.5px;font-weight:700;color:var(--ink-2);margin-bottom:8px;}
+  .rp-advice-i{font-size:11px;color:var(--ink-2);line-height:1.65;padding:8px 11px;border-radius:7px;margin-top:6px;border-left:3px solid var(--line-soft);background:var(--surface);}
+  .rp-advice-i.rp-warn{border-left-color:var(--critical);}
+  .rp-advice-i.rp-risk{border-left-color:var(--warning);}
+  .rp-advice-i.rp-good{border-left-color:var(--success);}
+  .rp-advice-i.rp-info{border-left-color:var(--brand-2);}
+  @media(max-width:760px){
+    .rp-qs{grid-template-columns:repeat(2,1fr);}
+    .rp-table th.rp-name{min-width:180px;}
+  }
+
   .pw-legend{
     display:flex;flex-wrap:wrap;gap:8px;padding:11px 18px;
     border-bottom:1px solid var(--line-soft);background:var(--surface);
@@ -1380,6 +1419,17 @@
   </div><!-- /tab1Panels -->
 
   <div id="tab2Panels">
+  <div class="panel" id="panel-revenuePlan">
+    <div class="p-head">
+      <div class="p-title">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+        Revenue Plan <span class="sep">-</span> <span class="th">แผนรับรู้รายได้รายเดือน / ไตรมาส</span>
+      </div>
+      <span class="p-count" id="rpCount"></span>
+    </div>
+    <div class="p-body"><div id="rpBox"></div></div>
+  </div>
+
   <div class="panel" id="panel-revenueAttainment">
     <div class="p-head">
       <div class="p-title">
@@ -1873,6 +1923,7 @@ const CARD_REGISTRY = [
   {tab:'1', tabLabel:'Project Tracking', id:'pmAvailability', en:'PM Availability', th:'พร้อมรับงานใหม่', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'projectDetails', en:'Project Details', th:'รายละเอียดโครงการ', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'teamScorecard', en:'Team Performance Scorecard', th:'ภาพรวมผลงานทีม'},
+  {tab:'2', tabLabel:'Finance & Stock', id:'revenuePlan', en:'Revenue Plan', th:'แผนรับรู้รายได้รายเดือน', scope:true},
   {tab:'2', tabLabel:'Finance & Stock', id:'revenueAttainment', en:'Revenue Attainment', th:'รายได้สะสมเทียบเป้า', scope:true},
   {tab:'2', tabLabel:'Finance & Stock', id:'paymentCollection', en:'Payment Collection', th:'การเก็บเงินจากลูกค้า', scope:true},
   {tab:'2', tabLabel:'Finance & Stock', id:'purchaseOrders', en:'Purchase Orders', th:'PO และการจ่ายเงินผู้รับเหมา', scope:true},
@@ -3209,6 +3260,177 @@ function renderDataFreshness(list){
   }).join('') : `<div class="empty">ทุกโครงการที่กำลังดำเนินการอัปเดตข้อมูลภายใน ${STALE_DAYS} วันล่าสุดแล้ว</div>`;
 
   el.innerHTML = renderPunctualityPodium(list, histSource) + overview + `<div style="margin-top:14px">${rows}</div>`;
+}
+
+// ===================== Revenue Plan =====================
+// อ่านคอลัมน์รายเดือนจาก sheet Revenue (BF, Jan..Dec, >2026) ซึ่งเป็น "% ของ Selling Price"
+// ตรวจสอบแล้วว่าตรงกับแผนรับรู้รายได้จริงทุกเดือน และรวมกันได้ 100% = Selling Price พอดีทุกโครงการ
+const RP_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const RP_MONTH_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const RP_QUARTERS = [
+  {name:'Q1', months:[0,1,2]}, {name:'Q2', months:[3,4,5]},
+  {name:'Q3', months:[6,7,8]}, {name:'Q4', months:[9,10,11]},
+];
+
+function renderRevenuePlan(list){
+  const el = document.getElementById('rpBox');
+  if(!el) return;
+  const revByCode = {};
+  REV.forEach(r=>{ if(r['Project Code']) revByCode[r['Project Code']] = r; });
+
+  const items = list.filter(p=>revByCode[p['Project Code']]).map(p=>{
+    const r = revByCode[p['Project Code']];
+    const selling = num(r['Selling Price']);
+    const bfPct = num(r['BF']);                       // รับรู้ไปแล้วก่อนปีนี้
+    const beyondPct = num(r['>2026']);                // เลื่อนไปปีหน้า
+    const monthPct = RP_MONTHS.map(m=>num(r[m]));
+    const monthBaht = monthPct.map(v=>selling*v/100);
+    const totalPct = bfPct + monthPct.reduce((s,v)=>s+v,0) + beyondPct;
+    return {p, r, selling, bfPct, beyondPct, monthPct, monthBaht, totalPct,
+            pmsCur: num(r['PMS Current %']), name: p['Project Name']||p['Project Code'], code: p['Project Code']};
+  });
+
+  document.getElementById('rpCount').textContent = `${items.length}/${list.length} โครงการมีแผนรายได้`;
+  if(!items.length){ el.innerHTML = `<div class="empty">ไม่มีโครงการที่กรองอยู่ที่มีแผนรายได้</div>`; return; }
+
+  // รวมทั้งทีมรายเดือน + รายไตรมาส
+  const teamMonth = RP_MONTHS.map((_,i)=>items.reduce((s,x)=>s+x.monthBaht[i],0));
+  const teamQuarter = RP_QUARTERS.map(q=>q.months.reduce((s,mi)=>s+teamMonth[mi],0));
+  const teamTotal = teamMonth.reduce((s,v)=>s+v,0);
+  const teamBF = items.reduce((s,x)=>s+x.selling*x.bfPct/100,0);
+  const teamBeyond = items.reduce((s,x)=>s+x.selling*x.beyondPct/100,0);
+  const nowM = new Date().getMonth();
+  const doneBaht = teamMonth.slice(0,nowM+1).reduce((s,v)=>s+v,0);
+  const leftBaht = teamMonth.slice(nowM+1).reduce((s,v)=>s+v,0);
+  const peakIdx = teamMonth.indexOf(Math.max(...teamMonth));
+
+  // ---- คำแนะนำ: เทียบแผนรับรู้รายได้สะสม กับความคืบหน้างานจริง (PMS) ----
+  // ถ้า 2 อย่างนี้ห่างกันมาก แปลว่าแผนกับงานจริงไม่สอดคล้อง ต้องปรับอย่างใดอย่างหนึ่ง
+  const advice = [];
+  items.forEach(x=>{
+    const planCum = x.bfPct + x.monthPct.slice(0, nowM+1).reduce((s,v)=>s+v,0);
+    const gap = x.pmsCur - planCum;
+    const remainPct = x.monthPct.slice(nowM+1).reduce((s,v)=>s+v,0) + x.beyondPct;
+    const maxRemain = Math.max(...x.monthPct.slice(nowM+1), 0);
+    const maxRemainIdx = x.monthPct.indexOf(maxRemain, nowM+1);
+
+    if(gap <= -10) advice.push({t:'warn', code:x.code, name:x.name,
+      msg:`งานจริงช้ากว่าแผนรับรู้รายได้ ${Math.abs(gap).toFixed(1)}pp (ทำได้ ${x.pmsCur.toFixed(1)}% แต่แผนตั้งไว้ ${planCum.toFixed(1)}%) - ถ้าไม่เร่งงาน ควรเลื่อนแผนรับรู้รายได้ออกไป ไม่งั้นจะรับรู้ไม่ทันตามที่วางไว้`});
+    else if(gap >= 10) advice.push({t:'good', code:x.code, name:x.name,
+      msg:`งานเร็วกว่าแผนรับรู้รายได้ ${gap.toFixed(1)}pp (ทำได้ ${x.pmsCur.toFixed(1)}% แผนตั้งไว้ ${planCum.toFixed(1)}%) - มีโอกาสเร่งรับรู้รายได้เข้ามาเร็วขึ้นได้ ${thb(x.selling*Math.min(gap,remainPct)/100)}`});
+
+    if(maxRemain >= 40) advice.push({t:'risk', code:x.code, name:x.name,
+      msg:`แผนกระจุกตัวหนักที่เดือน${RP_MONTH_TH[maxRemainIdx]} ${maxRemain.toFixed(1)}% (${thb(x.selling*maxRemain/100)}) เดือนเดียว - เสี่ยงพลาดเป้าทั้งก้อนถ้างานสะดุด ควรพิจารณาทยอยรับรู้`});
+
+    if(x.beyondPct > 0) advice.push({t:'info', code:x.code, name:x.name,
+      msg:`มีแผนรับรู้รายได้ ${x.beyondPct.toFixed(1)}% (${thb(x.selling*x.beyondPct/100)}) เลื่อนไปหลังปี 2026 - ตรวจสอบว่าตรงกับกำหนดส่งมอบจริงหรือไม่`});
+  });
+
+  // ---- กราฟเส้น: แผนสะสมทั้งทีม vs ที่ผ่านมาแล้ว ----
+  const W=760, H=210, PADL=52, PADR=14, PADT=14, PADB=28;
+  const cumTeam = []; let acc=0;
+  teamMonth.forEach(v=>{ acc+=v; cumTeam.push(acc); });
+  const maxY = Math.max(...cumTeam, 1);
+  const xAt = i => PADL + (W-PADL-PADR) * (i/(RP_MONTHS.length-1));
+  const yAt = v => PADT + (H-PADT-PADB) * (1 - v/maxY);
+  const linePts = cumTeam.map((v,i)=>`${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(' ');
+  const areaPts = `${PADL},${yAt(0)} ${linePts} ${xAt(RP_MONTHS.length-1)},${yAt(0)}`;
+  const passedPts = cumTeam.slice(0,nowM+1).map((v,i)=>`${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(' ');
+  const gridY = [0,0.25,0.5,0.75,1].map(f=>{
+    const v = maxY*f;
+    return `<line x1="${PADL}" y1="${yAt(v)}" x2="${W-PADR}" y2="${yAt(v)}" stroke="var(--line-soft)" stroke-width="1" ${f>0?'stroke-dasharray="2,3"':''}/>
+      <text x="${PADL-6}" y="${yAt(v)+3}" font-size="9" fill="var(--faint)" text-anchor="end">${compact(v)}</text>`;
+  }).join('');
+  const xLabels = RP_MONTHS.map((_,i)=>`<text x="${xAt(i)}" y="${H-9}" font-size="9" fill="${i===nowM?'var(--brand)':'var(--faint)'}" font-weight="${i===nowM?'700':'400'}" text-anchor="middle">${RP_MONTH_TH[i]}</text>`).join('');
+  const dots = cumTeam.map((v,i)=>`<circle cx="${xAt(i)}" cy="${yAt(v)}" r="${i===nowM?4:2.5}" fill="${i<=nowM?'var(--brand)':'var(--brand-2)'}"/>`).join('');
+  const nowLine = `<line x1="${xAt(nowM)}" y1="${PADT}" x2="${xAt(nowM)}" y2="${H-PADB}" stroke="var(--brand)" stroke-width="1" stroke-dasharray="3,3" opacity=".6"/>`;
+
+  const chart = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block">
+    ${gridY}
+    <polygon points="${areaPts}" fill="var(--brand)" fill-opacity="0.07"/>
+    <polyline points="${linePts}" fill="none" stroke="var(--brand-2)" stroke-width="2" stroke-dasharray="4,3"/>
+    <polyline points="${passedPts}" fill="none" stroke="var(--brand)" stroke-width="2.5"/>
+    ${nowLine}${dots}${xLabels}
+  </svg>`;
+
+  // ---- ตารางไตรมาส ----
+  const qCards = RP_QUARTERS.map((q,qi)=>{
+    const val = teamQuarter[qi];
+    const pct = teamTotal ? val/teamTotal*100 : 0;
+    const isPast = q.months[2] < nowM;
+    const isNow = q.months.includes(nowM);
+    return `<div class="rp-q ${isNow?'now':isPast?'past':''}">
+      <div class="rp-q-name">${q.name}${isNow?' <span class="rp-q-tag">ไตรมาสนี้</span>':''}</div>
+      <div class="rp-q-val">${compact(val)}</div>
+      <div class="rp-q-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
+      <div class="rp-q-sub">${pct.toFixed(1)}% ของแผนปีนี้ · ${RP_MONTH_TH[q.months[0]]}-${RP_MONTH_TH[q.months[2]]}</div>
+    </div>`;
+  }).join('');
+
+  // ---- รายโครงการ ----
+  const projRows = items.slice().sort((a,b)=>b.selling-a.selling).map(x=>{
+    const planCum = x.bfPct + x.monthPct.slice(0, nowM+1).reduce((s,v)=>s+v,0);
+    const gap = x.pmsCur - planCum;
+    const gapCls = gap<=-10?'down':gap>=10?'up':'flat';
+    const cells = x.monthPct.map((v,i)=>{
+      const intensity = v<=0 ? 0 : Math.min(1, v/25);
+      const bg = v<=0 ? 'transparent' : `rgba(122,92,62,${(0.10+intensity*0.55).toFixed(2)})`;
+      const fg = intensity>0.55 ? '#fff' : 'var(--ink-2)';
+      return `<td class="rp-cell ${i===nowM?'now':''}" style="background:${bg};color:${fg}" title="${RP_MONTH_TH[i]} ${v.toFixed(2)}% = ${thb(x.monthBaht[i])}">${v>0?v.toFixed(v>=10?0:1):'-'}</td>`;
+    }).join('');
+    return `<tr>
+      <td class="rp-name">${x.name} <span class="code-tag">#${x.code}</span>
+        <div class="rp-name-sub">Selling ${compact(x.selling)} · แผนสะสมถึงเดือนนี้ ${planCum.toFixed(1)}% · ทำจริง ${x.pmsCur.toFixed(1)}% <span class="ov-d ${gapCls}" style="font-size:9.5px;padding:1px 6px">${gap>0?'+':''}${gap.toFixed(1)}pp</span></div>
+      </td>
+      ${x.bfPct>0?`<td class="rp-cell bf" title="รับรู้ก่อนปี 2026">${x.bfPct.toFixed(0)}</td>`:'<td class="rp-cell bf">-</td>'}
+      ${cells}
+      ${x.beyondPct>0?`<td class="rp-cell beyond" title="เลื่อนไปหลังปี 2026">${x.beyondPct.toFixed(0)}</td>`:'<td class="rp-cell beyond">-</td>'}
+    </tr>`;
+  }).join('');
+
+  const adviceHtml = advice.length ? `<div class="rp-advice">
+    <div class="rp-advice-h">💡 ข้อเสนอแนะจากการเทียบแผนรายได้กับความคืบหน้างานจริง</div>
+    ${advice.map(a=>`<div class="rp-advice-i rp-${a.t}"><b>${a.name}</b> <span class="code-tag">#${a.code}</span><br>${a.msg}</div>`).join('')}
+  </div>` : '';
+
+  el.innerHTML = `
+    <div class="wow-overview">
+      <div class="ov-stats">
+        <div class="ov-stat">
+          <div class="ov-l">แผนรับรู้รายได้ปี 2026 (ทั้งทีม)</div>
+          <div class="ov-v">${compact(teamTotal)}</div>
+          <div style="font-size:10.5px;color:var(--faint);margin-top:3px">รับรู้ก่อนปีนี้ ${compact(teamBF)}${teamBeyond>0?` · เลื่อนไปหลังปีนี้ ${compact(teamBeyond)}`:''}</div>
+        </div>
+        <div class="ov-stat">
+          <div class="ov-l">ผ่านไปแล้ว (ถึง${RP_MONTH_TH[nowM]})</div>
+          <div class="ov-v">${compact(doneBaht)}</div>
+          <span class="ov-d flat">${teamTotal?(doneBaht/teamTotal*100).toFixed(0):0}% ของแผนปีนี้</span>
+        </div>
+        <div class="ov-stat">
+          <div class="ov-l">เหลือต้องรับรู้อีก</div>
+          <div class="ov-v">${compact(leftBaht)}</div>
+          <span class="ov-d ${leftBaht>doneBaht?'down':'flat'}">เดือนหนักสุด ${RP_MONTH_TH[peakIdx]} ${compact(teamMonth[peakIdx])}</span>
+        </div>
+      </div>
+    </div>
+    <div class="rp-chart-wrap">
+      <div class="rp-chart-title">แผนรายได้สะสมทั้งทีม ปี 2026 <span class="rp-legend"><i class="solid"></i>ผ่านมาแล้ว <i class="dash"></i>แผนที่เหลือ</span></div>
+      ${chart}
+    </div>
+    <div class="rp-qs">${qCards}</div>
+    <div class="rp-table-wrap">
+      <table class="rp-table">
+        <thead><tr>
+          <th class="rp-name">โครงการ</th>
+          <th class="rp-cell bf">BF</th>
+          ${RP_MONTH_TH.map((m,i)=>`<th class="rp-cell ${i===nowM?'now':''}">${m.replace('.','')}</th>`).join('')}
+          <th class="rp-cell beyond">&gt;26</th>
+        </tr></thead>
+        <tbody>${projRows}</tbody>
+      </table>
+      <div class="rp-hint">ตัวเลขในตาราง = % ของ Selling Price ที่วางแผนรับรู้ในเดือนนั้น (สีเข้ม = สัดส่วนสูง) · ชี้เมาส์เพื่อดูมูลค่าบาท · BF = รับรู้ก่อนปี 2026</div>
+    </div>
+    ${adviceHtml}`;
 }
 
 function renderRevenue(list){
@@ -4759,6 +4981,7 @@ function renderFiltered(){
   renderClosure(listFor('closureTransfer'));
   renderStalled(listFor('stalledProgress'));
   renderDataFreshness(listFor('dataFreshness'));
+  renderRevenuePlan(listFor('revenuePlan'));
   renderRevenue(listFor('revenueAttainment'));
   renderGantt(listFor('deliveryTimeline'));
   renderFree(listFor('pmAvailability'));
