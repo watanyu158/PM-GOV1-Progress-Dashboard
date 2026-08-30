@@ -447,6 +447,28 @@
   td.rp-name{padding:7px 6px 7px 0;border-bottom:1px solid var(--line-soft);font-size:11.5px;font-weight:600;color:var(--ink);}
   .rp-name-sub{font-size:10px;font-weight:400;color:var(--faint);margin-top:2px;}
   .rp-hint{font-size:10px;color:var(--faint);margin-top:9px;line-height:1.6;}
+  .rp-baht{font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;line-height:1.25;}
+  .rp-pct{font-size:8px;line-height:1.2;opacity:.85;}
+  .rp-dash{color:var(--line);font-size:11px;}
+  .rp-hit{cursor:crosshair;}
+  .rp-month{padding:13px 18px;border-top:1px solid var(--line-soft);background:#FBF7F0;}
+  .rp-month-h{font-size:12px;font-weight:700;color:var(--brand);margin-bottom:9px;}
+  .rp-month-sum{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:11px;padding-bottom:10px;border-bottom:1px dashed var(--line-soft);}
+  .rp-month-sum > div{display:flex;flex-direction:column;}
+  .rp-ms-l{font-size:9.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.03em;}
+  .rp-ms-v{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;color:var(--brand);}
+  .rp-ms-v.risk{color:var(--critical);}
+  .rp-ms-s{font-size:9.5px;color:var(--faint);}
+  .rp-month-i{padding:9px 11px;border-radius:7px;margin-top:6px;background:var(--surface);border-left:3px solid var(--line-soft);}
+  .rp-month-i.late{border-left-color:var(--critical);}
+  .rp-month-i.ok{border-left-color:var(--success);}
+  .rp-month-n{font-size:11.5px;color:var(--ink);}
+  .rp-month-b{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:700;color:var(--brand);}
+  .rp-month-p{font-size:10px;color:var(--faint);}
+  .rp-month-msg{font-size:10.5px;line-height:1.6;margin-top:4px;}
+  .rp-month-msg.risk{color:var(--critical);}
+  .rp-month-msg.ok{color:var(--success);}
+
   .rp-advice{padding:13px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2);}
   .rp-advice-h{font-size:11.5px;font-weight:700;color:var(--ink-2);margin-bottom:8px;}
   .rp-advice-i{font-size:11px;color:var(--ink-2);line-height:1.65;padding:8px 11px;border-radius:7px;margin-top:6px;border-left:3px solid var(--line-soft);background:var(--surface);}
@@ -3345,12 +3367,24 @@ function renderRevenuePlan(list){
   const dots = cumTeam.map((v,i)=>`<circle cx="${xAt(i)}" cy="${yAt(v)}" r="${i===nowM?4:2.5}" fill="${i<=nowM?'var(--brand)':'var(--brand-2)'}"/>`).join('');
   const nowLine = `<line x1="${xAt(nowM)}" y1="${PADT}" x2="${xAt(nowM)}" y2="${H-PADB}" stroke="var(--brand)" stroke-width="1" stroke-dasharray="3,3" opacity=".6"/>`;
 
+  // จุด hover ครอบแต่ละเดือนเต็มความสูง - ชี้ตรงไหนของคอลัมน์เดือนนั้นก็เจอ ไม่ต้องจิ้มให้ตรงจุดเล็ก ๆ
+  const colW = (W-PADL-PADR)/(RP_MONTHS.length-1);
+  const hoverPts = cumTeam.map((v,i)=>{
+    const monthVal = teamMonth[i];
+    const pctOfYear = teamTotal ? monthVal/teamTotal*100 : 0;
+    const state = i<nowM ? 'ผ่านมาแล้ว' : i===nowM ? 'เดือนนี้' : 'แผนที่จะถึง';
+    return `<g class="rp-hit"><rect x="${(xAt(i)-colW/2).toFixed(1)}" y="${PADT}" width="${colW.toFixed(1)}" height="${(H-PADT-PADB).toFixed(1)}" fill="transparent"/><title>${RP_MONTH_TH[i]} 2026 - ${state}
+รับรู้เดือนนี้: ${thb(monthVal)} (${pctOfYear.toFixed(1)}% ของแผนปี)
+สะสมถึงเดือนนี้: ${thb(v)} (${teamTotal?(v/teamTotal*100).toFixed(1):0}%)
+เหลืออีก: ${thb(Math.max(0,teamTotal-v))}</title></g>`;
+  }).join('');
+
   const chart = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block">
     ${gridY}
     <polygon points="${areaPts}" fill="var(--brand)" fill-opacity="0.07"/>
     <polyline points="${linePts}" fill="none" stroke="var(--brand-2)" stroke-width="2" stroke-dasharray="4,3"/>
     <polyline points="${passedPts}" fill="none" stroke="var(--brand)" stroke-width="2.5"/>
-    ${nowLine}${dots}${xLabels}
+    ${nowLine}${dots}${xLabels}${hoverPts}
   </svg>`;
 
   // ---- ตารางไตรมาส ----
@@ -3376,20 +3410,57 @@ function renderRevenuePlan(list){
       const intensity = v<=0 ? 0 : Math.min(1, v/25);
       const bg = v<=0 ? 'transparent' : `rgba(122,92,62,${(0.10+intensity*0.55).toFixed(2)})`;
       const fg = intensity>0.55 ? '#fff' : 'var(--ink-2)';
-      return `<td class="rp-cell ${i===nowM?'now':''}" style="background:${bg};color:${fg}" title="${RP_MONTH_TH[i]} ${v.toFixed(2)}% = ${thb(x.monthBaht[i])}">${v>0?v.toFixed(v>=10?0:1):'-'}</td>`;
+      const sub = intensity>0.55 ? 'rgba(255,255,255,.75)' : 'var(--faint)';
+      // โชว์ยอดเงินเป็นตัวหลัก ส่วน % ใส่ตัวเล็กไว้ด้านล่าง (ตามที่ OAT ขอ - เดิมโชว์ % เป็นตัวหลัก)
+      return `<td class="rp-cell ${i===nowM?'now':''}" style="background:${bg};color:${fg}" title="${RP_MONTH_TH[i]} ${v.toFixed(2)}% = ${thb(x.monthBaht[i])}">${
+        v>0 ? `<div class="rp-baht">${compact(x.monthBaht[i])}</div><div class="rp-pct" style="color:${sub}">${v.toFixed(v>=10?0:1)}%</div>` : '<span class="rp-dash">-</span>'
+      }</td>`;
     }).join('');
     return `<tr>
       <td class="rp-name">${x.name} <span class="code-tag">#${x.code}</span>
         <div class="rp-name-sub">Selling ${compact(x.selling)} · แผนสะสมถึงเดือนนี้ ${planCum.toFixed(1)}% · ทำจริง ${x.pmsCur.toFixed(1)}% <span class="ov-d ${gapCls}" style="font-size:9.5px;padding:1px 6px">${gap>0?'+':''}${gap.toFixed(1)}pp</span></div>
       </td>
-      ${x.bfPct>0?`<td class="rp-cell bf" title="รับรู้ก่อนปี 2026">${x.bfPct.toFixed(0)}</td>`:'<td class="rp-cell bf">-</td>'}
+      ${x.bfPct>0?`<td class="rp-cell bf" title="รับรู้ก่อนปี 2026 · ${x.bfPct.toFixed(2)}%"><div class="rp-baht">${compact(x.selling*x.bfPct/100)}</div><div class="rp-pct">${x.bfPct.toFixed(0)}%</div></td>`:'<td class="rp-cell bf"><span class="rp-dash">-</span></td>'}
       ${cells}
-      ${x.beyondPct>0?`<td class="rp-cell beyond" title="เลื่อนไปหลังปี 2026">${x.beyondPct.toFixed(0)}</td>`:'<td class="rp-cell beyond">-</td>'}
+      ${x.beyondPct>0?`<td class="rp-cell beyond" title="เลื่อนไปหลังปี 2026 · ${x.beyondPct.toFixed(2)}%"><div class="rp-baht">${compact(x.selling*x.beyondPct/100)}</div><div class="rp-pct">${x.beyondPct.toFixed(0)}%</div></td>`:'<td class="rp-cell beyond"><span class="rp-dash">-</span></td>'}
     </tr>`;
   }).join('');
 
+  // ---- โฟกัสเดือนนี้: ดูเฉพาะโครงการที่มีแผนรับรู้รายได้ในเดือนปัจจุบัน ว่าพร้อมรับรู้จริงไหม ----
+  const today2 = new Date();
+  const dInMonth = new Date(today2.getFullYear(), today2.getMonth()+1, 0).getDate();
+  const dLeft = dInMonth - today2.getDate();
+  const thisMonthItems = items.filter(x=>x.monthPct[nowM] > 0).map(x=>{
+    const planCum = x.bfPct + x.monthPct.slice(0, nowM+1).reduce((s,v)=>s+v,0);
+    return {...x, thisPct:x.monthPct[nowM], thisBaht:x.monthBaht[nowM], planCum, gap:x.pmsCur - planCum};
+  }).sort((a,b)=>b.thisBaht - a.thisBaht);
+  const thisMonthTotal = thisMonthItems.reduce((s,x)=>s+x.thisBaht,0);
+  const atRisk = thisMonthItems.filter(x=>x.gap < -0.5);
+  const atRiskBaht = atRisk.reduce((s,x)=>s+x.thisBaht,0);
+
+  const monthlyHtml = thisMonthItems.length ? `<div class="rp-month">
+    <div class="rp-month-h">📅 โฟกัสเดือน${RP_MONTH_TH[nowM]} - เหลืออีก ${dLeft} วัน (วันที่ ${today2.getDate()}/${dInMonth})</div>
+    <div class="rp-month-sum">
+      <div><span class="rp-ms-l">ต้องรับรู้เดือนนี้</span><span class="rp-ms-v">${thb(thisMonthTotal)}</span><span class="rp-ms-s">${thisMonthItems.length} โครงการ</span></div>
+      <div><span class="rp-ms-l">เสี่ยงไม่ทัน</span><span class="rp-ms-v ${atRiskBaht>0?'risk':''}">${thb(atRiskBaht)}</span><span class="rp-ms-s">${atRisk.length} โครงการที่งานช้ากว่าแผน</span></div>
+    </div>
+    ${thisMonthItems.map(x=>{
+      const late = x.gap < -0.5;
+      const need = Math.max(0, x.planCum - x.pmsCur);
+      return `<div class="rp-month-i ${late?'late':'ok'}">
+        <div class="rp-month-n"><b>${x.name}</b> <span class="code-tag">#${x.code}</span></div>
+        <div class="rp-month-d">
+          <span class="rp-month-b">${thb(x.thisBaht)}</span> <span class="rp-month-p">(${x.thisPct.toFixed(2)}% ของสัญญา)</span>
+          ${late
+            ? `<div class="rp-month-msg risk">⚠ งานทำได้ ${x.pmsCur.toFixed(1)}% แต่แผนต้องถึง ${x.planCum.toFixed(1)}% - ต้องเร่งอีก ${need.toFixed(1)}pp ใน ${dLeft} วัน ไม่งั้นยอดนี้จะรับรู้ไม่ทันสิ้นเดือน ควรคุยกับลูกค้า/ทีมล่วงหน้า หรือเลื่อนแผนไปเดือนหน้า`
+            : `<div class="rp-month-msg ok">✓ งานทำได้ ${x.pmsCur.toFixed(1)}% ถึงแผน ${x.planCum.toFixed(1)}% แล้ว - พร้อมตั้งเบิก/รับรู้รายได้ตามแผน`}</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>` : '';
+
   const adviceHtml = advice.length ? `<div class="rp-advice">
-    <div class="rp-advice-h">💡 ข้อเสนอแนะจากการเทียบแผนรายได้กับความคืบหน้างานจริง</div>
+    <div class="rp-advice-h">💡 ข้อเสนอแนะภาพรวมทั้งปี (เทียบแผนรายได้กับความคืบหน้างานจริง)</div>
     ${advice.map(a=>`<div class="rp-advice-i rp-${a.t}"><b>${a.name}</b> <span class="code-tag">#${a.code}</span><br>${a.msg}</div>`).join('')}
   </div>` : '';
 
@@ -3428,8 +3499,9 @@ function renderRevenuePlan(list){
         </tr></thead>
         <tbody>${projRows}</tbody>
       </table>
-      <div class="rp-hint">ตัวเลขในตาราง = % ของ Selling Price ที่วางแผนรับรู้ในเดือนนั้น (สีเข้ม = สัดส่วนสูง) · ชี้เมาส์เพื่อดูมูลค่าบาท · BF = รับรู้ก่อนปี 2026</div>
+      <div class="rp-hint">ตัวเลขใหญ่ = มูลค่าที่วางแผนรับรู้เดือนนั้น (บาท) · ตัวเล็ก = % ของ Selling Price · สีเข้ม = สัดส่วนสูง · ชี้เมาส์เพื่อดูตัวเลขเต็ม · BF = รับรู้ก่อนปี 2026</div>
     </div>
+    ${monthlyHtml}
     ${adviceHtml}`;
 }
 
