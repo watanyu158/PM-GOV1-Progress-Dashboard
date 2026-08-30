@@ -826,7 +826,7 @@
   .sc-radar-leg-item{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--ink-2);}
   .sc-radar-leg-item i{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none;}
   .sc-head-row, .sc-row{
-    display:grid;grid-template-columns:28px 30px 1.3fr repeat(5,0.85fr) 60px;
+    display:grid;grid-template-columns:28px 30px 1.2fr repeat(6,0.8fr) 58px;
     gap:8px;align-items:center;padding:9px 18px;
   }
   .sc-head-row{border-bottom:1px solid var(--line-soft);}
@@ -2967,7 +2967,12 @@ function renderComplexity(list){
     const pe = parseD(p['Plan End Date']) || parseD(p['End Date']);
     const exp = expectedProgress(ps, pe, today);
     const paceDev = exp===null ? null : (num(p['%Progress']) - exp);
-    return {p, cx, cls, sev: sevRank[cls], paceDev, tier: tierOf(cx), risk: sevRank[cls]*cx};
+    // ความรุนแรงจาก "ตัวเลขจริง" (ช้ากว่าแผนกี่ pp) - ใช้คู่กับ Health ที่ PM กรอก แล้วเอาค่าที่แย่กว่า
+    // เหตุผล: Health อาจค้างไม่ได้อัปเดต (เจอจริง: RTAF ช้า -23pp แต่ Health ยังเป็น Normal)
+    // ถ้าใช้ Health อย่างเดียว โครงการที่ช้าจริงจะหลุดจากอันดับเสี่ยงไป
+    const numSev = paceDev===null ? 0 : paceDev<=-20 ? 3 : paceDev<=-10 ? 2 : paceDev<=-5 ? 1 : 0;
+    const effSev = Math.max(sevRank[cls], numSev);
+    return {p, cx, cls, sev: sevRank[cls], numSev, effSev, paceDev, tier: tierOf(cx), risk: effSev*cx};
   });
 
   document.getElementById('cxCount').textContent = `${list.length} โครงการ`;
@@ -3014,7 +3019,7 @@ function renderComplexity(list){
       </div>
       <div style="text-align:center"><span class="chip ${x.cls}">${svg(H.icon(x.cls))}${H.label(x.p['Project Health'])}</span></div>
       <div style="text-align:center"><span class="tag">Complex ${x.cx}</span></div>
-      <div class="cx-risk-score">${x.risk}</div>
+      <div class="cx-risk-score" title="${x.numSev>x.sev?`ใช้ความเสี่ยงจากตัวเลข (ช้า ${Math.abs(x.paceDev).toFixed(0)}pp) เพราะรุนแรงกว่า Health ที่กรอกไว้`:'ใช้ Health ที่ PM กรอก'}">${x.risk}${x.numSev>x.sev?'<span class="cx-risk-flag">📉</span>':''}</div>
       <div class="cx-risk-val">${compact(x.p['Selling Price'])}</div>
     </div>`).join('') : `<div class="empty">ไม่มีโครงการที่มีความเสี่ยงตอนนี้</div>`;
 
@@ -3252,6 +3257,9 @@ function renderRiskFinder(list){
     <div class="rf-list">${items}</div>`;
 }
 
+// โชว์ทศนิยมเฉพาะเมื่อมีเศษจริง - 100 ยังเป็น 100 ไม่ใช่ 100.00 จะได้ไม่รกตาราง
+const ptNum = v => Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/0$/,'');
+
 function renderProgressTimeline(list, histSource){
   const el = document.getElementById('ptBox');
   if(!el) return;
@@ -3331,7 +3339,7 @@ function renderProgressTimeline(list, histSource){
       const wl = fmtDObj(new Date(w));
       if(k==='before') return `<td class="pt-cell pt-before" title="${wl} - ยังไม่เริ่มโครงการ"></td>`;
       if(k==='gap')    return `<td class="pt-cell pt-gap" title="${wl} - ไม่ได้อัปเดต">·</td>`;
-      if(k==='done')   return `<td class="pt-cell pt-done" title="${wl} - เสร็จแล้ว (${v.toFixed(0)}%) ไม่ต้องอัปเดตต่อ">${v.toFixed(0)}</td>`;
+      if(k==='done')   return `<td class="pt-cell pt-done" title="${wl} - เสร็จแล้ว (${v.toFixed(2)}%) ไม่ต้องอัปเดตต่อ">${ptNum(v)}</td>`;
       // สัปดาห์ที่มีข้อมูลจริง - ใช้ "สีพื้น" บอกสถานะแทนเส้นขอบ (ขอบบางเกินไป มองไม่ชัด)
       const prevSeen = x.vals.slice(0,i).filter((z,j)=>z!==undefined && x.kind[j]==='has').pop();
       const delta = prevSeen===undefined ? null : v-prevSeen;
@@ -3345,8 +3353,8 @@ function renderProgressTimeline(list, histSource){
         bg = `rgba(122,92,62,${(0.08+t*0.62).toFixed(2)})`;
         fg = t>0.55 ? '#fff' : 'var(--ink-2)';
       }
-      const tip = `${wl} - ${v.toFixed(0)}%` + (delta===null?' (รอบแรก)':delta===0?' (ไม่ขยับจากรอบก่อน)':` (${delta>0?'+':''}${delta.toFixed(0)} จากรอบก่อน)`);
-      return `<td class="pt-cell${cls}" style="background:${bg};color:${fg}" title="${tip}">${v.toFixed(0)}</td>`;
+      const tip = `${wl} - ${v.toFixed(2)}%` + (delta===null?' (รอบแรก)':delta===0?' (ไม่ขยับจากรอบก่อน)':` (${delta>0?'+':''}${delta.toFixed(2)} จากรอบก่อน)`);
+      return `<td class="pt-cell${cls}" style="background:${bg};color:${fg}" title="${tip}">${ptNum(v)}</td>`;
     }).join('');
     const flagTxt = (x.latest!==null && x.latest>=100) || x.closed ? `<span class="pt-flag done">เสร็จแล้ว</span>`
                   : x.flat>=3 ? `<span class="pt-flag stall">นิ่ง ${x.flat} สัปดาห์</span>`
@@ -5306,7 +5314,36 @@ function computeTeamScorecard(){
       if(streak>=3 && (exp2-num(p['%Progress']))>=15) stalledCount++;
     });
 
-    return {pm, punctualityPct, projCount1y, projValue1y, healthyPct, revGapWeighted, stalledCount};
+    // ---- มิติใหม่: วินัยการวางบิล (Invoice) ----
+    // ใช้ 2 สัญญาณรวมกัน เพราะสัญญาณเดียวไม่ครอบคลุมทุกคน:
+    //  (1) ตรงกำหนดวางบิล - งวดที่ถึงกำหนดแล้ววางบิลไปกี่ % (ทุก PM มีข้อมูล)
+    //  (2) เร็ว/ช้ากว่าเงื่อนไขสัญญา - เฉพาะงวดที่ desc ระบุ "X วัน" และคำนวณจากวันเริ่มสัญญาได้
+    //      (ค่าลบ = วางบิลเร็วกว่าแผน) มีไม่ครบทุกคน จึงใช้เป็นตัวปรับ ไม่ใช่ตัวหลัก
+    const pmPayw = PAYW.filter(p => pmKey(p.pm)===pm);
+    let invDue = 0, invBilled = 0;
+    const earlyDays = [];
+    pmPayw.forEach(p=>{
+      const sd = parseD(p.startDate);
+      (p.installments||[]).forEach(i=>{
+        const idt = parseD(i.invoiceDate);
+        if(!idt) return;
+        const billed = num(i.invoiced) > 0;
+        if(idt <= today0){ invDue++; if(billed) invBilled++; }
+        const m = String(i.desc||'').match(/(\d+)\s*วัน/);
+        if(m && sd && billed){
+          const planDt = new Date(sd.getTime() + parseInt(m[1],10)*DAY);
+          earlyDays.push(Math.round((planDt - idt)/DAY));   // บวก = เร็วกว่าแผน
+        }
+      });
+    });
+    const invOnTimePct = invDue ? (invBilled/invDue*100) : null;
+    const invEarlyAvg = earlyDays.length ? earlyDays.reduce((a,b)=>a+b,0)/earlyDays.length : null;
+    // คะแนนรวมของมิตินี้: ฐานจาก %ตรงกำหนด แล้วบวก/ลบตามความเร็วเทียบสัญญา (จำกัด ±15 กันเหวี่ยงเกิน)
+    const invScore = invOnTimePct===null ? null
+      : Math.max(0, Math.min(100, invOnTimePct + (invEarlyAvg===null ? 0 : Math.max(-15, Math.min(15, invEarlyAvg/2)))));
+
+    return {pm, punctualityPct, projCount1y, projValue1y, healthyPct, revGapWeighted, stalledCount,
+            invScore, invOnTimePct, invEarlyAvg, invDue, invBilled, invSampleN: earlyDays.length};
   });
 }
 
@@ -5320,6 +5357,7 @@ function buildRadarChart(scored){
     {key:'cHealth', label:'Health'},
     {key:'cRev',    label:'Rev.Gap'},
     {key:'cStall',  label:'ค้างขั้นตอน'},
+    {key:'cInv',    label:'วางบิล'},
   ];
   const nAxes = axes.length;
   const angleFor = i => (Math.PI*2*i/nAxes) - Math.PI/2; // เริ่มจากด้านบน (12 นาฬิกา) ไล่ตามเข็มนาฬิกา
@@ -5387,12 +5425,14 @@ function renderOatScorecard(){
   const sHealth = rankScore(data, 'healthyPct', true, n);
   const sRev  = rankScore(data, 'revGapWeighted', false, n); // gap ยิ่งน้อย (หรือติดลบ=เร็วกว่า) ยิ่งดี
   const sStall = rankScore(data, 'stalledCount', false, n); // ยิ่งน้อยยิ่งดี
+  const sInv  = rankScore(data, 'invScore', true, n);       // วางบิลตรง/เร็วกว่าแผน ยิ่งสูงยิ่งดี
 
-  const WEIGHTS = {punc:0.30, val:0.20, health:0.20, rev:0.15, stall:0.15};
+  // ปรับน้ำหนักใหม่ เพิ่มมิติ "วาง Invoice" 15% แล้วลดมิติอื่นลงตามสัดส่วน
+  const WEIGHTS = {punc:0.25, val:0.15, health:0.15, rev:0.15, stall:0.15, inv:0.15};
   const scored = data.map(x=>{
-    const cPunc = sPunc[x.pm] ?? 50, cVal = sVal[x.pm] ?? 50, cHealth = sHealth[x.pm] ?? 50, cRev = sRev[x.pm] ?? 50, cStall = sStall[x.pm] ?? 50;
-    const composite = cPunc*WEIGHTS.punc + cVal*WEIGHTS.val + cHealth*WEIGHTS.health + cRev*WEIGHTS.rev + cStall*WEIGHTS.stall;
-    return {...x, cPunc, cVal, cHealth, cRev, cStall, composite};
+    const cPunc = sPunc[x.pm] ?? 50, cVal = sVal[x.pm] ?? 50, cHealth = sHealth[x.pm] ?? 50, cRev = sRev[x.pm] ?? 50, cStall = sStall[x.pm] ?? 50, cInv = sInv[x.pm] ?? 50;
+    const composite = cPunc*WEIGHTS.punc + cVal*WEIGHTS.val + cHealth*WEIGHTS.health + cRev*WEIGHTS.rev + cStall*WEIGHTS.stall + cInv*WEIGHTS.inv;
+    return {...x, cPunc, cVal, cHealth, cRev, cStall, cInv, composite};
   }).sort((a,b)=>b.composite-a.composite);
 
   const top = scored[0];
@@ -5414,6 +5454,7 @@ function renderOatScorecard(){
       <div class="sc-metric"><div class="sc-l">Health ปกติ</div><div class="sc-v">${x.healthyPct!=null?x.healthyPct.toFixed(0)+'%':'-'}</div></div>
       <div class="sc-metric"><div class="sc-l">Rev.Gap</div><div class="sc-v" style="color:${x.revGapWeighted>0?'var(--critical)':'var(--success)'}">${x.revGapWeighted!=null?(x.revGapWeighted>0?'-':'+')+Math.abs(x.revGapWeighted).toFixed(1)+'pp':'-'}</div></div>
       <div class="sc-metric"><div class="sc-l">ค้างขั้นตอน</div><div class="sc-v" style="color:${x.stalledCount>0?'var(--warning)':'var(--success)'}">${x.stalledCount}</div></div>
+      <div class="sc-metric"><div class="sc-l">วางบิล</div><div class="sc-v" title="ตรงกำหนด ${x.invBilled}/${x.invDue} งวด${x.invEarlyAvg!==null?` · เทียบสัญญาเฉลี่ย ${x.invEarlyAvg>0?'เร็วกว่า':'ช้ากว่า'} ${Math.abs(x.invEarlyAvg).toFixed(0)} วัน (จาก ${x.invSampleN} งวด)`:' · ไม่มีงวดที่ระบุเงื่อนไขวันในสัญญา'}">${x.invOnTimePct===null?'-':x.invOnTimePct.toFixed(0)+'%'}${x.invEarlyAvg!==null&&x.invEarlyAvg>0?'<span style="font-size:8px;color:var(--success)"> ⚡</span>':''}</div></div>
       <div class="sc-composite">${x.composite.toFixed(0)}</div>
     </div>`;
   }).join('');
@@ -5434,11 +5475,13 @@ function renderOatScorecard(){
       <div class="sc-metric"><div class="sc-l">Health ปกติ</div></div>
       <div class="sc-metric"><div class="sc-l">Rev.Gap</div></div>
       <div class="sc-metric"><div class="sc-l">ค้างขั้นตอน</div></div>
+      <div class="sc-metric"><div class="sc-l">วางบิล</div></div>
       <div class="sc-composite">คะแนนรวม</div>
     </div>
     ${rows}
     <div class="sc-note">
-      <b>วิธีคิด:</b> แปลงแต่ละมิติเป็นอันดับ (ไม่ใช่ตัวเลขดิบ) แล้วถ่วงน้ำหนัก: ตรงเวลา 30% · มูลค่าโครงการ 20% · Health ปกติ 20% · Revenue Gap 15% · ค้างขั้นตอน 15%
+      <b>วิธีคิด:</b> แปลงแต่ละมิติเป็นอันดับ (ไม่ใช่ตัวเลขดิบ) แล้วถ่วงน้ำหนัก: ตรงเวลา 25% · มูลค่าโครงการ 15% · Health ปกติ 15% · Revenue Gap 15% · ค้างขั้นตอน 15% · <b>วางบิล 15%</b><br>
+      <b>มิติวางบิล</b> = % งวดที่ถึงกำหนดแล้ววางบิลจริง ปรับด้วยความเร็วเทียบเงื่อนไขในสัญญา (เฉพาะงวดที่ระบุ &quot;X วัน&quot;) - ⚡ = เฉลี่ยวางบิลเร็วกว่าสัญญา
       (เน้นมิติที่อยู่ในการควบคุมของ PM เองมากกว่า)<br>
       <b>ข้อควรระวัง:</b> "ค้างขั้นตอน" และ "Rev.Gap" อาจเกิดจากปัจจัยภายนอก (ผู้ขายส่งของช้า, รอราชการอนุมัติ ฯลฯ) ไม่ใช่ฝีมือ PM เสมอไป
       ควรเปิดดู panel "Stalled Progress" และ EVM ประกอบก่อนสรุปด้วยตาตัวเอง ตัวเลขนี้เป็นจุดเริ่มให้ไปสืบต่อ ไม่ใช่คำตัดสินสุดท้าย
