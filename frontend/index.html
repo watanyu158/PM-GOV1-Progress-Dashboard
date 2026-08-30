@@ -613,6 +613,7 @@
   }
   .c-foot span{display:flex;align-items:center;gap:5px;}
   .c-foot svg{width:12px;height:12px;}
+  .c-days{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--brand-2);}
 
   /* ---------------- EVM badge + inline expand (Project Details cards) ---------------- */
   .c-evm-badge{
@@ -4254,7 +4255,14 @@ function renderCards(list){
       </div>
       ${p['Progress Update'] ? `<div class="c-note">${p['Progress Update']}</div>` : ''}
       <div class="c-foot">
-        <span>${svg(I.cal)}${fmtDate(p['Start Date'])} - ${fmtDate(p['End Date'])}</span>
+        <span>${svg(I.cal)}${fmtDate(p['Start Date'])} - ${fmtDate(p['End Date'])}${(() => {
+          // แสดงจำนวนวันรวมของโครงการ - นับแบบรวมวันเริ่มและวันสิ้นสุด (inclusive) ตามที่คนทั่วไปนับสัญญา
+          // มี 3 โครงการที่ยังไม่กรอกวันที่ จึงต้องเช็คก่อน ไม่งั้นจะขึ้น (NaN วัน)
+          const sd = parseD(p['Start Date']), ed = parseD(p['End Date']);
+          if(!sd || !ed) return '';
+          const days = Math.round((ed - sd)/DAY) + 1;
+          return days > 0 ? ` <span class="c-days">(${days.toLocaleString()} วัน)</span>` : '';
+        })()}</span>
         <span>${svg(I.clock)}${fmtDate(p['Update Date'])}</span>
       </div>
       ${evmData ? `<div class="c-evm-badge" data-evm-code="${code}">
