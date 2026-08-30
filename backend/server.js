@@ -519,11 +519,20 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const pmByCode = {};
       rows.forEach(r => { if (r['Project Code'] && r['PM Name']) pmByCode[String(r['Project Code']).trim()] = r['PM Name']; });
       paymentW.forEach(p => { if (p.projectCode && p.pm && !pmByCode[p.projectCode]) pmByCode[p.projectCode] = p.pm; });
-      po.forEach(p => { p.pm = pmByCode[p.projectCode] || null; });
+      // trim ทั้ง 2 ฝั่งให้ตรงกัน - ฝั่งสร้าง key ใช้ .trim() อยู่แล้ว ถ้าฝั่ง lookup ไม่ trim ด้วย
+      // แล้วไฟล์มีช่องว่างแฝงเมื่อไหร่ จะหา pm ไม่เจอทุกแถว -> inTeam(null) กรองทิ้งหมด -> PO หายทั้งตาราง
+      po.forEach(p => { p.pm = pmByCode[String(p.projectCode || '').trim()] || null; });
 
       // ล็อกทั้ง 5 ชุดข้อมูลนี้ให้เหลือแค่ทีม PM-GOV1 (5 คน) เสมอ - sheet ต้นทางเป็นข้อมูลทั้งบริษัท/ทั้งบริษัทย้อนหลัง
       const paymentWTeam = paymentW.filter(p => inTeam(p.pm));
       const poTeam = po.filter(p => inTeam(p.pm));
+      if (po.length && !poTeam.length) {
+        const noPm = po.filter(p => !p.pm).length;
+        const sample = [...new Set(po.map(p => p.pm).filter(Boolean))].slice(0, 5);
+        console.log(`⚠ PO ${po.length} รายการถูกกรองทิ้งหมด - ไม่มีรายการไหนเป็นของทีม PM-GOV1`);
+        console.log(`   หา PM ไม่เจอ ${noPm} รายการ | PM ที่พบในไฟล์: ${JSON.stringify(sample)}`);
+        console.log(`   (PO ไม่มีคอลัมน์ PM ต้องเดาจาก Project Code เทียบกับ Progress1/PaymentW)`);
+      }
       const stockTeam = stock.filter(s => inTeam(s.pmName));
       const stockSummaryTeam = stockSummary.filter(s => inTeam(s.pm));
       const projectInfoTeam = projectInfo.filter(p => inTeam(p['PM Name']));

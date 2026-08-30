@@ -5304,12 +5304,19 @@ function renderFiltered(){
   renderCards(listFor('projectDetails'));
 
   // Tab 2 - โครงสร้างข้อมูลคนละแบบกับ Tab 1 (ไม่ผ่าน applyFilters เดียวกัน) ต้องส่ง source + code-set แยกเป็นคู่
-  renderPayment(hasTeamWideScope('paymentCollection') ? PAYW_TEAMWIDE : PAYW, hasTeamWideScope('paymentCollection') ? getTeamWideProjects() : ALL);
-  renderPOPanel(hasTeamWideScope('purchaseOrders') ? PO_TEAMWIDE : PO, hasTeamWideScope('purchaseOrders') ? getTeamWideProjects() : ALL);
+  // ถ้าตั้งเป็น team-wide แต่ backend ยังไม่ส่งชุด teamWide มา (เช่นยังไม่ได้ deploy backend ใหม่)
+  // ต้อง fallback ไปใช้ข้อมูลปกติแทน ไม่งั้นจะได้ array ว่าง -> การ์ดขึ้น "ไม่มีข้อมูล" ทั้งที่ข้อมูลมีอยู่
+  const pickSrc = (cardId, teamWideArr, normalArr) =>
+    (hasTeamWideScope(cardId) && teamWideArr && teamWideArr.length) ? teamWideArr : normalArr;
+  const pickList = (cardId, teamWideArr) =>
+    (hasTeamWideScope(cardId) && teamWideArr && teamWideArr.length) ? getTeamWideProjects() : ALL;
+
+  renderPayment(pickSrc('paymentCollection', PAYW_TEAMWIDE, PAYW), pickList('paymentCollection', PAYW_TEAMWIDE));
+  renderPOPanel(pickSrc('purchaseOrders', PO_TEAMWIDE, PO), pickList('purchaseOrders', PO_TEAMWIDE));
   renderStock(
-    hasTeamWideScope('stockOutstanding') ? STOCKSUM_TEAMWIDE : STOCKSUM,
-    hasTeamWideScope('stockOutstanding') ? getTeamWideProjects() : ALL,
-    hasTeamWideScope('stockOutstanding') ? STOCK_TEAMWIDE : STOCK
+    pickSrc('stockOutstanding', STOCKSUM_TEAMWIDE, STOCKSUM),
+    pickList('stockOutstanding', STOCKSUM_TEAMWIDE),
+    pickSrc('stockOutstanding', STOCK_TEAMWIDE, STOCK)
   );
 
   renderProjectInfo();
