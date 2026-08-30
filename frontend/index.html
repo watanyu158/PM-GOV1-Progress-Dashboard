@@ -1321,16 +1321,6 @@
     <div class="p-body"><div id="fresh"></div></div>
   </div>
 
-  <div class="panel" id="panel-revenueAttainment">
-    <div class="p-head">
-      <div class="p-title">
-        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>
-        Revenue Attainment <span class="sep">-</span> <span class="th">รายได้สะสมเทียบเป้าตามแผน</span>
-      </div>
-      <span class="p-count" id="revCount"></span>
-    </div>
-    <div class="p-body"><div id="rev"></div></div>
-  </div>
 
   <div class="panel" id="panel-deliveryTimeline">
     <div class="p-head">
@@ -1389,6 +1379,17 @@
   </div><!-- /tab1Panels -->
 
   <div id="tab2Panels">
+  <div class="panel" id="panel-revenueAttainment">
+    <div class="p-head">
+      <div class="p-title">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>
+        Revenue Attainment <span class="sep">-</span> <span class="th">รายได้สะสมเทียบเป้าตามแผน</span>
+      </div>
+      <span class="p-count" id="revCount"></span>
+    </div>
+    <div class="p-body"><div id="rev"></div></div>
+  </div>
+
     <div class="panel" id="panel-paymentCollection">
       <div class="p-head">
         <div class="p-title">
@@ -1859,11 +1860,11 @@ const CARD_REGISTRY = [
   {tab:'1', tabLabel:'Project Tracking', id:'closureTransfer', en:'Closure & Transfer Tracking', th:'ปิดงาน / โอนงาน', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'stalledProgress', en:'Stalled Progress', th:'โครงการที่ค้างขั้นตอนเดิม', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'dataFreshness', en:'Update PMS', th:'การอัปเดต PMS', scope:true},
-  {tab:'1', tabLabel:'Project Tracking', id:'revenueAttainment', en:'Revenue Attainment', th:'รายได้สะสมเทียบเป้า', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'deliveryTimeline', en:'Delivery Timeline', th:'โครงการใกล้ครบกำหนด', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'pmAvailability', en:'PM Availability', th:'พร้อมรับงานใหม่', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'projectDetails', en:'Project Details', th:'รายละเอียดโครงการ', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'teamScorecard', en:'Team Performance Scorecard', th:'ภาพรวมผลงานทีม'},
+  {tab:'2', tabLabel:'Finance & Stock', id:'revenueAttainment', en:'Revenue Attainment', th:'รายได้สะสมเทียบเป้า', scope:true},
   {tab:'2', tabLabel:'Finance & Stock', id:'paymentCollection', en:'Payment Collection', th:'การเก็บเงินจากลูกค้า', scope:true},
   {tab:'2', tabLabel:'Finance & Stock', id:'purchaseOrders', en:'Purchase Orders', th:'PO และการจ่ายเงินผู้รับเหมา', scope:true},
   {tab:'2', tabLabel:'Finance & Stock', id:'stockOutstanding', en:'Stock Outstanding', th:'ของค้างสต็อก', scope:true},
@@ -3238,6 +3239,11 @@ function renderRevenue(list){
     });
 
   const missingN = list.length - items.length;
+  // ชื่อโครงการที่ยังไม่มีข้อมูลใน sheet Revenue - โชว์ให้เห็นเลยว่าตัวไหน จะได้ตามแก้ที่ต้นทางได้ถูก
+  const missingNames = list
+    .filter(p=>!revByCode[p['Project Code']])
+    .map(p=>`${p['Project Name']||p['Project Code']} (#${p['Project Code']})`)
+    .join(', ');
   document.getElementById('revCount').textContent = `${items.length}/${list.length} โครงการมีข้อมูลรายได้`;
 
   if(!items.length){
@@ -3268,7 +3274,7 @@ function renderRevenue(list){
       <div class="ov-stat">
         <div class="ov-l">Revenue Attainment ถ่วงมูลค่า</div>
         <div class="ov-v">${wCur.toFixed(1)}%<span style="font-size:12px;color:var(--faint);font-weight:500"> / เป้าวันนี้ ${wPlanToday.toFixed(1)}%</span></div>
-        <div style="font-size:10.5px;color:var(--faint);margin-top:3px">เป้าสิ้นเดือนทางการ ${wPlanEOM.toFixed(1)}% - ปรับสัดส่วนตามวันที่ ${today.getDate()}/${daysInMonth}</div>
+        <div style="font-size:10.5px;color:var(--faint);margin-top:3px">เป้าสิ้นเดือนทางการ ${wPlanEOM.toFixed(1)}% - เป้าวันนี้คิดตามสัดส่วนวันที่ผ่านไปแล้ว ${today.getDate()} จาก ${daysInMonth} วันของเดือนนี้</div>
       </div>
       <div class="ov-stat">
         <div class="ov-l">ส่วนต่างรายได้สะสมรวม <span style="font-weight:400">(เทียบเป้าวันนี้)</span></div>
@@ -3281,8 +3287,8 @@ function renderRevenue(list){
         <span class="ov-d ${behindN?'down':'flat'}">ล้ำหน้า ${aheadN} · ตรงแผน ${items.length-behindN-aheadN}</span>
       </div>
     </div>
-    ${missingN>0 ? `<div style="margin-top:10px;font-size:11px;color:var(--faint)">${missingN} โครงการที่กรองอยู่ยังไม่มีข้อมูลใน sheet Revenue</div>` : ''}
-    ${latestUpdate ? `<div style="margin-top:${missingN>0?'4px':'10px'};font-size:11px;color:var(--faint)">🕐 ข้อมูลรายได้อัปเดตล่าสุด ${fmtDObj(latestUpdate)} (นับจากคอลัมน์ Send Update ใน sheet Revenue - แยกจาก Progress1)</div>` : ''}
+    ${missingN>0 ? `<div style="margin-top:10px;font-size:11px;color:var(--faint)">${missingN} โครงการที่กรองอยู่ยังไม่มีข้อมูล: ${missingNames}</div>` : ''}
+    ${latestUpdate ? `<div style="margin-top:${missingN>0?'4px':'10px'};font-size:11px;color:var(--faint)">🕐 ข้อมูลรายได้อัปเดตล่าสุด ${fmtDObj(latestUpdate)}</div>` : ''}
   </div>`;
 
   // --- รวมต่อ PM ---
