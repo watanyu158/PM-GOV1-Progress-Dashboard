@@ -3529,8 +3529,8 @@ function renderRevenue(list){
           const cls = behindN===0 ? 'up' : ratio>=0.5 ? 'down' : 'flat';
           const onPlan = items.length - behindN - aheadN;
           const txt = behindN===0
-            ? `ไม่มีโครงการล่าช้า (ล้ำหน้า ${aheadN} · ตรงแผน ${onPlan})`
-            : `ล่าช้า ${behindN} จาก ${items.length} โครงการ - ที่เหลือล้ำหน้า ${aheadN} · ตรงแผน ${onPlan}`;
+            ? `ไม่มีล่าช้า · ล้ำหน้า ${aheadN} · ตรงแผน ${onPlan}`
+            : `ล่าช้า ${behindN} · ล้ำหน้า ${aheadN} · ตรงแผน ${onPlan}`;
           return `<span class="ov-d ${cls}">${txt}</span>`;
         })()}
       </div>
@@ -3552,8 +3552,13 @@ function renderRevenue(list){
     const wp = g.selling ? g.items.reduce((s,x)=>s+x.planToday*x.selling,0)/g.selling : 0;
     const wc = g.selling ? g.items.reduce((s,x)=>s+x.cur*x.selling,0)/g.selling : 0;
     const diffPctW = wp - wc;
-    const cls = diffPctW>1 ? 'behind' : diffPctW<-1 ? 'ahead' : 'onpace';
-    return {...g, wp, wc, diffPctW, cls};
+    // ใช้เกณฑ์ 0.5pp เท่ากับระดับโครงการ (เดิมระดับ PM ใช้ 1pp ทำให้เกิดกรณีขัดแย้ง เช่น PM ที่มีโครงการ
+    // ล่าช้าอยู่จริง แต่ถูกโครงการใหญ่ที่ตรงแผนถ่วงจนค่าเฉลี่ยต่ำกว่า 1pp เลยขึ้นว่า "ตรงแผน" ทั้งที่ไม่ใช่)
+    const cls = diffPctW>0.5 ? 'behind' : diffPctW<-0.5 ? 'ahead' : 'onpace';
+    // นับจำนวนโครงการแต่ละสถานะไว้ด้วย เพื่อบอกให้ชัดเมื่อ PM มีทั้งล่าช้าและไม่ล่าช้าปนกัน
+    const nBehind = g.items.filter(x=>x.diffPct>0.5).length;
+    const nAhead = g.items.filter(x=>x.diffPct<-0.5).length;
+    return {...g, wp, wc, diffPctW, cls, nBehind, nAhead};
   }).sort((a,b)=> b.diffBaht - a.diffBaht);
 
   const head = `<div class="rv-row head-row">
@@ -3562,8 +3567,11 @@ function renderRevenue(list){
 
   const body = pmRows.map(g=>{
     const col = g.cls==='behind' ? '#A8482F' : g.cls==='ahead' ? '#4F7A4A' : '#7A5C3E';
+    // ถ้าเฉลี่ยแล้วตรงแผน แต่ยังมีโครงการล่าช้าอยู่จริง ให้บอกตามตรงว่ามีกี่ตัว ไม่ขึ้นแค่ "ตรงแผน" ลอย ๆ
+    // (กันสับสนกับการ์ดโครงการด้านล่างที่ขึ้น "ช้ากว่า" อยู่)
     const chip = g.cls==='behind' ? `<span class="pace-chip behind">🐢 ล่าช้ากว่าแผน</span>`
       : g.cls==='ahead' ? `<span class="pace-chip ahead">⚡ ล้ำหน้าแผน</span>`
+      : g.nBehind>0 ? `<span class="pace-chip onpace">✓ รวมตรงแผน (ล่าช้า ${g.nBehind})</span>`
       : `<span class="pace-chip onpace">✓ ตรงแผน</span>`;
 
     const cards = g.items.slice().sort((a,b)=>b.diffPct-a.diffPct).map(x=>{
