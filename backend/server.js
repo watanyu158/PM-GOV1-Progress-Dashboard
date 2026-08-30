@@ -486,13 +486,33 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
   try {
     if (req.file) {
       const wb = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
-      const { rows, sheetName } = parseProgressSheet(wb);
-      const { rows: revenue, sheetName: revenueSheetName } = parseRevenueSheet(wb);
-      const { rows: paymentW, sheetName: paymentWSheetName } = parsePaymentW(wb);
-      const { rows: po, sheetName: poSheetName } = parsePaymentMPO(wb);
-      const { rows: stock, sheetName: stockSheetName } = parseStockMovement(wb);
-      const { rows: stockSummary, sheetName: stockSummarySheetName } = parseSumStockM(wb);
-      const { rows: projectInfo, sheetName: projectInfoSheetName } = parseProjectInfoSheet(wb);
+
+      // แยก try/catch ต่อ sheet - ถ้า sheet ไหนพังจะเสียแค่ sheet นั้น ไม่ล้มทั้งการ sync
+      // (เดิมถ้า parser ตัวไหนโยน error จะตกไป catch ใหญ่ท้ายสุด ทำให้ latestData ไม่ถูกอัปเดตเลย
+      //  = ข้อมูลทุก sheet หายหมดพร้อมกัน ซึ่งเป็นอาการเดียวกับที่เคยเจอตอนแก้ไฟล์ PaymentW)
+      const failed = [];
+      const safeParse = (label, fn, fallback) => {
+        try { return fn(); }
+        catch (e) {
+          console.error(`⚠ parse "${label}" ล้มเหลว: ${e.message} - ข้ามไปใช้ค่าว่างแทน ส่วนอื่นยังทำงานต่อ`);
+          failed.push(label);
+          return fallback;
+        }
+      };
+
+      const { rows, sheetName } = safeParse('Progress1', () => parseProgressSheet(wb), { rows: [], sheetName: null });
+      const { rows: revenue, sheetName: revenueSheetName } = safeParse('Revenue', () => parseRevenueSheet(wb), { rows: [], sheetName: null });
+      const { rows: paymentW, sheetName: paymentWSheetName } = safeParse('PaymentW', () => parsePaymentW(wb), { rows: [], sheetName: null });
+      const { rows: po, sheetName: poSheetName } = safeParse('PaymentM/PO', () => parsePaymentMPO(wb), { rows: [], sheetName: null });
+      const { rows: stock, sheetName: stockSheetName } = safeParse('Stock Movement', () => parseStockMovement(wb), { rows: [], sheetName: null });
+      const { rows: stockSummary, sheetName: stockSummarySheetName } = safeParse('SumStockM', () => parseSumStockM(wb), { rows: [], sheetName: null });
+      const { rows: projectInfo, sheetName: projectInfoSheetName } = safeParse('Project Info', () => parseProjectInfoSheet(wb), { rows: [], sheetName: null });
+
+      // Progress1 คือแกนหลัก ถ้าอ่านไม่ได้เลยแปลว่าไฟล์ผิดรูปแบบจริง ๆ - ไม่ควรเขียนทับข้อมูลเดิมที่ยังดีอยู่
+      if (!rows.length) {
+        console.error('⚠ อ่าน Progress1 ไม่ได้เลย - ยกเลิกการอัปเดต เก็บข้อมูลเดิมไว้ (กันข้อมูลหายทั้งระบบ)');
+        return res.status(400).json({ ok: false, error: 'อ่าน sheet Progress1 ไม่ได้ หรือไม่มีข้อมูล - ไม่อัปเดตข้อมูลเดิม', failedSheets: failed });
+      }
 
       // PO ไม่มีคอลัมน์ PM ตรง ๆ - เดา PM เจ้าของจาก Project Code โดยอ้างอิงจาก Progress1 ก่อน (ครอบคลุมสุด)
       // แล้ว fallback ไปที่ PaymentW ถ้า Progress1 ไม่มีโครงการนั้น (เช่นโครงการเก่าที่ปิดไปแล้ว)
@@ -540,7 +560,8 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
         }
       }
 
-      return res.json({ ok: true, mode: 'file', sheet: sheetName, count: rows.length, revenueSheet: revenueSheetName, revenueCount: revenue.length, paymentWCount: paymentWTeam.length, poCount: poTeam.length, stockCount: stockTeam.length, stockSummaryCount: stockSummaryTeam.length, projectInfoCount: projectInfoTeam.length, updatedAt: latestData.updatedAt });
+      if (failed.length) console.error(`⚠ sync สำเร็จบางส่วน - sheet ที่อ่านไม่ได้: ${failed.join(', ')}`);
+      return res.json({ ok: true, mode: 'file', sheet: sheetName, count: rows.length, revenueSheet: revenueSheetName, revenueCount: revenue.length, paymentWCount: paymentWTeam.length, poCount: poTeam.length, stockCount: stockTeam.length, stockSummaryCount: stockSummaryTeam.length, projectInfoCount: projectInfoTeam.length, failedSheets: failed, updatedAt: latestData.updatedAt });
     }
 
     // ทางสำรอง: body เป็น JSON array ของแถวข้อมูลตรง ๆ

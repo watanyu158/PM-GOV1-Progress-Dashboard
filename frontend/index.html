@@ -1697,7 +1697,9 @@ const TEAM_COLOR_MAP = {
 function avatarColor(name){
   const key = String(name||'').replace(/\s+/g,' ').trim().toLowerCase();
   if(TEAM_COLOR_MAP[key]) return TEAM_COLOR_MAP[key];
-  let h = 0; for (let i=0;i<(name||'').length;i++) h = (h*31 + name.charCodeAt(i)) >>> 0;
+  // ใช้ key ที่ normalize แล้วในการ hash ด้วย - เดิมใช้ name ดิบ ทำให้ชื่อเดียวกันที่เว้นวรรคต่างกัน
+  // (เช่น "Prapasiri  Rakkanpat" กับ "Prapasiri Rakkanpat") ได้คนละสี ทั้งที่เป็นคนเดียวกัน
+  let h = 0; for (let i=0;i<key.length;i++) h = (h*31 + key.charCodeAt(i)) >>> 0;
   return AV_COLORS[h % AV_COLORS.length];
 }
 function initials(name){
@@ -1763,6 +1765,12 @@ function fmtDate(v){
   if (isNaN(d)) return v;
   return d.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'});
 }
+// รับได้ 3 รูปแบบที่พบจริงในระบบนี้:
+//   1) "2026-08-21"  (ISO จาก cellDates)
+//   2) "21/08/2026"  (DD/MM/YYYY 4 หลัก - จาก Progress1 ที่คนกรอกเอง) -> ตีความแบบไทย ถูกต้อง
+//   3) "5/6/26"      (M/D/YY 2 หลัก - จาก SheetJS แปลง cell วันที่ของ PaymentW) -> ตกไป new Date()
+//      ซึ่งตีความแบบ US (เดือน/วัน) และ *ถูกต้อง* สำหรับรูปแบบนี้ ตรวจสอบกับ Excel ดิบแล้ว
+// ⚠ อย่าเปลี่ยน else สุดท้ายให้ตีความเป็น DD/MM เด็ดขาด จะทำให้วันที่จาก PaymentW สลับวัน-เดือนทั้งหมด
 function parseD(v){
   if(!v) return null;
   let d;
@@ -2593,7 +2601,13 @@ function renderWow(list){
       <div class="ov-stat">
         <div class="ov-l">Health เปลี่ยนสถานะรอบล่าสุด</div>
         <div class="ov-v">${transitions.length}</div>
-        <span class="ov-d ${worsenedN?'down':'flat'}">${worsenedN} แย่ลง · ${improvedN} ดีขึ้น</span>
+        ${(() => {
+          // เทียบ "แย่ลง vs ดีขึ้น" ไม่ใช่แค่ว่ามีแย่ลงหรือไม่ - เดิมใช้ worsenedN?'down':'flat' ทำให้
+          // สัปดาห์ที่แย่ลง 1 ดีขึ้น 9 (ภาพรวมดีขึ้นชัดเจน) ขึ้นแดงเหมือนสัปดาห์ที่แย่ลงล้วน
+          const cls = worsenedN===0 ? (improvedN>0 ? 'up' : 'flat')
+                    : worsenedN>improvedN ? 'down' : 'flat';
+          return `<span class="ov-d ${cls}">${worsenedN} แย่ลง · ${improvedN} ดีขึ้น</span>`;
+        })()}
       </div>
     </div>
     <div class="ov-chart" id="ovChartBox"></div>
