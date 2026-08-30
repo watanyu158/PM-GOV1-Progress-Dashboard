@@ -3339,6 +3339,23 @@ function renderDataFreshness(list){
 // ตรวจสอบแล้วว่าตรงกับแผนรับรู้รายได้จริงทุกเดือน และรวมกันได้ 100% = Selling Price พอดีทุกโครงการ
 const RP_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const RP_MONTH_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+// ปัดตัวเลข % ที่แนะนำให้เป็น 2 ตำแหน่ง โดย "บังคับให้ผลรวมเท่ากับเป้าเป๊ะ" เสมอ
+// ปัญหาที่แก้: ถ้าปัดแต่ละตัวอิสระ เช่น 1.3333 x3 -> 1.33 x3 = 3.99 (ควรได้ 4.00) ผลรวมจะขาด/เกิน
+// ทำให้เอาไปกรอกจริงแล้วยอดไม่ครบ 100% วิธีแก้: ปัดปกติก่อน แล้วโยนเศษที่เหลือไปที่ตัวที่มีค่ามากสุด
+// (ตัวใหญ่สุดรับเศษได้โดยกระทบสัดส่วนน้อยที่สุด) - คืนค่าเป็น "ตัวเลขที่ปัดแล้ว" พร้อมใช้แสดงผลได้เลย
+function rpRoundToTarget(values, target){
+  const r = values.map(v=>Math.round(v*100)/100);
+  const sum = r.reduce((a,b)=>a+b,0);
+  let diff = Math.round((target - sum)*100)/100;   // เศษที่ต้องชดเชย (หน่วย % ทศนิยม 2 ตำแหน่ง)
+  if(Math.abs(diff) >= 0.005 && r.length){
+    // หา index ที่ค่ามากสุด เพื่อรับเศษ (ถ้าติดลบต้องไม่ทำให้ค่าติดลบเกินจริง)
+    let idx = 0;
+    for(let i=1;i<r.length;i++) if(r[i] > r[idx]) idx = i;
+    r[idx] = Math.round((r[idx] + diff)*100)/100;
+  }
+  return r;
+}
+
 const RP_QUARTERS = [
   {name:'Q1', months:[0,1,2]}, {name:'Q2', months:[3,4,5]},
   {name:'Q3', months:[6,7,8]}, {name:'Q4', months:[9,10,11]},
@@ -3561,6 +3578,10 @@ function renderRevenuePlan(list){
         if(remSum > 0){
           const rows = remIdx.map(i=>({label:RP_MONTH_TH[i], oldV:x.monthPct[i], newV:x.monthPct[i] + x.thisPct*(x.monthPct[i]/remSum)}));
           if(x.beyondPct>0) rows.push({label:'หลังปี 69', oldV:x.beyondPct, newV:x.beyondPct + x.thisPct*(x.beyondPct/remSum)});
+          // เป้าของกลุ่มนี้ = ยอดเดิมรวม + ค่าติดลบที่ย้ายมา (ตั้งเดือนนี้เป็น 0) - ต้องรวมได้เป๊ะไม่งั้นกรอกแล้วไม่ครบ 100%
+          const rTarget = Math.round((remSum + x.thisPct)*100)/100;
+          const rRounded = rpRoundToTarget(rows.map(r=>r.newV), rTarget);
+          rows.forEach((r,i)=>{ r.newV = rRounded[i]; });
           fixRows = `<details class="rp-prop rp-prop-rev">
             <summary>ดูวิธีแก้ที่แนะนำ (ตั้งเดือนนี้เป็น 0% แล้วลดเดือนที่เหลือแทน)</summary>
             <table class="rp-pp">
@@ -3610,6 +3631,11 @@ function renderRevenuePlan(list){
             const newB = Math.max(0, x.beyondPct + shift*(x.beyondPct/remainSum));
             rows.push({label:'หลังปี 69', oldV:x.beyondPct, newV:newB});
           }
+          // ยอดที่เหลือต้องรับรู้ = 100 - งานที่ทำได้จริงตอนนี้ (บวกเดือนนี้ที่ยังตั้งไว้เท่าเดิม)
+          // บังคับให้ผลรวมหลังปัดตรงเป้าเป๊ะ ไม่งั้นกรอกจริงแล้วยอดสะสมไม่ครบ 100%
+          const pTarget = Math.round((100 - x.pmsCur)*100)/100;
+          const pRounded = rpRoundToTarget(rows.map(r=>r.newV), pTarget);
+          rows.forEach((r,i)=>{ r.newV = pRounded[i]; });
           let cum = x.pmsCur;   // เริ่มสะสมจากงานที่ทำได้จริงตอนนี้
           const body = rows.map(r=>{
             cum += r.newV;
