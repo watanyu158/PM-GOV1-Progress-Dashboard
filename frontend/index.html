@@ -460,14 +460,30 @@
   .rp-ms-v.risk{color:var(--critical);}
   .rp-ms-s{font-size:9.5px;color:var(--faint);}
   .rp-month-i{padding:9px 11px;border-radius:7px;margin-top:6px;background:var(--surface);border-left:3px solid var(--line-soft);}
-  .rp-month-i.late{border-left-color:var(--critical);}
-  .rp-month-i.ok{border-left-color:var(--success);}
+  .rp-month-i.behind{border-left-color:var(--critical);}
+  .rp-month-i.onplan{border-left-color:var(--success);}
+  .rp-month-i.ahead{border-left-color:#3D6B7A;}
   .rp-month-n{font-size:11.5px;color:var(--ink);}
   .rp-month-b{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:700;color:var(--brand);}
   .rp-month-p{font-size:10px;color:var(--faint);}
   .rp-month-msg{font-size:10.5px;line-height:1.6;margin-top:4px;}
-  .rp-month-msg.risk{color:var(--critical);}
-  .rp-month-msg.ok{color:var(--success);}
+  .rp-badge{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:20px;vertical-align:middle;white-space:nowrap;}
+  .rp-badge-behind{background:var(--critical-tint);color:var(--critical);}
+  .rp-badge-onplan{background:var(--success-tint);color:var(--success);}
+  .rp-badge-ahead{background:#E3EDF0;color:#3D6B7A;}
+  .rp-month-msg.behind{color:var(--critical);}
+  .rp-month-msg.onplan{color:var(--success);}
+  .rp-month-msg.ahead{color:#3D6B7A;}
+  .rp-ms-v.ok{color:var(--success);}
+  .rp-todo{background:var(--surface);border:1px solid var(--line-soft);border-radius:8px;padding:10px 13px;margin-bottom:11px;}
+  .rp-todo-h{font-size:10.5px;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px;}
+  .rp-todo-l{margin:0;padding-left:18px;font-size:11.5px;color:var(--ink-2);line-height:1.75;}
+  .rp-total-row td{border-top:2px solid var(--line);padding-top:8px;background:var(--surface-2);}
+  .rp-total-row td.rp-name{font-size:11px;font-weight:700;color:var(--ink-2);}
+  .rp-total-note{font-size:9px;font-weight:400;color:var(--faint);}
+  .rp-cell.rp-total{color:var(--brand);}
+  .rp-cell.rp-total.past{opacity:.62;}
+  .rp-cum{font-size:8px;color:var(--faint);line-height:1.2;}
 
   .rp-advice{padding:13px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2);}
   .rp-advice-h{font-size:11.5px;font-weight:700;color:var(--ink-2);margin-bottom:8px;}
@@ -3430,30 +3446,61 @@ function renderRevenuePlan(list){
   const today2 = new Date();
   const dInMonth = new Date(today2.getFullYear(), today2.getMonth()+1, 0).getDate();
   const dLeft = dInMonth - today2.getDate();
+  // เกณฑ์นัยยะ ±2pp - ต่ำกว่านี้ถือว่าอยู่ในช่วงคลาดเคลื่อนปกติของการรายงาน ไม่ต้องแจ้งเตือน
+  // (ตรวจกับข้อมูลจริงแล้ว: ±1pp เป็นความคลาดเคลื่อนธรรมดา แต่ ±2pp ขึ้นไปมีเหตุผลให้ต้องปรับจริง)
+  const RP_SIG = 2;
   const thisMonthItems = items.filter(x=>x.monthPct[nowM] > 0).map(x=>{
     const planCum = x.bfPct + x.monthPct.slice(0, nowM+1).reduce((s,v)=>s+v,0);
-    return {...x, thisPct:x.monthPct[nowM], thisBaht:x.monthBaht[nowM], planCum, gap:x.pmsCur - planCum};
+    const gap = x.pmsCur - planCum;
+    // 3 สถานะ: ahead = งานล้ำหน้าแผนรับรู้ (ควรพิจารณาเร่งรับรู้เข้ามา), behind = ช้ากว่า, onplan = อยู่ในเกณฑ์
+    const st = gap >= RP_SIG ? 'ahead' : gap <= -RP_SIG ? 'behind' : 'onplan';
+    return {...x, thisPct:x.monthPct[nowM], thisBaht:x.monthBaht[nowM], planCum, gap, st};
   }).sort((a,b)=>b.thisBaht - a.thisBaht);
   const thisMonthTotal = thisMonthItems.reduce((s,x)=>s+x.thisBaht,0);
-  const atRisk = thisMonthItems.filter(x=>x.gap < -0.5);
-  const atRiskBaht = atRisk.reduce((s,x)=>s+x.thisBaht,0);
+  const mBehind = thisMonthItems.filter(x=>x.st==='behind');
+  const mAhead  = thisMonthItems.filter(x=>x.st==='ahead');
+  const mOnplan = thisMonthItems.filter(x=>x.st==='onplan');
+  const behindBaht = mBehind.reduce((s,x)=>s+x.thisBaht,0);
+  const aheadBaht  = mAhead.reduce((s,x)=>s+x.thisBaht,0);
+  const readyBaht  = mOnplan.reduce((s,x)=>s+x.thisBaht,0) + aheadBaht;
 
+  // สรุป "ควรทำอะไร" ตามสถานการณ์จริงของเดือนนี้ - เปลี่ยนตามจำนวนวันที่เหลือด้วย
+  const todos = [];
+  if(mOnplan.length || mAhead.length) todos.push(`ตั้งเบิก/รับรู้รายได้ได้เลย ${mOnplan.length+mAhead.length} โครงการ รวม ${thb(readyBaht)}`);
+  if(mBehind.length) todos.push(dLeft<=3
+    ? `เร่งตัดสินใจ ${mBehind.length} โครงการ (${thb(behindBaht)}) - เหลือ ${dLeft} วัน ถ้าไม่ทันควรเลื่อนแผนไปเดือนหน้าตั้งแต่ตอนนี้ อย่ารอให้ตกเดือน`
+    : `ตาม ${mBehind.length} โครงการที่งานช้ากว่าแผน (${thb(behindBaht)}) - ยังเหลือ ${dLeft} วัน พอเร่งได้`);
+  if(mAhead.length) todos.push(`ทบทวนแผน ${mAhead.length} โครงการที่งานเร็วกว่าแผน (${thb(aheadBaht)}) - อาจดึงรับรู้รายได้เข้ามาเร็วขึ้นได้`);
+
+  const RP_ST = {
+    ahead:  {icon:'\u25B2', label:'เร็วกว่าแผน', cls:'ahead'},
+    behind: {icon:'\u25BC', label:'ช้ากว่าแผน',  cls:'behind'},
+    onplan: {icon:'\u25CF', label:'ตรงแผน',      cls:'onplan'},
+  };
   const monthlyHtml = thisMonthItems.length ? `<div class="rp-month">
-    <div class="rp-month-h">📅 โฟกัสเดือน${RP_MONTH_TH[nowM]} - เหลืออีก ${dLeft} วัน (วันที่ ${today2.getDate()}/${dInMonth})</div>
+    <div class="rp-month-h">📅 โฟกัสเดือน${RP_MONTH_TH[nowM]} - ${dLeft>0?`เหลืออีก ${dLeft} วัน`:'วันสุดท้ายของเดือน'} (วันที่ ${today2.getDate()}/${dInMonth})</div>
+    <div class="rp-todo">
+      <div class="rp-todo-h">สิ่งที่ควรทำในช่วงนี้</div>
+      <ol class="rp-todo-l">${todos.map(t=>`<li>${t}</li>`).join('')}</ol>
+    </div>
     <div class="rp-month-sum">
       <div><span class="rp-ms-l">ต้องรับรู้เดือนนี้</span><span class="rp-ms-v">${thb(thisMonthTotal)}</span><span class="rp-ms-s">${thisMonthItems.length} โครงการ</span></div>
-      <div><span class="rp-ms-l">เสี่ยงไม่ทัน</span><span class="rp-ms-v ${atRiskBaht>0?'risk':''}">${thb(atRiskBaht)}</span><span class="rp-ms-s">${atRisk.length} โครงการที่งานช้ากว่าแผน</span></div>
+      <div><span class="rp-ms-l">พร้อมรับรู้</span><span class="rp-ms-v ok">${thb(readyBaht)}</span><span class="rp-ms-s">${mOnplan.length+mAhead.length} โครงการ</span></div>
+      <div><span class="rp-ms-l">ต้องตาม</span><span class="rp-ms-v ${behindBaht>0?'risk':''}">${thb(behindBaht)}</span><span class="rp-ms-s">${mBehind.length} โครงการงานช้ากว่าแผน</span></div>
     </div>
     ${thisMonthItems.map(x=>{
-      const late = x.gap < -0.5;
-      const need = Math.max(0, x.planCum - x.pmsCur);
-      return `<div class="rp-month-i ${late?'late':'ok'}">
-        <div class="rp-month-n"><b>${x.name}</b> <span class="code-tag">#${x.code}</span></div>
+      const st = RP_ST[x.st];
+      const need = Math.abs(x.gap);
+      const msg = x.st==='behind'
+        ? `งานทำได้ ${x.pmsCur.toFixed(1)}% แต่แผนต้องถึง ${x.planCum.toFixed(1)}% - ต้องเร่งอีก ${need.toFixed(1)}pp ${dLeft>0?`ใน ${dLeft} วัน`:'ภายในวันนี้'} ไม่งั้นยอดนี้จะรับรู้ไม่ทันสิ้นเดือน ควรเลื่อนแผนไปเดือนหน้าหรือคุยกับลูกค้า/ทีมด่วน`
+        : x.st==='ahead'
+        ? `งานทำได้ ${x.pmsCur.toFixed(1)}% เกินแผน ${x.planCum.toFixed(1)}% อยู่ ${need.toFixed(1)}pp - ควรทบทวนแผน อาจดึงรับรู้รายได้เข้ามาเร็วกว่าที่วางไว้ได้`
+        : `งานทำได้ ${x.pmsCur.toFixed(1)}% เทียบแผน ${x.planCum.toFixed(1)}% - อยู่ในเกณฑ์ พร้อมตั้งเบิก/รับรู้รายได้ตามแผน`;
+      return `<div class="rp-month-i ${st.cls}">
+        <div class="rp-month-n"><b>${x.name}</b> <span class="code-tag">#${x.code}</span> <span class="rp-badge rp-badge-${st.cls}">${st.icon} ${st.label} ${x.gap>0?'+':''}${x.gap.toFixed(1)}pp</span></div>
         <div class="rp-month-d">
           <span class="rp-month-b">${thb(x.thisBaht)}</span> <span class="rp-month-p">(${x.thisPct.toFixed(2)}% ของสัญญา)</span>
-          ${late
-            ? `<div class="rp-month-msg risk">⚠ งานทำได้ ${x.pmsCur.toFixed(1)}% แต่แผนต้องถึง ${x.planCum.toFixed(1)}% - ต้องเร่งอีก ${need.toFixed(1)}pp ใน ${dLeft} วัน ไม่งั้นยอดนี้จะรับรู้ไม่ทันสิ้นเดือน ควรคุยกับลูกค้า/ทีมล่วงหน้า หรือเลื่อนแผนไปเดือนหน้า`
-            : `<div class="rp-month-msg ok">✓ งานทำได้ ${x.pmsCur.toFixed(1)}% ถึงแผน ${x.planCum.toFixed(1)}% แล้ว - พร้อมตั้งเบิก/รับรู้รายได้ตามแผน`}</div>
+          <div class="rp-month-msg ${st.cls}">${st.icon} ${msg}</div>
         </div>
       </div>`;
     }).join('')}
@@ -3498,6 +3545,21 @@ function renderRevenuePlan(list){
           <th class="rp-cell beyond">&gt;26</th>
         </tr></thead>
         <tbody>${projRows}</tbody>
+        <tfoot>
+          <tr class="rp-total-row">
+            <td class="rp-name">รวมทั้งทีมต่อเดือน <span class="rp-total-note">(บน = ยอดเดือนนั้น · ล่าง = สะสมตั้งแต่ต้นปี)</span></td>
+            <td class="rp-cell bf"><div class="rp-baht">${compact(teamBF)}</div><div class="rp-pct">ก่อนปีนี้</div></td>
+            ${teamMonth.map((v,i)=>{
+              // แถวสรุปท้ายตาราง - เห็นทั้งยอดรายเดือนและยอดสะสม ทำให้ดูย้อนหลังได้ว่าเดือนไหนทำได้เท่าไหร่แล้ว
+              const past = i < nowM, cur = i === nowM;
+              return `<td class="rp-cell rp-total ${cur?'now':''} ${past?'past':''}" title="${RP_MONTH_TH[i]} · ยอดเดือนนี้ ${thb(v)} · สะสม ${thb(cumTeam[i])}">
+                <div class="rp-baht">${v>0?compact(v):'-'}</div>
+                <div class="rp-cum">${compact(cumTeam[i])}</div>
+              </td>`;
+            }).join('')}
+            <td class="rp-cell beyond"><div class="rp-baht">${teamBeyond>0?compact(teamBeyond):'-'}</div><div class="rp-pct">หลังปีนี้</div></td>
+          </tr>
+        </tfoot>
       </table>
       <div class="rp-hint">ตัวเลขใหญ่ = มูลค่าที่วางแผนรับรู้เดือนนั้น (บาท) · ตัวเล็ก = % ของ Selling Price · สีเข้ม = สัดส่วนสูง · ชี้เมาส์เพื่อดูตัวเลขเต็ม · BF = รับรู้ก่อนปี 2026</div>
     </div>
