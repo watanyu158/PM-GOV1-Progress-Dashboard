@@ -379,10 +379,32 @@ function parsePaymentMPO(wb) {
   const ws = wb.Sheets[sheetName];
   const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: null, dateNF: 'yyyy-mm-dd' });
 
-  const hIdx = aoa.findIndex(r => Array.isArray(r) && r.some(v => String(v || '').replace(/\s+/g, ' ').trim() === 'PROJECT CODE'));
-  if (hIdx < 0) return { rows: [], sheetName };
+  // หาหัวตาราง PO - ยืดหยุ่นขึ้น: ตัด non-breaking space (\u00A0) ที่ Excel ชอบแทรก, ไม่สนตัวพิมพ์เล็กใหญ่
+  // และยอมรับทั้ง "PROJECT CODE" / "PROJECTCODE" (บางไฟล์ไม่มีเว้นวรรค)
+  const normHdr = v => String(v || '').replace(/[\s\u00A0]+/g, ' ').trim().toUpperCase();
+  const isCodeHdr = v => { const t = normHdr(v); return t === 'PROJECT CODE' || t === 'PROJECTCODE'; };
+  // ⚠ sheet นี้มี "Project Code" 2 จุด: ตารางซ้าย (งวดจ่าย) กับตาราง PO ฝั่งขวา
+  // ต้องเลือกอันที่เป็นตาราง PO เท่านั้น ดูจากการมีหัว "PO NUMBER" อยู่ถัดไปในแถวเดียวกัน
+  const isPoNumHdr = v => normHdr(v).replace(/\s/g,'') === 'PONUMBER';
+  const hIdx = aoa.findIndex(r => Array.isArray(r) && r.some(isCodeHdr) && r.some(isPoNumHdr));
+  if (hIdx < 0) {
+    // ช่วย debug: บอกว่าหัวตารางที่เจอจริงมีอะไรบ้าง จะได้รู้ว่าไฟล์ต้นทางเปลี่ยนรูปแบบไปหรือไม่
+    const preview = aoa.slice(0, 5).map((r, i) =>
+      `    แถว ${i}: ${JSON.stringify((r || []).filter(v => v !== null && v !== '').slice(0, 12))}`
+    ).join('\n');
+    console.log(`⚠ อ่าน PO จาก sheet "${sheetName}" ไม่ได้ - หาหัวตาราง "PROJECT CODE" ไม่เจอ`);
+    console.log(`   จำนวนแถวทั้งหมดใน sheet: ${aoa.length}`);
+    console.log(`   ตัวอย่าง 5 แถวแรกที่อ่านได้:\n${preview}`);
+    return { rows: [], sheetName };
+  }
   const header = aoa[hIdx];
-  const startCol = header.findIndex(v => String(v || '').replace(/\s+/g, ' ').trim() === 'PROJECT CODE');
+  // เลือกคอลัมน์ "Project Code" ที่อยู่ติดกับ "PO NUMBER" (ตาราง PO) ไม่ใช่ตัวแรกของแถว
+  const poNumCol = header.findIndex(isPoNumHdr);
+  let startCol = -1;
+  for (let i = 0; i < header.length; i++) {
+    if (isCodeHdr(header[i]) && i < poNumCol) startCol = i;   // ตัวสุดท้ายที่อยู่ก่อน PO NUMBER
+  }
+  if (startCol < 0) startCol = header.findIndex(isCodeHdr);
   const dataRows = aoa.slice(hIdx + 1);
 
   const KEYS = ['projectCode','poNumber','approved','status','quotation','vendor','bup','item','price','poDate','paymentTerm','approvedDate','deliveryDate','product','category','customer','arrivalDate','receivedPrice','balanced','cur','remark'];
