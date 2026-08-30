@@ -512,6 +512,13 @@
   .rp-pp-baht{font-weight:600;color:var(--ink-2);}
   .rp-pp-note{font-size:9.5px;color:var(--faint);line-height:1.6;margin-top:6px;}
 
+  .rp-rev-note{padding:11px 13px;border-radius:7px;margin-top:6px;background:var(--warning-tint);border-left:3px solid var(--warning);font-size:11px;color:var(--ink-2);line-height:1.65;}
+  .rp-rev-why{font-size:10.5px;color:var(--ink-2);margin-top:4px;padding-bottom:7px;border-bottom:1px dashed var(--line-soft);}
+  .rp-rev-i{font-size:11px;color:var(--ink-2);margin-top:9px;}
+  .rp-rev-amt{font-family:'IBM Plex Mono',monospace;color:var(--critical);}
+  .rp-rev-diag{font-size:10.5px;color:var(--ink-2);line-height:1.6;margin-top:3px;padding-left:9px;border-left:2px solid var(--line-soft);}
+  .rp-prop-rev > summary{background:var(--surface);}
+
   .rp-advice{padding:13px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2);}
   .rp-advice-h{font-size:11.5px;font-weight:700;color:var(--ink-2);margin-bottom:8px;}
   .rp-advice-i{font-size:11px;color:var(--ink-2);line-height:1.65;padding:8px 11px;border-radius:7px;margin-top:6px;border-left:3px solid var(--line-soft);background:var(--surface);}
@@ -3493,6 +3500,13 @@ function renderRevenuePlan(list){
             note:(p['Progress Update']||'').trim()};
   }).sort((a,b)=>b.thisBaht - a.thisBaht);
   const thisMonthTotal = thisMonthItems.reduce((s,x)=>s+x.thisBaht,0);
+  // บาง sheet มี % ติดลบ = การ "กลับรายการ" รายได้ที่เคยรับรู้เกินไว้ (เจอจริง 2 โครงการ)
+  // ต้องนับรวมด้วย ไม่งั้นยอดในบล็อกนี้จะไม่ตรงกับแถว "รวมทั้งทีมต่อเดือน" ในตารางด้านบน
+  const reversalItems = items.filter(x=>x.monthPct[nowM] < 0)
+    .map(x=>({...x, thisPct:x.monthPct[nowM], thisBaht:x.monthBaht[nowM]}))
+    .sort((a,b)=>a.thisBaht-b.thisBaht);
+  const reversalBaht = reversalItems.reduce((s,x)=>s+x.thisBaht,0);
+  const netMonthTotal = thisMonthTotal + reversalBaht;
   const mBehind = thisMonthItems.filter(x=>x.st==='behind');
   const mAhead  = thisMonthItems.filter(x=>x.st==='ahead');
   const mOnplan = thisMonthItems.filter(x=>x.st==='onplan');
@@ -3524,11 +3538,50 @@ function renderRevenuePlan(list){
       <ol class="rp-todo-l">${todos.map(t=>`<li>${t}</li>`).join('')}</ol>
     </div>
     <div class="rp-month-sum">
-      <div><span class="rp-ms-l">ต้องรับรู้เดือนนี้</span><span class="rp-ms-v">${thb(thisMonthTotal)}</span><span class="rp-ms-s">${thisMonthItems.length} โครงการ</span></div>
+      <div><span class="rp-ms-l">ตั้งรับรู้เดือนนี้</span><span class="rp-ms-v">${thb(thisMonthTotal)}</span><span class="rp-ms-s">${thisMonthItems.length} โครงการ</span></div>
+      ${reversalItems.length?`<div><span class="rp-ms-l">กลับรายการ</span><span class="rp-ms-v risk">${thb(reversalBaht)}</span><span class="rp-ms-s">${reversalItems.length} โครงการ</span></div>
+      <div><span class="rp-ms-l">ยอดสุทธิ</span><span class="rp-ms-v">${thb(netMonthTotal)}</span><span class="rp-ms-s">ตรงกับแถวรวมในตาราง</span></div>`:''}
       <div><span class="rp-ms-l">พร้อมรับรู้</span><span class="rp-ms-v ok">${thb(readyBaht)}</span><span class="rp-ms-s">${mOnplan.length+mAhead.length} โครงการ</span></div>
       <div><span class="rp-ms-l">ต้องตาม</span><span class="rp-ms-v ${behindBaht>0?'risk':''}">${thb(behindBaht)}</span><span class="rp-ms-s">${mBehind.length} โครงการงานช้ากว่าแผน</span></div>
       ${mNew.length?`<div><span class="rp-ms-l">เพิ่งเริ่ม</span><span class="rp-ms-v new">${thb(newBaht)}</span><span class="rp-ms-s">${mNew.length} โครงการรอเซ็น/เริ่มงาน</span></div>`:''}
     </div>
+    ${reversalItems.length ? `<div class="rp-rev-note">
+      <b>\u21BA เดือนนี้มีแผนรับรู้รายได้ติดลบ ${reversalItems.length} โครงการ - ควรตรวจสอบ</b>
+      <div class="rp-rev-why">ยอดสะสมแบบ % of completion ปกติ<b>ไม่ควรลดลง</b> เว้นแต่ขอบเขตงานถูกลดจริง, ประเมินความคืบหน้าเดือนก่อนผิด หรือลูกค้าไม่รับงานบางส่วน</div>
+      ${reversalItems.map(x=>{
+        // เช็คว่าค่าติดลบ = ส่วนต่างระหว่าง "รับรู้จริงสะสม" กับ "เป้าสะสม" พอดีหรือไม่
+        // ถ้าใช่ = น่าจะเป็นการดึงตัวเลขให้ตรงเป้า (ไม่ใช่การกลับรายการจริง) ซึ่งควรแก้ที่แผนเดือนถัดไปแทน
+        const accPct = num(x.r['Acc %']);
+        const revPlan = num(x.r['Rev Plan%']);
+        const looksLikeAdjust = Math.abs((accPct - revPlan) - Math.abs(x.thisPct)) < 0.01;
+        // เสนอวิธีแก้: ตั้งเดือนนี้ = 0 แล้วเกลี่ยส่วนต่างไปลดเดือนที่เหลือตามสัดส่วน (ยอดรวมยังได้ 100% เท่าเดิม)
+        const remIdx = []; for(let i=nowM+1;i<12;i++) if(x.monthPct[i] > 0) remIdx.push(i);
+        const remSum = remIdx.reduce((a,i)=>a+x.monthPct[i],0) + (x.beyondPct>0?x.beyondPct:0);
+        let fixRows = '';
+        if(remSum > 0){
+          const rows = remIdx.map(i=>({label:RP_MONTH_TH[i], oldV:x.monthPct[i], newV:x.monthPct[i] + x.thisPct*(x.monthPct[i]/remSum)}));
+          if(x.beyondPct>0) rows.push({label:'หลังปี 69', oldV:x.beyondPct, newV:x.beyondPct + x.thisPct*(x.beyondPct/remSum)});
+          fixRows = `<details class="rp-prop rp-prop-rev">
+            <summary>ดูวิธีแก้ที่แนะนำ (ตั้งเดือนนี้เป็น 0% แล้วลดเดือนที่เหลือแทน)</summary>
+            <table class="rp-pp">
+              <thead><tr><th>เดือน</th><th>แผนเดิม</th><th>แนะนำ</th><th>ต่าง</th><th>มูลค่า (บาท)</th></tr></thead>
+              <tbody>
+                <tr><td>${RP_MONTH_TH[nowM]} (เดือนนี้)</td><td class="rp-pp-old">${x.thisPct.toFixed(2)}%</td><td class="rp-pp-new">0.00%</td><td class="rp-pp-d up">+${Math.abs(x.thisPct).toFixed(2)}%</td><td class="rp-pp-baht">0.00</td></tr>
+                ${rows.map(r=>`<tr><td>${r.label}</td><td class="rp-pp-old">${r.oldV.toFixed(2)}%</td><td class="rp-pp-new">${r.newV.toFixed(2)}%</td><td class="rp-pp-d dn">${(r.newV-r.oldV).toFixed(2)}%</td><td class="rp-pp-baht">${thb(x.selling*r.newV/100)}</td></tr>`).join('')}
+              </tbody>
+            </table>
+            <div class="rp-pp-note">ยอดสะสมสุดท้ายยังได้ 100% (${thb(x.selling)}) เท่าเดิม แต่ไม่มีเดือนไหนติดลบ · ทำให้ยอดรวมรายเดือนของทีมสะท้อนงานจริง ไม่ต่ำกว่าความเป็นจริง</div>
+          </details>`;
+        }
+        return `<div class="rp-rev-i">
+          <div><b>${x.name}</b> <span class="code-tag">#${x.code}</span> <b class="rp-rev-amt">${thb(x.thisBaht)}</b> (${x.thisPct.toFixed(2)}%)</div>
+          ${looksLikeAdjust
+            ? `<div class="rp-rev-diag">\u26A0 ค่านี้เท่ากับส่วนต่างระหว่างรับรู้จริงสะสม ${accPct.toFixed(2)}% กับเป้าสะสม ${revPlan.toFixed(2)}% พอดี - น่าจะเป็นการดึงตัวเลขให้ตรงเป้ามากกว่าการกลับรายการจริง (งานเร็วกว่าแผน ไม่ได้ถูกลดขอบเขต) <b>ถ้าไม่มี credit note จริง ควรแก้ที่แผนเดือนถัดไปแทน</b></div>`
+            : `<div class="rp-rev-diag">ตรวจสอบกับฝ่ายบัญชีว่ามีเอกสารกลับรายการ (credit note) รองรับหรือไม่</div>`}
+          ${fixRows}
+        </div>`;
+      }).join('')}
+    </div>` : ''}
     ${thisMonthItems.map(x=>{
       const st = RP_ST[x.st];
       const need = Math.abs(x.gap);
@@ -3924,7 +3977,7 @@ function activeCodeSet(list){ return new Set((list||ALL).map(p=>p['Project Code'
 function renderPayment(paywSource, codeSetList){
   const el = document.getElementById('pw');
   const activeCodes = activeCodeSet(codeSetList);
-  const items = (paywSource||PAYW).filter(p => activeCodes.has(p.projectCode) && (!filters.pm || nrm(p.pm)===nrm(filters.pm)));
+  const items = (paywSource||PAYW).filter(p => activeCodes.has(p.projectCode) && (!filters.pm || pmKey(p.pm)===pmKey(filters.pm)));
   document.getElementById('pwCount').textContent = `${items.length} โครงการ`;
   if(!items.length){ el.innerHTML = `<div class="empty">ไม่มีข้อมูลการเก็บเงินตรงกับตัวกรองนี้</div>`; return; }
 
@@ -4075,10 +4128,20 @@ function renderPayment(paywSource, codeSetList){
 function renderPOPanel(poSource, codeSetList){
   const el = document.getElementById('poBox');
   const activeCodes = activeCodeSet(codeSetList);
-  const items = (poSource||PO).filter(p => activeCodes.has(p.projectCode) && (!filters.pm || nrm(p.pm)===nrm(filters.pm)));
+  const items = (poSource||PO).filter(p => activeCodes.has(p.projectCode) && (!filters.pm || pmKey(p.pm)===pmKey(filters.pm)));
   const projectCount = uniq(items.map(x=>x.projectCode)).length;
   document.getElementById('poCount').textContent = `${items.length} PO · ${projectCount} โครงการ`;
-  if(!items.length){ el.innerHTML = `<div class="empty">ไม่มี PO ตรงกับตัวกรองนี้</div>`; return; }
+  if(!items.length){
+    // บอกสาเหตุให้ชัดว่าทำไมว่าง จะได้แยกออกว่าเป็นเพราะ "ยังไม่ sync" หรือ "กรองจนไม่เหลือ"
+    const src = (poSource||PO);
+    const why = src.length===0
+      ? 'ยังไม่มีข้อมูล PO ในระบบเลย - ตรวจว่า sync ไฟล์ Excel ล่าสุดแล้วหรือยัง (PO อ่านจาก sheet "PaymentM" คอลัมน์ฝั่งขวา)'
+      : activeCodes.size===0
+      ? 'ไม่มีโครงการที่ผ่านตัวกรองด้านบน จึงไม่มี PO ให้แสดง - ลองล้างตัวกรอง'
+      : `มี PO ${src.length} รายการในระบบ แต่ไม่มีรายการไหนตรงกับโครงการที่กรองอยู่ (${activeCodes.size} โครงการ)${filters.pm?` และ PM "${filters.pm}"`:''}`;
+    el.innerHTML = `<div class="empty">${why}</div>`;
+    return;
+  }
 
   const totalPrice = items.reduce((s,x)=>s+num(x.price),0);
   const totalBalanced = items.reduce((s,x)=>s+num(x.balanced),0);
@@ -4169,7 +4232,7 @@ function renderPOPanel(poSource, codeSetList){
 function renderStock(stockSumSource, codeSetList, stockMovementSource){
   const el = document.getElementById('stkBox');
   const activeCodes = activeCodeSet(codeSetList);
-  const items = (stockSumSource||STOCKSUM).filter(p => activeCodes.has(p.projectCode) && (!filters.pm || nrm(p.pm)===nrm(filters.pm)));
+  const items = (stockSumSource||STOCKSUM).filter(p => activeCodes.has(p.projectCode) && (!filters.pm || pmKey(p.pm)===pmKey(filters.pm)));
   document.getElementById('stkCount').textContent = `${items.length} โครงการ`;
   if(!items.length){ el.innerHTML = `<div class="empty">ไม่มีของค้างสต็อกตรงกับตัวกรองนี้</div>`; return; }
 
