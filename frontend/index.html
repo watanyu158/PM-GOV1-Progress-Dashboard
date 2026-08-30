@@ -485,6 +485,29 @@
   .rp-cell.rp-total.past{opacity:.62;}
   .rp-cum{font-size:8px;color:var(--faint);line-height:1.2;}
 
+  .rp-prop{margin-top:7px;}
+  .rp-prop > summary{
+    cursor:pointer;font-size:10.5px;font-weight:700;color:var(--brand);
+    padding:4px 9px;background:var(--surface-2);border:1px solid var(--line-soft);
+    border-radius:6px;display:inline-block;list-style:none;user-select:none;
+  }
+  .rp-prop > summary::-webkit-details-marker{display:none;}
+  .rp-prop > summary::before{content:'▸ ';}
+  .rp-prop[open] > summary::before{content:'▾ ';}
+  .rp-prop > summary:hover{background:#EFE3D2;}
+  .rp-pp{width:100%;border-collapse:collapse;margin-top:7px;font-size:10.5px;}
+  .rp-pp th{font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;padding:4px 6px;border-bottom:1px solid var(--line-soft);text-align:right;}
+  .rp-pp th:first-child{text-align:left;}
+  .rp-pp td{padding:4px 6px;border-bottom:1px solid var(--line-soft);text-align:right;font-family:'IBM Plex Mono',monospace;}
+  .rp-pp td:first-child{text-align:left;font-family:'Inter',sans-serif;color:var(--ink-2);}
+  .rp-pp-old{color:var(--faint);text-decoration:line-through;}
+  .rp-pp-new{font-weight:700;color:var(--brand);}
+  .rp-pp-d.up{color:var(--critical);}
+  .rp-pp-d.dn{color:#3D6B7A;}
+  .rp-pp-cum{color:var(--faint);}
+  .rp-pp-baht{font-weight:600;color:var(--ink-2);}
+  .rp-pp-note{font-size:9.5px;color:var(--faint);line-height:1.6;margin-top:6px;}
+
   .rp-advice{padding:13px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2);}
   .rp-advice-h{font-size:11.5px;font-weight:700;color:var(--ink-2);margin-bottom:8px;}
   .rp-advice-i{font-size:11px;color:var(--ink-2);line-height:1.65;padding:8px 11px;border-radius:7px;margin-top:6px;border-left:3px solid var(--line-soft);background:var(--surface);}
@@ -3466,11 +3489,11 @@ function renderRevenuePlan(list){
 
   // สรุป "ควรทำอะไร" ตามสถานการณ์จริงของเดือนนี้ - เปลี่ยนตามจำนวนวันที่เหลือด้วย
   const todos = [];
-  if(mOnplan.length || mAhead.length) todos.push(`ตั้งเบิก/รับรู้รายได้ได้เลย ${mOnplan.length+mAhead.length} โครงการ รวม ${thb(readyBaht)}`);
+  if(mOnplan.length || mAhead.length) todos.push(`ตั้งเบิก/รับรู้รายได้ได้เลย ${mOnplan.length+mAhead.length} โครงการ รวม ${thb(readyBaht)} บาท`);
   if(mBehind.length) todos.push(dLeft<=3
-    ? `เร่งตัดสินใจ ${mBehind.length} โครงการ (${thb(behindBaht)}) - เหลือ ${dLeft} วัน ถ้าไม่ทันควรเลื่อนแผนไปเดือนหน้าตั้งแต่ตอนนี้ อย่ารอให้ตกเดือน`
-    : `ตาม ${mBehind.length} โครงการที่งานช้ากว่าแผน (${thb(behindBaht)}) - ยังเหลือ ${dLeft} วัน พอเร่งได้`);
-  if(mAhead.length) todos.push(`ทบทวนแผน ${mAhead.length} โครงการที่งานเร็วกว่าแผน (${thb(aheadBaht)}) - อาจดึงรับรู้รายได้เข้ามาเร็วขึ้นได้`);
+    ? `เร่งตัดสินใจ ${mBehind.length} โครงการ (${thb(behindBaht)} บาท) - เหลือ ${dLeft} วัน ถ้าไม่ทันควรเลื่อนแผนไปเดือนหน้าตั้งแต่ตอนนี้ อย่ารอให้ตกเดือน`
+    : `ตาม ${mBehind.length} โครงการที่งานช้ากว่าแผน (${thb(behindBaht)} บาท) - ยังเหลือ ${dLeft} วัน พอเร่งได้`);
+  if(mAhead.length) todos.push(`ทบทวนแผน ${mAhead.length} โครงการที่งานเร็วกว่าแผน (${thb(aheadBaht)} บาท) - อาจดึงรับรู้รายได้เข้ามาเร็วขึ้นได้`);
 
   const RP_ST = {
     ahead:  {icon:'\u25B2', label:'เร็วกว่าแผน', cls:'ahead'},
@@ -3496,11 +3519,53 @@ function renderRevenuePlan(list){
         : x.st==='ahead'
         ? `งานทำได้ ${x.pmsCur.toFixed(1)}% เกินแผน ${x.planCum.toFixed(1)}% อยู่ ${need.toFixed(1)}pp - ควรทบทวนแผน อาจดึงรับรู้รายได้เข้ามาเร็วกว่าที่วางไว้ได้`
         : `งานทำได้ ${x.pmsCur.toFixed(1)}% เทียบแผน ${x.planCum.toFixed(1)}% - อยู่ในเกณฑ์ พร้อมตั้งเบิก/รับรู้รายได้ตามแผน`;
+      // ---- เสนอแผนใหม่: เกลี่ย gap ไปเดือนที่เหลือตามสัดส่วนเดิม (คงยอดรวม 100% เท่าเดิมเสมอ) ----
+      // ซ่อนไว้ใน <details> ให้กดเปิดเอง จะได้ไม่รกหน้าจอ - เปิดดูเฉพาะตัวที่สนใจจะปรับจริง
+      let proposal = '';
+      if(x.st !== 'onplan'){
+        const remainIdx = [];
+        for(let i=nowM+1;i<12;i++) if(x.monthPct[i] > 0) remainIdx.push(i);
+        const remainSum = remainIdx.reduce((s2,i)=>s2+x.monthPct[i],0) + x.beyondPct;
+        if(remainSum > 0){
+          const shift = -x.gap;   // ช้ากว่าแผน (gap ลบ) = ต้องเลื่อนออกไป / เร็วกว่า = ดึงเข้ามา
+          const rows = remainIdx.map(i=>{
+            const oldV = x.monthPct[i];
+            const newV = Math.max(0, oldV + shift*(oldV/remainSum));
+            return {label:RP_MONTH_TH[i], oldV, newV};
+          });
+          if(x.beyondPct > 0){
+            const newB = Math.max(0, x.beyondPct + shift*(x.beyondPct/remainSum));
+            rows.push({label:'หลังปี 69', oldV:x.beyondPct, newV:newB});
+          }
+          let cum = x.pmsCur;   // เริ่มสะสมจากงานที่ทำได้จริงตอนนี้
+          const body = rows.map(r=>{
+            cum += r.newV;
+            const dv = r.newV - r.oldV;
+            return `<tr>
+              <td>${r.label}</td>
+              <td class="rp-pp-old">${r.oldV.toFixed(2)}%</td>
+              <td class="rp-pp-new">${r.newV.toFixed(2)}%</td>
+              <td class="rp-pp-d ${dv>0.005?'up':dv<-0.005?'dn':''}">${dv>0.005?'+':''}${Math.abs(dv)<0.005?'-':dv.toFixed(2)+'%'}</td>
+              <td class="rp-pp-cum">${cum.toFixed(2)}%</td>
+              <td class="rp-pp-baht">${thb(x.selling*r.newV/100)}</td>
+            </tr>`;
+          }).join('');
+          proposal = `<details class="rp-prop">
+            <summary>ดูแผน % ที่แนะนำให้ปรับใหม่ (${x.st==='behind'?`เลื่อนออก ${Math.abs(shift).toFixed(1)}pp`:`ดึงเข้ามา ${Math.abs(shift).toFixed(1)}pp`})</summary>
+            <table class="rp-pp">
+              <thead><tr><th>เดือน</th><th>แผนเดิม</th><th>แนะนำ</th><th>ต่าง</th><th>สะสม</th><th>มูลค่า (บาท)</th></tr></thead>
+              <tbody>${body}</tbody>
+            </table>
+            <div class="rp-pp-note">คิดจากงานจริง ณ วันนี้ ${x.pmsCur.toFixed(1)}% แล้วเกลี่ยส่วนต่าง ${Math.abs(shift).toFixed(1)}pp ไปเดือนที่เหลือตามสัดส่วนเดิม · ยอดรวมยังเท่ากับ 100% (${thb(x.selling)}) เหมือนเดิม</div>
+          </details>`;
+        }
+      }
       return `<div class="rp-month-i ${st.cls}">
         <div class="rp-month-n"><b>${x.name}</b> <span class="code-tag">#${x.code}</span> <span class="rp-badge rp-badge-${st.cls}">${st.icon} ${st.label} ${x.gap>0?'+':''}${x.gap.toFixed(1)}pp</span></div>
         <div class="rp-month-d">
           <span class="rp-month-b">${thb(x.thisBaht)}</span> <span class="rp-month-p">(${x.thisPct.toFixed(2)}% ของสัญญา)</span>
           <div class="rp-month-msg ${st.cls}">${st.icon} ${msg}</div>
+          ${proposal}
         </div>
       </div>`;
     }).join('')}
