@@ -517,6 +517,7 @@
   .rp-total-row td{border-top:2px solid var(--line);padding-top:8px;background:var(--surface-2);}
   .rp-total-row td.rp-name{font-size:11px;font-weight:700;color:var(--ink-2);}
   .rp-total-note{font-size:9px;font-weight:400;color:var(--faint);}
+  .rp-cell.rp-neg{box-shadow:inset 0 0 0 1.5px var(--critical);}
   .rp-cell.rp-total{color:var(--brand);}
   .rp-cell.rp-total.past{opacity:.62;}
   .rp-cum{font-size:8px;color:var(--faint);line-height:1.2;}
@@ -3605,13 +3606,19 @@ function renderRevenuePlan(list){
     const gap = x.pmsCur - planCum;
     const gapCls = gap<=-10?'down':gap>=10?'up':'flat';
     const cells = x.monthPct.map((v,i)=>{
+      // ต้องแยก 3 กรณีให้ชัด: ค่าบวก / ค่าติดลบ (กลับรายการ) / ไม่มีแผนเลย
+      // เดิมเช็คแค่ v>0 ทำให้ค่าติดลบตกไปเป็นช่องว่าง แยกไม่ออกจาก "ไม่มีแผน" ซึ่งคนละความหมายกัน
+      const isNeg = v < 0;
       const intensity = v<=0 ? 0 : Math.min(1, v/25);
-      const bg = v<=0 ? 'transparent' : `rgba(122,92,62,${(0.10+intensity*0.55).toFixed(2)})`;
-      const fg = intensity>0.55 ? '#fff' : 'var(--ink-2)';
-      const sub = intensity>0.55 ? 'rgba(255,255,255,.75)' : 'var(--faint)';
+      const bg = isNeg ? 'var(--critical-tint)' : v<=0 ? 'transparent' : `rgba(122,92,62,${(0.10+intensity*0.55).toFixed(2)})`;
+      const fg = isNeg ? 'var(--critical)' : intensity>0.55 ? '#fff' : 'var(--ink-2)';
+      const sub = isNeg ? 'var(--critical)' : intensity>0.55 ? 'rgba(255,255,255,.75)' : 'var(--faint)';
+      const tip = v===0 ? `${RP_MONTH_TH[i]} - ไม่มีแผนรับรู้รายได้เดือนนี้`
+        : isNeg ? `${RP_MONTH_TH[i]} ${v.toFixed(2)}% = ${thb(x.monthBaht[i])} (กลับรายการ - ปรับลดยอดที่เคยรับรู้เกินไว้)`
+        : `${RP_MONTH_TH[i]} ${v.toFixed(2)}% = ${thb(x.monthBaht[i])}`;
       // โชว์ยอดเงินเป็นตัวหลัก ส่วน % ใส่ตัวเล็กไว้ด้านล่าง (ตามที่ OAT ขอ - เดิมโชว์ % เป็นตัวหลัก)
-      return `<td class="rp-cell ${i===nowM?'now':''}" style="background:${bg};color:${fg}" title="${RP_MONTH_TH[i]} ${v.toFixed(2)}% = ${thb(x.monthBaht[i])}">${
-        v>0 ? `<div class="rp-baht">${compact(x.monthBaht[i])}</div><div class="rp-pct" style="color:${sub}">${v.toFixed(v>=10?0:1)}%</div>` : '<span class="rp-dash">-</span>'
+      return `<td class="rp-cell ${i===nowM?'now':''}${isNeg?' rp-neg':''}" style="background:${bg};color:${fg}" title="${tip}">${
+        v!==0 ? `<div class="rp-baht">${compact(x.monthBaht[i])}</div><div class="rp-pct" style="color:${sub}">${v.toFixed(Math.abs(v)>=10?0:1)}%</div>` : '<span class="rp-dash">-</span>'
       }</td>`;
     }).join('');
     return `<tr>
