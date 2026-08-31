@@ -515,11 +515,15 @@
   .it-tax.full{color:var(--success);}
   .it-tax.part{color:var(--warning);}
   .it-tax.none{color:var(--brand-2);}
-  .it-cell.notax{box-shadow:inset 0 0 0 1.5px var(--brand-2);}
-  .it-cell.notax.now{box-shadow:inset 0 0 0 1.5px var(--brand-2), inset 0 0 0 3px var(--surface);}
+  /* ยังไม่ออกใบกำกับภาษี - ใช้เส้นประหนาสีเข้ม ให้กวาดตาผ่านก็เห็นทันที */
+  .it-cell.notax{
+    border:2px dashed var(--brand) !important;
+    background-image:repeating-linear-gradient(45deg, rgba(122,92,62,.10) 0 5px, transparent 5px 10px);
+  }
   .it-lk i.notax-box{
-    display:inline-block;width:15px;height:15px;border-radius:3px;
-    background:rgba(122,92,62,.22);box-shadow:inset 0 0 0 1.5px var(--brand-2);
+    display:inline-block;width:17px;height:17px;border-radius:3px;
+    border:2px dashed var(--brand);
+    background-image:repeating-linear-gradient(45deg, rgba(122,92,62,.10) 0 5px, transparent 5px 10px);
   }
   .it-pend{color:var(--critical);}
   .it-lk i.full{color:var(--success);}
@@ -4671,8 +4675,12 @@ function renderInvoiceTimeline(paywSource, codeSetList){
       // เพราะไฟล์ PMS เก็บแค่ยอดคงเหลือ (ส่วนที่ยังไม่ได้ออกใบกำกับภาษี) ไม่ใช่มูลค่างวดจริง
       const schedFull = contractFullOfInstallment(x.projectCode, i.desc);
       const billing = del ? 0 : (schedFull > 0 ? schedFull : ((inv + rem) > 0 ? inv + rem : descAmt(i)));
-      // tax invoice: ถ้าโครงการมีแถวส่งของ ให้ยึดแถวส่งของ ไม่งั้นใช้ invoiced ของแถวงวด
-      const tax = hasDelivery ? (del ? inv : 0) : inv;
+      // tax invoice ของเดือนนั้น:
+      //  - แถวส่งของ = ใบกำกับภาษีที่ออกไปแล้ว (ใช้ invoiced)
+      //  - แถวงวดของโครงการที่มีตารางสัญญา = ยอดที่จะออกใบกำกับภาษีของงวดนั้น (เก็บไว้ในช่อง remainder)
+      //    เช่น AOT งวด 11 ส.ค. -> billing 24.4M คู่กับ tax invoice 2.4M
+      //  - แถวงวดทั่วไป = invoiced
+      const tax = del ? inv : (schedFull > 0 ? (inv > 0 ? inv : rem) : (hasDelivery ? 0 : inv));
       if(billing <= 0 && tax <= 0) return;
       const collected = !!i.collectedDate, collecting = num(i.collecting);
       const y = d.getFullYear(), m = d.getMonth();
