@@ -280,6 +280,7 @@
   .cls-pm{font-size:11px;color:var(--faint);white-space:nowrap;flex:none;padding-top:2px;}
   .pw-stack{display:flex;height:12px;border-radius:6px;overflow:hidden;margin-top:6px;background:var(--line);}
   .pw-seg{height:100%;min-width:0;}
+  .pw-notbill{color:var(--brand);}
   .pw-legend-note{font-size:9.5px;color:var(--faint);line-height:1.6;margin-top:5px;}
   .pw-note3{font-size:9.5px;color:var(--faint);padding:0 18px 11px;line-height:1.6;}
   .pw-legend3{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:7px;flex-wrap:wrap;}
@@ -5057,6 +5058,11 @@ function renderPayment(paywSource, codeSetList){
       const pendTax = sumBilling - sumTaxInv;
       const spNum = num(x.sellingPrice);
       const billingOk = spNum>0 && Math.abs(sumBilling - spNum) < 2;
+      // ลูกหนี้จริงของโครงการนี้ = ออกใบแจ้งหนี้แล้วแต่ยังเก็บไม่ได้ (ไม่รวมใบกำกับภาษีตัดของ)
+      // ต้องประกาศก่อนถูกใช้ในชิปหัวการ์ด แถบสัดส่วน และรายการงวดด้านล่าง
+      const allocPay = allocateCollection(x);
+      const projAR = Object.values(allocPay).reduce((a,v)=>a+(v.outstanding>1?v.outstanding:0),0);
+      const projNotBilled = Math.max(0, (sumBilling || num(x.sellingPrice)) - coll_ed - projAR);
       const btSummary = sumBilling>0 ? `<div class="pw-bt ${billingOk?'':'warn'}">
         <span class="pw-bt-i">Billing ตามงวดงาน <b>${thb(sumBilling)}</b>${billingOk?'<span class="pw-bt-ok">✓ ตรงกับ Selling Price</span>':`<span class="pw-bt-bad">⚠ ไม่ตรงกับ Selling Price ${thb(spNum)}</span>`}</span>
         <span class="pw-bt-i">ออกใบกำกับภาษีแล้ว <b>${thb(sumTaxInv)}</b>${pendTax>1?`<span class="pw-bt-pend">ยังไม่ออก ${thb(pendTax)}</span>`:'<span class="pw-bt-ok">✓ ครบแล้ว</span>'}</span>
@@ -5067,9 +5073,6 @@ function renderPayment(paywSource, codeSetList){
       const SHIP_ACC_TYPES = ['Sale','Sale & Install','Sale & MA'];
       const SHIP_KEYWORDS = ['ส่งของ','ส่งสินค้า','ของที่เหลือ','ส่งมอบของ','ส่งมอบสินค้า'];
       const isShipType = SHIP_ACC_TYPES.includes((x.accType||'').trim());
-      const allocPay = allocateCollection(x);
-      // ลูกหนี้จริงของโครงการนี้ = ออกใบแจ้งหนี้แล้วแต่ยังเก็บไม่ได้ (ไม่รวมใบกำกับภาษีตัดของ)
-      const projAR = Object.values(allocPay).reduce((a,v)=>a+(v.outstanding>1?v.outstanding:0),0);
       const instIndex = new Map((x.installments||[]).map((ii,ix)=>[ii,ix]));
       const installHtml = insts.map(inst=>{
         const _ai = instIndex.get(inst);
@@ -5133,16 +5136,14 @@ function renderPayment(paywSource, codeSetList){
           <div><div class="rv-card-name">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span></div><div class="rv-card-cust">${x.customer||''}</div></div>
           <span class="chip ${projAR>num(x.sellingPrice)*0.1?'critical':projAR>1?'warning':'success'}">${projAR>1?`รอเก็บ ${thb(projAR)}`:'เก็บครบแล้ว'}</span>
         </div>
-        ${stackBar(rem, coll_ing, coll_ed, num(x.sellingPrice))}
+        ${stackBar(projNotBilled, projAR, coll_ed, sumBilling || num(x.sellingPrice))}
         <div class="pw-legend3">
           <span><i style="background:#4F7A4A"></i>เก็บเงินได้แล้ว <b>${thb(coll_ed)}</b></span>
-          <span><i style="background:#B07A28"></i>ออกใบกำกับภาษีแล้ว รอเก็บ <b>${thb(coll_ing)}</b></span>
-          <span><i style="background:var(--line)"></i>ยังไม่ออกใบกำกับภาษี <b>${thb(rem)}</b></span>
+          <span><i style="background:#B07A28"></i>วางบิลแล้ว รอเก็บ <b>${thb(projAR)}</b></span>
+          <span><i style="background:var(--line)"></i><b class="pw-notbill">ยังไม่วางบิล ${thb(projNotBilled)}</b></span>
         </div>
-        <div class="pw-legend-note">แถบนี้คิดจาก Selling Price ${thb(x.sellingPrice)} (3 ส่วนรวมกันได้เต็มจำนวน)${
-          Math.abs(coll_ing - projAR) > 1
-            ? ` · <b>ลูกหนี้ที่ต้องตามเก็บจริง ${projAR>1?thb(projAR):'ไม่มี'}</b> - ส่วนต่าง ${thb(coll_ing-projAR)} เป็นใบกำกับภาษีที่ออกเพื่อตัดของ ไม่ต้องตามเก็บ`
-            : ''
+        <div class="pw-legend-note">3 ส่วนรวมกัน = Billing ตามงวดงาน ${thb(sumBilling || num(x.sellingPrice))}${
+          projNotBilled > 1 ? ` · ยังไม่วางบิล = งวดที่ยังไม่ถึงกำหนดหรือยังไม่ได้ออกใบแจ้งหนี้` : ' · วางบิลครบทุกงวดแล้ว'
         }</div>
         ${btSummary}
         ${contractScheduleHtml(x.projectCode, x.sellingPrice)}
