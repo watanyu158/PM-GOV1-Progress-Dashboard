@@ -1894,7 +1894,7 @@
       <div class="p-head" style="background:#EAF1F2">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#3D6B7A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          Company-wide Search <span class="sep">-</span> <span class="th">ค้นหาทั้งบริษัท ไม่จำกัดแค่ทีมนี้</span>
+          Project Search <span class="sep">-</span> <span class="th">ค้นหาโครงการทั้งบริษัท ไม่จำกัดแค่ทีมนี้</span>
         </div>
         <span class="p-count" id="piCompanyCount"></span>
       </div>
@@ -2311,7 +2311,7 @@ const CARD_REGISTRY = [
   {tab:'3', tabLabel:'Project Information', id:'siteHistory', en:'Site History', th:'ใครเคยดูแลลูกค้ารายนี้บ้าง'},
   {tab:'3', tabLabel:'Project Information', id:'pmProfile', en:'PM Profile', th:'ประวัติการทำงานราย PM'},
   {tab:'3', tabLabel:'Project Information', id:'torBreakdown', en:'TOR Breakdown', th:'แตกเอกสาร TOR เป็น Scope of Work', scope:false},
-  {tab:'3', tabLabel:'Project Information', id:'companySearch', en:'Company-wide Search', th:'ค้นหาทั้งบริษัท'},
+  {tab:'3', tabLabel:'Project Information', id:'companySearch', en:'Project Search', th:'ค้นหาโครงการทั้งบริษัท'},
 ];
 let CARD_VISIBILITY = {}; // ดึงจาก backend ทุกครั้งที่ loadData - key=cardId, value='all' หรือ array ของ username
 function currentUsername(){ return (localStorage.getItem(USERNAME_KEY) || sessionStorage.getItem(USERNAME_KEY) || '').trim().toLowerCase(); }
