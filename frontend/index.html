@@ -4640,6 +4640,41 @@ function contractScheduleHtml(code, sellingPrice){
   </details>`;
 }
 
+// ===================== กระจายยอดเก็บเงินลงรายงวด (FIFO) =====================
+// เหตุผล: บางโครงการบัญชีกรอกแค่ยอดรวมบนสุด ไม่ได้ลงรายละเอียดว่างวดไหนเก็บวันไหน
+// (เจอจริง 4 โครงการ เช่น Log Management ยอดบน 2,989,000 แต่ทุกแถวงวดเป็น 0)
+// แต่ถ้ามียอดบนสุดแล้ว = เก็บเงินเรียบร้อยแล้วจริง จึงใช้ยอดบนเป็นตัวตั้งแล้วกระจายลงงวดตามลำดับเวลา
+// (งวดเก่าถูกเก็บก่อน) - วิธีนี้ให้ผลแน่นอนกว่าการจับคู่ผลรวมที่อาจกำกวมเมื่อมีงวดมูลค่าเท่ากัน
+function allocateCollection(proj){
+  const SHIP_ACC = ['Sale','Sale & Install','Sale & MA'];
+  const SHIP_KW = ['ส่งของ','ส่งสินค้า','ของที่เหลือ','ส่งมอบของ','ส่งมอบสินค้า'];
+  const isDel = ii => SHIP_ACC.includes((proj.accType||'').trim())
+    && SHIP_KW.some(k => String(ii.desc||'').includes(k));
+
+  // งวดที่ใช้เรียกเก็บเงินจริง (ไม่รวมแถวใบกำกับภาษีตัดของ) เรียงตามวันวางบิล
+  const bill = (proj.installments||[])
+    .map((i,idx)=>({i, idx, del:isDel(i), d:parseD(i.invoiceDate), inv:num(i.invoiced), rem:num(i.remainder)}))
+    .filter(r=>!r.del)
+    .sort((a,b)=> (a.d?a.d.getTime():0) - (b.d?b.d.getTime():0));
+
+  let pool = num(proj.collected);          // ยอดที่เก็บได้แล้วทั้งโครงการ (เชื่อยอดบนสุด)
+  const out = {};
+  bill.forEach(r=>{
+    const amt = r.inv > 0 ? r.inv : 0;     // เก็บเงินได้เฉพาะงวดที่ออกใบแจ้งหนี้แล้ว
+    const got = Math.min(pool, amt);
+    pool -= got;
+    out[r.idx] = {
+      billed: amt,
+      collected: got,
+      outstanding: Math.max(0, amt - got),  // ออกบิลแล้วแต่ยังเก็บไม่ได้ = AR
+      fullyCollected: amt > 0 && got >= amt - 1,
+      // บัญชีไม่ได้ลงรายละเอียดในแถวนี้ แต่ยอดบนบอกว่าเก็บแล้ว
+      inferred: got > 0 && !r.i.collectedDate,
+    };
+  });
+  return out;
+}
+
 function renderInvoiceTimeline(paywSource, codeSetList){
   const el = document.getElementById('itBox');
   if(!el) return;
@@ -4691,7 +4726,8 @@ function renderInvoiceTimeline(paywSource, codeSetList){
       });
     }
 
-    (x.installments||[]).forEach(i=>{
+    const allocMap = allocateCollection(x);
+    (x.installments||[]).forEach((i,idx)=>{
       const d = parseD(i.invoiceDate);
       if(!d) return;
       const inv = num(i.invoiced), rem = num(i.remainder);
@@ -4718,9 +4754,10 @@ function renderInvoiceTimeline(paywSource, codeSetList){
       else {
         mBilling[m] += billing;
         mTax[m] += tax;
-        // AR (รอเก็บเงิน) นับจาก "ใบแจ้งหนี้ billing" เท่านั้น
-        // ใบกำกับภาษีตอนส่งของบางทีออกเพื่อตัดของ ไม่ได้ใช้เรียกเก็บเงินลูกค้า จึงไม่ใช่ลูกหนี้
-        if(!del && inv>0 && !collected && collecting>0) mAR[m] += collecting;
+        // AR (รอเก็บเงิน) = ยอดที่ออกใบแจ้งหนี้แล้วแต่ยังเก็บไม่ได้ คำนวณจากการกระจาย FIFO
+        // ไม่ใช้ช่อง collecting ของแถวตรง ๆ เพราะบางแถวบัญชีไม่ได้อัปเดตหลังเก็บเงินแล้ว
+        const alloc = allocMap[idx];
+        if(!del && alloc && alloc.outstanding > 1) mAR[m] += alloc.outstanding;
       }
     });
     const yrBilling = mBilling.reduce((a,b)=>a+b,0);
@@ -4757,18 +4794,16 @@ function renderInvoiceTimeline(paywSource, codeSetList){
   const sumAfterTax  = rows.reduce((s2,r)=>s2+r.afTax,0);
   const sumPendingAll = rows.reduce((s2,r)=>s2+r.taxPending,0);
   // AR ทั้งหมด (รวมบิลปีก่อนที่ยังเก็บไม่ได้) - ดูจาก collecting ที่ยังไม่มี collectedDate
+  // AR รวม = ยอดที่ออกใบแจ้งหนี้แล้วแต่ยังเก็บไม่ได้ (จากการกระจาย FIFO ต่อโครงการ)
   let arAll = 0, arOld = 0;
   src.forEach(x=>{
-    const _del = ii => SHIP_ACC_TYPES.includes((x.accType||'').trim())
-      && SHIP_KEYWORDS.some(k => String(ii.desc||'').includes(k));
-    (x.installments||[]).forEach(i=>{
-      if(_del(i)) return;   // ใบกำกับภาษีตัดของ ไม่ใช่ลูกหนี้ที่ต้องตามเก็บ
-      const cg = num(i.collecting);
-      if(cg>0 && !i.collectedDate){
-        arAll += cg;
-        const d = parseD(i.invoiceDate);
-        if(d && (today0 - d)/DAY > 90) arOld += cg;
-      }
+    const alloc = allocateCollection(x);
+    (x.installments||[]).forEach((i,idx)=>{
+      const a = alloc[idx];
+      if(!a || a.outstanding <= 1) return;
+      arAll += a.outstanding;
+      const d = parseD(i.invoiceDate);
+      if(d && (today0 - d)/DAY > 90) arOld += a.outstanding;
     });
   });
   const cum = []; let acc=0; tBilling.forEach((v,i)=>{ acc += v; cum.push(acc); });
@@ -4972,7 +5007,11 @@ function renderPayment(paywSource, codeSetList){
       const SHIP_ACC_TYPES = ['Sale','Sale & Install','Sale & MA'];
       const SHIP_KEYWORDS = ['ส่งของ','ส่งสินค้า','ของที่เหลือ','ส่งมอบของ','ส่งมอบสินค้า'];
       const isShipType = SHIP_ACC_TYPES.includes((x.accType||'').trim());
+      const allocPay = allocateCollection(x);
+      const instIndex = new Map((x.installments||[]).map((ii,ix)=>[ii,ix]));
       const installHtml = insts.map(inst=>{
+        const _ai = instIndex.get(inst);
+        const _al = _ai!==undefined ? allocPay[_ai] : null;
         const pending = num(inst.collecting) > 0 && !inst.collectedDate;
         const notYetInvoiced = num(inst.invoiced)===0 && num(inst.collecting)===0 && !inst.collectedDate; // ยังไม่วางบิลเลย ต่างจาก "เก็บแล้ว"
         const text = `${x.projectName||''} ${inst.desc||''}`;
@@ -4984,15 +5023,19 @@ function renderPayment(paywSource, codeSetList){
         //   billing = ออก Invoice แล้ว รอเก็บเงิน (เข้มปานกลาง = กำลังดำเนินการ ต้องตามต่อ)
         //   ship    = ใบกำกับตัดสต็อก/ส่งของ (เส้นประ = คนละเรื่องกับการเรียกเก็บเงินลูกค้า)
         //   waiting = ยังไม่ออก Invoice (จางสุด = ยังไม่เริ่ม)
+        // ถือว่าเก็บเงินแล้วเมื่อ: มีวันที่รับเงินในแถว หรือ ยอดรวมบนสุดครอบคลุมงวดนี้แล้ว (FIFO)
+        const paidByAlloc = _al && _al.fullyCollected;
         let state, stateLabel, stateIcon;
-        if(inst.collectedDate){ state='paid'; stateLabel='เก็บเงินแล้ว'; stateIcon='✓'; }
+        if(inst.collectedDate || paidByAlloc){ state='paid'; stateLabel='เก็บเงินแล้ว'; stateIcon='✓'; }
         else if(likelyStockInvoice){ state='ship'; stateLabel='ใบกำกับภาษี (ส่งของ)'; stateIcon='📦'; }
         else if(pending){ state='billing'; stateLabel='ออก Invoice แล้ว รอเก็บเงิน'; stateIcon='◕'; }
         else { state='waiting'; stateLabel='ยังไม่ออก Invoice'; stateIcon='○'; }
 
         // บรรทัดรายละเอียดใต้ badge - เขียนให้อ่านจบในบรรทัดเดียว ไม่ต้องเชื่อมโยงกับบรรทัดอื่นเอง
         const detailTxt = state==='paid'
-            ? `ออก Invoice ${fmtDate(inst.invoiceDate)} · เก็บเงินได้ ${fmtDate(inst.collectedDate)}`
+            ? (inst.collectedDate
+                ? `ออก Invoice ${fmtDate(inst.invoiceDate)} · เก็บเงินได้ ${fmtDate(inst.collectedDate)}`
+                : `ออก Invoice ${fmtDate(inst.invoiceDate)} · เก็บเงินแล้ว ${thb(_al?_al.collected:0)} (อ้างอิงยอดรวมของโครงการ - แถวนี้ยังไม่ได้ลงวันที่รับเงิน)`)
           : state==='ship'
             ? `ออกใบกำกับภาษีตอนส่งของ ${fmtDate(inst.invoiceDate)} · ${thb(inst.collecting)} - ไม่นับรวมใน billing ตามงวด`
           : state==='billing'
