@@ -789,7 +789,7 @@ app.post('/api/tor/classify', requireAuth, async (req, res) => {
   if ((torAiUsage[key]||0) >= TOR_AI_DAILY_LIMIT)
     return res.status(429).json({ ok:false, error:`ใช้ครบโควตาวันนี้แล้ว (${TOR_AI_DAILY_LIMIT} ครั้ง)` });
 
-  const items = Array.isArray(req.body && req.body.items) ? req.body.items.slice(0,60) : [];
+  const items = Array.isArray(req.body && req.body.items) ? req.body.items.slice(0,40) : [];
   const task = (req.body && req.body.task) || 'classify';
   if (!items.length) return res.json({ ok:true, result: [] });
 
@@ -822,7 +822,9 @@ ${lines}`
       body: JSON.stringify({
         model,
         temperature: 0.1,
-        max_tokens: 1500,
+        // reasoning model (gpt-oss) กิน token ไปกับส่วนคิดก่อนตอบ ถ้าตั้งต่ำเกินจะตอบไม่ทันแล้วได้ค่าว่าง
+        max_tokens: 4000,
+        reasoning_effort: 'low',        // ให้คิดน้อย ๆ เพราะงานนี้เป็นการจัดหมวด ไม่ต้องใช้เหตุผลลึก
         response_format: { type:'json_object' },
         messages: [
           { role:'system', content:'คุณเป็นผู้ช่วยวิเคราะห์เอกสาร TOR ของหน่วยงานราชการไทย ตอบเป็น JSON เท่านั้น ห้ามมีข้อความอื่น' },
@@ -849,15 +851,32 @@ ${lines}`
     // บางโมเดลไม่รองรับ response_format -> ลองใหม่โดยไม่ใส่
     if (r.status === 400) {
       const t400 = await r.clone().text();
-      if (/response_format|json_object/i.test(t400)) {
-        console.log('[TOR AI] โมเดลไม่รองรับ json mode ลองใหม่แบบปกติ');
+      // json_validate_failed = โมเดลตอบไม่ทัน/ตอบไม่ตรงรูปแบบ · response_format = โมเดลไม่รองรับโหมดนี้
+      // ทั้งสองกรณีแก้ด้วยการถอด json mode ออกแล้วให้ตัวแกะ JSON ฝั่งเราจัดการแทน
+      if (/response_format|json_object|json_validate_failed/i.test(t400)) {
+        console.log('[TOR AI] json mode ใช้ไม่ได้ ลองใหม่แบบไม่บังคับรูปแบบ');
         r = await fetch(GROQ_BASE+'/chat/completions', {
           method:'POST',
           headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+GROQ_KEY },
-          body: JSON.stringify({ model, temperature:0.1, max_tokens:1500, messages:[
-            { role:'system', content:'คุณเป็นผู้ช่วยวิเคราะห์เอกสาร TOR ของหน่วยงานราชการไทย ตอบเป็น JSON เท่านั้น ห้ามมีข้อความอื่น' },
+          body: JSON.stringify({ model, temperature:0.1, max_tokens:4000, reasoning_effort:'low', messages:[
+            { role:'system', content:'คุณเป็นผู้ช่วยวิเคราะห์เอกสาร TOR ของหน่วยงานราชการไทย ตอบเป็น JSON เท่านั้น ห้ามมีข้อความอื่น ห้ามอธิบาย' },
             { role:'user', content: prompt } ] })
         });
+        // ยังไม่ผ่านอีก -> ลองโมเดลที่เบากว่า (คิดน้อย ตอบตรงกว่า)
+        if (!r.ok) {
+          const light = 'openai/gpt-oss-20b';
+          if (light !== model) {
+            console.log('[TOR AI] ลองโมเดลเบากว่า:', light);
+            const r2 = await fetch(GROQ_BASE+'/chat/completions', {
+              method:'POST',
+              headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+GROQ_KEY },
+              body: JSON.stringify({ model: light, temperature:0, max_tokens:4000, messages:[
+                { role:'system', content:'ตอบเป็น JSON เท่านั้น ห้ามมีข้อความอื่น' },
+                { role:'user', content: prompt } ] })
+            });
+            if (r2.ok) { r = r2; model = light; }
+          }
+        }
       }
     }
     if (!r.ok) {
