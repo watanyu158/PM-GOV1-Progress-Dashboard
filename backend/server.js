@@ -682,17 +682,55 @@ app.post('/api/admin/card-data-scope', requireAuth, (req, res) => {
 // จึงส่งเฉพาะ "บรรทัดสั้น ๆ ที่กฎจัดประเภทไม่ได้" ครั้งละไม่เกิน 60 รายการ
 // API key เก็บที่ฝั่ง server เท่านั้น (env GROQ_API_KEY) ไม่ให้หลุดไปหน้าเว็บ
 const GROQ_KEY = process.env.GROQ_API_KEY || '';
-const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+// Groq ปลดโมเดลเป็นระยะ (llama-3.3-70b-versatile ย้ายไป Enterprise-only เมื่อ 16 ส.ค. 2569)
+// จึงไม่ล็อกชื่อโมเดลตายตัว แต่ถามรายการที่ใช้ได้จริงจาก Groq แล้วเลือกตามลำดับที่ต้องการ
+const GROQ_BASE = process.env.GROQ_BASE || 'https://api.groq.com/openai/v1';
+const GROQ_MODEL_PREF = (process.env.GROQ_MODEL || '').trim();
+const GROQ_FALLBACKS = [
+  'openai/gpt-oss-120b',      // แทน llama-3.3-70b - คุณภาพดีสุดในกลุ่ม self-serve
+  'qwen/qwen3.6-27b',
+  'openai/gpt-oss-20b',       // เร็วและถูกกว่า ใช้กับงานจัดประเภทได้ดี
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
+];
+let GROQ_MODEL_CACHE = { id:null, at:0 };
+
+async function groqPickModel(ignorePref){
+  // ignorePref = true เมื่อโมเดลที่ระบุไว้ใช้ไม่ได้แล้ว (ถูกปลดระวาง) ต้องหาตัวแทนจากรายการจริง
+  if(GROQ_MODEL_PREF && !ignorePref) return GROQ_MODEL_PREF;
+  if(GROQ_MODEL_CACHE.id && Date.now()-GROQ_MODEL_CACHE.at < 3600e3) return GROQ_MODEL_CACHE.id;
+  try{
+    const r = await fetch(GROQ_BASE+'/models', {
+      headers:{ 'Authorization':'Bearer '+GROQ_KEY }
+    });
+    if(r.ok){
+      const j = await r.json();
+      const ids = (j.data||[]).map(m=>m.id);
+      const pick = GROQ_FALLBACKS.find(m=>ids.includes(m))
+                || ids.find(m=>/gpt-oss|qwen|llama/i.test(m) && !/guard|whisper|tts|orpheus|prompt/i.test(m));
+      if(pick){ GROQ_MODEL_CACHE={id:pick, at:Date.now()}; console.log('[TOR AI] เลือกโมเดล:', pick); return pick; }
+    }
+  }catch(e){ console.warn('[TOR AI] ถามรายการโมเดลไม่ได้:', e.message); }
+  return GROQ_FALLBACKS[0];
+}
 const TOR_TYPES_LIST = 'Document, Test, Installation, Migration, Removal, Procurement, Design, Survey, Training, Meeting, Warranty, Configuration, Compliance, Penalty, SLA, Spec, Other';
 
 // จำกัดการใช้งานต่อคนต่อวัน กัน quota หมดโดยไม่ตั้งใจ
 const torAiUsage = {};   // { 'user|YYYY-MM-DD': count }
 const TOR_AI_DAILY_LIMIT = Number(process.env.TOR_AI_DAILY_LIMIT || 40);
 
-app.get('/api/tor/ai-status', requireAuth, (req, res) => {
+app.get('/api/tor/ai-status', requireAuth, async (req, res) => {
   const day = new Date().toISOString().slice(0,10);
   const key = (req.user && req.user.username) + '|' + day;
-  res.json({ ok:true, enabled: !!GROQ_KEY, model: GROQ_MODEL,
+  let model = null, available = [];
+  if (GROQ_KEY) {
+    try {
+      const r = await fetch(GROQ_BASE+'/models', { headers:{ 'Authorization':'Bearer '+GROQ_KEY } });
+      if (r.ok) { const j = await r.json(); available = (j.data||[]).map(m=>m.id); }
+    } catch {}
+    model = await groqPickModel();
+  }
+  res.json({ ok:true, enabled: !!GROQ_KEY, model, available,
              used: torAiUsage[key] || 0, limit: TOR_AI_DAILY_LIMIT });
 });
 
@@ -729,11 +767,12 @@ ${lines}`
   const prompt = prompts[task] || prompts.classify;
 
   try {
-    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    let model = await groqPickModel();
+    let r = await fetch(GROQ_BASE+'/chat/completions', {
       method:'POST',
       headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+GROQ_KEY },
       body: JSON.stringify({
-        model: GROQ_MODEL,
+        model,
         temperature: 0.1,
         max_tokens: 1500,
         messages: [
@@ -742,9 +781,25 @@ ${lines}`
         ]
       })
     });
+    // โมเดลถูกปลดระวาง -> ล้าง cache แล้วลองตัวถัดไปที่ใช้ได้จริง
+    if (r.status === 404) {
+      GROQ_MODEL_CACHE = { id:null, at:0 };
+      const alt = await groqPickModel(true);   // ข้ามค่าที่ผู้ใช้ระบุ เพราะพิสูจน์แล้วว่าใช้ไม่ได้
+      if (alt && alt !== model) {
+        console.log(`[TOR AI] ${model} ใช้ไม่ได้ เปลี่ยนเป็น ${alt}`);
+        model = alt;
+        r = await fetch(GROQ_BASE+'/chat/completions', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+GROQ_KEY },
+          body: JSON.stringify({ model, temperature:0.1, max_tokens:1500, messages:[
+            { role:'system', content:'คุณเป็นผู้ช่วยวิเคราะห์เอกสาร TOR ของหน่วยงานราชการไทย ตอบเป็น JSON เท่านั้น ห้ามมีข้อความอื่น' },
+            { role:'user', content: prompt } ] })
+        });
+      }
+    }
     if (!r.ok) {
       const t = await r.text();
-      return res.status(502).json({ ok:false, error:`Groq ตอบกลับ ${r.status}: ${t.slice(0,200)}` });
+      return res.status(502).json({ ok:false, error:`Groq ตอบกลับ ${r.status}: ${t.slice(0,220)}` });
     }
     const j = await r.json();
     let txt = (((j.choices||[])[0]||{}).message||{}).content || '';
@@ -755,8 +810,8 @@ ${lines}`
     if (!result) return res.status(502).json({ ok:false, error:'อ่านผลลัพธ์จาก AI ไม่ได้' });
     torAiUsage[key] = (torAiUsage[key]||0) + 1;
     const usage = j.usage || {};
-    console.log(`[TOR AI] ${req.user.username} task=${task} items=${items.length} tokens=${usage.total_tokens||'?'}`);
-    res.json({ ok:true, result, tokens: usage.total_tokens || null,
+    console.log(`[TOR AI] ${req.user.username} task=${task} model=${model} items=${items.length} tokens=${usage.total_tokens||'?'}`);
+    res.json({ ok:true, result, model, tokens: usage.total_tokens || null,
                used: torAiUsage[key], limit: TOR_AI_DAILY_LIMIT });
   } catch (e) {
     res.status(500).json({ ok:false, error: String(e.message||e) });
