@@ -4702,6 +4702,12 @@ function renderInvoiceTimeline(paywSource, codeSetList){
     const mAR      = Array(12).fill(0);   // ออกใบกำกับภาษีแล้วแต่ยังเก็บเงินไม่ได้
     let bfBilling=0, bfTax=0, afBilling=0, afTax=0;
     const hasDelivery = (x.installments||[]).some(isDelivery);
+    // ใบกำกับภาษีของแถวส่งของ "ทับซ้อน" กับแถวงวดหรือไม่ - ดูจากผลรวมว่าเกินมูลค่าสัญญาไหม
+    // ถ้าเกิน = ใบส่งของออกคลุมทั้งสัญญาแล้ว แถวงวดเป็นการนับซ้ำ (เช่น Cloud Conference)
+    // ถ้าไม่เกิน = แต่ละแถวออกใบกำกับภาษีคนละส่วนกัน ต้องนับรวมทุกแถว (เช่น Log Management, AOT)
+    const _spX = num(x.sellingPrice);
+    const _allInv = (x.installments||[]).reduce((a,ii)=>a+num(ii.invoiced),0);
+    const taxOverlap = _spX > 0 && _allInv > _spX + 2;
     const sched = CONTRACT_SCHEDULE[x.projectCode];
     const hasSched = !!sched;
 
@@ -4745,7 +4751,7 @@ function renderInvoiceTimeline(paywSource, codeSetList){
       //    เช่น AOT งวด 11 ส.ค. -> billing 24.4M คู่กับ tax invoice 2.4M
       //  - แถวงวดทั่วไป = invoiced
       // tax invoice: แถวส่งของ = ที่ออกไปแล้ว · แถวงวดของโครงการมีตารางสัญญา = ยอดที่จะออก (ช่อง remainder)
-      const tax = del ? inv : (hasSched ? (inv > 0 ? inv : rem) : (hasDelivery ? 0 : inv));
+      const tax = del ? inv : (hasSched ? (inv > 0 ? inv : rem) : (taxOverlap ? 0 : inv));
       if(billing <= 0 && tax <= 0) return;
       const collected = !!i.collectedDate, collecting = num(i.collecting);
       const y = d.getFullYear(), m = d.getMonth();
@@ -4985,13 +4991,18 @@ function renderPayment(paywSource, codeSetList){
       const _shipKw = ['ส่งของ','ส่งสินค้า','ของที่เหลือ','ส่งมอบของ','ส่งมอบสินค้า'];
       const _isDel = ii => _shipAcc.includes((x.accType||'').trim()) && _shipKw.some(k=>String(ii.desc||'').includes(k));
       const _hasDel = (x.installments||[]).some(_isDel);
+      // ตรวจการทับซ้อนแบบเดียวกับ Invoice Timeline: ถ้าผลรวม invoiced เกินมูลค่าสัญญา
+      // แปลว่าใบส่งของออกคลุมทั้งสัญญาแล้ว ไม่ต้องนับแถวงวดซ้ำ
+      const _spPC = num(x.sellingPrice);
+      const _allInvPC = (x.installments||[]).reduce((a,ii)=>a+num(ii.invoiced),0);
+      const _overlapPC = _spPC > 0 && _allInvPC > _spPC + 2;
       let sumBilling = 0, sumTaxInv = 0;
       (x.installments||[]).forEach(ii=>{
         const iv = num(ii.invoiced), rm = num(ii.remainder);
         if(_isDel(ii)) sumTaxInv += iv;
         else {
           sumBilling += (iv + rm) > 0 ? iv + rm : descAmt(ii);
-          if(!_hasDel) sumTaxInv += iv;
+          if(!_overlapPC) sumTaxInv += iv;
         }
       });
       const pendTax = sumBilling - sumTaxInv;
