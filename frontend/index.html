@@ -537,6 +537,10 @@
   .tor-ocr-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
   .tor-ocr-row label{font-size:11px;color:var(--ink-2);display:inline-flex;align-items:center;gap:5px;}
   .tor-ocr-row input{width:66px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:12px;font-family:'IBM Plex Mono',monospace;}
+  .tor-qa{margin:0 18px 12px;padding:10px 13px;border-radius:9px;font-size:11.5px;line-height:1.7;
+    background:#F2F6F1;border-left:3px solid var(--success);color:var(--ink-2);}
+  .tor-qa.warn{background:var(--warning-tint);border-left-color:var(--warning);}
+  .tor-qa-l{font-size:10.5px;color:var(--faint);margin-top:3px;}
   .tor-warn{margin:0 18px 16px;padding:12px 14px;border-radius:9px;background:var(--warning-tint);border-left:3px solid var(--warning);font-size:11.5px;color:var(--ink-2);line-height:1.7;}
 
   /* ---------------- Invoice Timeline ---------------- */
@@ -4869,10 +4873,34 @@ function torThaiDigits(t){
     .replace(/ฯลฯ/g,'ฯลฯ');
 }
 
+// เอกสาร comply/ตารางเปรียบเทียบมักวางเลขข้อกับเนื้อหาไว้คนละเซลล์
+// เวลาแปลงเป็นข้อความจึงออกมาคนละบรรทัด ต้องรวมกลับก่อนแตกข้อ
+function torJoinNumberLines(lines){
+  const out=[];
+  for(let i=0;i<lines.length;i++){
+    const ln=lines[i];
+    // บรรทัดที่มีแต่เลขข้อล้วน เช่น "1." หรือ "4.1" หรือ "๔.๑.๒"
+    if(/^\d{1,2}(?:\.\d{1,2}){0,2}\.?$/.test(ln)){
+      // หาบรรทัดเนื้อหาถัดไปที่ไม่ใช่เลขข้ออีกตัว
+      let j=i+1;
+      while(j<lines.length && /^\d{1,2}(?:\.\d{1,2}){0,2}\.?$/.test(lines[j])) j++;
+      if(j<lines.length && lines[j].length>2){
+        out.push(ln.replace(/\.$/,'') + '. ' + lines[j]);
+        // บรรทัดเลขที่ถูกข้ามระหว่างทาง เก็บไว้ไม่ให้หาย
+        for(let k=i+1;k<j;k++) out.push(lines[k]);
+        i=j;
+        continue;
+      }
+    }
+    out.push(ln);
+  }
+  return out;
+}
+
 async function torParseClausesAsync(text, onProg){
   let t = torThaiDigits(text)
             .replace(/(?<=[\u0E00-\u0E7F]) (?=[\u0E00-\u0E7F])/g,'').replace(/[ \t]+/g,' ');
-  const lines = t.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  const lines = torJoinNumberLines(t.split(/\r?\n/).map(x=>x.trim()).filter(Boolean));
   const out=[]; let cur=null;
   for(let i=0;i<lines.length;i++){
     const ln=lines[i];
@@ -5211,6 +5239,51 @@ function torBuildRows(clauses, ms){
   return rows;
 }
 
+// ===== ตรวจสอบและทำความสะอาดผลลัพธ์ ก่อนให้ดาวน์โหลด =====
+// อ่านเอกสารจริงมักมีเศษติดมา: เครื่องหมายซ้ำ (,,, ...), เลขหน้า, บรรทัดซ้ำ, แถวที่อ่านไม่ครบ
+// ต้องเก็บกวาดและรายงานให้เห็น ไม่ปล่อยให้ผู้ใช้ไปเจอเองในไฟล์
+function torValidate(rows){
+  const report={cleaned:0, dupRemoved:0, shortRemoved:0, pageNoRemoved:0, warn:[]};
+  const clean = t => String(t||'')
+    .replace(/[,]{2,}/g,' ')                       // ,,, จากเซลล์ว่างที่ถูกรวมมา
+    .replace(/(?<![.\d])\.{3,}(?![.\d])/g,' ')     // ... ที่ไม่ใช่จุดไข่ปลาในเลข
+    .replace(/\s*[-–—]{2,}\s*/g,' - ')
+    .replace(/\s*\|\s*/g,' ')
+    .replace(/\s{2,}/g,' ')
+    .trim();
+  // บรรทัดที่เป็นเลขหน้าล้วน หรือ "หน้า N" / "- N -"
+  const isPageNo = t => /^\s*(?:หน้า\s*)?[-–]?\s*\d{1,3}\s*[-–]?\s*$/.test(t)
+                     || /^\s*หน้า\s*\d{1,3}\s*(?:จาก|\/)\s*\d{1,3}\s*$/.test(t);
+
+  const out=[]; const seen=new Set();
+  rows.forEach(r=>{
+    if(r.kind){ out.push(r); return; }
+    const before=r.desc;
+    let d=clean(r.desc);
+    // ตัดเลขลำดับที่เราเติมเองออกก่อนตรวจเนื้อหา
+    const body=d.replace(/^\s*\d+(?:\.\d+)*\)\s*/,'').trim();
+    if(isPageNo(body)){ report.pageNoRemoved++; return; }
+    if(body.length<12){ report.shortRemoved++; return; }          // อ่านไม่ครบ/เศษบรรทัด
+    if(d!==before) report.cleaned++;
+    const key=(r.tor||'')+'|'+body.slice(0,70);
+    if(seen.has(key)){ report.dupRemoved++; return; }
+    seen.add(key);
+    out.push(Object.assign({}, r, {desc:d, cond:clean(r.cond), note:clean(r.note)}));
+  });
+
+  // ตรวจคุณภาพเชิงเนื้อหา แล้วเตือน (ไม่ลบ)
+  const tasks=out.filter(r=>!r.kind);
+  const noTor=tasks.filter(r=>!r.tor).length;
+  if(noTor) report.warn.push(`${noTor} งานไม่มีเลขข้อ TOR กำกับ`);
+  const nums=tasks.map(r=>r.tor).filter(Boolean);
+  const dupNo=nums.length-new Set(nums).size;
+  if(dupNo>nums.length*0.25) report.warn.push(`เลขข้อซ้ำ ${dupNo} จาก ${nums.length} รายการ - ตรวจทานคอลัมน์ ToR No.`);
+  const other=tasks.filter(r=>r.type==='Other').length;
+  if(tasks.length && other/tasks.length>0.5) report.warn.push(`จัดประเภทไม่ได้ ${other} จาก ${tasks.length} งาน - อาจมีเนื้อหาที่ไม่ใช่งาน`);
+  if(!out.some(r=>r.kind==='ms')) report.warn.push('ไม่พบงวดงานเลย - ตรวจว่าเป็นเอกสาร TOR หรือไม่');
+  return {rows:out, report};
+}
+
 // ---------- 5) ส่งออก Excel (เขียน SpreadsheetML เอง ไม่ต้องพึ่งไลบรารีภายนอก) ----------
 function torExportExcel(){
   const esc=v=>torThaiDigits(String(v==null?'':v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
@@ -5396,7 +5469,7 @@ async function torOcrRun(file, from, to){
     }
     torProgress(85,`พบ ${TOR.clauses.length} ข้อ - จับคู่งวดงาน`,3); await sleep(40);
     TOR.milestones = torParseMilestones(TOR.clauses);
-    TOR.rows = torBuildRows(TOR.clauses,TOR.milestones);
+    { const v=torValidate(torBuildRows(TOR.clauses,TOR.milestones)); TOR.rows=v.rows; TOR.qa=v.report; }
     torProgress(100,'เสร็จเรียบร้อย (จาก OCR)',5);
     const avgConf = confN ? (confSum/confN) : 0;
     const qual = avgConf>=90?'ดี':avgConf>=80?'พอใช้':'ต่ำ';
@@ -5453,7 +5526,16 @@ function torShowResult(prefix){
   const scanNote=(TOR.emptyPages>0&&TOR.pages)
     ? `<div class="tor-warn" style="margin-bottom:12px"><b>หมายเหตุ:</b> มี ${TOR.emptyPages} จาก ${TOR.pages} หน้าที่ดึงข้อความไม่ได้ (น่าจะเป็นหน้าภาพสแกนหรือแบบวาด) เนื้อหาในหน้าเหล่านั้นจะไม่ปรากฏใน Scope of Work</div>`:'';
   document.getElementById('torCount').textContent=`${TOR.milestones.length} งวด · ${tasks} งาน`;
-  res.innerHTML=(prefix||'')+scanNote+`
+  const qa=TOR.qa||{};
+  const fixed=(qa.cleaned||0)+(qa.dupRemoved||0)+(qa.shortRemoved||0)+(qa.pageNoRemoved||0);
+  const qaHtml=`<div class="tor-qa ${(qa.warn&&qa.warn.length)?'warn':'ok'}">
+    <b>${(qa.warn&&qa.warn.length)?'⚠':'✓'} ตรวจสอบความถูกต้องแล้ว</b>
+    ${fixed?`<div class="tor-qa-l">เก็บกวาดอัตโนมัติ ${fixed} จุด:
+      ${qa.cleaned?`ล้างอักขระเกิน ${qa.cleaned} แถว · `:''}${qa.dupRemoved?`ตัดแถวซ้ำ ${qa.dupRemoved} · `:''}${qa.shortRemoved?`ตัดแถวที่อ่านไม่ครบ ${qa.shortRemoved} · `:''}${qa.pageNoRemoved?`ตัดเลขหน้า ${qa.pageNoRemoved}`:''}</div>`
+      :'<div class="tor-qa-l">ไม่พบอักขระเกิน แถวซ้ำ หรือเลขหน้าปนมา</div>'}
+    ${(qa.warn&&qa.warn.length)?`<div class="tor-qa-l"><b>ควรตรวจทานก่อนใช้งาน:</b> ${qa.warn.join(' · ')}</div>`:''}
+  </div>`;
+  res.innerHTML=(prefix||'')+scanNote+qaHtml+`
     <div class="tor-sum">
       <div class="tor-kpi"><span>งวดงานที่พบ</span><b>${TOR.milestones.length}</b></div>
       <div class="tor-kpi"><span>ข้อ TOR ที่แตกได้</span><b>${TOR.clauses.length}</b></div>
@@ -5488,10 +5570,25 @@ async function torRun(file){
     // ไฟล์สแกน = ดึงข้อความแทบไม่ได้ -> เสนอให้ OCR ในเครื่อง
     if(text.replace(/\s/g,'').length < 400 || TOR.clauses.length < 5){
       const isPdf = /\.pdf$/i.test(file.name);
-      torProgress(100, isPdf?'ไฟล์นี้เป็นภาพสแกน - ต้อง OCR ก่อน':'อ่านข้อความจากไฟล์ไม่ได้', 5);
+      const charCount = text.replace(/\s/g,'').length;
+      const noText = charCount < 400;      // ไม่มีข้อความจริง = ไฟล์สแกน
+      torProgress(100, noText ? (isPdf?'ไฟล์นี้เป็นภาพสแกน - ต้อง OCR ก่อน':'อ่านข้อความจากไฟล์ไม่ได้')
+                              : 'อ่านข้อความได้ แต่แตกโครงสร้างข้อไม่ได้', 5);
+      if(!noText){
+        // มีข้อความเยอะแต่แตกข้อไม่ได้ = รูปแบบเอกสารต่างจากที่รองรับ ไม่ใช่ไฟล์สแกน
+        res.innerHTML=`<div class="tor-warn">
+          <b>อ่านข้อความได้ แต่แตกโครงสร้างข้อไม่ได้</b><br>
+          พบข้อความ <b>${charCount.toLocaleString()}</b> ตัวอักษร แต่แตกได้เพียง ${TOR.clauses.length} ข้อ
+          <div class="tor-qa-l" style="margin-top:7px">เอกสารนี้<b>ไม่ใช่ไฟล์สแกน</b> - สาเหตุน่าจะเป็นรูปแบบการวางเลขข้อที่ต่างจากที่รองรับ
+          เช่น เลขข้ออยู่คนละเซลล์กับเนื้อหา หรือใช้สัญลักษณ์แทนเลขข้อ<br>
+          ${(TOR.imgCount||0)>0?`ไฟล์นี้มีรูปภาพ ${TOR.imgCount} รูป - หากเนื้อหาสำคัญอยู่ในรูป ต้องแปลงเป็นข้อความก่อน<br>`:''}
+          กรุณาส่งไฟล์ให้ผู้พัฒนาตรวจสอบ เพื่อเพิ่มการรองรับรูปแบบนี้</div></div>`;
+        document.getElementById('torCount').textContent='แตกโครงสร้างไม่ได้';
+        return;
+      }
       res.innerHTML=`<div class="tor-warn">
         <b>เอกสารนี้เป็นภาพสแกน ไม่มีชั้นข้อความ</b><br>
-        พบข้อความเพียง ${text.replace(/\s/g,'').length} ตัวอักษร${TOR.pages?` จาก ${TOR.pages} หน้า`:''}
+        พบข้อความเพียง ${charCount} ตัวอักษร${TOR.pages?` จาก ${TOR.pages} หน้า`:''}
         ${isPdf?`<div class="tor-ocr-box">
           <div class="tor-ocr-t">แปลงภาพเป็นข้อความด้วย OCR ได้เลย</div>
           <div class="tor-ocr-s">ประมวลผลในเครื่องคุณทั้งหมด ไฟล์ไม่ถูกส่งออกไปที่ใด · ใช้เวลาประมาณ 15-30 วินาทีต่อหน้า (อ่านที่ความละเอียดสูงเพื่อความแม่นยำ)
@@ -5513,7 +5610,7 @@ async function torRun(file){
     torProgress(68,`พบ ${TOR.clauses.length} ข้อ - กำลังจับคู่งวดงาน`,3); await sleep(60);
     TOR.milestones=torParseMilestones(TOR.clauses);
     torProgress(85,`พบ ${TOR.milestones.length} งวดงาน - กำลังสร้าง Scope of Work`,4); await sleep(60);
-    TOR.rows=torBuildRows(TOR.clauses,TOR.milestones);
+    { const v=torValidate(torBuildRows(TOR.clauses,TOR.milestones)); TOR.rows=v.rows; TOR.qa=v.report; }
     torProgress(100,'เสร็จเรียบร้อย',5);
 
     torShowResult('');
