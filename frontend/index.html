@@ -4910,7 +4910,111 @@ function torParseMilestones(clauses){
   return ms;
 }
 
+// ===== ตรวจว่า "หัวข้อ" ที่แตกได้เป็นหัวข้อจริงหรือเป็นข้อย่อยที่ OCR อ่านเลขเพี้ยน =====
+// เจอบ่อยมาก: OCR อ่าน "๕.๗" เป็น "5. ฒ" ทำให้ข้อย่อยกลายเป็นหัวข้อใหม่
+// แล้วตัดหมวดขอบเขตงานออกเป็นหลายท่อน ผลลัพธ์จึงกระจัดกระจาย
+// หัวข้อจริงในเอกสารราชการเป็น "วลีนาม" สั้น ๆ ไม่ใช่ประโยคที่ขึ้นต้นด้วยกริยาผูกพัน
+const TOR_HEAD_WORDS=/^(ความเป็นมา|หลักการ|วัตถุประสงค์|กลุ่มเป้าหมาย|คุณสมบัติ|ขอบเขต|ลักษณะงาน|มาตรฐาน|ความต้องการ|การติดตั้ง|การทดสอบ|การฝึกอบรม|การอบรม|เอกสาร|ระยะเวลา|การส่งมอบ|วงเงิน|งบประมาณ|อัตราค่าปรับ|ค่าปรับ|หลักเกณฑ์|เกณฑ์|การรับประกัน|การประกัน|เงื่อนไข|กรรมสิทธิ|ลิขสิทธิ|การชำระเงิน|การจ่ายเงิน|การดำเนินงาน|การดำเนินการ|นโยบาย|การคุ้มครอง|คุณลักษณะ|รายละเอียด|สถานที่|ผลงาน|การประเมิน|การรับรอง|การบำรุงรักษา)/;
+// ขึ้นต้นด้วยสิ่งเหล่านี้ = ไม่ใช่หัวข้อ แต่เป็นข้อย่อย/เนื้อหา
+const TOR_NOT_HEAD=/^(ผู้รับจ้าง|ผู้ขาย|ผู้ว่าจ้าง|ผู้ยื่น|ผู้เสนอ|ไม่เป็น|ไม่อยู่|มีความสามารถ|เป็นบุคคล|ต้อง|จัดหา|จัดทำ|จัดให้|ดำเนินการ|กำหนดส่งมอบ|เพื่อ|โดย|ทั้งนี้|กรณี|หาก|ในกรณี|\d)/;
+
+function torIsRealHead(c){
+  const t=String(c.text||'').trim();
+  if(!t) return false;
+  if(torIsScoreRow(c)) return false;      // แถวในตารางคะแนน ไม่ใช่หัวข้อ
+  // ขึ้นต้นด้วยอักขระขยะ (ตัวเดียวโดด ๆ หรือสัญลักษณ์) = OCR อ่านเลขข้อย่อยเพี้ยน
+  if(/^[^\u0E00-\u0E7Fa-zA-Z0-9(]/.test(t)) return false;
+  if(/^[\u0E00-\u0E7F](?=[\u0E00-\u0E7F]{0,1}\s)/.test(t) && t.length>40) return false;
+  if(TOR_HEAD_WORDS.test(t)) return true;
+  if(TOR_NOT_HEAD.test(t)) return false;
+  return t.length <= 120;      // หัวข้อจริงมักสั้น ประโยคยาว ๆ คือเนื้อหา
+}
+
+// รวมข้อย่อยที่ถูกอ่านเป็นหัวข้อกลับเข้าไปในหมวดก่อนหน้า
+function torMergeFalseHeads(clauses){
+  const d1=clauses.filter(c=>c.depth===1).sort((a,b)=>a.idx-b.idx);
+  const fake=new Set();
+  d1.forEach(h=>{ if(!torIsRealHead(h)) fake.add(h.idx); });
+  return {isFake:i=>fake.has(i), realHeads:d1.filter(h=>!fake.has(h.idx))};
+}
+
+// ===== จำแนกหมวดใน TOR ว่าอันไหนคืองานจริง อันไหนข้ามได้ อันไหนเป็นสเปคไว้เทียบ BOM/PO =====
+// อิงจากวิธีอ่าน TOR จริงของ PM: หมวดจัดซื้อ/คุณสมบัติผู้เสนอราคาไม่ต้องอ่าน
+// ส่วนหมวดสเปคเทคนิคไม่ใช่ "งานที่ต้องทำ" แต่ต้องเก็บไว้เทียบ BOM/PO
+// และต้องกวาดหา "ข้อผูกพันที่ซ่อนอยู่ในสเปค" ซึ่งเป็นจุดที่มักตกหล่นแล้วมีปัญหาทีหลัง
+const TOR_SKIP_HEAD=/ความเป็นมา|หลักการและเหตุผล|คุณสมบัติผู้เสนอ|คุณสมบัติของผู้|ผู้มีสิทธิ์เสนอ|การเสนอราคา|หลักฐานการเสนอราคา|การยื่นข้อเสนอ|หลักประกัน|หลักเกณฑ์การพิจารณา|เกณฑ์การให้คะแนน|เกณฑ์การประเมิน|การประเมินค่าประสิทธิภาพ|การทำสัญญา|กลุ่มเป้าหมาย|วงเงินในการจัดจ้าง|วงเงินงบประมาณ/;
+const TOR_SKIP_BODY=/ไม่เป็นบุคคล|ไม่เป็นผู้|ไม่อยู่ระหว่าง|ล้มละลาย|ผู้ยื่นข้อเสนอต้อง|ลงทะเบียนในระบบจัดซื้อ|มีความสามารถตามกฎหมาย|คะแนน\)|\(\d+ คะแนน|บัญชีรายชื่อผู้ทิ้งงาน/;
+// ตารางเกณฑ์ให้คะแนน - เลขนำหน้าคือ "คะแนน" ไม่ใช่เลขข้อ ต้องตัดทิ้งทั้งแถว
+// (เจอจริง: "30 | คะแนนมีการนำเสนอกรอบแนวคิดครบถ้วน...")
+const TOR_SCORE_ROW=/^คะแนน|คณะกรรมการพิจารณาผล|เสนอราคาต่ำจน|เสนอราคาตำจน|พิจารณาแล้วว่า|พิจารณาแล้วความคิด|^ไม่มีการนำเสนอ|^ไม่นำเสนอ|น้ำหนักร้อยละ|นำหนักร้อยละ|ข้อเสนอด้านคุณภาพ|ข้อเสนอด้านราคา|คะแนนเต็ม|เกณฑ์การให้คะแนน/;
+const TOR_SCORE_NO=/^(0|5|10|15|20|25|30|40|50|70|100)$/;   // เลขที่จริง ๆ คือคะแนน
+function torIsScoreRow(c){
+  const t=String(c.text||'').trim();
+  return TOR_SCORE_ROW.test(t) || (TOR_SCORE_NO.test(String(c.no||'')) && /คะแนน|เสนอ|พิจารณา/.test(t));
+}
+const TOR_SPEC_HEAD=/คุณลักษณะเฉพาะ|คุณสมบัติทางเทคนิค|ข้อกำหนดทางเทคนิค|รายละเอียดทางเทคนิค|specification/i;
+// ลักษณะบรรทัดที่เป็นสเปคอุปกรณ์ (มีหน่วย/รุ่น/ตัวเลขเทคนิค)
+const TOR_SPEC_BODY=/\b(GB|TB|MB|Gbps|Mbps|GHz|MHz|Watt|W\b|VA\b|RU\b|dBi|Port|Slot|Chassis|Throughput|Latency|IEEE|RJ-?45|SFP|PoE|RAID|CPU|DRAM|Flash)\b|ไม่น้อยกว่า\s*[\d,]+\s*(GB|TB|Gbps|Mbps|Port|ช่อง|ชุด)/i;
+// ข้อผูกพันที่มักซ่อนอยู่ในหมวดสเปค - ต้องดึงขึ้นมาให้เห็น
+const TOR_HIDDEN=/ผู้ขายต้อง|ผู้รับจ้างต้อง|ต้องจัดหา|ต้องรับประกัน|ต้องติดตั้ง|ต้องฝึกอบรม|ต้องอบรม|ต้องส่งมอบ|ต้องจัดทำ|ต้องดำเนินการ|ไม่คิดค่าใช้จ่าย|โดยไม่คิดค่า|ตลอดระยะเวลารับประกัน|หลังรับประกัน|สงวนสิทธิ์|ต้องได้รับความเห็นชอบ|ต้องเป็นผลิตภัณฑ์|ลิขสิทธิ์|Subscription|สิทธิ์การใช้งาน|ต้องรองรับการ(?!ทำงาน)/;
+
+// หมวดที่เป็นสาระของงานเสมอ ไม่ว่าเนื้อหาจะดูคล้ายอะไร - กันกรองแรงเกินจนของหาย
+const TOR_ALWAYS_WORK=/^(วัตถุประสงค์|ขอบเขต|ลักษณะงาน|ความต้องการ|การติดตั้ง|การทดสอบ|การฝึกอบรม|การอบรม|ระยะเวลา|การส่งมอบ|เอกสารส่งมอบ|การรับประกัน|อัตราค่าปรับ|ค่าปรับ|เงื่อนไขการชำระ|กรรมสิทธิ|ลิขสิทธิ|การดำเนินงาน|การดำเนินการ)/;
+
+function torClassify(head, kids){
+  const ht=String(head&&head.text||'');
+  if(TOR_ALWAYS_WORK.test(ht.trim())) return 'work';
+  if(TOR_SKIP_HEAD.test(ht)) return 'skip';
+  if(torIsScoreRow(head)) return 'skip';
+  if(kids.length>=2 && kids.filter(torIsScoreRow).length/kids.length>=0.5) return 'skip';
+  if(TOR_SPEC_HEAD.test(ht)) return 'spec';
+  if(!kids.length) return 'work';
+  const skipHits=kids.filter(c=>TOR_SKIP_BODY.test(c.text)).length;
+  if(skipHits/kids.length>=0.5) return 'skip';
+  const specHits=kids.filter(c=>TOR_SPEC_BODY.test(c.text)).length;
+  if(specHits/kids.length>=0.4) return 'spec';
+  return 'work';
+}
+
+// ดึงข้อผูกพันที่ซ่อนในหมวดสเปค ออกมาเป็นรายการเตือน
+function torHiddenInSpec(clauses, specHeads){
+  const out=[];
+  specHeads.forEach(h=>{
+    clauses.filter(c=>c.no===h.no||c.no.startsWith(h.no+'.')).forEach(c=>{
+      if(TOR_HIDDEN.test(c.text) && !TOR_SPEC_BODY.test(c.text.slice(0,60))){
+        const m=c.text.match(TOR_HIDDEN);
+        out.push({no:c.no, text:c.text, hit:m?m[0]:''});
+      }
+    });
+  });
+  return out;
+}
+
 // ---------- 4) ประกอบเป็นแถว Scope of Work ----------
+function torAppendSpecBlocks(rows, push, clauses, specHeads){
+  if(!specHeads.length) return;
+  // 1) ข้อผูกพันที่ซ่อนในหมวดสเปค - สำคัญที่สุด ต้องขึ้นก่อน
+  const hidden = torHiddenInSpec(clauses, specHeads);
+  if(hidden.length){
+    push({kind:'ms', desc:`ข้อผูกพันที่ซ่อนอยู่ในหมวดสเปคเทคนิค (${hidden.length} รายการ) - ไม่ใช่แค่สเปค แต่เป็นสิ่งที่ผู้ขายต้องทำ`});
+    hidden.forEach((x,i)=>push({tor:x.no, type:torType(x.text),
+      desc:`${i+1}) ${x.text}`, note:`พบคำผูกพัน: ${x.hit}`,
+      ms:'ตรวจสอบว่าอยู่งวดใด', cond:'อยู่ในหมวดสเปค แต่มีลักษณะเป็นงานที่ต้องส่งมอบ'}));
+  }
+  // 2) รายการสเปค - ไม่ใช่งาน แต่เก็บไว้เทียบ BOM/PO
+  const specRows=[];
+  specHeads.forEach(h=>{
+    clauses.filter(c=>c.no===h.no||c.no.startsWith(h.no+'.')).forEach(c=>{
+      if(c.depth<=2) specRows.push(c);
+    });
+  });
+  if(specRows.length){
+    push({kind:'ms', desc:`รายการสเปคเทคนิค (${specRows.length} รายการ) - ไม่นับเป็นงานใน Scope of Work · เก็บไว้ใช้เทียบกับ BOM และ PO`});
+    specRows.forEach(c=>push({tor:c.no, type:'Spec', desc:c.text,
+      note:'ใช้เทียบ BOM/PO', ms:'-', cond:'ตรวจว่ารายการที่จัดซื้อจริงตรงกับสเปคข้อนี้'}));
+  }
+}
+
 function torBuildRows(clauses, ms){
   const byNo = {}; clauses.forEach(c=>byNo[c.no]=c);
   const expand = ref => {           // "10.2.1-9" -> [10.2.1 ... 10.2.9]
@@ -4957,24 +5061,27 @@ function torBuildRows(clauses, ms){
     // หมวดที่ไม่ใช่ "งานที่ต้องทำ" - ตัดออกไม่ให้ปนใน Scope of Work
     // ตัดหมวดที่ไม่ใช่งานที่ต้องส่งมอบ - เทียบทั้งหัวข้อและเนื้อหาข้อย่อย
     // (จำเป็นเพราะ OCR อ่านเลขข้อผิดบ่อย หัวข้อจึงเพี้ยน ต้องดูจากเนื้อหาประกอบ)
-    const SKIP=/ความเป็นมา|หลักการและเหตุผล|คุณสมบัติผู้เสนอ|คุณสมบัติของผู้|หลักเกณฑ์การพิจารณา|เกณฑ์การให้คะแนน|เกณฑ์การประเมิน|การประเมินค่าประสิทธิภาพ|กลุ่มเป้าหมาย|วงเงินในการจัดจ้าง/;
-    // ลักษณะเนื้อหาของ "คุณสมบัติผู้เสนอราคา" และ "เกณฑ์ให้คะแนน" - ใช้ตรวจจากตัวข้อย่อยโดยตรง
-    const SKIP_BODY=/ไม่เป็นบุคคล|ไม่เป็นผู้|ไม่อยู่ระหว่าง|ล้มละลาย|ผู้ยื่นข้อเสนอต้อง|ลงทะเบียนในระบบจัดซื้อ|มีความสามารถตามกฎหมาย|คะแนน\)|\(\d+ คะแนน/;
+    const SKIP=TOR_SKIP_HEAD, SKIP_BODY=TOR_SKIP_BODY;
     const KEEPCOND=/ค่าปรับ|กรรมสิทธิ|ลิขสิทธิ|ชำระเงิน|เงื่อนไข/;
     // หัวข้อหลักเรียงตามตำแหน่งจริงในเอกสาร (ไม่ใช้เลขนำหน้าจับคู่ เพราะตารางคะแนนใช้เลขซ้ำกัน)
-    const heads = clauses.filter(c=>c.depth===1 && c.text.length>3)
-                         .sort((a,b)=>a.idx-b.idx);
-    let shown=0;
+    const {isFake, realHeads} = torMergeFalseHeads(clauses);
+    const heads = realHeads.filter(c=>c.text.length>3);
+    let shown=0; const specHeads=[], skippedHeads=[];
     heads.forEach((h,hi)=>{
       const stop = hi+1<heads.length ? heads[hi+1].idx : Infinity;
-      // ลูกของหัวข้อนี้ = ข้อย่อยที่อยู่ "ระหว่าง" หัวข้อนี้กับหัวข้อถัดไปในเอกสาร
-      const kids = clauses.filter(c=>c.idx>h.idx && c.idx<stop && c.depth>1);
+      // ลูก = ทุกข้อระหว่างหัวข้อจริงนี้กับหัวข้อจริงถัดไป
+      // (รวม "หัวข้อปลอม" ที่ OCR อ่านเลขเพี้ยนด้วย เพราะจริง ๆ มันคือข้อย่อยของหมวดนี้)
+      const kids = clauses.filter(c=>c.idx>h.idx && c.idx<stop
+                     && (c.depth>1 || isFake(c.idx))
+                     && !torIsScoreRow(c)               // ตัดแถวเกณฑ์คะแนน
+                     && !TOR_SKIP_BODY.test(c.text));   // ตัดแถวคุณสมบัติผู้เสนอราคาที่ปนมา
+                                                        // (จำเป็นเพราะ OCR อ่านหัวข้อหมวดนั้นเพี้ยน แถวจึงหลุดมาอยู่หมวดอื่น)
       if(!kids.length) return;
-      // ถ้าเนื้อหาข้อย่อยส่วนใหญ่เข้าข่าย "คุณสมบัติผู้เสนอ/เกณฑ์คะแนน" ก็ตัดทิ้งเช่นกัน
-      const bodyHits = kids.filter(c=>SKIP_BODY.test(c.text)).length;
-      const isSkip = SKIP.test(h.text) || SKIP_BODY.test(h.text) || (kids.length>=3 && bodyHits/kids.length >= 0.5);
+      const cls = torClassify(h, kids);
+      const isSkip = cls==='skip', isSpec = cls==='spec';
+      if(isSpec){ specHeads.push(h); return; }
+      if(isSkip){ skippedHeads.push(h); return; }
       const isCond = KEEPCOND.test(h.text);
-      if(isSkip) return;
       shown++;
       push({kind:'ms', desc:`ข้อ ${h.no}. ${h.text.slice(0,180)}`});
       kids.forEach((c,i)=>push({tor:c.no, type:isCond?'Condition':torType(c.text),
@@ -4982,8 +5089,9 @@ function torBuildRows(clauses, ms){
         ms: isCond?'-':'จ่ายครั้งเดียวเมื่อส่งมอบครบ',
         cond: isCond?`ข้อกำหนดตามข้อ ${h.no}`:''}));
     });
+    torAppendSpecBlocks(rows, push, clauses, specHeads);
     // หัวข้อที่ถูกตัดออก - แจ้งไว้ท้ายไฟล์เพื่อความโปร่งใส
-    const skipped = heads.filter(h=>SKIP.test(h.text));
+    const skipped = skippedHeads;
     if(skipped.length){
       push({kind:'ms', desc:'หมวดที่ไม่นับเป็นขอบเขตงาน (ตัดออกจาก Scope of Work)'});
       skipped.forEach(h=>push({tor:h.no, type:'Info', desc:`ข้อ ${h.no}. ${h.text.slice(0,180)}`,
@@ -5000,14 +5108,26 @@ function torBuildRows(clauses, ms){
     return rows;
   }
 
-  // ข้อที่ไม่ถูกอ้างในงวดใดเลย -> ข้อกำหนดตลอดโครงการ
+  // หมวดสเปคเทคนิค + ข้อผูกพันที่ซ่อนอยู่ข้างใน
+  const allHeads = torMergeFalseHeads(clauses).realHeads;
+  const specHeads = allHeads.filter(h=>{
+    const kids=clauses.filter(c=>c.no.startsWith(h.no+'.'));
+    return torClassify(h,kids)==='spec';
+  });
+  const specNos = new Set();
+  specHeads.forEach(h=>clauses.forEach(c=>{ if(c.no===h.no||c.no.startsWith(h.no+'.')) specNos.add(c.no); }));
+
+  // ข้อที่ไม่ถูกอ้างในงวดใดเลย -> ข้อกำหนดตลอดโครงการ (ไม่รวมหมวดสเปค เพราะแยกไปแล้ว)
   const used=new Set(rows.map(r=>r.tor).filter(Boolean));
   const rest = clauses.filter(c=>!used.has(c.no) && c.depth<=2 && c.text.length>25
-                 && !/^\d{1,2}$/.test(c.no) && !/^5\./.test(c.no));
+                 && !/^\d{1,2}$/.test(c.no) && !specNos.has(c.no)
+                 && !TOR_SKIP_HEAD.test(c.text) && !TOR_SKIP_BODY.test(c.text)
+                 && !torIsScoreRow(c));
   if(rest.length){
     push({kind:'ms', desc:'Z. ข้อกำหนดที่ใช้บังคับตลอดโครงการ (ไม่ผูกกับงวดใดงวดหนึ่ง)'});
     rest.forEach(c=>push({tor:c.no, type:torType(c.text), desc:c.text, ms:'ทุกงวด', cond:''}));
   }
+  torAppendSpecBlocks(rows, push, clauses, specHeads);
   return rows;
 }
 
