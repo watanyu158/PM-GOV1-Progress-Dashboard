@@ -231,14 +231,14 @@
   /* ---------------- Gantt timeline ---------------- */
   /* ---------------- Revenue Attainment ---------------- */
   .rv-row{
-    display:grid;grid-template-columns:minmax(150px,1.3fr) 100px minmax(120px,1.6fr) 100px 20px;
+    display:grid;grid-template-columns:minmax(140px,1.25fr) 100px minmax(110px,1.5fr) 138px 20px;
     align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-soft);
     cursor:pointer;transition:.13s;
   }
   .rv-row:hover{background:var(--surface-2);}
   .rv-row.head-row{padding:0 0 9px;border-bottom:1px solid var(--line);cursor:default;}
   .rv-row.head-row:hover{background:none;}
-  .rv-row.head-row span{font-size:10.5px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;}
+  .rv-row.head-row span{font-size:10.5px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;}
   .rv-row .wr-chev{color:var(--faint);transition:transform .18s;}
   .rv-row.open .wr-chev{transform:rotate(90deg);color:var(--brand);}
   .rv-detail{display:none;padding:2px 0 14px 42px;border-bottom:1px solid var(--line-soft);}
@@ -256,6 +256,7 @@
     .rv-row > *:nth-child(2)::before{content:'฿ ';opacity:.5;}
     .rv-row > *:nth-child(3){grid-area:col3;}
     .rv-row > *:nth-child(4){grid-area:col4; font-size:13px; text-align:left!important; font-weight:600;}
+    .rv-row.head-row span{white-space:normal;}
     .rv-row > *:nth-child(5){grid-area:chev;align-self:start;}
     .rv-row.head-row{display:none;}     /* หัวคอลัมน์ไม่จำเป็นแล้วเมื่อกลายเป็นการ์ดสแต็ก มีป้ายกำกับในตัวอยู่แล้ว */
     .rv-detail{padding-left:14px;}
