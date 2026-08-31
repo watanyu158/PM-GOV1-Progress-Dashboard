@@ -515,6 +515,8 @@
   .it-tax.full{color:var(--success);}
   .it-tax.part{color:var(--warning);}
   .it-tax.none{color:var(--brand-2);}
+  .it-amt.it-nobill{color:var(--line);font-weight:400;}
+  .it-cell.taxonly{box-shadow:inset 0 0 0 1.5px var(--success);}
   /* ยังไม่ออกใบกำกับภาษี - ใช้เส้นประหนาสีเข้ม ให้กวาดตาผ่านก็เห็นทันที */
   .it-cell.notax{
     border:2px dashed var(--brand) !important;
@@ -4727,20 +4729,28 @@ function renderInvoiceTimeline(paywSource, codeSetList){
   // ทุกช่องแสดง 2 ค่าเสมอ: billing (ตัวใหญ่) และ tax invoice (ตัวเล็ก)
   // ถ้ายังไม่ออกใบกำกับภาษีเลยจะขึ้น "ยังไม่ออก" · ถ้าออกครบแล้วขึ้นเครื่องหมายถูก
   const cell = (billing, tax, ar, i) => {
-    if(billing<=0) return `<td class="it-cell ${i===nowM?'now':''}"><span class="it-dash">-</span></td>`;
+    // ต้องแสดงเมื่อมี billing หรือ tax invoice อย่างใดอย่างหนึ่ง
+    // (เดิมเช็คแค่ billing<=0 ทำให้เดือนที่ออกใบกำกับภาษีอย่างเดียวโดยไม่มีงวด billing ถูกซ่อนหายไป
+    //  เช่น Cloud Conference ออกใบกำกับภาษีตอนส่งของ 29.9M เดือน มิ.ย. แต่งวด billing อยู่ ก.ค./ส.ค.)
+    if(billing<=0 && tax<=0) return `<td class="it-cell ${i===nowM?'now':''}"><span class="it-dash">-</span></td>`;
     const pend = billing - tax;
-    const t = Math.min(1, billing/maxB);
+    const t = Math.min(1, Math.max(billing, tax)/maxB);
     const bg = `rgba(122,92,62,${(0.08+t*0.42).toFixed(2)})`;
-    // ยังไม่ออกใบกำกับภาษี = ใช้ "กรอบเส้นประ" บอกแทนคำพูด (ไม่มีบรรทัดที่ 2 เลย ตารางจะโล่งกว่า)
     const noTax = tax <= 0;
+    const taxOnly = billing <= 0 && tax > 0;   // เดือนที่ออกใบกำกับภาษีอย่างเดียว ไม่มีงวด billing
     const taxLine = noTax ? ''
-      : pend > 1
+      : (billing > 0 && pend > 1)
       ? `<div class="it-tax part" title="ออกใบกำกับภาษีแล้ว ${thb(tax)} · เหลือ ${thb(pend)}">▣ ${compact(tax)}</div>`
-      : `<div class="it-tax full" title="ออกใบกำกับภาษีครบแล้ว ${thb(tax)}">✓ ${compact(tax)}</div>`;
+      : `<div class="it-tax full" title="ออกใบกำกับภาษีแล้ว ${thb(tax)}">✓ ${compact(tax)}</div>`;
     const arLine = ar>0 ? `<div class="it-ar" title="ออกใบกำกับภาษีแล้วแต่ยังเก็บเงินไม่ได้ ${thb(ar)}">◷ ${compact(ar)}</div>` : '';
-    const tip = noTax ? `billing ${thb(billing)} · ยังไม่ออกใบกำกับภาษี` : `billing ${thb(billing)} · tax invoice ${thb(tax)}`;
-    return `<td class="it-cell ${i===nowM?'now':''} ${i>nowM?'fut':''} ${noTax?'notax':''}" style="background:${bg}" title="${tip}">
-      <div class="it-amt">${compact(billing)}</div>${taxLine}${arLine}</td>`;
+    const tip = taxOnly ? `ออกใบกำกับภาษี ${thb(tax)} (ไม่มีงวด billing เดือนนี้)`
+      : noTax ? `billing ${thb(billing)} · ยังไม่ออกใบกำกับภาษี`
+      : `billing ${thb(billing)} · tax invoice ${thb(tax)}`;
+    const topLine = billing > 0
+      ? `<div class="it-amt">${compact(billing)}</div>`
+      : `<div class="it-amt it-nobill">-</div>`;
+    return `<td class="it-cell ${i===nowM?'now':''} ${i>nowM?'fut':''} ${noTax?'notax':''} ${taxOnly?'taxonly':''}" style="background:${bg}" title="${tip}">
+      ${topLine}${taxLine}${arLine}</td>`;
   };
 
   const edgeCell = (billing, tax) => billing>0
