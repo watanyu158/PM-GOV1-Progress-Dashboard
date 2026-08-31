@@ -725,6 +725,12 @@
   .nd-name{font-size:12.5px;font-weight:600;color:var(--ink);flex:1;min-width:0;overflow-wrap:break-word;}
   .nd-cust{font-size:11px;color:var(--faint);margin-top:2px;}
   .nd-prog{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap;flex:none;}
+  .nd-amts{display:flex;gap:16px;flex:none;align-items:flex-start;}
+  .nd-a{display:flex;flex-direction:column;align-items:flex-end;line-height:1.35;}
+  .nd-a i{font-style:normal;font-size:8.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
+  .nd-a b{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;color:var(--ink-2);white-space:nowrap;}
+  .nd-a-tax b{color:var(--brand-2);}
+  @media(max-width:520px){ .nd-amts{gap:10px;} .nd-a i{font-size:8px;} .nd-a b{font-size:10px;} }
   .nd-prog b{color:var(--brand);}
   .nd-row{display:flex;gap:8px;font-size:12px;line-height:1.55;margin-top:4px;}
   .nd-tag{
@@ -5031,15 +5037,22 @@ function renderPayment(paywSource, codeSetList){
       const _spPC = num(x.sellingPrice);
       const _allInvPC = (x.installments||[]).reduce((a,ii)=>a+num(ii.invoiced),0);
       const _overlapPC = _spPC > 0 && _allInvPC > _spPC + 2;
+      // โครงการที่มีตารางสัญญา ให้ยึดตารางเป็นหลัก (แถวในไฟล์เก็บแค่ยอดคงเหลือ ไม่ใช่มูลค่างวดเต็ม)
+      const _scPC = CONTRACT_SCHEDULE[x.projectCode];
       let sumBilling = 0, sumTaxInv = 0;
-      (x.installments||[]).forEach(ii=>{
-        const iv = num(ii.invoiced), rm = num(ii.remainder);
-        if(_isDel(ii)) sumTaxInv += iv;
-        else {
-          sumBilling += (iv + rm) > 0 ? iv + rm : descAmt(ii);
-          if(!_overlapPC) sumTaxInv += iv;
-        }
-      });
+      if(_scPC){
+        sumBilling = _scPC.rows.reduce((a,r)=>a+r.full,0);
+        sumTaxInv  = Math.max(0, sumBilling - _scPC.rows.reduce((a,r)=>a+(r.pending||0),0));
+      } else {
+        (x.installments||[]).forEach(ii=>{
+          const iv = num(ii.invoiced), rm = num(ii.remainder);
+          if(_isDel(ii)) sumTaxInv += iv;
+          else {
+            sumBilling += (iv + rm) > 0 ? iv + rm : descAmt(ii);
+            if(!_overlapPC) sumTaxInv += iv;
+          }
+        });
+      }
       const pendTax = sumBilling - sumTaxInv;
       const spNum = num(x.sellingPrice);
       const billingOk = spNum>0 && Math.abs(sumBilling - spNum) < 2;
@@ -5086,16 +5099,28 @@ function renderPayment(paywSource, codeSetList){
             ? `ออกใบกำกับภาษีตอนส่งของ ${fmtDate(inst.invoiceDate)} · ${thb(inst.collecting)} - ไม่นับรวมใน billing ตามงวด`
           : state==='billing'
             ? `ออก Invoice ${fmtDate(inst.invoiceDate)} · ลูกค้ายังไม่จ่าย ค้าง ${thb(inst.collecting)}`
-            : (est ? `กำหนดวางบิล ${fmtDate(inst.invoiceDate)} · ยอดที่จะเรียกเก็บ ${thb(est.amount)}`
-                   : `กำหนดวางบิล ${fmtDate(inst.invoiceDate)}`);
+            : `กำหนดวางบิล ${fmtDate(inst.invoiceDate)}`;
 
         // ตัวเลขมุมขวา: งวดที่เก็บแล้วโชว์ยอดที่เก็บได้, งวดที่ยังไม่วางบิลโชว์ยอดคงเหลือที่จะเรียกเก็บ
-        const amountTxt = state==='paid' ? thb(inst.collected)
-          : state==='waiting' ? (est ? thb(est.amount) : '-')
-          : thb(inst.collecting);
+        // แยก 2 ค่าให้ชัด ไม่ให้สับสนว่าตัวเลขที่เห็นคืออะไร
+        //   Billing     = ยอดวางบิลตามงวดงาน (โครงการมีตารางสัญญาใช้มูลค่าเต็มของงวด)
+        //   Tax invoice = ยอดใบกำกับภาษีของงวดนั้น (ออกแล้ว หรือที่จะออก)
+        const _schedFullPC = contractFullOfInstallment(x.projectCode, inst.desc);
+        const _ivPC = num(inst.invoiced), _rmPC = num(inst.remainder);
+        const billingAmt = _isDel(inst) ? 0
+          : (_schedFullPC > 0 ? _schedFullPC : ((_ivPC + _rmPC) > 0 ? _ivPC + _rmPC : descAmt(inst)));
+        const taxAmt = _isDel(inst) ? _ivPC
+          : (_schedFullPC > 0 ? (_ivPC > 0 ? _ivPC : _rmPC) : (_overlapPC ? 0 : _ivPC));
+        const taxIssued = _ivPC > 0;   // ออกใบกำกับภาษีแล้วจริงหรือยัง
+
+        const amtCol = `<span class="nd-amts">
+          ${billingAmt>0 ? `<span class="nd-a"><i>Billing</i><b>${thb(billingAmt)}</b></span>` : ''}
+          ${taxAmt>0 ? `<span class="nd-a nd-a-tax"><i>Tax invoice${taxIssued?'':' (จะออก)'}</i><b>${thb(taxAmt)}</b></span>` : ''}
+          ${(billingAmt<=0 && taxAmt<=0) ? `<span class="nd-a"><b>-</b></span>` : ''}
+        </span>`;
 
         return `<div class="nd nd-${state}">
-          <div class="nd-top"><span class="nd-name">${inst.desc||'-'}</span><span class="nd-prog">${amountTxt}</span></div>
+          <div class="nd-top"><span class="nd-name">${inst.desc||'-'}</span>${amtCol}</div>
           <div class="nd-status"><span class="nd-badge nd-badge-${state}">${stateIcon} ${stateLabel}</span></div>
           <div class="nd-detail">${detailTxt}</div>
         </div>`;
