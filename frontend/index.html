@@ -4839,7 +4839,15 @@ async function torExtract(file, onProg){
 // ---------- 2) แตกโครงสร้างข้อ ----------
 // TOR ราชการจำนวนมากใช้เลขไทย ๐-๙ ในการนับข้อ ต้องแปลงเป็นอารบิกก่อนจึงจะแตกข้อได้
 const TH_DIGITS='๐๑๒๓๔๕๖๗๘๙';
-function torThaiDigits(t){ return t.replace(/[๐-๙]/g, d=>String(TH_DIGITS.indexOf(d))); }
+// แปลงเลขไทยเป็นอารบิกทั้งเอกสาร - ทั้งเลขข้อ เลขในเนื้อหา จำนวนเงิน วันที่ ฯลฯ
+// ทำตั้งแต่ตอนดึงข้อความ ผลจึงเป็นอารบิกทุกที่ รวมถึงไฟล์ Excel ที่ส่งออก
+function torThaiDigits(t){
+  if(!t) return t;
+  return String(t)
+    .replace(/[๐-๙]/g, d=>String(TH_DIGITS.indexOf(d)))
+    .replace(/๏/g,'')            // ตัวคั่นข้อความไทยโบราณที่ OCR มักอ่านติดมา
+    .replace(/ฯลฯ/g,'ฯลฯ');
+}
 
 async function torParseClausesAsync(text, onProg){
   let t = torThaiDigits(text)
@@ -4851,7 +4859,7 @@ async function torParseClausesAsync(text, onProg){
     const m = ln.match(/^(\d{1,2}(?:\.\d{1,2}){0,2})[\.\s]\s*(.+)$/);
     if(m && m[2].length>4){
       if(cur) out.push(cur);
-      cur = {no:m[1], text:m[2].trim(), depth:m[1].split('.').length};
+      cur = {no:m[1], text:m[2].trim(), depth:m[1].split('.').length, idx:out.length};
     } else if(cur && ln.length>3 && cur.text.length<1200){
       cur.text += ' ' + ln;
     }
@@ -4946,14 +4954,49 @@ function torBuildRows(clauses, ms){
 
   // TOR แบบจ้างเหมา/จัดกิจกรรม มักจ่ายครั้งเดียว ไม่มีงวดงาน -> จัดกลุ่มตามหมวดหัวข้อหลักแทน
   if(!ms.length){
-    const heads = clauses.filter(c=>c.depth===1 && c.text.length>3);
-    heads.forEach(h=>{
-      const kids = clauses.filter(c=>c.no.startsWith(h.no+'.') );
+    // หมวดที่ไม่ใช่ "งานที่ต้องทำ" - ตัดออกไม่ให้ปนใน Scope of Work
+    // ตัดหมวดที่ไม่ใช่งานที่ต้องส่งมอบ - เทียบทั้งหัวข้อและเนื้อหาข้อย่อย
+    // (จำเป็นเพราะ OCR อ่านเลขข้อผิดบ่อย หัวข้อจึงเพี้ยน ต้องดูจากเนื้อหาประกอบ)
+    const SKIP=/ความเป็นมา|หลักการและเหตุผล|คุณสมบัติผู้เสนอ|คุณสมบัติของผู้|หลักเกณฑ์การพิจารณา|เกณฑ์การให้คะแนน|เกณฑ์การประเมิน|การประเมินค่าประสิทธิภาพ|กลุ่มเป้าหมาย|วงเงินในการจัดจ้าง/;
+    // ลักษณะเนื้อหาของ "คุณสมบัติผู้เสนอราคา" และ "เกณฑ์ให้คะแนน" - ใช้ตรวจจากตัวข้อย่อยโดยตรง
+    const SKIP_BODY=/ไม่เป็นบุคคล|ไม่เป็นผู้|ไม่อยู่ระหว่าง|ล้มละลาย|ผู้ยื่นข้อเสนอต้อง|ลงทะเบียนในระบบจัดซื้อ|มีความสามารถตามกฎหมาย|คะแนน\)|\(\d+ คะแนน/;
+    const KEEPCOND=/ค่าปรับ|กรรมสิทธิ|ลิขสิทธิ|ชำระเงิน|เงื่อนไข/;
+    // หัวข้อหลักเรียงตามตำแหน่งจริงในเอกสาร (ไม่ใช้เลขนำหน้าจับคู่ เพราะตารางคะแนนใช้เลขซ้ำกัน)
+    const heads = clauses.filter(c=>c.depth===1 && c.text.length>3)
+                         .sort((a,b)=>a.idx-b.idx);
+    let shown=0;
+    heads.forEach((h,hi)=>{
+      const stop = hi+1<heads.length ? heads[hi+1].idx : Infinity;
+      // ลูกของหัวข้อนี้ = ข้อย่อยที่อยู่ "ระหว่าง" หัวข้อนี้กับหัวข้อถัดไปในเอกสาร
+      const kids = clauses.filter(c=>c.idx>h.idx && c.idx<stop && c.depth>1);
       if(!kids.length) return;
-      push({kind:'ms', desc:`ข้อ ${h.no}. ${h.text.slice(0,150)}`});
-      kids.forEach((c,i)=>push({tor:c.no, type:torType(c.text),
-        desc:`${i+1}) ${c.text}`, ms:'จ่ายครั้งเดียวเมื่อส่งมอบครบ', cond:''}));
+      // ถ้าเนื้อหาข้อย่อยส่วนใหญ่เข้าข่าย "คุณสมบัติผู้เสนอ/เกณฑ์คะแนน" ก็ตัดทิ้งเช่นกัน
+      const bodyHits = kids.filter(c=>SKIP_BODY.test(c.text)).length;
+      const isSkip = SKIP.test(h.text) || SKIP_BODY.test(h.text) || (kids.length>=3 && bodyHits/kids.length >= 0.5);
+      const isCond = KEEPCOND.test(h.text);
+      if(isSkip) return;
+      shown++;
+      push({kind:'ms', desc:`ข้อ ${h.no}. ${h.text.slice(0,180)}`});
+      kids.forEach((c,i)=>push({tor:c.no, type:isCond?'Condition':torType(c.text),
+        desc:`${i+1}) ${c.text}`,
+        ms: isCond?'-':'จ่ายครั้งเดียวเมื่อส่งมอบครบ',
+        cond: isCond?`ข้อกำหนดตามข้อ ${h.no}`:''}));
     });
+    // หัวข้อที่ถูกตัดออก - แจ้งไว้ท้ายไฟล์เพื่อความโปร่งใส
+    const skipped = heads.filter(h=>SKIP.test(h.text));
+    if(skipped.length){
+      push({kind:'ms', desc:'หมวดที่ไม่นับเป็นขอบเขตงาน (ตัดออกจาก Scope of Work)'});
+      skipped.forEach(h=>push({tor:h.no, type:'Info', desc:`ข้อ ${h.no}. ${h.text.slice(0,180)}`,
+        note:'ไม่ใช่งานที่ต้องส่งมอบ', ms:'-', cond:''}));
+    }
+    if(!shown) push({kind:'sec', desc:'ไม่พบหมวดที่เป็นขอบเขตงานในเอกสารนี้ - ตรวจสอบว่า OCR ครอบคลุมหน้าที่มีขอบเขตงานหรือยัง'});
+    // เลขข้อซ้ำกันมาก = OCR อ่านเลขผิด ต้องเตือนให้ตรวจทาน
+    const nums=rows.filter(r=>r.tor).map(r=>r.tor);
+    const dup=nums.length-new Set(nums).size;
+    if(dup > nums.length*0.25){
+      rows.unshift({kind:'sec', tor:'', type:'', note:'', ms:'', cond:'',
+        desc:`หมายเหตุ: เลขข้อ ${dup} จาก ${nums.length} รายการซ้ำกัน - OCR อ่านเลขไทยผิดพลาด ควรตรวจทานคอลัมน์ ToR No. กับต้นฉบับก่อนใช้งาน`});
+    }
     return rows;
   }
 
@@ -4970,7 +5013,7 @@ function torBuildRows(clauses, ms){
 
 // ---------- 5) ส่งออก Excel (เขียน SpreadsheetML เอง ไม่ต้องพึ่งไลบรารีภายนอก) ----------
 function torExportExcel(){
-  const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  const esc=v=>torThaiDigits(String(v==null?'':v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
                 .replace(/"/g,'&quot;').replace(/\r?\n/g,'&#10;');
   const H=['Item/ToR No.','ประเภท','Description/รายละเอียด','หมายเหตุ','งวดงานที่','เงื่อนไข/ข้อกำหนด',
            'Sales','PM','PE','Sub1','Sub2','Sub3','Sub4','Sub5','Sub6','Sub7'];
@@ -5013,6 +5056,39 @@ ${rowsXml.join('\n')}
   setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1500);
 }
 
+// แก้คำเพี้ยนที่ OCR ไทยผิดซ้ำ ๆ - ทำเฉพาะรูปแบบที่ปลอดภัยและมีบริบทชัดเจน
+// ไม่เดาคำ เพราะเสี่ยงแก้ผิดมากกว่าปล่อยไว้
+function torFixThai(t){
+  if(!t) return t;
+  return String(t)
+    // รวมสระอำที่ถูกแยกเป็น นิคหิต+สระอา ให้เป็นตัวเดียว (ทำให้ค้นหา/เทียบคำได้ถูกต้อง)
+    .replace(/\u0E4D\u0E32/g,'\u0E33')
+    // ื กับ ี สลับกันบ่อยที่สุดในภาษาไทย - แก้เฉพาะคำที่ขึ้นต้นด้วย "มื" แล้วตามด้วยพยัญชนะที่ทำให้เป็นคำจริง
+    .replace(/มื(?=องค์|ความ|ผลงาน|รายละเอียด|ลักษณะ|จำนวน|ส่วนร่วม|ศักยภาพ|คุณภาพ|ประสิทธิ)/g,'มี')
+    .replace(/ท่ี/g,'ที่').replace(/เเ/g,'แ')
+    // ตัดอักขระขยะที่ OCR อ่านจากตราประทับ/ลายเซ็นที่หลงเหลือ (ตัวละตินเดี่ยว ๆ ปนกลางข้อความไทย)
+    .replace(/(?<=[\u0E00-\u0E7F])\s+[a-zA-Z]{1,2}\s+(?=[\u0E00-\u0E7F])/g,' ')
+    .replace(/[ \t]{2,}/g,' ')
+    .trim();
+}
+
+// เตรียมภาพก่อน OCR: ลบตราประทับแดง/ลายเซ็นน้ำเงินที่ทับตัวหนังสือ แล้วแปลงเป็นขาวดำ
+// เอกสารราชการไทยมักประทับตราครุฑแดงและเซ็นชื่อน้ำเงินทับข้อความ ทำให้ OCR อ่านเพี้ยนหนัก
+// วิธี: พิกเซลที่มีสีเด่นชัด (แดงหรือน้ำเงิน) เปลี่ยนเป็นขาว ที่เหลือแปลงเป็นเทาแล้วตัดเป็นขาว-ดำ
+function torCleanCanvas(ctx,w,h){
+  const img=ctx.getImageData(0,0,w,h), d=img.data;
+  for(let i=0;i<d.length;i+=4){
+    const r=d[i], g=d[i+1], b=d[i+2];
+    const isRed  = (r-g>40) && (r-b>40);
+    const isBlue = (b-r>40) && (b-g>25);
+    if(isRed||isBlue){ d[i]=d[i+1]=d[i+2]=255; continue; }
+    const y = 0.299*r + 0.587*g + 0.114*b;
+    const v = y>170 ? 255 : 0;          // binarize ให้ตัวอักษรคมชัด
+    d[i]=d[i+1]=d[i+2]=v;
+  }
+  ctx.putImageData(img,0,0);
+}
+
 // ---------- OCR ในเครื่อง (Tesseract.js) สำหรับ PDF ที่เป็นภาพสแกน ----------
 async function torOcrRun(file, from, to){
   const res=document.getElementById('torResult');
@@ -5032,6 +5108,10 @@ async function torOcrRun(file, from, to){
       langPath:'lib/tess/',
       gzip:true,
     });
+    await worker.setParameters({
+      preserve_interword_spaces:'1',       // คงช่องว่างระหว่างคำ ช่วยให้แตกข้อแม่นขึ้น
+      tessedit_pageseg_mode:'6',           // มองทั้งหน้าเป็นบล็อกข้อความเดียว เหมาะกับ TOR
+    });
 
     const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
     TOR.pages = pdf.numPages;
@@ -5040,10 +5120,12 @@ async function torOcrRun(file, from, to){
 
     for(let i=from;i<=to;i++){
       const page=await pdf.getPage(i);
-      // เรนเดอร์ที่ 2 เท่า ให้ตัวอักษรคมพอสำหรับ OCR
-      const vp=page.getViewport({scale:2});
+      // เรนเดอร์ที่ 4 เท่า (~300 DPI) - จำเป็นสำหรับภาษาไทยที่มีสระบน/ล่างตัวเล็ก
+      const vp=page.getViewport({scale:4});
       const cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
-      await page.render({canvasContext:cv.getContext('2d'), viewport:vp}).promise;
+      const ctx=cv.getContext('2d', {willReadFrequently:true});
+      await page.render({canvasContext:ctx, viewport:vp}).promise;
+      torCleanCanvas(ctx, cv.width, cv.height);
       const {data:{text}} = await worker.recognize(cv);
       out.push(text);
       page.cleanup(); cv.width=cv.height=0;      // คืนหน่วยความจำทันที
@@ -5056,7 +5138,7 @@ async function torOcrRun(file, from, to){
     await worker.terminate();
 
     // OCR ไทยแทรกช่องว่างระหว่างอักษร ต้องยุบก่อนแตกข้อ
-    const text = out.join('\n');
+    const text = torFixThai(torThaiDigits(out.join('\n')));   // ๐-๙ -> 0-9 + แก้คำเพี้ยนจาก OCR
     TOR.text = text;
     torProgress(62,'แตกโครงสร้างข้อจากผล OCR',2); await sleep(40);
     TOR.clauses = await torParseClausesAsync(text,(p,st)=>torProgress(Math.min(78,p),st,2));
@@ -5151,7 +5233,8 @@ async function torRun(file){
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   try{
     torProgress(5,`เปิดไฟล์ ${file.name} (${(file.size/1024/1024).toFixed(1)} MB)`,0); await sleep(60);
-    const text=await torExtract(file,(p,st)=>torProgress(p,st,1));
+    let text=await torExtract(file,(p,st)=>torProgress(p,st,1));
+    text = torFixThai(torThaiDigits(text));   // ๐-๙ -> 0-9 + จัดรูปสระให้เป็นมาตรฐาน
     TOR.text=text;
     torProgress(50,'แตกโครงสร้างข้อจากเอกสาร',2); await sleep(40);
     TOR.clauses=await torParseClausesAsync(text,(p,st)=>torProgress(p,st,2));
@@ -5164,7 +5247,7 @@ async function torRun(file){
         พบข้อความเพียง ${text.replace(/\s/g,'').length} ตัวอักษร${TOR.pages?` จาก ${TOR.pages} หน้า`:''}
         ${isPdf?`<div class="tor-ocr-box">
           <div class="tor-ocr-t">แปลงภาพเป็นข้อความด้วย OCR ได้เลย</div>
-          <div class="tor-ocr-s">ประมวลผลในเครื่องคุณทั้งหมด ไฟล์ไม่ถูกส่งออกไปที่ใด · ใช้เวลาประมาณ 5-15 วินาทีต่อหน้า
+          <div class="tor-ocr-s">ประมวลผลในเครื่องคุณทั้งหมด ไฟล์ไม่ถูกส่งออกไปที่ใด · ใช้เวลาประมาณ 15-30 วินาทีต่อหน้า (อ่านที่ความละเอียดสูงเพื่อความแม่นยำ)
             ${TOR.pages>30?`<br><b>เอกสารนี้มี ${TOR.pages} หน้า อาจใช้เวลาหลายนาที</b> - เลือกช่วงหน้าที่ต้องการได้`:''}</div>
           <div class="tor-ocr-row">
             <label>หน้าที่ <input type="number" id="torOcrFrom" value="1" min="1" max="${TOR.pages}"></label>
