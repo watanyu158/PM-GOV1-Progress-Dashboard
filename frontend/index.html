@@ -531,6 +531,12 @@
   .tor-table tr.tor-ms td{background:#FFF2CC;font-weight:700;color:var(--ink);}
   .tor-table tr.tor-sec td{background:#E2EFDA;font-weight:700;}
   .tor-more{font-size:10px;color:var(--faint);padding:8px 2px;}
+  .tor-ocr-box{margin-top:12px;padding:12px 14px;background:var(--surface);border:1px solid var(--line-soft);border-radius:9px;}
+  .tor-ocr-t{font-size:12.5px;font-weight:700;color:var(--ink);}
+  .tor-ocr-s{font-size:10.5px;color:var(--faint);line-height:1.65;margin:5px 0 10px;}
+  .tor-ocr-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+  .tor-ocr-row label{font-size:11px;color:var(--ink-2);display:inline-flex;align-items:center;gap:5px;}
+  .tor-ocr-row input{width:66px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:12px;font-family:'IBM Plex Mono',monospace;}
   .tor-warn{margin:0 18px 16px;padding:12px 14px;border-radius:9px;background:var(--warning-tint);border-left:3px solid var(--warning);font-size:11.5px;color:var(--ink-2);line-height:1.7;}
 
   /* ---------------- Invoice Timeline ---------------- */
@@ -4831,8 +4837,13 @@ async function torExtract(file, onProg){
 }
 
 // ---------- 2) แตกโครงสร้างข้อ ----------
+// TOR ราชการจำนวนมากใช้เลขไทย ๐-๙ ในการนับข้อ ต้องแปลงเป็นอารบิกก่อนจึงจะแตกข้อได้
+const TH_DIGITS='๐๑๒๓๔๕๖๗๘๙';
+function torThaiDigits(t){ return t.replace(/[๐-๙]/g, d=>String(TH_DIGITS.indexOf(d))); }
+
 async function torParseClausesAsync(text, onProg){
-  let t = text.replace(/(?<=[\u0E00-\u0E7F]) (?=[\u0E00-\u0E7F])/g,'').replace(/[ \t]+/g,' ');
+  let t = torThaiDigits(text)
+            .replace(/(?<=[\u0E00-\u0E7F]) (?=[\u0E00-\u0E7F])/g,'').replace(/[ \t]+/g,' ');
   const lines = t.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
   const out=[]; let cur=null;
   for(let i=0;i<lines.length;i++){
@@ -4855,7 +4866,7 @@ async function torParseClausesAsync(text, onProg){
 
 function torParseClauses(text){
   // ยุบช่องว่างที่ OCR/PDF แทรกระหว่างอักษรไทย แล้วตัดเป็นบรรทัด
-  let t = text.replace(/(?<=[\u0E00-\u0E7F]) (?=[\u0E00-\u0E7F])/g,'').replace(/[ \t]+/g,' ');
+  let t = torThaiDigits(text).replace(/(?<=[\u0E00-\u0E7F]) (?=[\u0E00-\u0E7F])/g,'').replace(/[ \t]+/g,' ');
   const lines = t.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
   const out=[]; let cur=null;
   for(const ln of lines){
@@ -4933,6 +4944,19 @@ function torBuildRows(clauses, ms){
     }
   });
 
+  // TOR แบบจ้างเหมา/จัดกิจกรรม มักจ่ายครั้งเดียว ไม่มีงวดงาน -> จัดกลุ่มตามหมวดหัวข้อหลักแทน
+  if(!ms.length){
+    const heads = clauses.filter(c=>c.depth===1 && c.text.length>3);
+    heads.forEach(h=>{
+      const kids = clauses.filter(c=>c.no.startsWith(h.no+'.') );
+      if(!kids.length) return;
+      push({kind:'ms', desc:`ข้อ ${h.no}. ${h.text.slice(0,150)}`});
+      kids.forEach((c,i)=>push({tor:c.no, type:torType(c.text),
+        desc:`${i+1}) ${c.text}`, ms:'จ่ายครั้งเดียวเมื่อส่งมอบครบ', cond:''}));
+    });
+    return rows;
+  }
+
   // ข้อที่ไม่ถูกอ้างในงวดใดเลย -> ข้อกำหนดตลอดโครงการ
   const used=new Set(rows.map(r=>r.tor).filter(Boolean));
   const rest = clauses.filter(c=>!used.has(c.no) && c.depth<=2 && c.text.length>25
@@ -4968,12 +4992,12 @@ function torExportExcel(){
   const xml=`<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
 <Styles>
-<Style ss:ID="t"><Font ss:FontName="Arial" ss:Size="14" ss:Bold="1"/></Style>
-<Style ss:ID="sub"><Font ss:FontName="Arial" ss:Size="9" ss:Italic="1" ss:Color="#808080"/></Style>
-<Style ss:ID="h"><Font ss:FontName="Arial" ss:Size="9" ss:Bold="1"/><Interior ss:Color="#D9D9D9" ss:Pattern="Solid"/><Alignment ss:Vertical="Center" ss:Horizontal="Center" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
-<Style ss:ID="b"><Font ss:FontName="Arial" ss:Size="9"/><Alignment ss:Vertical="Top" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFBFBF"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFBFBF"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFBFBF"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFBFBF"/></Borders></Style>
-<Style ss:ID="ms"><Font ss:FontName="Arial" ss:Size="9" ss:Bold="1"/><Interior ss:Color="#FFF2CC" ss:Pattern="Solid"/><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
-<Style ss:ID="sec"><Font ss:FontName="Arial" ss:Size="9" ss:Bold="1"/><Interior ss:Color="#E2EFDA" ss:Pattern="Solid"/><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
+<Style ss:ID="t"><Font ss:FontName="TH SarabunPSK" ss:Size="18" ss:Bold="1"/></Style>
+<Style ss:ID="sub"><Font ss:FontName="TH SarabunPSK" ss:Size="12" ss:Italic="1" ss:Color="#808080"/></Style>
+<Style ss:ID="h"><Font ss:FontName="TH SarabunPSK" ss:Size="12" ss:Bold="1"/><Interior ss:Color="#D9D9D9" ss:Pattern="Solid"/><Alignment ss:Vertical="Center" ss:Horizontal="Center" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+<Style ss:ID="b"><Font ss:FontName="TH SarabunPSK" ss:Size="12"/><Alignment ss:Vertical="Top" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFBFBF"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFBFBF"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFBFBF"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFBFBF"/></Borders></Style>
+<Style ss:ID="ms"><Font ss:FontName="TH SarabunPSK" ss:Size="12" ss:Bold="1"/><Interior ss:Color="#FFF2CC" ss:Pattern="Solid"/><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
+<Style ss:ID="sec"><Font ss:FontName="TH SarabunPSK" ss:Size="12" ss:Bold="1"/><Interior ss:Color="#E2EFDA" ss:Pattern="Solid"/><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
 </Styles>
 <Worksheet ss:Name="Scope of Work"><Table>
 ${widths.map(w=>`<Column ss:Width="${w}"/>`).join('')}
@@ -4987,6 +5011,74 @@ ${rowsXml.join('\n')}
   a.download=`Scope_of_Work_${TOR.fileName.replace(/\.[^.]+$/,'')}.xls`;
   document.body.appendChild(a); a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1500);
+}
+
+// ---------- OCR ในเครื่อง (Tesseract.js) สำหรับ PDF ที่เป็นภาพสแกน ----------
+async function torOcrRun(file, from, to){
+  const res=document.getElementById('torResult');
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  try{
+    res.innerHTML='';
+    torProgress(3,'โหลดเครื่องมือ OCR (ครั้งแรกใช้เวลาสักครู่)',1);
+    await torLoadScript('lib/tesseract.min.js');
+    await torLoadScript('lib/pdf.min.js');
+    const pdfjsLib=window['pdfjsLib'];
+    pdfjsLib.GlobalWorkerOptions.workerSrc='lib/pdf.worker.min.js';
+
+    torProgress(6,'เตรียมตัวอ่านภาษาไทย',1);
+    const worker = await Tesseract.createWorker(['tha','eng'], 1, {
+      workerPath:'lib/tess/worker.min.js',
+      corePath:'lib/tess/',
+      langPath:'lib/tess/',
+      gzip:true,
+    });
+
+    const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
+    TOR.pages = pdf.numPages;
+    from=Math.max(1,from); to=Math.min(pdf.numPages,Math.max(from,to));
+    const total=to-from+1, out=[]; const t0=Date.now();
+
+    for(let i=from;i<=to;i++){
+      const page=await pdf.getPage(i);
+      // เรนเดอร์ที่ 2 เท่า ให้ตัวอักษรคมพอสำหรับ OCR
+      const vp=page.getViewport({scale:2});
+      const cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
+      await page.render({canvasContext:cv.getContext('2d'), viewport:vp}).promise;
+      const {data:{text}} = await worker.recognize(cv);
+      out.push(text);
+      page.cleanup(); cv.width=cv.height=0;      // คืนหน่วยความจำทันที
+      const done=i-from+1, el=(Date.now()-t0)/1000;
+      const eta=done>1?Math.round(el/done*(total-done)):null;
+      torProgress(6+Math.round(done/total*54),
+        `OCR หน้า ${i} (${done}/${total})` + (eta!==null?` · เหลืออีกประมาณ ${eta>60?Math.round(eta/60)+' นาที':eta+' วินาที'}`:''), 1);
+      await sleep(0);
+    }
+    await worker.terminate();
+
+    // OCR ไทยแทรกช่องว่างระหว่างอักษร ต้องยุบก่อนแตกข้อ
+    const text = out.join('\n');
+    TOR.text = text;
+    torProgress(62,'แตกโครงสร้างข้อจากผล OCR',2); await sleep(40);
+    TOR.clauses = await torParseClausesAsync(text,(p,st)=>torProgress(Math.min(78,p),st,2));
+    if(TOR.clauses.length<3){
+      torProgress(100,'OCR ได้ผลน้อยเกินไป',5);
+      res.innerHTML=`<div class="tor-warn"><b>OCR อ่านได้ แต่แตกเป็นข้อไม่ได้</b><br>
+        ได้ข้อความ ${text.replace(/\s/g,'').length} ตัวอักษร แต่พบเพียง ${TOR.clauses.length} ข้อ<br>
+        อาจเป็นเพราะเอกสารสแกนไม่ชัด หรือรูปแบบการนับข้อต่างจากที่รองรับ
+        - ลอง OCR ช่วงหน้าที่มีเนื้อหาขอบเขตงานโดยตรง หรือขอไฟล์ต้นฉบับ Word/PDF จากผู้ว่าจ้างจะแม่นกว่ามาก</div>`;
+      return;
+    }
+    torProgress(85,`พบ ${TOR.clauses.length} ข้อ - จับคู่งวดงาน`,3); await sleep(40);
+    TOR.milestones = torParseMilestones(TOR.clauses);
+    TOR.rows = torBuildRows(TOR.clauses,TOR.milestones);
+    torProgress(100,'เสร็จเรียบร้อย (จาก OCR)',5);
+    torShowResult(`<div class="tor-warn" style="margin-bottom:12px"><b>ผลนี้มาจาก OCR</b> ของหน้า ${from}-${to}
+      - ข้อความอาจคลาดเคลื่อนจากต้นฉบับได้ ควรตรวจทานก่อนนำไปใช้จริง</div>`);
+  }catch(err){
+    torProgress(100,'OCR ไม่สำเร็จ',5);
+    res.innerHTML=`<div class="tor-warn"><b>OCR ไม่สำเร็จ</b><br>${String(err.message||err)}<br>
+      ตรวจว่าโฟลเดอร์ lib/tess/ ถูก deploy ไปด้วยหรือไม่</div>`;
+  }
 }
 
 // ---------- 6) UI ----------
@@ -5025,6 +5117,34 @@ function torProgress(pct, stage, stepIdx){
     `<span class="tor-step ${i<stepIdx?'done':i===stepIdx?'now':''}">${i<stepIdx?'✓':i+1}. ${s}</span>`).join('');
 }
 
+function torShowResult(prefix){
+  const res=document.getElementById('torResult');
+  const tasks=TOR.rows.filter(r=>!r.kind).length;
+  const types={}; TOR.rows.filter(r=>!r.kind).forEach(r=>types[r.type]=(types[r.type]||0)+1);
+  const scanNote=(TOR.emptyPages>0&&TOR.pages)
+    ? `<div class="tor-warn" style="margin-bottom:12px"><b>หมายเหตุ:</b> มี ${TOR.emptyPages} จาก ${TOR.pages} หน้าที่ดึงข้อความไม่ได้ (น่าจะเป็นหน้าภาพสแกนหรือแบบวาด) เนื้อหาในหน้าเหล่านั้นจะไม่ปรากฏใน Scope of Work</div>`:'';
+  document.getElementById('torCount').textContent=`${TOR.milestones.length} งวด · ${tasks} งาน`;
+  res.innerHTML=(prefix||'')+scanNote+`
+    <div class="tor-sum">
+      <div class="tor-kpi"><span>งวดงานที่พบ</span><b>${TOR.milestones.length}</b></div>
+      <div class="tor-kpi"><span>ข้อ TOR ที่แตกได้</span><b>${TOR.clauses.length}</b></div>
+      <div class="tor-kpi"><span>งานใน Scope of Work</span><b>${tasks}</b></div>
+      <div class="tor-kpi"><span>เอกสารส่งมอบ</span><b>${TOR.rows.filter(r=>r.type==='Document').length}</b></div>
+    </div>
+    <div class="tor-types">${Object.entries(types).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span class="tor-chip">${k} ${v}</span>`).join('')}</div>
+    <div class="tor-actions">
+      <button class="tor-btn primary" onclick="torExportExcel()">⬇ ดาวน์โหลด Scope of Work (Excel)</button>
+      <button class="tor-btn" onclick="document.getElementById('torPreview').classList.toggle('open')">ดูตัวอย่างผลลัพธ์</button>
+    </div>
+    <div id="torPreview" class="tor-preview">
+      <table class="tor-table"><thead><tr><th>ToR No.</th><th>ประเภท</th><th>Description</th><th>งวดงานที่</th></tr></thead>
+      <tbody>${TOR.rows.slice(0,120).map(r=>r.kind
+        ? `<tr class="tor-${r.kind}"><td colspan="4">${r.desc}</td></tr>`
+        : `<tr><td>${r.tor}</td><td>${r.type}</td><td>${r.desc}</td><td>${r.ms}</td></tr>`).join('')}</tbody></table>
+      ${TOR.rows.length>120?`<div class="tor-more">แสดง 120 จาก ${TOR.rows.length} แถว - ดาวน์โหลดไฟล์เพื่อดูทั้งหมด</div>`:''}
+    </div>`;
+}
+
 async function torRun(file){
   const res=document.getElementById('torResult'); res.innerHTML='';
   TOR.fileName=file.name; TOR.pages=0;
@@ -5035,16 +5155,29 @@ async function torRun(file){
     TOR.text=text;
     torProgress(50,'แตกโครงสร้างข้อจากเอกสาร',2); await sleep(40);
     TOR.clauses=await torParseClausesAsync(text,(p,st)=>torProgress(p,st,2));
-    // ไฟล์สแกน = ดึงข้อความแทบไม่ได้
+    // ไฟล์สแกน = ดึงข้อความแทบไม่ได้ -> เสนอให้ OCR ในเครื่อง
     if(text.replace(/\s/g,'').length < 400 || TOR.clauses.length < 5){
-      torProgress(100,'อ่านข้อความจากไฟล์ไม่ได้',5);
-      res.innerHTML=`<div class="tor-warn"><b>⚠ อ่านข้อความจากไฟล์นี้ไม่ได้</b><br>
-        พบข้อความเพียง ${text.replace(/\s/g,'').length} ตัวอักษร และแตกได้ ${TOR.clauses.length} ข้อ
-        ${TOR.pages?` จาก ${TOR.pages} หน้า`:''}<br><br>
-        สาเหตุที่พบบ่อยคือ <b>ไฟล์ PDF เป็นภาพสแกน</b> (ไม่มีชั้นข้อความ) ต้องแปลงเป็นข้อความด้วย OCR ก่อน
-        เช่น Adobe Acrobat (Scan &amp; OCR) หรือ Google Drive (เปิดด้วย Google Docs) แล้วบันทึกเป็น PDF/Word ที่ค้นหาข้อความได้
-        จากนั้นอัปโหลดใหม่อีกครั้ง</div>`;
-      document.getElementById('torCount').textContent='อ่านไฟล์ไม่สำเร็จ';
+      const isPdf = /\.pdf$/i.test(file.name);
+      torProgress(100, isPdf?'ไฟล์นี้เป็นภาพสแกน - ต้อง OCR ก่อน':'อ่านข้อความจากไฟล์ไม่ได้', 5);
+      res.innerHTML=`<div class="tor-warn">
+        <b>เอกสารนี้เป็นภาพสแกน ไม่มีชั้นข้อความ</b><br>
+        พบข้อความเพียง ${text.replace(/\s/g,'').length} ตัวอักษร${TOR.pages?` จาก ${TOR.pages} หน้า`:''}
+        ${isPdf?`<div class="tor-ocr-box">
+          <div class="tor-ocr-t">แปลงภาพเป็นข้อความด้วย OCR ได้เลย</div>
+          <div class="tor-ocr-s">ประมวลผลในเครื่องคุณทั้งหมด ไฟล์ไม่ถูกส่งออกไปที่ใด · ใช้เวลาประมาณ 5-15 วินาทีต่อหน้า
+            ${TOR.pages>30?`<br><b>เอกสารนี้มี ${TOR.pages} หน้า อาจใช้เวลาหลายนาที</b> - เลือกช่วงหน้าที่ต้องการได้`:''}</div>
+          <div class="tor-ocr-row">
+            <label>หน้าที่ <input type="number" id="torOcrFrom" value="1" min="1" max="${TOR.pages}"></label>
+            <label>ถึง <input type="number" id="torOcrTo" value="${Math.min(TOR.pages, 40)}" min="1" max="${TOR.pages}"></label>
+            <button class="tor-btn primary" id="torOcrGo">เริ่ม OCR</button>
+          </div>
+        </div>`:'<br><br>กรุณาแปลงเป็นข้อความด้วย OCR ก่อน แล้วอัปโหลดใหม่'}
+      </div>`;
+      document.getElementById('torCount').textContent = isPdf?'ต้อง OCR ก่อน':'อ่านไฟล์ไม่สำเร็จ';
+      const go=document.getElementById('torOcrGo');
+      if(go) go.onclick=()=>torOcrRun(file,
+        parseInt(document.getElementById('torOcrFrom').value,10)||1,
+        parseInt(document.getElementById('torOcrTo').value,10)||TOR.pages);
       return;
     }
     torProgress(68,`พบ ${TOR.clauses.length} ข้อ - กำลังจับคู่งวดงาน`,3); await sleep(60);
@@ -5053,30 +5186,7 @@ async function torRun(file){
     TOR.rows=torBuildRows(TOR.clauses,TOR.milestones);
     torProgress(100,'เสร็จเรียบร้อย',5);
 
-    const tasks=TOR.rows.filter(r=>!r.kind).length;
-    const scanNote = (TOR.emptyPages>0 && TOR.pages)
-      ? `<div class="tor-warn" style="margin-bottom:12px"><b>หมายเหตุ:</b> มี ${TOR.emptyPages} จาก ${TOR.pages} หน้าที่ดึงข้อความไม่ได้ (น่าจะเป็นหน้าภาพสแกนหรือแบบวาด) เนื้อหาในหน้าเหล่านั้นจะไม่ปรากฏใน Scope of Work</div>` : '';
-    const types={}; TOR.rows.filter(r=>!r.kind).forEach(r=>types[r.type]=(types[r.type]||0)+1);
-    document.getElementById('torCount').textContent=`${TOR.milestones.length} งวด · ${tasks} งาน`;
-    res.innerHTML=scanNote+`
-      <div class="tor-sum">
-        <div class="tor-kpi"><span>งวดงานที่พบ</span><b>${TOR.milestones.length}</b></div>
-        <div class="tor-kpi"><span>ข้อ TOR ที่แตกได้</span><b>${TOR.clauses.length}</b></div>
-        <div class="tor-kpi"><span>งานใน Scope of Work</span><b>${tasks}</b></div>
-        <div class="tor-kpi"><span>เอกสารส่งมอบ</span><b>${TOR.rows.filter(r=>r.type==='Document').length}</b></div>
-      </div>
-      <div class="tor-types">${Object.entries(types).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span class="tor-chip">${k} ${v}</span>`).join('')}</div>
-      <div class="tor-actions">
-        <button class="tor-btn primary" onclick="torExportExcel()">⬇ ดาวน์โหลด Scope of Work (Excel)</button>
-        <button class="tor-btn" onclick="document.getElementById('torPreview').classList.toggle('open')">ดูตัวอย่างผลลัพธ์</button>
-      </div>
-      <div id="torPreview" class="tor-preview">
-        <table class="tor-table"><thead><tr><th>ToR No.</th><th>ประเภท</th><th>Description</th><th>งวดงานที่</th></tr></thead>
-        <tbody>${TOR.rows.slice(0,120).map(r=>r.kind
-          ? `<tr class="tor-${r.kind}"><td colspan="4">${r.desc}</td></tr>`
-          : `<tr><td>${r.tor}</td><td>${r.type}</td><td>${r.desc}</td><td>${r.ms}</td></tr>`).join('')}</tbody></table>
-        ${TOR.rows.length>120?`<div class="tor-more">แสดง 120 จาก ${TOR.rows.length} แถว - ดาวน์โหลดไฟล์เพื่อดูทั้งหมด</div>`:''}
-      </div>`;
+    torShowResult('');
   }catch(err){
     torProgress(100,'เกิดข้อผิดพลาด',5);
     res.innerHTML=`<div class="tor-warn"><b>⚠ ประมวลผลไม่สำเร็จ</b><br>${String(err.message||err)}</div>`;
