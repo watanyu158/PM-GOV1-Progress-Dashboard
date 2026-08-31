@@ -4830,7 +4830,24 @@ async function torExtract(file, onProg){
     await torLoadScript('lib/xlsx.full.min.js');
     onProg(30,'แปลงไฟล์ Excel');
     const wb = XLSX.read(await file.arrayBuffer(), {type:'array'});
-    return wb.SheetNames.map(n=>XLSX.utils.sheet_to_csv(wb.Sheets[n])).join('\n');
+    // ไฟล์ Comply/ตารางเปรียบเทียบมีหลายคอลัมน์ (ข้อกำหนด | ข้อเสนอ | รายละเอียด | หมายเหตุ)
+    // ต้องอ่าน "คอลัมน์ข้อกำหนด" เท่านั้น ไม่งั้นข้อความจากคอลัมน์อื่นจะปนจนแตกข้อไม่ได้
+    const lines=[];
+    wb.SheetNames.forEach(n=>{
+      const aoa = XLSX.utils.sheet_to_json(wb.Sheets[n], {header:1, blankrows:false, defval:''});
+      if(!aoa.length) return;
+      // หาคอลัมน์ที่เป็น "ข้อกำหนด" จากหัวตาราง ถ้าไม่เจอให้ใช้คอลัมน์แรก
+      let col = 0;
+      for(let r=0;r<Math.min(8,aoa.length);r++){
+        const idx = (aoa[r]||[]).findIndex(v=>/ข้อกำหนด|ขอบเขต|รายละเอียด(?!\/)|TOR/i.test(String(v||'')));
+        if(idx>=0){ col=idx; break; }
+      }
+      aoa.forEach(row=>{
+        const v=String((row&&row[col])||'').trim();
+        if(v) lines.push(v);
+      });
+    });
+    return lines.join('\n');
   }
   onProg(30,'อ่านไฟล์ข้อความ');
   return await file.text();
@@ -4845,6 +4862,9 @@ function torThaiDigits(t){
   if(!t) return t;
   return String(t)
     .replace(/[๐-๙]/g, d=>String(TH_DIGITS.indexOf(d)))
+    // เลขข้อที่ถูกแยกด้วยช่องว่าง เช่น "4. 1.2" -> "4.1.2" (เจอในไฟล์ Excel ที่ merge cell)
+    .replace(/(?<=^|\s)(\d{1,2})\.\s+(\d{1,2})(\.\s*\d{1,2})?(?=\s)/gm,
+             (m,a,b,c)=>a+'.'+b+(c?c.replace(/\s+/g,''):''))
     .replace(/๏/g,'')            // ตัวคั่นข้อความไทยโบราณที่ OCR มักอ่านติดมา
     .replace(/ฯลฯ/g,'ฯลฯ');
 }
@@ -4908,6 +4928,36 @@ function torParseMilestones(clauses){
   });
   ms.sort((a,b)=>a.no-b.no);
   return ms;
+}
+
+// ไฟล์ Comply มักรวม 3 เอกสารไว้ด้วยกัน (เอกสารประกวดราคา / TOR / คุณลักษณะเฉพาะ)
+// แต่ละชุดเริ่มนับข้อ 1 ใหม่ ทำให้เลขข้อชนกัน ต้องหาว่าชุดไหนคือ TOR จริงแล้วใช้เฉพาะชุดนั้น
+// สัญญาณของ TOR: มีทั้ง "ขอบเขตการดำเนินงาน" + "การส่งมอบงาน/งวดที่" + "การชำระเงิน" อยู่ใกล้กัน
+function torPickTorSegment(clauses){
+  // จุดที่เลขข้อวนกลับไปเริ่ม 1 ใหม่ = ขอบเขตของเอกสารแต่ละชุด
+  const cuts=[0];
+  for(let i=1;i<clauses.length;i++){
+    const a=parseInt(clauses[i-1].no,10), b=parseInt(clauses[i].no,10);
+    if(b===1 && a>=3 && clauses[i].depth===1) cuts.push(i);
+  }
+  cuts.push(clauses.length);
+  if(cuts.length<=2) return clauses;          // มีชุดเดียว ใช้ทั้งหมด
+  let best=null;
+  for(let k=0;k<cuts.length-1;k++){
+    const seg=clauses.slice(cuts[k],cuts[k+1]);
+    if(seg.length<5) continue;
+    const txt=seg.map(c=>c.text).join(' ');
+    let score=0;
+    if(/ขอบเขตการดำเนินงาน|ขอบเขตของงาน|ขอบเขตงาน/.test(txt)) score+=4;
+    if(/งวดที่\s*\d/.test(txt)) score+=4;
+    if(/การส่งมอบงาน|การชำระเงิน|การจ่ายเงิน/.test(txt)) score+=3;
+    if(/Kick.?Off|ประชุมเริ่มโครงการ/i.test(txt)) score+=2;
+    if(/ระยะเวลาดำเนินการ/.test(txt)) score+=1;
+    if(/คุณสมบัติของผู้ยื่นข้อเสนอ|หลักฐานการยื่นข้อเสนอ|หลักประกันการเสนอราคา/.test(txt)) score-=3;
+    if(!best || score>best.score) best={score, seg};
+  }
+  // ถ้าไม่มีชุดไหนดูเป็น TOR เลย ใช้ทั้งไฟล์ตามเดิม
+  return (best && best.score>=6) ? best.seg : clauses;
 }
 
 // ===== ตรวจว่า "หัวข้อ" ที่แตกได้เป็นหัวข้อจริงหรือเป็นข้อย่อยที่ OCR อ่านเลขเพี้ยน =====
@@ -5021,8 +5071,10 @@ function torBuildRows(clauses, ms){
     const out=[];
     const r = ref.match(/^(\d{1,2}(?:\.\d{1,2})?)\.(\d{1,2})\s*[-–]\s*(\d{1,2})$/);
     if(r){ for(let i=+r[2];i<=+r[3];i++) out.push(`${r[1]}.${i}`); return out; }
-    const r2 = ref.match(/^(\d{1,2}(?:\.\d{1,2}){0,2})\s*[-–]\s*(\d{1,2}(?:\.\d{1,2}){0,2})$/);
-    if(r2) return [r2[1], r2[2]];
+    const r2 = ref.match(/^(\d{1,2})\.(\d{1,2})\s*[-–]\s*(?:\1\.)?(\d{1,2})$/);
+    if(r2){ for(let i=+r2[2];i<=+r2[3];i++) out.push(`${r2[1]}.${i}`); return out; }
+    const r3 = ref.match(/^(\d{1,2}(?:\.\d{1,2}){0,2})\s*[-–]\s*(\d{1,2}(?:\.\d{1,2}){0,2})$/);
+    if(r3) return [r3[1], r3[2]];
     return [ref];
   };
   const rows=[];
@@ -5030,14 +5082,42 @@ function torBuildRows(clauses, ms){
 
   ms.forEach(m=>{
     push({kind:'ms', desc:`ส่งมอบงาน งวดที่ ${m.no}${m.pct?` - ร้อยละ ${m.pct}`:''} | เงื่อนไข: ${m.cond}`});
+    // TOR มักอ้างต่อกันเป็นทอด: งวดที่ 1 -> "ส่งมอบงานข้อ 6.1" -> "ตามขอบเขตงานข้อ 4.1-4.4"
+    // ต้องตามอ้างอิงลงไปอีกชั้นจึงจะเจองานจริง ไม่งั้นได้แค่ข้อกลางทางที่ไม่มีเนื้องาน
+    const resolve = (list, depth) => {
+      const out=[];
+      list.forEach(r=>{
+        out.push(r);
+        if(depth<=0) return;
+        const c=byNo[r];
+        if(!c) return;
+        // ข้อนี้ชี้ต่อไปที่ข้ออื่นหรือไม่ (เช่น "ดำเนินงานตามขอบเขตงานข้อ 4.1 - 4.4")
+        const deeper=(c.text.match(/(?:ตาม)?(?:ขอบเขตงาน|ขอบเขตการดำเนินงาน|ข้อ)\s*\d{1,2}(?:\.\d{1,2})?\s*[-–]\s*(?:\d{1,2}\.)?\d{1,2}|(?:ขอบเขตงาน|ข้อ)\s*\d{1,2}\.\d{1,2}/g)||[])
+          .map(x=>x.replace(/.*?(?=\d)/,'').trim());
+        if(deeper.length){
+          const sub=deeper.flatMap(expand).filter(n=>n!==r);
+          if(sub.length) out.push(...resolve(sub, depth-1));
+        }
+      });
+      return [...new Set(out)];
+    };
     // งานที่ต้องทำ = ข้อที่ถูกอ้างถึง (ไม่ใช่เอกสารส่งมอบ)
-    const refs = m.refs.flatMap(expand);
+    const refs = resolve(m.refs.flatMap(expand), 2);
     const docRefs = refs.filter(r=>/^10\./.test(r));
     const workRefs = refs.filter(r=>!/^10\./.test(r));
     if(workRefs.length){
       push({kind:'sec', desc:'งานที่ต้องดำเนินการ'});
-      workRefs.forEach((r,i)=>{
+      // ข้อที่เป็นแค่ตัวชี้ทาง ("ดำเนินงานตามขอบเขตงานข้อ X-Y") แสดงเป็นบรรทัดอ้างอิง ไม่ใช่งาน
+      const isPointer = c => c && /ดำเนินงานตาม(ขอบเขตงาน|ข้อ)|ตามขอบเขตงานข้อ/.test(c.text) && c.text.length<160;
+      let n0=0;
+      workRefs.forEach(r=>{
         const c=byNo[r];
+        if(isPointer(c)){
+          push({tor:r, type:'Ref', desc:c.text, note:'บรรทัดอ้างอิง - งานจริงอยู่ข้อที่ถูกอ้างถึง',
+                ms:`งวดงานที่ ${m.no}`, cond:''});
+          return;
+        }
+        const i=n0++;
         push({tor:r, type:torType(c?c.text:r), desc:`${i+1}) ${c?c.text:'(อ้างถึงข้อ '+r+' - ไม่พบข้อความในเอกสาร)'}`,
               ms:`งวดงานที่ ${m.no}`, cond:c?`อ้างอิงตามข้อ ${r} ในเอกสาร TOR`:''});
         // ข้อย่อยของข้อนี้
@@ -5305,7 +5385,7 @@ async function torOcrRun(file, from, to){
     const text = torFixThai(torThaiDigits(torStripJunk(out.join('\n'))));   // ล้างขยะ + ๐-๙ -> 0-9 + แก้คำเพี้ยน
     TOR.text = text;
     torProgress(62,'แตกโครงสร้างข้อจากผล OCR',2); await sleep(40);
-    TOR.clauses = await torParseClausesAsync(text,(p,st)=>torProgress(Math.min(78,p),st,2));
+    TOR.clauses = torPickTorSegment(await torParseClausesAsync(text,(p,st)=>torProgress(Math.min(78,p),st,2)));
     if(TOR.clauses.length<3){
       torProgress(100,'OCR ได้ผลน้อยเกินไป',5);
       res.innerHTML=`<div class="tor-warn"><b>OCR อ่านได้ แต่แตกเป็นข้อไม่ได้</b><br>
@@ -5404,7 +5484,7 @@ async function torRun(file){
     text = torFixThai(torThaiDigits(text));   // ๐-๙ -> 0-9 + จัดรูปสระให้เป็นมาตรฐาน
     TOR.text=text;
     torProgress(50,'แตกโครงสร้างข้อจากเอกสาร',2); await sleep(40);
-    TOR.clauses=await torParseClausesAsync(text,(p,st)=>torProgress(p,st,2));
+    TOR.clauses=torPickTorSegment(await torParseClausesAsync(text,(p,st)=>torProgress(p,st,2)));
     // ไฟล์สแกน = ดึงข้อความแทบไม่ได้ -> เสนอให้ OCR ในเครื่อง
     if(text.replace(/\s/g,'').length < 400 || TOR.clauses.length < 5){
       const isPdf = /\.pdf$/i.test(file.name);
