@@ -5682,6 +5682,7 @@ async function torAiCall(task, items){
     // แสดงข้อความดิบที่ AI ตอบมาด้วย จะได้รู้ว่าติดตรงไหน ไม่ต้องเดา
     const e = new Error(j.error||'เรียก AI ไม่สำเร็จ');
     if(j.raw) e.raw = j.raw;
+    if(j.retryAfter) e.retryAfter = j.retryAfter;
     throw e;
   }
   return j;
@@ -5691,6 +5692,9 @@ async function torAiEnhance(){
   const btn=document.getElementById('torAiBtn');
   const out=document.getElementById('torAiMsg');
   if(!btn) return;
+  const nUnknown = TOR.rows.filter(r=>!r.kind && r.type==='Other').length;
+  const est = Math.ceil(nUnknown/20)*20 + 60;
+  if(nUnknown>20 && !confirm(`มีงานที่ต้องให้ AI จัดประเภท ${nUnknown} รายการ\n\nโควตา Groq แบบฟรีจำกัดราว 8,000 tokens ต่อนาที ระบบจึงต้องส่งทีละ 20 รายการและเว้นระยะ\nคาดว่าใช้เวลาประมาณ ${Math.ceil(est/60)} นาที\n\nดำเนินการต่อหรือไม่?`)) return;
   btn.disabled=true;
   const setMsg=t=>{ if(out) out.innerHTML=t; };
   let usedTokens=0, calls=0;
@@ -5698,23 +5702,32 @@ async function torAiEnhance(){
     // ---- งานที่ 1: จัดประเภทที่กฎเดาไม่ได้ ----
     const unknown = TOR.rows.filter(r=>!r.kind && r.type==='Other');
     if(unknown.length){
-      setMsg(`กำลังจัดประเภทงาน ${unknown.length} รายการ...`);
-      for(let i=0;i<unknown.length;i+=50){
-        const batch=unknown.slice(i,i+50);
+      // free tier จำกัดราว 8,000 tokens/นาที จึงส่งทีละ 20 รายการและเว้นระยะ 20 วินาที
+      // (แต่ละรอบใช้ราว 2,000-2,500 tokens - ส่งถี่กว่านี้จะชนเพดานแล้วต้องรอนานกว่าเดิม)
+      const BATCH=20, GAP=20000;
+      const rounds=Math.ceil(unknown.length/BATCH);
+      for(let i=0,rd=1;i<unknown.length;i+=BATCH,rd++){
+        const batch=unknown.slice(i,i+BATCH);
+        setMsg(`กำลังจัดประเภทงาน รอบ ${rd}/${rounds} (${batch.length} รายการ)...`);
         const j=await torAiCall('classify', batch.map(r=>r.desc));
         (j.result||[]).forEach(x=>{
           const t=batch[(x.n|0)-1];
           if(t && x.type && x.type!=='Other'){ t.type=x.type; t.aiType=true; }
         });
         usedTokens+=j.tokens||0; calls++;
-        if(i+50<unknown.length){ setMsg(`จัดประเภท ${i+50}/${unknown.length}... (รอ 3 วินาทีตามข้อจำกัด rate limit)`); await new Promise(r=>setTimeout(r,3000)); }
+        if(i+BATCH<unknown.length){
+          for(let s=GAP/1000;s>0;s--){
+            setMsg(`จัดประเภทแล้ว ${Math.min(i+BATCH,unknown.length)}/${unknown.length} · รออีก ${s} วินาที (โควตา Groq จำกัดต่อนาที)`);
+            await new Promise(r=>setTimeout(r,1000));
+          }
+        }
       }
     }
     // ---- งานที่ 2: หาข้อผูกพันที่ซ่อนในสเปค ----
-    const specs = TOR.rows.filter(r=>!r.kind && r.type==='Spec').slice(0,60);
+    const specs = TOR.rows.filter(r=>!r.kind && r.type==='Spec').slice(0,20);
     if(specs.length){
-      setMsg('กำลังหาข้อผูกพันที่ซ่อนอยู่ในหมวดสเปค...');
-      await new Promise(r=>setTimeout(r,2500));
+      setMsg('รอโควตา Groq ก่อนหาข้อผูกพันที่ซ่อนในสเปค...');
+      await new Promise(r=>setTimeout(r,20000));
       const j=await torAiCall('hidden', specs.map(r=>r.desc));
       (j.result||[]).forEach(x=>{
         const t=specs[(x.n|0)-1];
@@ -5731,9 +5744,9 @@ async function torAiEnhance(){
         if(!TOR.rows[i].kind) tasks.push(TOR.rows[i].desc);
       }
       if(tasks.length<2) continue;
-      setMsg(`กำลังสรุปสิ่งที่ควรโฟกัส: ${ms.desc.slice(0,32)}...`);
-      await new Promise(r=>setTimeout(r,2500));
-      const j=await torAiCall('focus', tasks.slice(0,40));
+      setMsg(`รอโควตา แล้วสรุปโฟกัส: ${ms.desc.slice(0,30)}...`);
+      await new Promise(r=>setTimeout(r,20000));
+      const j=await torAiCall('focus', tasks.slice(0,20));
       const f=j.result||{};
       if(f.focus) ms.aiFocus=f.focus;
       if(f.risk) ms.aiRisk=f.risk;

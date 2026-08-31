@@ -789,12 +789,12 @@ app.post('/api/tor/classify', requireAuth, async (req, res) => {
   if ((torAiUsage[key]||0) >= TOR_AI_DAILY_LIMIT)
     return res.status(429).json({ ok:false, error:`ใช้ครบโควตาวันนี้แล้ว (${TOR_AI_DAILY_LIMIT} ครั้ง)` });
 
-  const items = Array.isArray(req.body && req.body.items) ? req.body.items.slice(0,40) : [];
+  const items = Array.isArray(req.body && req.body.items) ? req.body.items.slice(0,20) : [];
   const task = (req.body && req.body.task) || 'classify';
   if (!items.length) return res.json({ ok:true, result: [] });
 
   // ตัดข้อความให้สั้นก่อนส่ง ประหยัด token และอยู่ในเพดาน 6,000 TPM
-  const lines = items.map((x,i)=>`${i+1}. ${String(x).replace(/\s+/g,' ').slice(0,180)}`).join('\n');
+  const lines = items.map((x,i)=>`${i+1}. ${String(x).replace(/\s+/g,' ').slice(0,110)}`).join('\n');
 
   const prompts = {
     classify: `จัดประเภทงานในเอกสาร TOR ภาษาไทยต่อไปนี้ ให้เลือกประเภทที่เหมาะที่สุดจากรายการนี้เท่านั้น: ${TOR_TYPES_LIST}
@@ -823,7 +823,7 @@ ${lines}`
         model,
         temperature: 0.1,
         // reasoning model (gpt-oss) กิน token ไปกับส่วนคิดก่อนตอบ ถ้าตั้งต่ำเกินจะตอบไม่ทันแล้วได้ค่าว่าง
-        max_tokens: 4000,
+        max_tokens: 2000,
         reasoning_effort: 'low',        // ให้คิดน้อย ๆ เพราะงานนี้เป็นการจัดหมวด ไม่ต้องใช้เหตุผลลึก
         response_format: { type:'json_object' },
         messages: [
@@ -878,6 +878,33 @@ ${lines}`
           }
         }
       }
+    }
+    // 429 = ชนเพดาน tokens/นาที (free tier 6,000-8,000 TPM) - รอแล้วลองใหม่อัตโนมัติ
+    // Groq บอกเวลาที่ต้องรอมาในหัวข้อ retry-after หรือในข้อความ
+    let retried429 = 0;
+    while (r.status === 429 && retried429 < 2) {
+      const body429 = await r.clone().text();
+      const ra = Number(r.headers.get('retry-after')) ||
+                 Number((body429.match(/try again in ([\d.]+)s/i)||[])[1]) || 20;
+      const waitMs = Math.min(45000, Math.ceil(ra * 1000) + 1500);
+      console.log(`[TOR AI] ชนเพดาน TPM รอ ${Math.round(waitMs/1000)} วินาทีแล้วลองใหม่`);
+      await new Promise(z => setTimeout(z, waitMs));
+      retried429++;
+      r = await fetch(GROQ_BASE+'/chat/completions', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+GROQ_KEY },
+        body: JSON.stringify({ model, temperature:0.1, max_tokens:4000, reasoning_effort:'low', messages:[
+          { role:'system', content:'คุณเป็นผู้ช่วยวิเคราะห์เอกสาร TOR ของหน่วยงานราชการไทย ตอบเป็น JSON เท่านั้น ห้ามมีข้อความอื่น' },
+          { role:'user', content: prompt } ] })
+      });
+    }
+    if (r.status === 429) {
+      const t = await r.text();
+      const secs = Number((t.match(/try again in ([\d.]+)s/i)||[])[1]);
+      return res.status(429).json({ ok:false,
+        error: `ใช้โควตาต่อนาทีของ Groq เต็ม (free tier จำกัด ~8,000 tokens/นาที)` +
+               (secs ? ` - ลองใหม่อีกครั้งใน ${Math.ceil(secs)} วินาที` : ' - รอสักครู่แล้วลองใหม่'),
+        retryAfter: secs || 30 });
     }
     if (!r.ok) {
       const t = await r.text();
