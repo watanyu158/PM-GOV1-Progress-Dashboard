@@ -5192,10 +5192,38 @@ function torFixThai(t){
     .trim();
 }
 
+// ค่า threshold ที่ใช้ลองอ่านซ้ำ - เรียงจากที่ได้ผลดีที่สุดโดยเฉลี่ยไปหาทางเลือกสำรอง
+const TOR_OCR_TRIES=[170, 200, 140];
+// ประเมินคุณภาพการอ่านจากค่าความมั่นใจรายคำ - ไม่ประกอบข้อความใหม่
+// (เคยลองประกอบเองแล้วลำดับคำเพี้ยนหนัก จึงใช้ข้อความที่ tesseract จัดมาให้ตามเดิม)
+function torScoreOcr(data){
+  const text=(data&&data.text)||'';
+  const words=(data&&data.words)||[];
+  const kept=words.filter(w=>(w.text||'').trim());
+  const conf = kept.length ? kept.reduce((a,w)=>a+(w.confidence||0),0)/kept.length
+                           : ((data&&data.confidence)||0);
+  const junk = kept.filter(w=>(w.confidence||0)<45
+                 && !/[\u0E00-\u0E7F]{2,}|[a-zA-Z]{3,}|\d{2,}/.test((w.text||'').trim())).length;
+  return {text, conf, dropped:junk};
+}
+
+// ล้างเศษอักขระจากตราประทับ/ลายเซ็นที่ปนอยู่ในบรรทัด - ทำบนข้อความ ไม่แตะลำดับคำ
+function torStripJunk(t){
+  return String(t||'')
+    // สัญลักษณ์แปลกปลอมที่ไม่ใช่อักขระไทย/อังกฤษ/ตัวเลข/วรรคตอนปกติ
+    .replace(/[@#^*_~`|\\<>{}\[\]«»“”„‟]/g,' ')
+    // ตัวอักษรละตินโดดเดี่ยว 1-2 ตัวที่แทรกกลางข้อความไทย
+    .replace(/(?<=[\u0E00-\u0E7F])\s+[a-zA-Z]{1,2}(?=\s+[\u0E00-\u0E7F])/g,' ')
+    // อักขระไทยโดดเดี่ยวตัวเดียวที่ขึ้นต้นบรรทัด (เศษเลขข้อที่อ่านเพี้ยน)
+    .replace(/^\s*[\u0E00-\u0E7F]\s+(?=[\u0E00-\u0E7F]{3,})/gm,'')
+    .replace(/[ \t]{2,}/g,' ');
+}
+
 // เตรียมภาพก่อน OCR: ลบตราประทับแดง/ลายเซ็นน้ำเงินที่ทับตัวหนังสือ แล้วแปลงเป็นขาวดำ
 // เอกสารราชการไทยมักประทับตราครุฑแดงและเซ็นชื่อน้ำเงินทับข้อความ ทำให้ OCR อ่านเพี้ยนหนัก
 // วิธี: พิกเซลที่มีสีเด่นชัด (แดงหรือน้ำเงิน) เปลี่ยนเป็นขาว ที่เหลือแปลงเป็นเทาแล้วตัดเป็นขาว-ดำ
-function torCleanCanvas(ctx,w,h){
+function torCleanCanvas(ctx,w,h,th){
+  const TH = th||170;
   const img=ctx.getImageData(0,0,w,h), d=img.data;
   for(let i=0;i<d.length;i+=4){
     const r=d[i], g=d[i+1], b=d[i+2];
@@ -5203,7 +5231,7 @@ function torCleanCanvas(ctx,w,h){
     const isBlue = (b-r>40) && (b-g>25);
     if(isRed||isBlue){ d[i]=d[i+1]=d[i+2]=255; continue; }
     const y = 0.299*r + 0.587*g + 0.114*b;
-    const v = y>170 ? 255 : 0;          // binarize ให้ตัวอักษรคมชัด
+    const v = y>TH ? 255 : 0;          // binarize ให้ตัวอักษรคมชัด
     d[i]=d[i+1]=d[i+2]=v;
   }
   ctx.putImageData(img,0,0);
@@ -5237,6 +5265,7 @@ async function torOcrRun(file, from, to){
     TOR.pages = pdf.numPages;
     from=Math.max(1,from); to=Math.min(pdf.numPages,Math.max(from,to));
     const total=to-from+1, out=[]; const t0=Date.now();
+    let confSum=0, confN=0, dropped=0;
 
     for(let i=from;i<=to;i++){
       const page=await pdf.getPage(i);
@@ -5245,9 +5274,24 @@ async function torOcrRun(file, from, to){
       const cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
       const ctx=cv.getContext('2d', {willReadFrequently:true});
       await page.render({canvasContext:ctx, viewport:vp}).promise;
-      torCleanCanvas(ctx, cv.width, cv.height);
-      const {data:{text}} = await worker.recognize(cv);
-      out.push(text);
+      const raw = ctx.getImageData(0,0,cv.width,cv.height);
+
+      // อ่านหลายรอบด้วยการปรับภาพต่างกัน แล้วเลือกผลที่ระบบมั่นใจสูงสุด
+      // (บางหน้าที่ตราประทับทับหนัก ค่า threshold ต่างกันให้ผลต่างกันมาก)
+      let best=null;
+      for(const th of TOR_OCR_TRIES){
+        ctx.putImageData(new ImageData(new Uint8ClampedArray(raw.data), raw.width, raw.height),0,0);
+        torCleanCanvas(ctx, cv.width, cv.height, th);
+        const {data} = await worker.recognize(cv);
+        const cleaned = torScoreOcr(data);
+        if(!best || cleaned.conf > best.conf) best = cleaned;
+        // มั่นใจสูงพอแล้ว ไม่ต้องลองรอบถัดไป (ประหยัดเวลา)
+        if(best.conf >= 90) break;
+        torProgress(6+Math.round((i-from)/total*54), `OCR หน้า ${i} - ลองปรับภาพเพิ่ม (มั่นใจ ${best.conf.toFixed(0)}%)`, 1);
+        await sleep(0);
+      }
+      confSum += best.conf; confN++; dropped += best.dropped;
+      out.push(best.text);
       page.cleanup(); cv.width=cv.height=0;      // คืนหน่วยความจำทันที
       const done=i-from+1, el=(Date.now()-t0)/1000;
       const eta=done>1?Math.round(el/done*(total-done)):null;
@@ -5258,7 +5302,7 @@ async function torOcrRun(file, from, to){
     await worker.terminate();
 
     // OCR ไทยแทรกช่องว่างระหว่างอักษร ต้องยุบก่อนแตกข้อ
-    const text = torFixThai(torThaiDigits(out.join('\n')));   // ๐-๙ -> 0-9 + แก้คำเพี้ยนจาก OCR
+    const text = torFixThai(torThaiDigits(torStripJunk(out.join('\n'))));   // ล้างขยะ + ๐-๙ -> 0-9 + แก้คำเพี้ยน
     TOR.text = text;
     torProgress(62,'แตกโครงสร้างข้อจากผล OCR',2); await sleep(40);
     TOR.clauses = await torParseClausesAsync(text,(p,st)=>torProgress(Math.min(78,p),st,2));
@@ -5274,8 +5318,11 @@ async function torOcrRun(file, from, to){
     TOR.milestones = torParseMilestones(TOR.clauses);
     TOR.rows = torBuildRows(TOR.clauses,TOR.milestones);
     torProgress(100,'เสร็จเรียบร้อย (จาก OCR)',5);
+    const avgConf = confN ? (confSum/confN) : 0;
+    const qual = avgConf>=90?'ดี':avgConf>=80?'พอใช้':'ต่ำ';
     torShowResult(`<div class="tor-warn" style="margin-bottom:12px"><b>ผลนี้มาจาก OCR</b> ของหน้า ${from}-${to}
-      - ข้อความอาจคลาดเคลื่อนจากต้นฉบับได้ ควรตรวจทานก่อนนำไปใช้จริง</div>`);
+      · ความมั่นใจเฉลี่ย <b>${avgConf.toFixed(1)}%</b> (${qual})${dropped?` · ตัดอักขระขยะจากตราประทับ/ลายเซ็นออก ${dropped} จุด`:''}
+      <br>ข้อความอาจคลาดเคลื่อนจากต้นฉบับได้ ควรตรวจทานก่อนนำไปใช้จริง${avgConf<85?' <b>- ความมั่นใจไม่สูง แนะนำให้ขอไฟล์ต้นฉบับ Word/PDF จากผู้ว่าจ้าง</b>':''}</div>`);
   }catch(err){
     torProgress(100,'OCR ไม่สำเร็จ',5);
     res.innerHTML=`<div class="tor-warn"><b>OCR ไม่สำเร็จ</b><br>${String(err.message||err)}<br>
