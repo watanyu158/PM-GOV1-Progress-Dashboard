@@ -280,6 +280,7 @@
   .cls-pm{font-size:11px;color:var(--faint);white-space:nowrap;flex:none;padding-top:2px;}
   .pw-stack{display:flex;height:12px;border-radius:6px;overflow:hidden;margin-top:6px;background:var(--line);}
   .pw-seg{height:100%;min-width:0;}
+  .pw-note3{font-size:9.5px;color:var(--faint);padding:0 18px 11px;line-height:1.6;}
   .pw-legend3{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:7px;flex-wrap:wrap;}
   .pw-legend3 span{display:flex;align-items:center;gap:5px;}
   .pw-legend3 i{width:9px;height:9px;border-radius:3px;flex:none;}
@@ -4922,10 +4923,41 @@ function renderPayment(paywSource, codeSetList){
   // โมเดล 3 ส่วนที่ตรวจสอบแล้วว่าถูกต้องเป๊ะจากข้อมูลจริง:
   // Selling Price = Remainder (ยังไม่ออกบิล) + Collecting (ออกบิลแล้ว รอเก็บ) + Collected (เก็บได้จริงแล้ว)
   const totalSelling = items.reduce((s,x)=>s+num(x.sellingPrice),0);
-  const totalRemainder = items.reduce((s,x)=>s+num(x.remainder),0);
-  const totalCollecting = items.reduce((s,x)=>s+num(x.collecting),0);
-  const totalCollected = items.reduce((s,x)=>s+num(x.collected),0);
-  const totalInvoiced = totalCollecting + totalCollected;
+  // ใช้กฎเดียวกับการ์ด Invoice Timeline ไม่งั้น 2 การ์ดจะบอกตัวเลขขัดกัน
+  //   billing     = ยอดตามงวดงาน (แถวงวด ไม่รวมใบกำกับภาษีตัดของ)
+  //   tax invoice = ใบกำกับภาษีที่ออกแล้ว (ตรวจการทับซ้อนก่อน)
+  //   collected   = เชื่อยอดรวมระดับโครงการ (บัญชีอาจไม่ได้ลงรายละเอียดรายงวด)
+  //   AR          = ออกใบแจ้งหนี้แล้วแต่ยังเก็บไม่ได้ (กระจาย FIFO)
+  const _SHIP_ACC = ['Sale','Sale & Install','Sale & MA'];
+  const _SHIP_KW = ['ส่งของ','ส่งสินค้า','ของที่เหลือ','ส่งมอบของ','ส่งมอบสินค้า'];
+  const _descAmt = ii => { const m=String(ii.desc||'').match(/=\s*([\d,]+\.?\d*)/); return m?num(m[1]):0; };
+  let totalBilling = 0, totalTaxInv = 0, totalCollected = 0, totalAR = 0;
+  items.forEach(x=>{
+    const isDel = ii => _SHIP_ACC.includes((x.accType||'').trim())
+      && _SHIP_KW.some(k=>String(ii.desc||'').includes(k));
+    const sc = CONTRACT_SCHEDULE[x.projectCode];
+    const sp = num(x.sellingPrice);
+    const allInv = (x.installments||[]).reduce((a,ii)=>a+num(ii.invoiced),0);
+    const overlap = sp>0 && allInv > sp+2;
+
+    if(sc){
+      totalBilling += sc.rows.reduce((a,r)=>a+r.full,0);
+      totalTaxInv  += Math.max(0, sc.rows.reduce((a,r)=>a+r.full,0) - sc.rows.reduce((a,r)=>a+(r.pending||0),0));
+    } else {
+      (x.installments||[]).forEach(ii=>{
+        const iv=num(ii.invoiced), rm=num(ii.remainder);
+        if(isDel(ii)) totalTaxInv += iv;
+        else {
+          totalBilling += (iv+rm)>0 ? iv+rm : _descAmt(ii);
+          if(!overlap) totalTaxInv += iv;
+        }
+      });
+    }
+    totalCollected += num(x.collected);
+    const alloc = allocateCollection(x);
+    Object.values(alloc).forEach(a=>{ if(a.outstanding>1) totalAR += a.outstanding; });
+  });
+  const totalNotBilled = Math.max(0, totalBilling - totalCollected - totalAR);
 
   const stackBar = (remainder, collecting, collected, total) => {
     if(!total) return '';
@@ -4940,15 +4972,17 @@ function renderPayment(paywSource, codeSetList){
   const overview = `<div class="wow-overview">
     <div class="ov-stats">
       <div class="ov-stat"><div class="ov-l">Σ Selling Price (ทีม)</div><div class="ov-v" style="font-size:19px">${thb(totalSelling)}</div></div>
-      <div class="ov-stat"><div class="ov-l">ออกใบกำกับภาษี/ใบแจ้งหนี้แล้ว (Invoiced)</div><div class="ov-v" style="font-size:19px">${thb(totalInvoiced)}</div></div>
-      <div class="ov-stat"><div class="ov-l">เก็บเงินได้จริงแล้ว (Collected)</div><div class="ov-v" style="font-size:19px;color:var(--success)">${thb(totalCollected)}</div></div>
+      <div class="ov-stat"><div class="ov-l">Billing ตามงวดงาน</div><div class="ov-v" style="font-size:19px">${thb(totalBilling)}</div></div>
+      <div class="ov-stat"><div class="ov-l">ออกใบกำกับภาษีแล้ว (Tax Invoice)</div><div class="ov-v" style="font-size:19px">${thb(totalTaxInv)}</div></div>
+      <div class="ov-stat"><div class="ov-l">เก็บเงินได้แล้ว (Collected)</div><div class="ov-v" style="font-size:19px;color:var(--success)">${thb(totalCollected)}</div></div>
     </div>
-    ${stackBar(totalRemainder, totalCollecting, totalCollected, totalSelling)}
+    ${stackBar(totalNotBilled, totalAR, totalCollected, totalBilling)}
     <div class="pw-legend3">
-      <span><i style="background:#4F7A4A"></i>Collected เก็บแล้ว <b>${thb(totalCollected)}</b></span>
-      <span><i style="background:#B07A28"></i>Collecting ออกบิลแล้ว รอเก็บ <b>${thb(totalCollecting)}</b></span>
-      <span><i style="background:var(--line)"></i>Remainder ยังไม่ออกบิล <b>${thb(totalRemainder)}</b></span>
+      <span><i style="background:#4F7A4A"></i>เก็บเงินได้แล้ว <b>${thb(totalCollected)}</b></span>
+      <span><i style="background:#B07A28"></i>วางบิลแล้ว รอเก็บ (AR) <b>${thb(totalAR)}</b></span>
+      <span><i style="background:var(--line)"></i>ยังไม่วางบิล <b>${thb(totalNotBilled)}</b></span>
     </div>
+    <div class="pw-note3">แถบสัดส่วนคิดจาก Billing ตามงวดงาน · AR นับเฉพาะใบแจ้งหนี้ที่เรียกเก็บเงินลูกค้า ไม่รวมใบกำกับภาษีที่ออกเพื่อตัดของ</div>
   </div>`;
 
   const byPM = {};
@@ -4963,7 +4997,7 @@ function renderPayment(paywSource, codeSetList){
   });
   const pmRows = Object.values(byPM).sort((a,b)=> b.collecting - a.collecting);
 
-  const head = `<div class="rv-row head-row"><span>PM</span><span style="text-align:right">Σ Selling Price</span><span>Remainder · Collecting · Collected</span><span style="text-align:right">Collecting (AR ค้าง)</span><span></span></div>`;
+  const head = `<div class="rv-row head-row"><span>PM</span><span style="text-align:right">Σ Selling Price</span><span>ยังไม่วางบิล · รอเก็บ · เก็บแล้ว</span><span style="text-align:right">AR ค้างเก็บ</span><span></span></div>`;
 
   const body = pmRows.map(g=>{
     const col = g.collecting > g.selling*0.1 ? '#A8482F' : g.collecting>1 ? '#B07A28' : '#4F7A4A';
