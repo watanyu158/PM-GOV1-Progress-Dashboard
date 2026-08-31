@@ -684,6 +684,54 @@ app.post('/api/admin/card-data-scope', requireAuth, (req, res) => {
 const GROQ_KEY = process.env.GROQ_API_KEY || '';
 // Groq ปลดโมเดลเป็นระยะ (llama-3.3-70b-versatile ย้ายไป Enterprise-only เมื่อ 16 ส.ค. 2569)
 // จึงไม่ล็อกชื่อโมเดลตายตัว แต่ถามรายการที่ใช้ได้จริงจาก Groq แล้วเลือกตามลำดับที่ต้องการ
+// แกะ JSON จากคำตอบของโมเดล - เผื่อกรณีมีข้อความนำ, ครอบ ```, หรือมีส่วนคิด (reasoning) ปนมา
+function parseLooseJson(txt){
+  if(!txt) return null;
+  let t = String(txt);
+  // ตัดส่วนคิดของ reasoning model ออก
+  t = t.replace(/<think>[\s\S]*?<\/think>/gi,'')
+       .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi,'')
+       .replace(/```(?:json)?/gi,'')
+       .trim();
+  const tryParse = v => { try { return JSON.parse(v); } catch { return null; } };
+  // ถ้าเป็นหลาย object เรียงกันโดยไม่มีวงเล็บครอบ (เช่น {..}\n{..}) ให้รวมเป็น array ก่อน
+  const standalone=[...t.matchAll(/^\s*(\{[^{}]*\})\s*$/gm)].map(m=>m[1]);
+  if(standalone.length>1){
+    const arr=standalone.map(tryParse).filter(Boolean);
+    if(arr.length===standalone.length) return arr;
+  }
+  let r = tryParse(t);
+  if(r) return r;
+  // หา array หรือ object ที่สมดุลวงเล็บ (เอาก้อนที่ยาวที่สุด)
+  for(const [open,close] of [['[',']'],['{','}']]){
+    let best=null;
+    for(let i=0;i<t.length;i++){
+      if(t[i]!==open) continue;
+      let depth=0, inStr=false, esc=false;
+      for(let k=i;k<t.length;k++){
+        const c=t[k];
+        if(esc){ esc=false; continue; }
+        if(c==='\\'){ esc=true; continue; }
+        if(c==='"'){ inStr=!inStr; continue; }
+        if(inStr) continue;
+        if(c===open) depth++;
+        else if(c===close){
+          depth--;
+          if(depth===0){
+            const cand=t.slice(i,k+1);
+            if(!best || cand.length>best.length) best=cand;
+            break;
+          }
+        }
+      }
+    }
+    if(best){ r=tryParse(best); if(r) return r; }
+  }
+  // แถวสุดท้าย: เก็บ object ทีละตัวจากข้อความ
+  const objs=[...t.matchAll(/\{[^{}]*\}/g)].map(m=>tryParse(m[0])).filter(Boolean);
+  return objs.length ? objs : null;
+}
+
 const GROQ_BASE = process.env.GROQ_BASE || 'https://api.groq.com/openai/v1';
 const GROQ_MODEL_PREF = (process.env.GROQ_MODEL || '').trim();
 const GROQ_FALLBACKS = [
@@ -750,12 +798,12 @@ app.post('/api/tor/classify', requireAuth, async (req, res) => {
 
   const prompts = {
     classify: `จัดประเภทงานในเอกสาร TOR ภาษาไทยต่อไปนี้ ให้เลือกประเภทที่เหมาะที่สุดจากรายการนี้เท่านั้น: ${TOR_TYPES_LIST}
-ตอบเป็น JSON array อย่างเดียว ไม่ต้องอธิบาย รูปแบบ: [{"n":1,"type":"Document"},{"n":2,"type":"Test"}]
+ตอบเป็น JSON object อย่างเดียว ไม่ต้องอธิบาย รูปแบบ: {"items":[{"n":1,"type":"Document"},{"n":2,"type":"Test"}]}
 
 ${lines}`,
     hidden: `ต่อไปนี้เป็นข้อความจากหมวดคุณลักษณะเฉพาะ (สเปค) ในเอกสาร TOR ภาษาไทย
 หาข้อที่ไม่ใช่แค่สเปคอุปกรณ์ แต่เป็น "ข้อผูกพันที่ผู้ขายต้องทำ" เช่น ต้องจัดหา ต้องอบรม ต้องรับประกัน ต้องส่งมอบ ต้องเป็นยี่ห้อเดียวกัน
-ตอบเป็น JSON array อย่างเดียว: [{"n":1,"why":"เหตุผลสั้นๆ"}] ถ้าไม่มีให้ตอบ []
+ตอบเป็น JSON object อย่างเดียว: {"items":[{"n":1,"why":"เหตุผลสั้นๆ"}]} ถ้าไม่มีให้ตอบ {"items":[]}
 
 ${lines}`,
     focus: `ต่อไปนี้เป็นรายการงานของงวดงานหนึ่งในโครงการ (เอกสาร TOR ภาษาไทย)
@@ -775,6 +823,7 @@ ${lines}`
         model,
         temperature: 0.1,
         max_tokens: 1500,
+        response_format: { type:'json_object' },
         messages: [
           { role:'system', content:'คุณเป็นผู้ช่วยวิเคราะห์เอกสาร TOR ของหน่วยงานราชการไทย ตอบเป็น JSON เท่านั้น ห้ามมีข้อความอื่น' },
           { role:'user', content: prompt }
@@ -797,21 +846,43 @@ ${lines}`
         });
       }
     }
+    // บางโมเดลไม่รองรับ response_format -> ลองใหม่โดยไม่ใส่
+    if (r.status === 400) {
+      const t400 = await r.clone().text();
+      if (/response_format|json_object/i.test(t400)) {
+        console.log('[TOR AI] โมเดลไม่รองรับ json mode ลองใหม่แบบปกติ');
+        r = await fetch(GROQ_BASE+'/chat/completions', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+GROQ_KEY },
+          body: JSON.stringify({ model, temperature:0.1, max_tokens:1500, messages:[
+            { role:'system', content:'คุณเป็นผู้ช่วยวิเคราะห์เอกสาร TOR ของหน่วยงานราชการไทย ตอบเป็น JSON เท่านั้น ห้ามมีข้อความอื่น' },
+            { role:'user', content: prompt } ] })
+        });
+      }
+    }
     if (!r.ok) {
       const t = await r.text();
       return res.status(502).json({ ok:false, error:`Groq ตอบกลับ ${r.status}: ${t.slice(0,220)}` });
     }
     const j = await r.json();
-    let txt = (((j.choices||[])[0]||{}).message||{}).content || '';
-    txt = txt.replace(/```json|```/g,'').trim();
-    let result;
-    try { result = JSON.parse(txt); }
-    catch { const m = txt.match(/[\[{][\s\S]*[\]}]/); result = m ? JSON.parse(m[0]) : null; }
-    if (!result) return res.status(502).json({ ok:false, error:'อ่านผลลัพธ์จาก AI ไม่ได้' });
+    const msg = ((j.choices||[])[0]||{}).message || {};
+    // โมเดลตระกูล gpt-oss เป็น reasoning model - บางครั้งใส่คำตอบไว้ใน reasoning แทน content
+    let txt = msg.content || msg.reasoning_content || msg.reasoning || '';
+    if (Array.isArray(txt)) txt = txt.map(x => (x && x.text) || '').join('');
+    const result = parseLooseJson(txt);
+    if (!result) {
+      console.warn('[TOR AI] แกะ JSON ไม่ได้ model=' + model + ' ข้อความที่ได้:', String(txt).slice(0,400));
+      return res.status(502).json({ ok:false,
+        error:'AI ตอบกลับในรูปแบบที่อ่านไม่ได้ (โมเดล ' + model + ')',
+        raw: String(txt).slice(0,300) });
+    }
+    // โมเดลอาจห่อผลไว้ใน items/result/data - คลี่ออกให้ frontend ได้รูปแบบเดิมเสมอ
+    const unwrapped = (result && !Array.isArray(result) && (result.items||result.result||result.data))
+                      || result;
     torAiUsage[key] = (torAiUsage[key]||0) + 1;
     const usage = j.usage || {};
     console.log(`[TOR AI] ${req.user.username} task=${task} model=${model} items=${items.length} tokens=${usage.total_tokens||'?'}`);
-    res.json({ ok:true, result, model, tokens: usage.total_tokens || null,
+    res.json({ ok:true, result: unwrapped, model, tokens: usage.total_tokens || null,
                used: torAiUsage[key], limit: TOR_AI_DAILY_LIMIT });
   } catch (e) {
     res.status(500).json({ ok:false, error: String(e.message||e) });

@@ -5678,7 +5678,12 @@ async function torAiCall(task, items){
     body: JSON.stringify({task, items})
   });
   const j = await r.json();
-  if(!j.ok) throw new Error(j.error||'เรียก AI ไม่สำเร็จ');
+  if(!j.ok){
+    // แสดงข้อความดิบที่ AI ตอบมาด้วย จะได้รู้ว่าติดตรงไหน ไม่ต้องเดา
+    const e = new Error(j.error||'เรียก AI ไม่สำเร็จ');
+    if(j.raw) e.raw = j.raw;
+    throw e;
+  }
   return j;
 }
 
@@ -5745,7 +5750,8 @@ async function torAiEnhance(){
     torShowResult('');
     setMsg(`<b style="color:var(--success)">✓ AI ช่วยเสริมเรียบร้อย</b> - เรียก ${calls} ครั้ง${usedTokens?` · ใช้ ${usedTokens.toLocaleString()} tokens`:''}`);
   }catch(e){
-    setMsg(`<b style="color:var(--critical)">AI ไม่สำเร็จ:</b> ${String(e.message||e)}`);
+    setMsg(`<b style="color:var(--critical)">AI ไม่สำเร็จ:</b> ${String(e.message||e)}`
+      + (e.raw?`<div style="font-size:10px;color:var(--faint);margin-top:4px">AI ตอบมาว่า: ${String(e.raw).slice(0,220)}</div>`:''));
   }finally{ if(btn) btn.disabled=false; }
 }
 
