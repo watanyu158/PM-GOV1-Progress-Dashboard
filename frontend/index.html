@@ -496,6 +496,43 @@
   .cs-bar{height:5px;background:var(--line-soft);border-radius:5px;overflow:hidden;margin-top:7px;}
   .cs-bar i{display:block;height:100%;background:var(--brand);}
 
+  /* ---------------- TOR Breakdown ---------------- */
+  .tor-drop{margin:14px 18px;padding:30px 20px;border:2px dashed var(--line);border-radius:12px;text-align:center;cursor:pointer;background:var(--surface-2);transition:.15s;}
+  .tor-drop:hover,.tor-drop.over{border-color:var(--brand);background:#FBF7F0;}
+  .tor-drop-ico{font-size:34px;line-height:1;}
+  .tor-drop-t{font-size:13px;color:var(--ink-2);margin-top:9px;}
+  .tor-drop-s{font-size:10.5px;color:var(--faint);margin-top:6px;line-height:1.6;max-width:620px;margin-left:auto;margin-right:auto;}
+  .tor-prog{margin:0 18px 14px;padding:13px 15px;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;}
+  .tor-prog-head{display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px;color:var(--ink-2);margin-bottom:7px;}
+  .tor-prog-head b{font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--brand);}
+  .tor-bar{height:8px;background:var(--line-soft);border-radius:8px;overflow:hidden;}
+  .tor-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--brand-2),var(--brand));transition:width .25s ease;}
+  .tor-steps{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+  .tor-step{font-size:9.5px;padding:2px 8px;border-radius:20px;background:var(--surface);color:var(--faint);border:1px solid var(--line-soft);}
+  .tor-step.done{background:var(--success-tint);color:var(--success);border-color:transparent;}
+  .tor-step.now{background:var(--brand);color:#fff;border-color:transparent;font-weight:700;}
+  .tor-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:0 18px 12px;}
+  .tor-kpi{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:9px;padding:10px 12px;}
+  .tor-kpi span{display:block;font-size:9.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.03em;}
+  .tor-kpi b{font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;color:var(--brand);}
+  .tor-types{display:flex;flex-wrap:wrap;gap:6px;padding:0 18px 12px;}
+  .tor-chip{font-size:10px;padding:3px 9px;border-radius:20px;background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line-soft);}
+  .tor-actions{display:flex;flex-wrap:wrap;gap:9px;padding:0 18px 14px;}
+  .tor-btn{font-size:12px;font-weight:600;padding:9px 16px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);cursor:pointer;}
+  .tor-btn:hover{background:var(--surface-2);}
+  .tor-btn.primary{background:var(--brand);color:#fff;border-color:transparent;}
+  .tor-btn.primary:hover{background:var(--brand-2);}
+  .tor-preview{display:none;padding:0 18px 16px;max-height:520px;overflow:auto;}
+  .tor-preview.open{display:block;}
+  .tor-table{width:100%;border-collapse:collapse;font-size:10.5px;}
+  .tor-table th{position:sticky;top:0;background:var(--surface-2);font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;padding:6px 7px;text-align:left;border-bottom:1px solid var(--line-soft);}
+  .tor-table td{padding:5px 7px;border-bottom:1px solid var(--line-soft);vertical-align:top;color:var(--ink-2);}
+  .tor-table td:first-child{font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+  .tor-table tr.tor-ms td{background:#FFF2CC;font-weight:700;color:var(--ink);}
+  .tor-table tr.tor-sec td{background:#E2EFDA;font-weight:700;}
+  .tor-more{font-size:10px;color:var(--faint);padding:8px 2px;}
+  .tor-warn{margin:0 18px 16px;padding:12px 14px;border-radius:9px;background:var(--warning-tint);border-left:3px solid var(--warning);font-size:11.5px;color:var(--ink-2);line-height:1.7;}
+
   /* ---------------- Invoice Timeline ---------------- */
   .it-s{font-size:10px;color:var(--faint);margin-top:3px;}
   .it-legend{display:flex;flex-wrap:wrap;gap:8px 18px;padding:10px 18px;border-bottom:1px solid var(--line-soft);font-size:10.5px;color:var(--faint);}
@@ -1859,6 +1896,17 @@
         <div id="piCompanyResults"></div>
       </div>
     </div>
+
+    <div class="panel" id="panel-torBreakdown">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6M9 9h1"/></svg>
+          TOR Breakdown <span class="sep">-</span> <span class="th">แตกเอกสาร TOR เป็น Scope of Work</span>
+        </div>
+        <span class="p-count" id="torCount"></span>
+      </div>
+      <div class="p-body"><div id="torBox"></div></div>
+    </div>
   </div><!-- /tab3Panels -->
 
   <div id="tab4Panels">
@@ -2252,6 +2300,7 @@ const CARD_REGISTRY = [
   {tab:'3', tabLabel:'Project Information', id:'projectsByYear', en:'Projects by Year', th:'จำนวน/มูลค่าโครงการรายปี'},
   {tab:'3', tabLabel:'Project Information', id:'siteHistory', en:'Site History', th:'ใครเคยดูแลลูกค้ารายนี้บ้าง'},
   {tab:'3', tabLabel:'Project Information', id:'pmProfile', en:'PM Profile', th:'ประวัติการทำงานราย PM'},
+  {tab:'3', tabLabel:'Project Information', id:'torBreakdown', en:'TOR Breakdown', th:'แตกเอกสาร TOR เป็น Scope of Work', scope:false},
   {tab:'3', tabLabel:'Project Information', id:'companySearch', en:'Company-wide Search', th:'ค้นหาทั้งบริษัท'},
 ];
 let CARD_VISIBILITY = {}; // ดึงจาก backend ทุกครั้งที่ loadData - key=cardId, value='all' หรือ array ของ username
@@ -4697,6 +4746,343 @@ function allocateCollection(proj){
   return out;
 }
 
+// ===================== TOR Breakdown =====================
+// อ่านเอกสาร TOR (pdf/docx/xlsx/txt) -> แตกโครงสร้างข้อ -> จับคู่ งวดงาน x สิ่งส่งมอบ x ข้อ TOR
+// -> ส่งออกเป็น Excel รูปแบบ Scope of Work
+// หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
+// จึงแกะด้วยกฎได้โดยไม่ต้องพึ่ง AI - แม่นกับเอกสารที่เป็น text ส่วนไฟล์สแกนต้อง OCR มาก่อน
+const TOR = { text:'', clauses:[], milestones:[], rows:[], fileName:'', pages:0 };
+
+// โหลดไลบรารีเฉพาะตอนเปิดไฟล์ที่ต้องใช้จริง - ถ้าเน็ตเข้า CDN ไม่ได้ ไฟล์ .txt/.csv ยังใช้งานได้ปกติ
+function torLoadScript(src){
+  return new Promise((ok,err)=>{
+    if([...document.scripts].some(s=>s.src===src)) return ok();
+    const el=document.createElement('script'); el.src=src;
+    el.onload=()=>ok(); el.onerror=()=>err(new Error('โหลดไลบรารีไม่สำเร็จ: '+src+' - ตรวจว่าโฟลเดอร์ lib/ ถูก deploy ไปด้วยหรือไม่'));
+    document.head.appendChild(el);
+  });
+}
+
+const TOR_TYPES = [
+  [/ฝึกอบรม|อบรม|training/i,'Training'],
+  [/รื้อถอน|ถอดถอน/,'Removal'],
+  [/ทดสอบ|test|sat\b|fat\b|unit test/i,'Test'],
+  [/ติดตั้ง|install|ตั้งค่า|configure|กำหนดค่า/i,'Installation'],
+  [/โอนย้าย|migrat|เชื่อมต่อกับระบบเดิม/i,'Migration'],
+  [/สำรวจ|ศึกษา|survey|รวบรวมข้อมูล/,'Survey'],
+  [/ออกแบบ|design/i,'Design'],
+  [/จัดหา|จัดซื้อ|procure|supply/i,'Procurement'],
+  [/รับประกัน|warrant|บำรุงรักษา/i,'Warranty'],
+  [/ค่าปรับ|ปรับเป็นราย|penalty/i,'Penalty'],
+  [/sla|ระดับคุณภาพการให้บริการ/i,'SLA'],
+  [/นโยบาย|ระเบียบ|กฎหมาย|policy|compliance|pdpa/i,'Compliance'],
+  [/ประชุม|meeting|kick.?off/i,'Meeting'],
+  [/เอกสาร|รายงาน|คู่มือ|จัดทำ|document|report/i,'Document'],
+];
+const torType = t => (TOR_TYPES.find(([re])=>re.test(t))||[null,'Other'])[1];
+
+// ---------- 1) อ่านไฟล์เป็นข้อความ ----------
+async function torExtract(file, onProg){
+  const ext = (file.name.split('.').pop()||'').toLowerCase();
+  if(ext==='pdf'){
+    onProg(12,'โหลดตัวอ่าน PDF');
+    await torLoadScript('lib/pdf.min.js');
+    const pdfjsLib = window['pdfjsLib'];
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+    TOR.pages = pdf.numPages;
+    const out=[]; let emptyPages=0;
+    const t0=Date.now();
+    for(let i=1;i<=pdf.numPages;i++){
+      const page = await pdf.getPage(i);
+      const tc = await page.getTextContent();
+      const txt = tc.items.map(x=>x.str).join(' ');
+      if(txt.replace(/\s/g,'').length < 10) emptyPages++;
+      out.push(txt);
+      page.cleanup();                       // คืนหน่วยความจำทันที กันไฟล์ใหญ่กินแรม
+      if(i%2===0 || i===pdf.numPages){
+        const el=Math.round((Date.now()-t0)/1000);
+        const eta=i>4 ? Math.max(0, Math.round(el/i*(pdf.numPages-i))) : null;
+        onProg(15 + Math.round(i/pdf.numPages*30),
+          `อ่านหน้า ${i}/${pdf.numPages}` + (eta!==null?` · เหลืออีกประมาณ ${eta} วินาที`:''));
+        await new Promise(r=>setTimeout(r,0));   // คืนคิวให้เบราว์เซอร์วาด progress
+      }
+    }
+    TOR.emptyPages = emptyPages;
+    return out.join('\n');
+  }
+  if(ext==='docx'){
+    onProg(12,'โหลดตัวอ่าน Word');
+    await torLoadScript('lib/mammoth.browser.min.js');
+    onProg(30,'แปลงไฟล์ Word');
+    const r = await window.mammoth.extractRawText({arrayBuffer: await file.arrayBuffer()});
+    return r.value;
+  }
+  if(ext==='xlsx'||ext==='xls'){
+    onProg(12,'โหลดตัวอ่าน Excel');
+    await torLoadScript('lib/xlsx.full.min.js');
+    onProg(30,'แปลงไฟล์ Excel');
+    const wb = XLSX.read(await file.arrayBuffer(), {type:'array'});
+    return wb.SheetNames.map(n=>XLSX.utils.sheet_to_csv(wb.Sheets[n])).join('\n');
+  }
+  onProg(30,'อ่านไฟล์ข้อความ');
+  return await file.text();
+}
+
+// ---------- 2) แตกโครงสร้างข้อ ----------
+async function torParseClausesAsync(text, onProg){
+  let t = text.replace(/(?<=[\u0E00-\u0E7F]) (?=[\u0E00-\u0E7F])/g,'').replace(/[ \t]+/g,' ');
+  const lines = t.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  const out=[]; let cur=null;
+  for(let i=0;i<lines.length;i++){
+    const ln=lines[i];
+    const m = ln.match(/^(\d{1,2}(?:\.\d{1,2}){0,2})[\.\s]\s*(.+)$/);
+    if(m && m[2].length>4){
+      if(cur) out.push(cur);
+      cur = {no:m[1], text:m[2].trim(), depth:m[1].split('.').length};
+    } else if(cur && ln.length>3 && cur.text.length<1200){
+      cur.text += ' ' + ln;
+    }
+    if(i%4000===0 && i>0){
+      onProg(50+Math.round(i/lines.length*16), `แตกโครงสร้างข้อ ${i.toLocaleString()}/${lines.length.toLocaleString()} บรรทัด`);
+      await new Promise(r=>setTimeout(r,0));
+    }
+  }
+  if(cur) out.push(cur);
+  return out;
+}
+
+function torParseClauses(text){
+  // ยุบช่องว่างที่ OCR/PDF แทรกระหว่างอักษรไทย แล้วตัดเป็นบรรทัด
+  let t = text.replace(/(?<=[\u0E00-\u0E7F]) (?=[\u0E00-\u0E7F])/g,'').replace(/[ \t]+/g,' ');
+  const lines = t.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  const out=[]; let cur=null;
+  for(const ln of lines){
+    const m = ln.match(/^(\d{1,2}(?:\.\d{1,2}){0,2})[\.\s]\s*(.+)$/);
+    if(m && m[2].length>4){
+      if(cur) out.push(cur);
+      cur = {no:m[1], text:m[2].trim(), depth:m[1].split('.').length};
+    } else if(cur && ln.length>3 && cur.text.length<1200){
+      cur.text += ' ' + ln;
+    }
+  }
+  if(cur) out.push(cur);
+  return out;
+}
+
+// ---------- 3) หา "งวดงาน" และสิ่งที่ผูกกับงวดนั้น ----------
+function torParseMilestones(clauses){
+  // หาข้อที่พูดถึงงวดที่ N (ปกติอยู่ในหมวดการจ่ายเงิน)
+  const ms=[];
+  clauses.forEach(c=>{
+    const m = c.text.match(/งวดที่\s*(\d{1,2})/);
+    if(!m) return;
+    if(!/จ่าย|ชำระ|เบิก|ส่งมอบงาน|ร้อยละ|%/.test(c.text)) return;
+    const no = parseInt(m[1],10);
+    if(ms.some(x=>x.no===no)) return;
+    const pct = (c.text.match(/(?:เป็นจำนวนเงิน)?ร้อยละ\s*([\d.]+)|([\d.]+)\s*%/)||[])[1];
+    // ข้อ TOR ที่ถูกอ้างถึงในเงื่อนไขงวดนี้
+    const refs=[...new Set((c.text.match(/ข้อ\s*\d{1,2}(?:\.\d{1,2}){0,2}(?:\s*[-–]\s*\d{1,2}(?:\.\d{1,2}){0,2})?/g)||[])
+      .map(x=>x.replace(/ข้อ\s*/,'').trim()))];
+    ms.push({no, pct, cond:c.text, refs, clause:c.no});
+  });
+  ms.sort((a,b)=>a.no-b.no);
+  return ms;
+}
+
+// ---------- 4) ประกอบเป็นแถว Scope of Work ----------
+function torBuildRows(clauses, ms){
+  const byNo = {}; clauses.forEach(c=>byNo[c.no]=c);
+  const expand = ref => {           // "10.2.1-9" -> [10.2.1 ... 10.2.9]
+    const out=[];
+    const r = ref.match(/^(\d{1,2}(?:\.\d{1,2})?)\.(\d{1,2})\s*[-–]\s*(\d{1,2})$/);
+    if(r){ for(let i=+r[2];i<=+r[3];i++) out.push(`${r[1]}.${i}`); return out; }
+    const r2 = ref.match(/^(\d{1,2}(?:\.\d{1,2}){0,2})\s*[-–]\s*(\d{1,2}(?:\.\d{1,2}){0,2})$/);
+    if(r2) return [r2[1], r2[2]];
+    return [ref];
+  };
+  const rows=[];
+  const push=o=>rows.push(Object.assign({tor:'',type:'',desc:'',note:'',ms:'',cond:''},o));
+
+  ms.forEach(m=>{
+    push({kind:'ms', desc:`ส่งมอบงาน งวดที่ ${m.no}${m.pct?` - ร้อยละ ${m.pct}`:''} | เงื่อนไข: ${m.cond}`});
+    // งานที่ต้องทำ = ข้อที่ถูกอ้างถึง (ไม่ใช่เอกสารส่งมอบ)
+    const refs = m.refs.flatMap(expand);
+    const docRefs = refs.filter(r=>/^10\./.test(r));
+    const workRefs = refs.filter(r=>!/^10\./.test(r));
+    if(workRefs.length){
+      push({kind:'sec', desc:'งานที่ต้องดำเนินการ'});
+      workRefs.forEach((r,i)=>{
+        const c=byNo[r];
+        push({tor:r, type:torType(c?c.text:r), desc:`${i+1}) ${c?c.text:'(อ้างถึงข้อ '+r+' - ไม่พบข้อความในเอกสาร)'}`,
+              ms:`งวดงานที่ ${m.no}`, cond:c?`อ้างอิงตามข้อ ${r} ในเอกสาร TOR`:''});
+        // ข้อย่อยของข้อนี้
+        clauses.filter(x=>x.no.startsWith(r+'.') && x.no!==r).forEach((sub,j)=>{
+          push({tor:sub.no, type:torType(sub.text), desc:`   ${i+1}.${j+1}) ${sub.text}`, ms:`งวดงานที่ ${m.no}`, cond:''});
+        });
+      });
+    }
+    if(docRefs.length){
+      push({kind:'sec', desc:`>> เอกสารส่งมอบ งวดที่ ${m.no} - ต้องส่งครบจึงจะตรวจรับและเบิกจ่ายได้`});
+      docRefs.forEach((r,i)=>{
+        const c=byNo[r];
+        push({tor:r, type:'Document', desc:`${i+1}) ${c?c.text:'(อ้างถึงข้อ '+r+')'}`,
+              note:'เอกสารส่งมอบงวดนี้', ms:`งวดงานที่ ${m.no}`, cond:''});
+      });
+    }
+  });
+
+  // ข้อที่ไม่ถูกอ้างในงวดใดเลย -> ข้อกำหนดตลอดโครงการ
+  const used=new Set(rows.map(r=>r.tor).filter(Boolean));
+  const rest = clauses.filter(c=>!used.has(c.no) && c.depth<=2 && c.text.length>25
+                 && !/^\d{1,2}$/.test(c.no) && !/^5\./.test(c.no));
+  if(rest.length){
+    push({kind:'ms', desc:'Z. ข้อกำหนดที่ใช้บังคับตลอดโครงการ (ไม่ผูกกับงวดใดงวดหนึ่ง)'});
+    rest.forEach(c=>push({tor:c.no, type:torType(c.text), desc:c.text, ms:'ทุกงวด', cond:''}));
+  }
+  return rows;
+}
+
+// ---------- 5) ส่งออก Excel (เขียน SpreadsheetML เอง ไม่ต้องพึ่งไลบรารีภายนอก) ----------
+function torExportExcel(){
+  const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                .replace(/"/g,'&quot;').replace(/\r?\n/g,'&#10;');
+  const H=['Item/ToR No.','ประเภท','Description/รายละเอียด','หมายเหตุ','งวดงานที่','เงื่อนไข/ข้อกำหนด',
+           'Sales','PM','PE','Sub1','Sub2','Sub3','Sub4','Sub5','Sub6','Sub7'];
+  const cell=(v,st)=>`<Cell${st?` ss:StyleID="${st}"`:''}><Data ss:Type="String">${esc(v)}</Data></Cell>`;
+  const rowsXml=[];
+  rowsXml.push(`<Row><Cell ss:StyleID="t" ss:MergeAcross="15"><Data ss:Type="String">Scope of Work/ Job Responsiblities Matrix</Data></Cell></Row>`);
+  rowsXml.push(`<Row><Cell ss:StyleID="sub" ss:MergeAcross="15"><Data ss:Type="String">${esc('แหล่งข้อมูล: '+TOR.fileName+(TOR.pages?` (${TOR.pages} หน้า)`:'')+' · สร้างเมื่อ '+new Date().toLocaleString('th-TH')+' · พบ '+TOR.milestones.length+' งวดงาน จาก '+TOR.clauses.length+' ข้อ TOR')}</Data></Cell></Row>`);
+  rowsXml.push('<Row/>');
+  rowsXml.push('<Row>'+H.map(h=>cell(h,'h')).join('')+'</Row>');
+  TOR.rows.forEach(r=>{
+    if(r.kind==='ms'||r.kind==='sec'){
+      rowsXml.push(`<Row><Cell ss:StyleID="${r.kind}" ss:MergeAcross="15"><Data ss:Type="String">${esc(r.desc)}</Data></Cell></Row>`);
+    } else {
+      rowsXml.push('<Row>'+[r.tor,r.type,r.desc,r.note,r.ms,r.cond].map(v=>cell(v,'b')).join('')
+                   +Array(10).fill(cell('','b')).join('')+'</Row>');
+    }
+  });
+  const widths=[100,105,560,215,115,370].concat(Array(10).fill(58));
+  const xml=`<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Styles>
+<Style ss:ID="t"><Font ss:FontName="Arial" ss:Size="14" ss:Bold="1"/></Style>
+<Style ss:ID="sub"><Font ss:FontName="Arial" ss:Size="9" ss:Italic="1" ss:Color="#808080"/></Style>
+<Style ss:ID="h"><Font ss:FontName="Arial" ss:Size="9" ss:Bold="1"/><Interior ss:Color="#D9D9D9" ss:Pattern="Solid"/><Alignment ss:Vertical="Center" ss:Horizontal="Center" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+<Style ss:ID="b"><Font ss:FontName="Arial" ss:Size="9"/><Alignment ss:Vertical="Top" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFBFBF"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFBFBF"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFBFBF"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFBFBF"/></Borders></Style>
+<Style ss:ID="ms"><Font ss:FontName="Arial" ss:Size="9" ss:Bold="1"/><Interior ss:Color="#FFF2CC" ss:Pattern="Solid"/><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
+<Style ss:ID="sec"><Font ss:FontName="Arial" ss:Size="9" ss:Bold="1"/><Interior ss:Color="#E2EFDA" ss:Pattern="Solid"/><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
+</Styles>
+<Worksheet ss:Name="Scope of Work"><Table>
+${widths.map(w=>`<Column ss:Width="${w}"/>`).join('')}
+${rowsXml.join('\n')}
+</Table>
+<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><SplitHorizontal>4</SplitHorizontal><TopRowBottomPane>4</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions>
+</Worksheet></Workbook>`;
+  const blob=new Blob(['\ufeff'+xml],{type:'application/vnd.ms-excel;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`Scope_of_Work_${TOR.fileName.replace(/\.[^.]+$/,'')}.xls`;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1500);
+}
+
+// ---------- 6) UI ----------
+function renderTorBreakdown(){
+  const el=document.getElementById('torBox'); if(!el) return;
+  el.innerHTML=`
+    <div class="tor-drop" id="torDrop">
+      <input type="file" id="torFile" accept=".pdf,.docx,.xlsx,.xls,.txt,.csv" style="display:none">
+      <div class="tor-drop-ico">📄</div>
+      <div class="tor-drop-t">ลากไฟล์ TOR มาวาง หรือ <b>คลิกเพื่อเลือกไฟล์</b></div>
+      <div class="tor-drop-s">รองรับ PDF · Word (.docx) · Excel (.xlsx) · ข้อความ (.txt)<br>
+        <b style="color:var(--success)">🔒 ไฟล์ถูกประมวลผลในเครื่องคุณทั้งหมด ไม่ถูกอัปโหลดขึ้นเซิร์ฟเวอร์หรือส่งออกไปที่ใด</b><br>
+        ไฟล์ PDF ที่เป็นภาพสแกนต้องแปลงเป็นข้อความ (OCR) ก่อน · รองรับเอกสารหลายร้อยหน้า</div>
+    </div>
+    <div id="torProg" class="tor-prog" style="display:none">
+      <div class="tor-prog-head"><span id="torStage">กำลังเตรียม...</span><b id="torPct">0%</b></div>
+      <div class="tor-bar"><i id="torBarFill" style="width:0%"></i></div>
+      <div class="tor-steps" id="torSteps"></div>
+    </div>
+    <div id="torResult"></div>`;
+  const inp=document.getElementById('torFile'), drop=document.getElementById('torDrop');
+  drop.onclick=()=>inp.click();
+  inp.onchange=e=>{ if(e.target.files[0]) torRun(e.target.files[0]); };
+  ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+  drop.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) torRun(f); });
+}
+
+const TOR_STEPS=['อ่านไฟล์','แปลงเป็นข้อความ','แตกโครงสร้างข้อ','จับคู่งวดงาน','สร้าง Scope of Work'];
+function torProgress(pct, stage, stepIdx){
+  document.getElementById('torProg').style.display='block';
+  document.getElementById('torPct').textContent=pct+'%';
+  document.getElementById('torBarFill').style.width=pct+'%';
+  if(stage) document.getElementById('torStage').textContent=stage;
+  document.getElementById('torSteps').innerHTML=TOR_STEPS.map((s,i)=>
+    `<span class="tor-step ${i<stepIdx?'done':i===stepIdx?'now':''}">${i<stepIdx?'✓':i+1}. ${s}</span>`).join('');
+}
+
+async function torRun(file){
+  const res=document.getElementById('torResult'); res.innerHTML='';
+  TOR.fileName=file.name; TOR.pages=0;
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  try{
+    torProgress(5,`เปิดไฟล์ ${file.name} (${(file.size/1024/1024).toFixed(1)} MB)`,0); await sleep(60);
+    const text=await torExtract(file,(p,st)=>torProgress(p,st,1));
+    TOR.text=text;
+    torProgress(50,'แตกโครงสร้างข้อจากเอกสาร',2); await sleep(40);
+    TOR.clauses=await torParseClausesAsync(text,(p,st)=>torProgress(p,st,2));
+    // ไฟล์สแกน = ดึงข้อความแทบไม่ได้
+    if(text.replace(/\s/g,'').length < 400 || TOR.clauses.length < 5){
+      torProgress(100,'อ่านข้อความจากไฟล์ไม่ได้',5);
+      res.innerHTML=`<div class="tor-warn"><b>⚠ อ่านข้อความจากไฟล์นี้ไม่ได้</b><br>
+        พบข้อความเพียง ${text.replace(/\s/g,'').length} ตัวอักษร และแตกได้ ${TOR.clauses.length} ข้อ
+        ${TOR.pages?` จาก ${TOR.pages} หน้า`:''}<br><br>
+        สาเหตุที่พบบ่อยคือ <b>ไฟล์ PDF เป็นภาพสแกน</b> (ไม่มีชั้นข้อความ) ต้องแปลงเป็นข้อความด้วย OCR ก่อน
+        เช่น Adobe Acrobat (Scan &amp; OCR) หรือ Google Drive (เปิดด้วย Google Docs) แล้วบันทึกเป็น PDF/Word ที่ค้นหาข้อความได้
+        จากนั้นอัปโหลดใหม่อีกครั้ง</div>`;
+      document.getElementById('torCount').textContent='อ่านไฟล์ไม่สำเร็จ';
+      return;
+    }
+    torProgress(68,`พบ ${TOR.clauses.length} ข้อ - กำลังจับคู่งวดงาน`,3); await sleep(60);
+    TOR.milestones=torParseMilestones(TOR.clauses);
+    torProgress(85,`พบ ${TOR.milestones.length} งวดงาน - กำลังสร้าง Scope of Work`,4); await sleep(60);
+    TOR.rows=torBuildRows(TOR.clauses,TOR.milestones);
+    torProgress(100,'เสร็จเรียบร้อย',5);
+
+    const tasks=TOR.rows.filter(r=>!r.kind).length;
+    const scanNote = (TOR.emptyPages>0 && TOR.pages)
+      ? `<div class="tor-warn" style="margin-bottom:12px"><b>หมายเหตุ:</b> มี ${TOR.emptyPages} จาก ${TOR.pages} หน้าที่ดึงข้อความไม่ได้ (น่าจะเป็นหน้าภาพสแกนหรือแบบวาด) เนื้อหาในหน้าเหล่านั้นจะไม่ปรากฏใน Scope of Work</div>` : '';
+    const types={}; TOR.rows.filter(r=>!r.kind).forEach(r=>types[r.type]=(types[r.type]||0)+1);
+    document.getElementById('torCount').textContent=`${TOR.milestones.length} งวด · ${tasks} งาน`;
+    res.innerHTML=scanNote+`
+      <div class="tor-sum">
+        <div class="tor-kpi"><span>งวดงานที่พบ</span><b>${TOR.milestones.length}</b></div>
+        <div class="tor-kpi"><span>ข้อ TOR ที่แตกได้</span><b>${TOR.clauses.length}</b></div>
+        <div class="tor-kpi"><span>งานใน Scope of Work</span><b>${tasks}</b></div>
+        <div class="tor-kpi"><span>เอกสารส่งมอบ</span><b>${TOR.rows.filter(r=>r.type==='Document').length}</b></div>
+      </div>
+      <div class="tor-types">${Object.entries(types).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span class="tor-chip">${k} ${v}</span>`).join('')}</div>
+      <div class="tor-actions">
+        <button class="tor-btn primary" onclick="torExportExcel()">⬇ ดาวน์โหลด Scope of Work (Excel)</button>
+        <button class="tor-btn" onclick="document.getElementById('torPreview').classList.toggle('open')">ดูตัวอย่างผลลัพธ์</button>
+      </div>
+      <div id="torPreview" class="tor-preview">
+        <table class="tor-table"><thead><tr><th>ToR No.</th><th>ประเภท</th><th>Description</th><th>งวดงานที่</th></tr></thead>
+        <tbody>${TOR.rows.slice(0,120).map(r=>r.kind
+          ? `<tr class="tor-${r.kind}"><td colspan="4">${r.desc}</td></tr>`
+          : `<tr><td>${r.tor}</td><td>${r.type}</td><td>${r.desc}</td><td>${r.ms}</td></tr>`).join('')}</tbody></table>
+        ${TOR.rows.length>120?`<div class="tor-more">แสดง 120 จาก ${TOR.rows.length} แถว - ดาวน์โหลดไฟล์เพื่อดูทั้งหมด</div>`:''}
+      </div>`;
+  }catch(err){
+    torProgress(100,'เกิดข้อผิดพลาด',5);
+    res.innerHTML=`<div class="tor-warn"><b>⚠ ประมวลผลไม่สำเร็จ</b><br>${String(err.message||err)}</div>`;
+  }
+}
+
 function renderInvoiceTimeline(paywSource, codeSetList){
   const el = document.getElementById('itBox');
   if(!el) return;
@@ -6385,6 +6771,7 @@ function renderFiltered(){
   renderClosure(listFor('closureTransfer'));
   renderStalled(listFor('stalledProgress'));
   renderRiskFinder(listFor('riskFinder'));
+  renderTorBreakdown();
   renderProgressTimeline(listFor('progressTimeline'),
     hasTeamWideScope('progressTimeline') && ROWS_TEAMWIDE.length ? ROWS_TEAMWIDE : HIST);
   renderDataFreshness(listFor('dataFreshness'));
