@@ -4667,6 +4667,30 @@ function renderInvoiceTimeline(paywSource, codeSetList){
     const mAR      = Array(12).fill(0);   // ออกใบกำกับภาษีแล้วแต่ยังเก็บเงินไม่ได้
     let bfBilling=0, bfTax=0, afBilling=0, afTax=0;
     const hasDelivery = (x.installments||[]).some(isDelivery);
+    const sched = CONTRACT_SCHEDULE[x.projectCode];
+    const hasSched = !!sched;
+
+    if(hasSched){
+      // billing ของโครงการที่มีตารางสัญญา = มูลค่าเต็มของแต่ละงวด วางตามวันที่ที่พบในไฟล์ PMS
+      // หาวันที่: ใช้แถวเฉพาะของงวดนั้นก่อน (ไม่ใช่แถวส่งของ) ถ้าไม่มีค่อยหาจากใบรวมที่อ้างถึงงวดนั้น
+      sched.rows.forEach(r=>{
+        const gm = String(r.no).match(/(\d+)/);
+        if(!gm) return;
+        const gno = gm[1];
+        const reDedicated = new RegExp('^\\s*งวดที่\\s*' + gno + '(?!\\d)');
+        const reAny = new RegExp('งวดที่[^)]*(?:^|[^\\d])' + gno + '(?![\\d])');
+        const dedicated = (x.installments||[]).find(i => !isDelivery(i) && reDedicated.test(String(i.desc||'')));
+        const bundled = (x.installments||[]).find(i => reAny.test(String(i.desc||'')));
+        const srcRow = dedicated || bundled;
+        const d2 = srcRow ? parseD(srcRow.invoiceDate) : null;
+        if(!d2) return;
+        const y2 = d2.getFullYear();
+        if(y2 < YEAR) bfBilling += r.full;
+        else if(y2 > YEAR) afBilling += r.full;
+        else mBilling[d2.getMonth()] += r.full;
+      });
+    }
+
     (x.installments||[]).forEach(i=>{
       const d = parseD(i.invoiceDate);
       if(!d) return;
@@ -4675,14 +4699,17 @@ function renderInvoiceTimeline(paywSource, codeSetList){
       // billing นับเฉพาะแถวงวด · ถ้า invoiced+remainder เป็น 0 ให้ลองอ่านจำนวนเงินจากคำอธิบาย
       // โครงการที่มีตารางงวดตามสัญญา (เช่น AOT) ให้ใช้ "มูลค่าเต็มของงวด" เป็น billing
       // เพราะไฟล์ PMS เก็บแค่ยอดคงเหลือ (ส่วนที่ยังไม่ได้ออกใบกำกับภาษี) ไม่ใช่มูลค่างวดจริง
-      const schedFull = contractFullOfInstallment(x.projectCode, i.desc);
-      const billing = del ? 0 : (schedFull > 0 ? schedFull : ((inv + rem) > 0 ? inv + rem : descAmt(i)));
+      // โครงการที่มีตารางสัญญา: คิด billing จากตารางแยกต่างหาก (ด้านล่าง) ไม่คิดจากแถวนี้
+      // เพราะบางงวดถูกวางบิลผ่าน "ใบรวม" ที่เป็นแถวใบกำกับภาษี ถ้าคิดจากแถวจะตกหล่น
+      const schedFull = 0;
+      const billing = hasSched ? 0 : (del ? 0 : ((inv + rem) > 0 ? inv + rem : descAmt(i)));
       // tax invoice ของเดือนนั้น:
       //  - แถวส่งของ = ใบกำกับภาษีที่ออกไปแล้ว (ใช้ invoiced)
       //  - แถวงวดของโครงการที่มีตารางสัญญา = ยอดที่จะออกใบกำกับภาษีของงวดนั้น (เก็บไว้ในช่อง remainder)
       //    เช่น AOT งวด 11 ส.ค. -> billing 24.4M คู่กับ tax invoice 2.4M
       //  - แถวงวดทั่วไป = invoiced
-      const tax = del ? inv : (schedFull > 0 ? (inv > 0 ? inv : rem) : (hasDelivery ? 0 : inv));
+      // tax invoice: แถวส่งของ = ที่ออกไปแล้ว · แถวงวดของโครงการมีตารางสัญญา = ยอดที่จะออก (ช่อง remainder)
+      const tax = del ? inv : (hasSched ? (inv > 0 ? inv : rem) : (hasDelivery ? 0 : inv));
       if(billing <= 0 && tax <= 0) return;
       const collected = !!i.collectedDate, collecting = num(i.collecting);
       const y = d.getFullYear(), m = d.getMonth();
@@ -4769,7 +4796,7 @@ function renderInvoiceTimeline(paywSource, codeSetList){
     return `<tr>
       <td class="it-name">
         <div class="it-n">${r.name} <span class="code-tag">#${r.code}</span></div>
-        <div class="it-sub">${r.pm} · billing ปีนี้ ${compact(r.yrBilling)} · ออกใบกำกับภาษีแล้ว ${compact(r.yrTax)}${pend>1?` · <b class="it-pend">เหลือ ${compact(pend)}</b>`:''}</div>
+        <div class="it-sub">${r.pm} · billing ปีนี้ ${compact(r.yrBilling)} · ออกใบกำกับภาษีแล้ว ${compact(r.yrTax)}${pend>1?` · <b class="it-pend">ยังไม่ออกใบกำกับภาษี ${compact(pend)}</b>`:''}</div>
       </td>
       ${edgeCell(r.bfBilling, r.bfTax)}
       ${r.mBilling.map((b,i)=>cell(b, r.mTax[i], r.mAR[i], i)).join('')}
