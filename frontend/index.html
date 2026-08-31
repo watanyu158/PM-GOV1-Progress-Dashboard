@@ -4559,6 +4559,20 @@ const CONTRACT_SCHEDULE = {
   },
 };
 
+// หามูลค่าเต็มของงวดจากตารางสัญญา โดยจับ "งวดที่ N" จากคำอธิบายในไฟล์ PMS
+// คืน 0 ถ้าโครงการไม่มีตารางสัญญา หรือจับเลขงวดไม่ได้ (ให้ใช้วิธีคำนวณปกติแทน)
+function contractFullOfInstallment(code, desc){
+  const sc = CONTRACT_SCHEDULE[code];
+  if(!sc) return 0;
+  const m = String(desc||'').match(/งวดที่\s*(\d+)/);
+  if(!m) return 0;
+  const row = sc.rows.find(r => {
+    const rm = String(r.no).match(/(\d+)/);
+    return rm && rm[1] === m[1];
+  });
+  return row ? row.full : 0;
+}
+
 function contractScheduleHtml(code, sellingPrice){
   const sc = CONTRACT_SCHEDULE[code];
   if(!sc) return '';
@@ -4647,7 +4661,10 @@ function renderInvoiceTimeline(paywSource, codeSetList){
       const inv = num(i.invoiced), rem = num(i.remainder);
       const del = isDelivery(i);
       // billing นับเฉพาะแถวงวด · ถ้า invoiced+remainder เป็น 0 ให้ลองอ่านจำนวนเงินจากคำอธิบาย
-      const billing = del ? 0 : ((inv + rem) > 0 ? inv + rem : descAmt(i));
+      // โครงการที่มีตารางงวดตามสัญญา (เช่น AOT) ให้ใช้ "มูลค่าเต็มของงวด" เป็น billing
+      // เพราะไฟล์ PMS เก็บแค่ยอดคงเหลือ (ส่วนที่ยังไม่ได้ออกใบกำกับภาษี) ไม่ใช่มูลค่างวดจริง
+      const schedFull = contractFullOfInstallment(x.projectCode, i.desc);
+      const billing = del ? 0 : (schedFull > 0 ? schedFull : ((inv + rem) > 0 ? inv + rem : descAmt(i)));
       // tax invoice: ถ้าโครงการมีแถวส่งของ ให้ยึดแถวส่งของ ไม่งั้นใช้ invoiced ของแถวงวด
       const tax = hasDelivery ? (del ? inv : 0) : inv;
       if(billing <= 0 && tax <= 0) return;
