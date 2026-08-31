@@ -4757,6 +4757,21 @@ function allocateCollection(proj){
 }
 
 // ===================== TOR Breakdown =====================
+// กฎการอ่าน TOR ที่สะสมจากเอกสารจริง - อย่าลบ แต่ละข้อมาจากเคสที่เคยอ่านพลาดมาแล้ว
+//  1. เลขข้ออาจติดข้อความไม่มีช่องว่าง: "12.1งวดที่ 1" / "8.หลักเกณฑ์" / "7.9ค่าซอฟต์แวร์"
+//  2. DOCX ใช้ auto-numbering ของ Word - เลขข้อไม่อยู่ในข้อความ ต้องอ่าน numbering.xml เองแล้วสร้างเลขใหม่
+//  3. เอกสารที่ผสม auto-numbering กับเลขที่พิมพ์เอง -> ยึดเลขที่พิมพ์เอง (เป็นเลขที่ข้ออื่นอ้างถึงจริง)
+//  4. "การส่งมอบงาน" กับ "เงื่อนไขการจ่ายเงิน" มักอยู่คนละหมวด ต้องรวมด้วยเลขงวด
+//  5. งวดงานอ้างต่อกันเป็นทอด (งวด 1 -> ข้อ 6.1 -> ข้อ 4.1-4.4) ต้องตามอ้างอิงหลายชั้น
+//  6. ช่วงข้อ "6.1 - 6.2" ต้องขยายเป็นทุกข้อในช่วง
+//  7. เลขข้อซ้ำได้จริง เพราะมีรายการเลขหลายชุดที่เริ่มนับ 1 ใหม่ (เจอ 47 ชุดในไฟล์เดียว)
+//  8. Excel แบบ Comply/ตารางเปรียบเทียบ -> อ่านเฉพาะคอลัมน์ข้อกำหนด
+//  9. ไฟล์เดียวอาจรวมหลายเอกสาร -> ให้คะแนนเลือกชุดที่เป็น TOR
+// 10. เลขข้อกับเนื้อหาอาจอยู่คนละบรรทัด (ตาราง) -> รวมก่อนแตกข้อ
+// 11. เลขไทย ๐-๙ -> อารบิก ตั้งแต่ตอนดึงข้อความ
+// 12. ตรวจและทำความสะอาดก่อนให้ดาวน์โหลดเสมอ พร้อมรายงานว่าทำอะไรไป
+// 13. ผลลัพธ์ต้องมีครบ: งวดงาน · Kick-Off · งานติดตั้ง · เอกสารส่งมอบรายงวด
+//     ถ้าขาดข้อใด = ยังอ่านไม่ครบ ต้องกลับไปตรวจ
 // อ่านเอกสาร TOR (pdf/docx/xlsx/txt) -> แตกโครงสร้างข้อ -> จับคู่ งวดงาน x สิ่งส่งมอบ x ข้อ TOR
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
 // หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
@@ -4791,6 +4806,124 @@ const TOR_TYPES = [
 ];
 const torType = t => (TOR_TYPES.find(([re])=>re.test(t))||[null,'Other'])[1];
 
+// ===== อ่าน DOCX เอง เพื่อดึงเลขข้อจาก auto-numbering ของ Word =====
+// ปัญหา: Word เก็บเลขข้อไว้ใน numbering.xml ไม่ได้อยู่ในข้อความ
+// ตัวแปลงทั่วไป (mammoth) จึงคืนข้อความที่ "ไม่มีเลขข้อ" ทำให้แตกโครงสร้างไม่ได้เลย
+// วิธีแก้: อ่าน docx เป็น ZIP เอง แล้วสร้างเลขข้อขึ้นมาใหม่ตามลำดับที่ Word จะแสดง
+const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+
+async function torUnzip(buf){
+  const dv=new DataView(buf), u8=new Uint8Array(buf);
+  // หา End of Central Directory
+  let eocd=-1;
+  for(let i=u8.length-22;i>=Math.max(0,u8.length-66000);i--){
+    if(dv.getUint32(i,true)===0x06054b50){ eocd=i; break; }
+  }
+  if(eocd<0) throw new Error('ไฟล์ไม่ใช่รูปแบบ ZIP/DOCX ที่ถูกต้อง');
+  const n=dv.getUint16(eocd+10,true); let off=dv.getUint32(eocd+16,true);
+  const files={};
+  const dec=new TextDecoder();
+  for(let k=0;k<n;k++){
+    const nameLen=dv.getUint16(off+28,true), extraLen=dv.getUint16(off+30,true),
+          cmtLen=dv.getUint16(off+32,true), lho=dv.getUint32(off+42,true);
+    const name=dec.decode(u8.subarray(off+46,off+46+nameLen));
+    const method=dv.getUint16(off+10,true), csize=dv.getUint32(off+20,true);
+    if(name==='word/document.xml' || name==='word/numbering.xml'){
+      const lNameLen=dv.getUint16(lho+26,true), lExtra=dv.getUint16(lho+28,true);
+      const start=lho+30+lNameLen+lExtra;
+      const raw=u8.subarray(start,start+csize);
+      if(method===0){ files[name]=dec.decode(raw); }
+      else {
+        const ds=new DecompressionStream('deflate-raw');
+        const ab=await new Response(new Blob([raw]).stream().pipeThrough(ds)).arrayBuffer();
+        files[name]=dec.decode(new Uint8Array(ab));
+      }
+    }
+    off+=46+nameLen+extraLen+cmtLen;
+  }
+  return files;
+}
+
+async function torDocxText(file){
+  const files=await torUnzip(await file.arrayBuffer());
+  if(!files['word/document.xml']) throw new Error('ไม่พบเนื้อหาเอกสารในไฟล์ DOCX');
+  const P=new DOMParser();
+  const doc=P.parseFromString(files['word/document.xml'],'application/xml');
+  // ---- ตารางเลขข้อ ----
+  const n2a={}, abs={};
+  if(files['word/numbering.xml']){
+    const nd=P.parseFromString(files['word/numbering.xml'],'application/xml');
+    [...nd.getElementsByTagNameNS(W,'num')].forEach(n=>{
+      const a=n.getElementsByTagNameNS(W,'abstractNumId')[0];
+      if(a) n2a[n.getAttributeNS(W,'numId')]=a.getAttributeNS(W,'val');
+    });
+    [...nd.getElementsByTagNameNS(W,'abstractNum')].forEach(a=>{
+      const lv={};
+      [...a.getElementsByTagNameNS(W,'lvl')].forEach(l=>{
+        const t=l.getElementsByTagNameNS(W,'lvlText')[0];
+        const st=l.getElementsByTagNameNS(W,'start')[0];
+        lv[+l.getAttributeNS(W,'ilvl')] = {
+          text: t?t.getAttributeNS(W,'val'):'%1',
+          start: st?+st.getAttributeNS(W,'val'):1
+        };
+      });
+      abs[a.getAttributeNS(W,'abstractNumId')]=lv;
+    });
+  }
+  // ---- ไล่ย่อหน้า สร้างเลขข้อตามลำดับ ----
+  // เอกสาร Word มักมีหลายชุด numbering แต่ละชุดเริ่มนับ 1 ใหม่ ทำให้เลข "1.1" ซ้ำได้หลายที่
+  // จึงจำหมวดหลักล่าสุด (เช่น 6.) ไว้เติมเป็นคำนำหน้า ให้เลขข้ออ้างอิงได้จริงไม่ซ้ำกัน
+  const cnt={}, out=[];
+  let curTop='';          // เลขหมวดหลักล่าสุด เช่น "6"
+  let topAid=null;        // ชุด numbering ที่ให้เลขหมวดหลัก
+  [...doc.getElementsByTagNameNS(W,'p')].forEach(p=>{
+    const txt=[...p.getElementsByTagNameNS(W,'t')].map(t=>t.textContent||'').join('').trim();
+    const npr=p.getElementsByTagNameNS(W,'numPr')[0];
+    if(!npr){ if(txt) out.push(txt); return; }
+    const nid=npr.getElementsByTagNameNS(W,'numId')[0];
+    if(!nid){ if(txt) out.push(txt); return; }
+    const il=npr.getElementsByTagNameNS(W,'ilvl')[0];
+    const lv=il?+il.getAttributeNS(W,'val'):0;
+    const aid=n2a[nid.getAttributeNS(W,'val')];
+    const lvls=abs[aid]||{};
+    const def=lvls[lv]||{text:'%'+(lv+1), start:1};
+    const key=aid+'|'+lv;
+    cnt[key]=(cnt[key]===undefined? def.start-1 : cnt[key])+1;
+    // ขึ้นระดับใหม่ ต้องรีเซ็ตตัวนับของระดับที่ลึกกว่า
+    Object.keys(cnt).forEach(k=>{ const [a2,l2]=k.split('|'); if(a2===aid && +l2>lv) delete cnt[k]; });
+    // สร้างเลขข้อจากรูปแบบใน numbering.xml
+    let label=def.text||'';
+    const parts=[];
+    for(let i=0;i<=lv;i++){
+      const v=cnt[aid+'|'+i] !== undefined ? cnt[aid+'|'+i] : ((lvls[i]&&lvls[i].start)||1);
+      parts.push(String(v));
+      label=label.split('%'+(i+1)).join(String(v));
+    }
+    // บางเอกสารกำหนดรูปแบบระดับลึกไว้แค่ตัวท้าย (เช่น "%4") ทำให้ได้เลขแค่ "1"
+    // ต้องประกอบเส้นทางเต็ม (1.2.3.4) เอง ไม่งั้นเลขซ้ำกันทั้งเอกสารและอ้างอิงไม่ได้
+    const placeholders=(def.text||'').match(/%\d/g)||[];
+    if(lv>0 && placeholders.length<=lv && /^\(?\d+\)?\.?$/.test(label.trim())){
+      label=parts.join('.');
+    }
+    label=label.replace(/[^\d.()]+$/,'').trim();
+    // ถ้าผู้เขียนพิมพ์เลขข้อไว้ในข้อความแล้ว ใช้เลขนั้น (เอกสารที่ผสม auto+พิมพ์เอง เลข auto มักเลื่อน)
+    if(/^\d{1,2}(?:\.\d{1,2}){1,3}[\s\u0E00-\u0E7F]/.test(txt)){ out.push(txt); return; }
+    // ระดับบนสุดของชุดที่ให้เลขหมวด = จำไว้เป็นคำนำหน้าของชุดย่อยที่ตามมา
+    if(lv===0 && /^\d{1,2}\.?$/.test(label)){
+      curTop=label.replace(/\.$/,''); topAid=aid;
+    } else if(lv===0 && /^\(\d+\)$/.test(label)){
+      // รายการแบบ (1) (2) ไม่ใช่หมวดหลัก - เติมหมวดล่าสุดนำหน้าเพื่อไม่ให้ชนกัน
+      if(curTop) label=curTop+'.'+label;
+    } else if(aid!==topAid && curTop && /^\d{1,2}(\.\d{1,2})*$/.test(label)
+              && !label.startsWith(curTop+'.') && label!==curTop){
+      // ชุด numbering คนละชุดกับที่ให้เลขหมวด และเริ่มนับใหม่ -> เติมหมวดนำหน้า
+      label=curTop+'.'+label;
+    }
+    out.push(txt ? (label?label+' '+txt:txt) : '');
+  });
+  return out.filter(x=>x!=='').join('\n');
+}
+
 // ---------- 1) อ่านไฟล์เป็นข้อความ ----------
 async function torExtract(file, onProg){
   const ext = (file.name.split('.').pop()||'').toLowerCase();
@@ -4823,9 +4956,13 @@ async function torExtract(file, onProg){
     return out.join('\n');
   }
   if(ext==='docx'){
-    onProg(12,'โหลดตัวอ่าน Word');
+    onProg(20,'อ่านไฟล์ Word (ดึงเลขข้อจาก auto-numbering)');
+    try{
+      const t = await torDocxText(file);
+      if(t && t.length>200) return t;
+    }catch(e){ console.warn('อ่าน docx เองไม่สำเร็จ ใช้ตัวแปลงสำรอง:', e.message); }
+    onProg(30,'ใช้ตัวแปลงสำรอง');
     await torLoadScript('lib/mammoth.browser.min.js');
-    onProg(30,'แปลงไฟล์ Word');
     const r = await window.mammoth.extractRawText({arrayBuffer: await file.arrayBuffer()});
     return r.value;
   }
@@ -4904,7 +5041,8 @@ async function torParseClausesAsync(text, onProg){
   const out=[]; let cur=null;
   for(let i=0;i<lines.length;i++){
     const ln=lines[i];
-    const m = ln.match(/^(\d{1,2}(?:\.\d{1,2}){0,2})[\.\s]\s*(.+)$/);
+    // เลขข้ออาจติดข้อความโดยไม่มีช่องว่าง เช่น "12.1งวดที่ 1" / "8.หลักเกณฑ์" (เจอจริงใน TOR GIS)
+    const m = ln.match(/^(\d{1,2}(?:\.\d{1,2}){0,3})\.?\s*(.+)$/);
     if(m && m[2].length>4){
       if(cur) out.push(cur);
       cur = {no:m[1], text:m[2].trim(), depth:m[1].split('.').length, idx:out.length};
@@ -4926,7 +5064,8 @@ function torParseClauses(text){
   const lines = t.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
   const out=[]; let cur=null;
   for(const ln of lines){
-    const m = ln.match(/^(\d{1,2}(?:\.\d{1,2}){0,2})[\.\s]\s*(.+)$/);
+    // เลขข้ออาจติดข้อความโดยไม่มีช่องว่าง เช่น "12.1งวดที่ 1" / "8.หลักเกณฑ์" (เจอจริงใน TOR GIS)
+    const m = ln.match(/^(\d{1,2}(?:\.\d{1,2}){0,3})\.?\s*(.+)$/);
     if(m && m[2].length>4){
       if(cur) out.push(cur);
       cur = {no:m[1], text:m[2].trim(), depth:m[1].split('.').length};
@@ -4945,17 +5084,24 @@ function torParseMilestones(clauses){
   clauses.forEach(c=>{
     const m = c.text.match(/งวดที่\s*(\d{1,2})/);
     if(!m) return;
-    if(!/จ่าย|ชำระ|เบิก|ส่งมอบงาน|ร้อยละ|%/.test(c.text)) return;
+    if(!/จ่าย|ชำระ|เบิก|ส่งมอบงาน|ร้อยละ|%|ประกอบด้วย/.test(c.text)) return;
     const no = parseInt(m[1],10);
-    if(ms.some(x=>x.no===no)) return;
     const pct = (c.text.match(/(?:เป็นจำนวนเงิน)?ร้อยละ\s*([\d.]+)|([\d.]+)\s*%/)||[])[1];
     // ข้อ TOR ที่ถูกอ้างถึงในเงื่อนไขงวดนี้
     const refs=[...new Set((c.text.match(/ข้อ\s*\d{1,2}(?:\.\d{1,2}){0,2}(?:\s*[-–]\s*\d{1,2}(?:\.\d{1,2}){0,2})?/g)||[])
       .map(x=>x.replace(/ข้อ\s*/,'').trim()))];
     ms.push({no, pct, cond:c.text, refs, clause:c.no});
   });
-  ms.sort((a,b)=>a.no-b.no);
-  return ms;
+  // TOR หลายฉบับแยก "การส่งมอบงาน" กับ "เงื่อนไขการจ่ายเงิน" คนละหมวด ต้องรวมเข้าด้วยกันด้วยเลขงวด
+  const merged={};
+  ms.forEach(m=>{
+    const cur=merged[m.no];
+    if(!cur){ merged[m.no]={...m}; return; }
+    cur.pct = cur.pct || m.pct;
+    cur.refs = [...new Set([...(cur.refs||[]), ...(m.refs||[])])];
+    if(m.cond && cur.cond.indexOf(m.cond.slice(0,30))<0) cur.cond += ' | ' + m.cond;
+  });
+  return Object.values(merged).sort((a,b)=>a.no-b.no);
 }
 
 // ไฟล์ Comply มักรวม 3 เอกสารไว้ด้วยกัน (เอกสารประกวดราคา / TOR / คุณลักษณะเฉพาะ)
@@ -5120,7 +5266,8 @@ function torBuildRows(clauses, ms){
         const c=byNo[r];
         if(!c) return;
         // ข้อนี้ชี้ต่อไปที่ข้ออื่นหรือไม่ (เช่น "ดำเนินงานตามขอบเขตงานข้อ 4.1 - 4.4")
-        const deeper=(c.text.match(/(?:ตาม)?(?:ขอบเขตงาน|ขอบเขตการดำเนินงาน|ข้อ)\s*\d{1,2}(?:\.\d{1,2})?\s*[-–]\s*(?:\d{1,2}\.)?\d{1,2}|(?:ขอบเขตงาน|ข้อ)\s*\d{1,2}\.\d{1,2}/g)||[])
+        // รับได้ทั้ง "ขอบเขตการดำเนินงานตามข้อ 6.1 – 6.2" / "ตามข้อ 12.1" / "ขอบเขตงานข้อ 4.1-4.4"
+        const deeper=(c.text.match(/(?:ขอบเขต(?:การดำเนินงาน|งาน)?\s*)?(?:ตาม)?ข้อ\s*\d{1,2}(?:\.\d{1,2})?\s*[-–]\s*(?:\d{1,2}\.)?\d{1,2}|(?:ขอบเขต(?:การดำเนินงาน|งาน)?\s*)?(?:ตาม)?ข้อ\s*\d{1,2}\.\d{1,2}/g)||[])
           .map(x=>x.replace(/.*?(?=\d)/,'').trim());
         if(deeper.length){
           const sub=deeper.flatMap(expand).filter(n=>n!==r);
@@ -5277,7 +5424,7 @@ function torValidate(rows){
   if(noTor) report.warn.push(`${noTor} งานไม่มีเลขข้อ TOR กำกับ`);
   const nums=tasks.map(r=>r.tor).filter(Boolean);
   const dupNo=nums.length-new Set(nums).size;
-  if(dupNo>nums.length*0.25) report.warn.push(`เลขข้อซ้ำ ${dupNo} จาก ${nums.length} รายการ - ตรวจทานคอลัมน์ ToR No.`);
+  if(dupNo>nums.length*0.25) report.warn.push(`เลขข้อซ้ำ ${dupNo} จาก ${nums.length} รายการ - เกิดได้เมื่อเอกสารมีรายการเลขหลายชุดที่เริ่มนับ 1 ใหม่ ตรวจทานคอลัมน์ ToR No. กับต้นฉบับ`);
   const other=tasks.filter(r=>r.type==='Other').length;
   if(tasks.length && other/tasks.length>0.5) report.warn.push(`จัดประเภทไม่ได้ ${other} จาก ${tasks.length} งาน - อาจมีเนื้อหาที่ไม่ใช่งาน`);
   if(!out.some(r=>r.kind==='ms')) report.warn.push('ไม่พบงวดงานเลย - ตรวจว่าเป็นเอกสาร TOR หรือไม่');
