@@ -675,6 +675,94 @@ app.post('/api/admin/card-data-scope', requireAuth, (req, res) => {
   res.json({ ok: true, dataScope: CARD_DATA_SCOPE, persisted });
 });
 
+
+// ===================== ผู้ช่วย AI สำหรับการ์ด TOR Breakdown =====================
+// ใช้ Groq (โมเดล open-weight) ช่วยเฉพาะจุดที่กฎทำไม่ได้ ไม่ได้ส่งเอกสารทั้งฉบับ
+// เหตุผล: free tier จำกัด 6,000 tokens/นาที ถ้าส่งทั้งฉบับจะชนเพดานและต้องหั่นจนเสียภาพรวม
+// จึงส่งเฉพาะ "บรรทัดสั้น ๆ ที่กฎจัดประเภทไม่ได้" ครั้งละไม่เกิน 60 รายการ
+// API key เก็บที่ฝั่ง server เท่านั้น (env GROQ_API_KEY) ไม่ให้หลุดไปหน้าเว็บ
+const GROQ_KEY = process.env.GROQ_API_KEY || '';
+const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+const TOR_TYPES_LIST = 'Document, Test, Installation, Migration, Removal, Procurement, Design, Survey, Training, Meeting, Warranty, Configuration, Compliance, Penalty, SLA, Spec, Other';
+
+// จำกัดการใช้งานต่อคนต่อวัน กัน quota หมดโดยไม่ตั้งใจ
+const torAiUsage = {};   // { 'user|YYYY-MM-DD': count }
+const TOR_AI_DAILY_LIMIT = Number(process.env.TOR_AI_DAILY_LIMIT || 40);
+
+app.get('/api/tor/ai-status', requireAuth, (req, res) => {
+  const day = new Date().toISOString().slice(0,10);
+  const key = (req.user && req.user.username) + '|' + day;
+  res.json({ ok:true, enabled: !!GROQ_KEY, model: GROQ_MODEL,
+             used: torAiUsage[key] || 0, limit: TOR_AI_DAILY_LIMIT });
+});
+
+app.post('/api/tor/classify', requireAuth, async (req, res) => {
+  if (!GROQ_KEY) return res.status(503).json({ ok:false, error:'ยังไม่ได้ตั้งค่า GROQ_API_KEY ที่เซิร์ฟเวอร์' });
+  const day = new Date().toISOString().slice(0,10);
+  const key = (req.user && req.user.username) + '|' + day;
+  if ((torAiUsage[key]||0) >= TOR_AI_DAILY_LIMIT)
+    return res.status(429).json({ ok:false, error:`ใช้ครบโควตาวันนี้แล้ว (${TOR_AI_DAILY_LIMIT} ครั้ง)` });
+
+  const items = Array.isArray(req.body && req.body.items) ? req.body.items.slice(0,60) : [];
+  const task = (req.body && req.body.task) || 'classify';
+  if (!items.length) return res.json({ ok:true, result: [] });
+
+  // ตัดข้อความให้สั้นก่อนส่ง ประหยัด token และอยู่ในเพดาน 6,000 TPM
+  const lines = items.map((x,i)=>`${i+1}. ${String(x).replace(/\s+/g,' ').slice(0,180)}`).join('\n');
+
+  const prompts = {
+    classify: `จัดประเภทงานในเอกสาร TOR ภาษาไทยต่อไปนี้ ให้เลือกประเภทที่เหมาะที่สุดจากรายการนี้เท่านั้น: ${TOR_TYPES_LIST}
+ตอบเป็น JSON array อย่างเดียว ไม่ต้องอธิบาย รูปแบบ: [{"n":1,"type":"Document"},{"n":2,"type":"Test"}]
+
+${lines}`,
+    hidden: `ต่อไปนี้เป็นข้อความจากหมวดคุณลักษณะเฉพาะ (สเปค) ในเอกสาร TOR ภาษาไทย
+หาข้อที่ไม่ใช่แค่สเปคอุปกรณ์ แต่เป็น "ข้อผูกพันที่ผู้ขายต้องทำ" เช่น ต้องจัดหา ต้องอบรม ต้องรับประกัน ต้องส่งมอบ ต้องเป็นยี่ห้อเดียวกัน
+ตอบเป็น JSON array อย่างเดียว: [{"n":1,"why":"เหตุผลสั้นๆ"}] ถ้าไม่มีให้ตอบ []
+
+${lines}`,
+    focus: `ต่อไปนี้เป็นรายการงานของงวดงานหนึ่งในโครงการ (เอกสาร TOR ภาษาไทย)
+สรุปสั้นๆ ว่า Project Manager ควรโฟกัสอะไรในงวดนี้ และมีความเสี่ยงอะไรที่มักตกหล่น
+ตอบเป็น JSON อย่างเดียว: {"focus":"...","risk":"..."} ความยาวไม่เกินอย่างละ 2 บรรทัด
+
+${lines}`
+  };
+  const prompt = prompts[task] || prompts.classify;
+
+  try {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+GROQ_KEY },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        temperature: 0.1,
+        max_tokens: 1500,
+        messages: [
+          { role:'system', content:'คุณเป็นผู้ช่วยวิเคราะห์เอกสาร TOR ของหน่วยงานราชการไทย ตอบเป็น JSON เท่านั้น ห้ามมีข้อความอื่น' },
+          { role:'user', content: prompt }
+        ]
+      })
+    });
+    if (!r.ok) {
+      const t = await r.text();
+      return res.status(502).json({ ok:false, error:`Groq ตอบกลับ ${r.status}: ${t.slice(0,200)}` });
+    }
+    const j = await r.json();
+    let txt = (((j.choices||[])[0]||{}).message||{}).content || '';
+    txt = txt.replace(/```json|```/g,'').trim();
+    let result;
+    try { result = JSON.parse(txt); }
+    catch { const m = txt.match(/[\[{][\s\S]*[\]}]/); result = m ? JSON.parse(m[0]) : null; }
+    if (!result) return res.status(502).json({ ok:false, error:'อ่านผลลัพธ์จาก AI ไม่ได้' });
+    torAiUsage[key] = (torAiUsage[key]||0) + 1;
+    const usage = j.usage || {};
+    console.log(`[TOR AI] ${req.user.username} task=${task} items=${items.length} tokens=${usage.total_tokens||'?'}`);
+    res.json({ ok:true, result, tokens: usage.total_tokens || null,
+               used: torAiUsage[key], limit: TOR_AI_DAILY_LIMIT });
+  } catch (e) {
+    res.status(500).json({ ok:false, error: String(e.message||e) });
+  }
+});
+
 app.get('/api/projects', requireAuth, (req, res) => {
   const { pmName, role } = req.user;
   // rowsTeamWide: ข้อมูลทีมเต็มเสมอ ไม่ว่าใคร login (ไม่ถูกกรองรายบุคคล) - ใช้กับการ์ดที่ตั้งค่าให้เห็นทีมเต็มเสมอ

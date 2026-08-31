@@ -537,6 +537,8 @@
   .tor-ocr-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
   .tor-ocr-row label{font-size:11px;color:var(--ink-2);display:inline-flex;align-items:center;gap:5px;}
   .tor-ocr-row input{width:66px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:12px;font-family:'IBM Plex Mono',monospace;}
+  .tor-ai-msg{padding:0 18px 8px;font-size:11.5px;color:var(--ink-2);min-height:16px;}
+  .tor-ai-note{padding:0 18px 14px;font-size:10px;color:var(--faint);line-height:1.65;}
   .tor-qa{margin:0 18px 12px;padding:10px 13px;border-radius:9px;font-size:11.5px;line-height:1.7;
     background:#F2F6F1;border-left:3px solid var(--success);color:var(--ink-2);}
   .tor-qa.warn{background:var(--warning-tint);border-left-color:var(--warning);}
@@ -5666,6 +5668,87 @@ function torProgress(pct, stage, stepIdx){
     `<span class="tor-step ${i<stepIdx?'done':i===stepIdx?'now':''}">${i<stepIdx?'✓':i+1}. ${s}</span>`).join('');
 }
 
+// ===== ผู้ช่วย AI (เสริมจากกฎ ไม่ได้แทนที่) =====
+// ส่งเฉพาะบรรทัดที่กฎทำไม่ได้ ไม่ส่งเอกสารทั้งฉบับ - เพราะ free tier จำกัด 6,000 tokens/นาที
+// และการหั่นเอกสารส่งทีละชิ้นจะทำให้ AI มองไม่เห็นภาพรวม ซึ่งเป็นจุดแข็งของกฎอยู่แล้ว
+async function torAiCall(task, items){
+  const r = await fetch(API_BASE+'/api/tor/classify', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()},
+    body: JSON.stringify({task, items})
+  });
+  const j = await r.json();
+  if(!j.ok) throw new Error(j.error||'เรียก AI ไม่สำเร็จ');
+  return j;
+}
+
+async function torAiEnhance(){
+  const btn=document.getElementById('torAiBtn');
+  const out=document.getElementById('torAiMsg');
+  if(!btn) return;
+  btn.disabled=true;
+  const setMsg=t=>{ if(out) out.innerHTML=t; };
+  let usedTokens=0, calls=0;
+  try{
+    // ---- งานที่ 1: จัดประเภทที่กฎเดาไม่ได้ ----
+    const unknown = TOR.rows.filter(r=>!r.kind && r.type==='Other');
+    if(unknown.length){
+      setMsg(`กำลังจัดประเภทงาน ${unknown.length} รายการ...`);
+      for(let i=0;i<unknown.length;i+=50){
+        const batch=unknown.slice(i,i+50);
+        const j=await torAiCall('classify', batch.map(r=>r.desc));
+        (j.result||[]).forEach(x=>{
+          const t=batch[(x.n|0)-1];
+          if(t && x.type && x.type!=='Other'){ t.type=x.type; t.aiType=true; }
+        });
+        usedTokens+=j.tokens||0; calls++;
+        if(i+50<unknown.length){ setMsg(`จัดประเภท ${i+50}/${unknown.length}... (รอ 3 วินาทีตามข้อจำกัด rate limit)`); await new Promise(r=>setTimeout(r,3000)); }
+      }
+    }
+    // ---- งานที่ 2: หาข้อผูกพันที่ซ่อนในสเปค ----
+    const specs = TOR.rows.filter(r=>!r.kind && r.type==='Spec').slice(0,60);
+    if(specs.length){
+      setMsg('กำลังหาข้อผูกพันที่ซ่อนอยู่ในหมวดสเปค...');
+      await new Promise(r=>setTimeout(r,2500));
+      const j=await torAiCall('hidden', specs.map(r=>r.desc));
+      (j.result||[]).forEach(x=>{
+        const t=specs[(x.n|0)-1];
+        if(t){ t.note=(t.note?t.note+' · ':'')+'⚠ AI: '+(x.why||'อาจเป็นข้อผูกพัน'); t.aiFlag=true; }
+      });
+      usedTokens+=j.tokens||0; calls++;
+    }
+    // ---- งานที่ 3: สรุปสิ่งที่ PM ควรโฟกัสในแต่ละงวด ----
+    const msRows = TOR.rows.filter(r=>r.kind==='ms' && /งวดที่/.test(r.desc));
+    for(const ms of msRows.slice(0,6)){
+      const idx=TOR.rows.indexOf(ms);
+      const tasks=[];
+      for(let i=idx+1;i<TOR.rows.length && !(TOR.rows[i].kind==='ms');i++){
+        if(!TOR.rows[i].kind) tasks.push(TOR.rows[i].desc);
+      }
+      if(tasks.length<2) continue;
+      setMsg(`กำลังสรุปสิ่งที่ควรโฟกัส: ${ms.desc.slice(0,32)}...`);
+      await new Promise(r=>setTimeout(r,2500));
+      const j=await torAiCall('focus', tasks.slice(0,40));
+      const f=j.result||{};
+      if(f.focus) ms.aiFocus=f.focus;
+      if(f.risk) ms.aiRisk=f.risk;
+      usedTokens+=j.tokens||0; calls++;
+    }
+    // ใส่บรรทัดสรุปของ AI ต่อท้ายหัวงวด
+    TOR.rows.forEach(r=>{
+      if(r.kind==='ms' && (r.aiFocus||r.aiRisk) && !r.aiApplied){
+        r.aiApplied=true;
+        r.desc += `\n[AI] โฟกัส: ${r.aiFocus||'-'}` + (r.aiRisk?`\n[AI] ความเสี่ยง: ${r.aiRisk}`:'');
+      }
+    });
+    TOR.aiDone=true;
+    torShowResult('');
+    setMsg(`<b style="color:var(--success)">✓ AI ช่วยเสริมเรียบร้อย</b> - เรียก ${calls} ครั้ง${usedTokens?` · ใช้ ${usedTokens.toLocaleString()} tokens`:''}`);
+  }catch(e){
+    setMsg(`<b style="color:var(--critical)">AI ไม่สำเร็จ:</b> ${String(e.message||e)}`);
+  }finally{ if(btn) btn.disabled=false; }
+}
+
 function torShowResult(prefix){
   const res=document.getElementById('torResult');
   const tasks=TOR.rows.filter(r=>!r.kind).length;
@@ -5693,7 +5776,11 @@ function torShowResult(prefix){
     <div class="tor-actions">
       <button class="tor-btn primary" onclick="torExportExcel()">⬇ ดาวน์โหลด Scope of Work (Excel)</button>
       <button class="tor-btn" onclick="document.getElementById('torPreview').classList.toggle('open')">ดูตัวอย่างผลลัพธ์</button>
+      <button class="tor-btn" id="torAiBtn" onclick="torAiEnhance()">🤖 ให้ AI ช่วยเสริม</button>
     </div>
+    <div id="torAiMsg" class="tor-ai-msg"></div>
+    <div class="tor-ai-note">AI ช่วยเฉพาะจุดที่กฎทำไม่ได้ - จัดประเภทงานที่เดาไม่ออก · หาข้อผูกพันที่ซ่อนในสเปค · สรุปสิ่งที่ PM ควรโฟกัสแต่ละงวด
+      <br>ส่งเฉพาะข้อความสั้น ๆ เท่าที่จำเป็น ไม่ส่งเอกสารทั้งฉบับ · โครงสร้างงวดงานและเลขข้อยังคำนวณในเครื่องเหมือนเดิม</div>
     <div id="torPreview" class="tor-preview">
       <table class="tor-table"><thead><tr><th>ToR No.</th><th>ประเภท</th><th>Description</th><th>งวดงานที่</th></tr></thead>
       <tbody>${TOR.rows.slice(0,120).map(r=>r.kind
