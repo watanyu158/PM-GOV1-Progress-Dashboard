@@ -732,7 +732,19 @@
   .nd-a i{font-style:normal;font-size:8.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
   .nd-a b{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;color:var(--ink-2);white-space:nowrap;}
   .nd-a-tax b{color:var(--brand-2);}
-  @media(max-width:520px){ .nd-amts{gap:10px;} .nd-a i{font-size:8px;} .nd-a b{font-size:10px;} }
+  .nd-a b{min-width:96px;text-align:right;display:inline-block;}
+  .nd.nd-sum{background:var(--surface-2);border:1px solid var(--line);border-left:3px solid var(--brand);}
+  .nd.nd-sum .nd-name{font-weight:700;color:var(--ink);}
+  .nd.nd-sum .nd-a b{font-size:12px;}
+  .nd.nd-sum .nd-detail{color:var(--faint);}
+  @media(max-width:520px){ .nd-amts{gap:10px;} .nd-a i{font-size:8px;} .nd-a b{font-size:10px;min-width:78px;} }
+  /* จอแคบมาก: ให้ 2 คอลัมน์เรียงลงมาแทน จะได้ไม่ล้นขอบ แต่ยังชิดขวาตรงกัน */
+  @media(max-width:380px){
+    .nd-top{flex-wrap:wrap;}
+    .nd-amts{flex-direction:column;gap:2px;align-items:flex-end;width:100%;}
+    .nd-a{flex-direction:row;gap:8px;align-items:baseline;}
+    .nd-a b{min-width:0;font-size:11px;}
+  }
   .nd-prog b{color:var(--brand);}
   .nd-row{display:flex;gap:8px;font-size:12px;line-height:1.55;margin-top:4px;}
   .nd-tag{
@@ -5119,10 +5131,10 @@ function renderPayment(paywSource, codeSetList){
           : (_schedFullPC > 0 ? (_ivPC > 0 ? _ivPC : _rmPC) : (_overlapPC ? 0 : _ivPC));
         const taxIssued = _ivPC > 0;   // ออกใบกำกับภาษีแล้วจริงหรือยัง
 
+        // แสดงทั้ง 2 ช่องเสมอ (ใช้ "-" เมื่อไม่มีค่า) เพื่อให้คอลัมน์ตรงกันทุกแถว
         const amtCol = `<span class="nd-amts">
-          ${billingAmt>0 ? `<span class="nd-a"><i>Billing</i><b>${thb(billingAmt)}</b></span>` : ''}
-          ${taxAmt>0 ? `<span class="nd-a nd-a-tax"><i>Tax invoice${taxIssued?'':' (จะออก)'}</i><b>${thb(taxAmt)}</b></span>` : ''}
-          ${(billingAmt<=0 && taxAmt<=0) ? `<span class="nd-a"><b>-</b></span>` : ''}
+          <span class="nd-a"><i>Billing</i><b>${billingAmt>0?thb(billingAmt):'-'}</b></span>
+          <span class="nd-a nd-a-tax"><i>Tax invoice${(taxAmt>0&&!taxIssued)?' (จะออก)':''}</i><b>${taxAmt>0?thb(taxAmt):'-'}</b></span>
         </span>`;
 
         return `<div class="nd nd-${state}">
@@ -5148,6 +5160,19 @@ function renderPayment(paywSource, codeSetList){
         ${btSummary}
         ${contractScheduleHtml(x.projectCode, x.sellingPrice)}
         ${installHtml}
+        ${sumBilling>0 || sumTaxInv>0 ? `<div class="nd nd-sum">
+          <div class="nd-top">
+            <span class="nd-name">รวมทุกงวด</span>
+            <span class="nd-amts">
+              <span class="nd-a"><i>Billing</i><b>${thb(sumBilling)}</b></span>
+              <span class="nd-a nd-a-tax"><i>Tax invoice</i><b>${thb(sumTaxInv)}</b></span>
+            </span>
+          </div>
+          <div class="nd-detail">${
+            Math.abs(sumBilling - num(x.sellingPrice)) < 2
+              ? `✓ Billing ตรงกับ Selling Price` : `⚠ Billing ไม่ตรงกับ Selling Price ${thb(x.sellingPrice)}`
+          }${(sumBilling - sumTaxInv) > 1 ? ` · ยังไม่ออกใบกำกับภาษีอีก ${thb(sumBilling - sumTaxInv)}` : ' · ออกใบกำกับภาษีครบแล้ว'}</div>
+        </div>` : ''}
       </div>`;
     }).join('');
     return `<div class="rv-row" style="--fc:${col}">
