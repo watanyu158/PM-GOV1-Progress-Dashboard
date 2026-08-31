@@ -4691,7 +4691,9 @@ function renderInvoiceTimeline(paywSource, codeSetList){
       else {
         mBilling[m] += billing;
         mTax[m] += tax;
-        if(inv>0 && !collected && collecting>0) mAR[m] += collecting;
+        // AR (รอเก็บเงิน) นับจาก "ใบแจ้งหนี้ billing" เท่านั้น
+        // ใบกำกับภาษีตอนส่งของบางทีออกเพื่อตัดของ ไม่ได้ใช้เรียกเก็บเงินลูกค้า จึงไม่ใช่ลูกหนี้
+        if(!del && inv>0 && !collected && collecting>0) mAR[m] += collecting;
       }
     });
     const yrBilling = mBilling.reduce((a,b)=>a+b,0);
@@ -4715,14 +4717,19 @@ function renderInvoiceTimeline(paywSource, codeSetList){
   const sumAfterTax  = rows.reduce((s2,r)=>s2+r.afTax,0);
   // AR ทั้งหมด (รวมบิลปีก่อนที่ยังเก็บไม่ได้) - ดูจาก collecting ที่ยังไม่มี collectedDate
   let arAll = 0, arOld = 0;
-  src.forEach(x=>(x.installments||[]).forEach(i=>{
-    const cg = num(i.collecting);
-    if(cg>0 && !i.collectedDate){
-      arAll += cg;
-      const d = parseD(i.invoiceDate);
-      if(d && (today0 - d)/DAY > 90) arOld += cg;
-    }
-  }));
+  src.forEach(x=>{
+    const _del = ii => SHIP_ACC_TYPES.includes((x.accType||'').trim())
+      && SHIP_KEYWORDS.some(k => String(ii.desc||'').includes(k));
+    (x.installments||[]).forEach(i=>{
+      if(_del(i)) return;   // ใบกำกับภาษีตัดของ ไม่ใช่ลูกหนี้ที่ต้องตามเก็บ
+      const cg = num(i.collecting);
+      if(cg>0 && !i.collectedDate){
+        arAll += cg;
+        const d = parseD(i.invoiceDate);
+        if(d && (today0 - d)/DAY > 90) arOld += cg;
+      }
+    });
+  });
   const cum = []; let acc=0; tBilling.forEach((v,i)=>{ acc += v; cum.push(acc); });
   const maxB = Math.max(...tBilling, 1);
 
@@ -4807,7 +4814,7 @@ function renderInvoiceTimeline(paywSource, codeSetList){
       <span class="it-lk"><i class="full">✓</i> = ออกใบกำกับภาษีครบแล้ว</span>
       <span class="it-lk"><i class="part">▣</i> = ออกบางส่วน</span>
       <span class="it-lk"><i class="notax-box"></i> = ยังไม่ออกใบกำกับภาษี (กรอบเส้นประ)</span>
-      <span class="it-lk"><i class="ar">◷</i> = ออกแล้วแต่ยังเก็บเงินไม่ได้</span>
+      <span class="it-lk"><i class="ar">◷</i> = วางบิลแล้วแต่ยังเก็บเงินไม่ได้ (นับจาก billing เท่านั้น)</span>
     </div>
     <div class="it-wrap">
       <table class="it-table">
