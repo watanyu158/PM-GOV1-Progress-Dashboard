@@ -4725,7 +4725,20 @@ function renderInvoiceTimeline(paywSource, codeSetList){
     });
     const yrBilling = mBilling.reduce((a,b)=>a+b,0);
     const yrTax = mTax.reduce((a,b)=>a+b,0);
+    // ยอด tax invoice ที่ยังไม่ได้ออก:
+    //  - โครงการมีตารางสัญญา = ผลรวม pending ในตาราง (ยอดที่ยังต้องออกจริง ๆ ทั้งโครงการ)
+    //  - โครงการทั่วไป = billing ที่ยังไม่มีใบกำกับภาษีรองรับ
+    // ห้ามใช้ (billing ปีนี้ - tax ปีนี้) เพราะบางงวดออกใบกำกับภาษีไปแล้วตั้งแต่ปีก่อน จะได้ตัวเลขเกินจริง
+    const taxPending = hasSched
+      ? sched.rows.reduce((a,r)=>a+(r.pending||0),0)
+      : Math.max(0, (bfBilling + yrBilling + afBilling) - (bfTax + yrTax + afTax));
+    // สำหรับโครงการมีตารางสัญญา ยอดรายเดือนของปีนี้เป็น "ยอดที่จะออก" (จาก remainder) ไม่ใช่ออกแล้ว
+    // จึงต้องคิดยอดออกแล้ว = มูลค่าสัญญาทั้งหมด - ยอดที่ยังไม่ออก แทนการบวกรายเดือน (ไม่งั้นนับซ้ำ)
+    const taxIssued = hasSched
+      ? Math.max(0, sched.rows.reduce((a,r)=>a+r.full,0) - taxPending)
+      : (bfTax + yrTax + afTax);
     return {x, mBilling, mTax, mAR, bfBilling, bfTax, afBilling, afTax, yrBilling, yrTax,
+            taxPending, taxIssued, hasSched,
             name:x.projectName||x.projectCode, code:x.projectCode, pm:x.pm||''};
   }).filter(r => r.yrBilling>0 || r.bfBilling>0 || r.afBilling>0)
     .sort((a,b)=> b.yrBilling - a.yrBilling);
@@ -4742,6 +4755,7 @@ function renderInvoiceTimeline(paywSource, codeSetList){
   const sumBeforeTax = rows.reduce((s2,r)=>s2+r.bfTax,0);
   const sumAfter     = rows.reduce((s2,r)=>s2+r.afBilling,0);
   const sumAfterTax  = rows.reduce((s2,r)=>s2+r.afTax,0);
+  const sumPendingAll = rows.reduce((s2,r)=>s2+r.taxPending,0);
   // AR ทั้งหมด (รวมบิลปีก่อนที่ยังเก็บไม่ได้) - ดูจาก collecting ที่ยังไม่มี collectedDate
   let arAll = 0, arOld = 0;
   src.forEach(x=>{
@@ -4792,11 +4806,10 @@ function renderInvoiceTimeline(paywSource, codeSetList){
     : `<td class="it-cell edge"><span class="it-dash">-</span></td>`;
 
   const body = rows.map(r=>{
-    const pend = r.yrBilling - r.yrTax;
     return `<tr>
       <td class="it-name">
         <div class="it-n">${r.name} <span class="code-tag">#${r.code}</span></div>
-        <div class="it-sub">${r.pm} · billing ปีนี้ ${compact(r.yrBilling)} · ออกใบกำกับภาษีแล้ว ${compact(r.yrTax)}${pend>1?` · <b class="it-pend">ยังไม่ออกใบกำกับภาษี ${compact(pend)}</b>`:''}</div>
+        <div class="it-sub">${r.pm} · billing ปีนี้ ${compact(r.yrBilling)} · ออกใบกำกับภาษีแล้ว(ทั้งโครงการ) ${compact(r.taxIssued)}${r.taxPending>1?` · <b class="it-pend">ยังไม่ออกใบกำกับภาษี ${compact(r.taxPending)}</b>`:''}</div>
       </td>
       ${edgeCell(r.bfBilling, r.bfTax)}
       ${r.mBilling.map((b,i)=>cell(b, r.mTax[i], r.mAR[i], i)).join('')}
@@ -4827,7 +4840,7 @@ function renderInvoiceTimeline(paywSource, codeSetList){
         <div class="ov-stat">
           <div class="ov-l">ออกใบกำกับภาษีแล้วปีนี้</div>
           <div class="ov-v">${compact(sumTaxYr)}</div>
-          <div class="it-s">${sumBillingYr>0?`${(sumTaxYr/sumBillingYr*100).toFixed(1)}% ของ billing`:'-'}${(sumBillingYr-sumTaxYr)>1?` · <b class="it-pend">ยังไม่ออก ${compact(sumBillingYr-sumTaxYr)}</b>`:''}</div>
+          <div class="it-s">${sumBillingYr>0?`${(sumTaxYr/sumBillingYr*100).toFixed(1)}% ของ billing ปีนี้`:'-'}${sumPendingAll>1?` · <b class="it-pend">ยังไม่ออก(ทุกโครงการ) ${compact(sumPendingAll)}</b>`:''}</div>
         </div>
         <div class="ov-stat">
           <div class="ov-l">รอเก็บเงิน (AR)</div>
