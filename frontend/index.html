@@ -543,6 +543,14 @@
   .tor-btn.ai{background:#EDE4D8;border-color:var(--brand-2);color:var(--brand);font-weight:700;}
   .tor-ai-msg{padding:0 18px 8px;font-size:11.5px;color:var(--ink-2);min-height:16px;}
   .tor-ai-note{padding:0 18px 14px;font-size:10px;color:var(--faint);line-height:1.65;}
+  .tor-pay{margin:0 18px 12px;padding:10px 13px;border-radius:9px;background:var(--surface-2);
+    border:1px solid var(--line-soft);font-size:11.5px;color:var(--ink-2);}
+  .tor-pay-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:7px;}
+  .tor-pay-cell{display:flex;flex-direction:column;gap:1px;padding:6px 11px;border-radius:7px;
+    background:var(--surface);border:1px solid var(--line-soft);min-width:92px;}
+  .tor-pay-cell i{font-style:normal;font-size:9.5px;color:var(--faint);}
+  .tor-pay-cell b{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--brand);}
+  .tor-pay-cell u{text-decoration:none;font-size:9.5px;color:var(--faint);}
   .tor-qa{margin:0 18px 12px;padding:10px 13px;border-radius:9px;font-size:11.5px;line-height:1.7;
     background:#F2F6F1;border-left:3px solid var(--success);color:var(--ink-2);}
   .tor-qa.warn{background:var(--warning-tint);border-left-color:var(--warning);}
@@ -4790,7 +4798,7 @@ function allocateCollection(proj){
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
 // หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
 // จึงแกะด้วยกฎได้โดยไม่ต้องพึ่ง AI - แม่นกับเอกสารที่เป็น text ส่วนไฟล์สแกนต้อง OCR มาก่อน
-const TOR_ENGINE_VERSION = 'v184';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
+const TOR_ENGINE_VERSION = 'v186';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
 const TOR = { text:'', clauses:[], milestones:[], rows:[], fileName:'', pages:0 };
 
 // โหลดไลบรารีเฉพาะตอนเปิดไฟล์ที่ต้องใช้จริง - ถ้าเน็ตเข้า CDN ไม่ได้ ไฟล์ .txt/.csv ยังใช้งานได้ปกติ
@@ -5149,6 +5157,22 @@ function torParseMilestones(clauses){
     ms.push({no, pct, cond:c.text, refs, clause:c.no});
   });
   // TOR หลายฉบับแยก "การส่งมอบงาน" กับ "เงื่อนไขการจ่ายเงิน" คนละหมวด ต้องรวมเข้าด้วยกันด้วยเลขงวด
+  // กวาดซ้ำอีกชั้นในหมวดที่เกี่ยวกับการส่งมอบ/จ่ายเงินโดยเฉพาะ
+  // เพราะบางฉบับเขียนงวดงานแบบไม่มีคำว่า "จ่าย/ร้อยละ" ในบรรทัดเดียวกัน จะหลุดจากรอบแรก
+  clauses.forEach((c,ci)=>{
+    if(!TOR_MILESTONE_HEADS.test(c.text)) return;
+    // ไล่ดูข้อถัดไปในหมวดนี้ หาบรรทัดที่พูดถึงงวดที่ N
+    for(let k=ci; k<Math.min(ci+25, clauses.length); k++){
+      const g = clauses[k].text.match(/งวดที่\s*(\d{1,2})/);
+      if(!g) continue;
+      const no = parseInt(g[1],10);
+      if(ms.some(x=>x.no===no && x.cond.length>=clauses[k].text.length)) continue;
+      const refs=[...new Set((clauses[k].text.match(/ข้อ\s*\d{1,2}(?:\.\d{1,2}){0,2}(?:\s*[-–]\s*\d{1,2}(?:\.\d{1,2}){0,2})?/g)||[])
+        .map(x=>x.replace(/ข้อ\s*/,'').trim()))];
+      if(!ms.some(x=>x.no===no)) ms.push({no, pct:null, cond:clauses[k].text, refs, clause:clauses[k].no});
+    }
+  });
+
   const merged={};
   ms.forEach(m=>{
     const cur=merged[m.no];
@@ -5308,6 +5332,27 @@ function torDocName(text){
           .replace(/[,;:.]\s*$/,'').trim();
   if(th.length>90) th=th.slice(0,90).replace(/\s\S*$/,'')+'...';
   return en ? `${th} [${en[1].trim()}]`.replace(/\s*\[\s*\]/,'') : th;
+}
+
+// ===== หมวดที่ PM ต้องอ่านให้ขาดเสมอ - เป็นหัวใจของการส่งมอบและเบิกเงิน =====
+// TOR เป็นส่วนหนึ่งของสัญญาเสมอ สิ่งที่ PM ต้องรู้คือ 3 อย่าง: เนื้องาน · เอกสาร · เงิน รายงวด
+// หมวดพวกนี้อาจใช้ชื่อต่างกันไปในแต่ละฉบับ แต่หน้าที่เหมือนกัน จึงต้องจับให้ครบทุกแบบ
+const TOR_MILESTONE_HEADS = /เงื่อนไขการส่งมอบ|เงื่อนไขการชำระ|เงื่อนไขการจ่าย|การส่งมอบงาน|การส่งงาน|การส่งมอบ|การชำระเงิน|การจ่ายเงิน|ค่าจ้างและการจ่ายเงิน|งวดงาน|การแบ่งงวด|กำหนดการส่งมอบ|การตรวจรับ/;
+
+// ดึงจำนวนเงินหรือเปอร์เซ็นต์ของงวดออกมา - TOR ระบุได้ทั้ง % และจำนวนเงินตรง ๆ (ถ้าเป็นสัญญา)
+function torMoneyOfMilestone(text){
+  const t = String(text||'');
+  const pct = (t.match(/(?:ร้อยละ|อัตราร้อยละ)\s*([\d.]+)/) || t.match(/([\d.]+)\s*(?:%|เปอร์เซ็นต์)/) || [])[1];
+  // จำนวนเงินแบบมีหลักพันคั่น และตามด้วยคำว่าบาท
+  const amt = (t.match(/([\d,]{4,})\s*(?:\.\d{2})?\s*บาท/) || [])[1];
+  const months = (t.match(/เดือนที่\s*(\d{1,2})\s*[-–]\s*(\d{1,2})/) || []).slice(1,3);
+  const days = (t.match(/ภายใน\s*(\d{1,4})\s*วัน/) || [])[1];
+  return {
+    pct: pct || null,
+    amount: amt ? amt.replace(/,/g,'') : null,
+    period: months.length===2 ? `เดือนที่ ${months[0]}-${months[1]}` : null,
+    days: days || null
+  };
 }
 
 // ===== จับคู่เอกสารส่งมอบเข้ากับงวดที่ผลิตมันจริง =====
@@ -5486,14 +5531,16 @@ function torBuildRows(clauses, ms){
 
   ms.forEach(m=>{
     // หัวงวดต้องอ่านแล้วเห็นภาพทันที: งวดที่เท่าไหร่ · กี่ % · ภายในกี่วัน · ครอบคลุมข้อไหน
-    const days = (m.cond.match(/ภายใน\s*(\d{1,4})\s*วัน/)||[])[1];
+    // หัวงวดต้องตอบ 3 คำถามของ PM ทันที: ได้เงินเท่าไหร่ · ภายในเมื่อไหร่ · ต้องทำอะไร
+    const money = torMoneyOfMilestone(m.cond);
     const scopeRefs = m.refs.filter(x=>!/^1[23]\./.test(x)).join(', ');
-    push({kind:'ms', desc:
-      `งวดที่ ${m.no}` +
-      (m.pct?` · ร้อยละ ${m.pct}`:'') +
-      (days?` · ภายใน ${days} วัน`:'') +
-      (scopeRefs?` · ขอบเขตงานข้อ ${scopeRefs}`:'') +
-      `\nเงื่อนไข: ${m.cond}`});
+    const parts = [`งวดที่ ${m.no}`];
+    if(m.pct || money.pct) parts.push(`ร้อยละ ${m.pct || money.pct}`);
+    if(money.amount) parts.push(`${Number(money.amount).toLocaleString()} บาท`);
+    if(money.days) parts.push(`ภายใน ${money.days} วัน`);
+    if(money.period) parts.push(money.period);
+    if(scopeRefs) parts.push(`ขอบเขตงานข้อ ${scopeRefs}`);
+    push({kind:'ms', desc: parts.join(' · ') + `\nเงื่อนไข: ${m.cond}`});
     // TOR มักอ้างต่อกันเป็นทอด: งวดที่ 1 -> "ส่งมอบงานข้อ 6.1" -> "ตามขอบเขตงานข้อ 4.1-4.4"
     // ต้องตามอ้างอิงลงไปอีกชั้นจึงจะเจองานจริง ไม่งั้นได้แค่ข้อกลางทางที่ไม่มีเนื้องาน
     const resolve = (list, depth) => {
@@ -5573,8 +5620,12 @@ function torBuildRows(clauses, ms){
           return;
         }
         const i=n0++;
-        push({tor:r, type:torType(c?c.text:r), desc:`${i+1}) ${c?c.text:'(อ้างถึงข้อ '+r+' - ไม่พบข้อความในเอกสาร)'}`,
-              ms:`งวดงานที่ ${m.no}`, cond:c?`อ้างอิงตามข้อ ${r} ในเอกสาร TOR`:''});
+        // ข้อที่อ้างถึงแต่หาเนื้อความไม่เจอ - ไม่ต้องใส่เลขข้อลวง ให้บอกตรง ๆ ว่าต้องไปเปิด TOR
+        const found = !!c;
+        push({tor: found ? r : '-', type: found ? torType(c.text) : 'Ref',
+              desc:`${i+1}) ${found ? c.text : 'งานตามขอบเขตข้อ '+r+' (ไม่พบเนื้อความในไฟล์ที่อัปโหลด - ตรวจกับ TOR ฉบับจริง)'}`,
+              note: found ? '' : 'ระบบอ่านเนื้อความข้อนี้ไม่ได้',
+              ms:`งวดงานที่ ${m.no}`, cond:found?`อ้างอิงตามข้อ ${r} ในเอกสาร TOR`:''});
         // ข้อย่อยของข้อนี้ - ถ้าเป็นเอกสารส่งมอบ ให้ย้ายไปหมวดเอกสาร ไม่ปนกับงาน
         let sj=0;
         clauses.filter(x=>x.no.startsWith(r+'.') && x.no!==r)
@@ -5687,6 +5738,20 @@ function torBuildRows(clauses, ms){
 // ===== ตรวจสอบและทำความสะอาดผลลัพธ์ ก่อนให้ดาวน์โหลด =====
 // อ่านเอกสารจริงมักมีเศษติดมา: เครื่องหมายซ้ำ (,,, ...), เลขหน้า, บรรทัดซ้ำ, แถวที่อ่านไม่ครบ
 // ต้องเก็บกวาดและรายงานให้เห็น ไม่ปล่อยให้ผู้ใช้ไปเจอเองในไฟล์
+// สรุปเงินรายงวดไว้บนสุดของไฟล์ - PM ต้องเห็นภาพเงินทั้งโครงการก่อนลงรายละเอียด
+// และต้องตรวจว่ารวมกันได้ 100% ไหม ถ้าไม่ครบแปลว่าอ่านงวดไม่ครบหรือ TOR เขียนไม่ครบ
+function torPaymentSummary(rows, ms){
+  if(!ms || ms.length<1) return null;
+  const items = ms.map(m=>{
+    const money = torMoneyOfMilestone(m.cond||'');
+    return {no:m.no, pct: m.pct || money.pct, amount: money.amount,
+            period: money.period, days: money.days};
+  });
+  const pctSum = items.reduce((a,x)=>a + (parseFloat(x.pct)||0), 0);
+  const amtSum = items.reduce((a,x)=>a + (parseFloat(x.amount)||0), 0);
+  return {items, pctSum, amtSum, complete: Math.abs(pctSum-100) < 0.5};
+}
+
 function torValidate(rows){
   const report={cleaned:0, dupRemoved:0, shortRemoved:0, pageNoRemoved:0, warn:[]};
   const clean = t => String(t||'')
@@ -5745,6 +5810,13 @@ function torExportExcel(){
   const rowsXml=[];
   rowsXml.push(`<Row><Cell ss:StyleID="t" ss:MergeAcross="15"><Data ss:Type="String">Scope of Work/ Job Responsiblities Matrix</Data></Cell></Row>`);
   rowsXml.push(`<Row><Cell ss:StyleID="sub" ss:MergeAcross="15"><Data ss:Type="String">${esc('ตัวแตก TOR '+TOR_ENGINE_VERSION+' · แหล่งข้อมูล: '+TOR.fileName+(TOR.pages?` (${TOR.pages} หน้า)`:'')+' · สร้างเมื่อ '+new Date().toLocaleString('th-TH')+' · พบ '+TOR.milestones.length+' งวดงาน จาก '+TOR.clauses.length+' ข้อ TOR')}</Data></Cell></Row>`);
+  if(TOR.pay && TOR.pay.items.length){
+    const line = 'สรุปเงินรายงวด: ' + TOR.pay.items.map(x=>
+      `งวดที่ ${x.no} = ${x.pct?x.pct+'%':(x.amount?Number(x.amount).toLocaleString()+' บาท':'ไม่ระบุ')}`
+      + (x.period?` (${x.period})`:(x.days?` (ภายใน ${x.days} วัน)`:''))).join(' · ')
+      + (TOR.pay.complete?'  [รวม 100%]':`  [รวม ${TOR.pay.pctSum}% - ตรวจสอบ]`);
+    rowsXml.push(`<Row><Cell ss:StyleID="sub" ss:MergeAcross="15"><Data ss:Type="String">${esc(line)}</Data></Cell></Row>`);
+  }
   rowsXml.push('<Row/>');
   rowsXml.push('<Row>'+H.map(h=>cell(h,'h')).join('')+'</Row>');
   TOR.rows.forEach(r=>{
@@ -6128,7 +6200,12 @@ function torShowResult(prefix){
       :'<div class="tor-qa-l">ไม่พบอักขระเกิน แถวซ้ำ หรือเลขหน้าปนมา</div>'}
     ${(qa.warn&&qa.warn.length)?`<div class="tor-qa-l"><b>ควรตรวจทานก่อนใช้งาน:</b> ${qa.warn.join(' · ')}</div>`:''}
   </div>`;
-  res.innerHTML=(prefix||'')+scanNote+qaHtml+`
+  const pay=TOR.pay;
+  const payHtml = (pay && pay.items.length) ? `<div class="tor-pay">
+    <b>สรุปเงินรายงวด</b> ${pay.complete?'<span style="color:var(--success)">✓ รวมได้ 100%</span>':`<span style="color:var(--warning)">⚠ รวมได้ ${pay.pctSum}% ไม่ครบ 100% - ตรวจว่าอ่านงวดครบหรือ TOR ระบุไม่ครบ</span>`}
+    <div class="tor-pay-row">${pay.items.map(x=>`<span class="tor-pay-cell"><i>งวดที่ ${x.no}</i><b>${x.pct?x.pct+'%':(x.amount?Number(x.amount).toLocaleString()+' บาท':'-')}</b>${x.period||x.days?`<u>${x.period||('ภายใน '+x.days+' วัน')}</u>`:''}</span>`).join('')}</div>
+  </div>` : '';
+  res.innerHTML=(prefix||'')+scanNote+qaHtml+payHtml+`
     <div class="tor-sum">
       <div class="tor-kpi"><span>งวดงานที่พบ</span><b>${TOR.milestones.length}</b></div>
       <div class="tor-kpi"><span>ข้อ TOR ที่แตกได้</span><b>${TOR.clauses.length}</b></div>
@@ -6226,6 +6303,7 @@ async function torRun(file){
     TOR.milestones=torParseMilestones(TOR.clauses);
     torProgress(85,`พบ ${TOR.milestones.length} งวดงาน - กำลังสร้าง Scope of Work`,4); await sleep(60);
     { const v=torValidate(torBuildRows(TOR.clauses,TOR.milestones)); TOR.rows=v.rows; TOR.qa=v.report; }
+    TOR.pay = torPaymentSummary(TOR.rows, TOR.milestones);
     torProgress(100,'เสร็จเรียบร้อย',5);
 
     torShowResult('');
