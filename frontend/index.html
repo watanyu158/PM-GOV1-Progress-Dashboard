@@ -4798,7 +4798,7 @@ function allocateCollection(proj){
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
 // หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
 // จึงแกะด้วยกฎได้โดยไม่ต้องพึ่ง AI - แม่นกับเอกสารที่เป็น text ส่วนไฟล์สแกนต้อง OCR มาก่อน
-const TOR_ENGINE_VERSION = 'v201';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
+const TOR_ENGINE_VERSION = 'v205';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
 const TOR = { text:'', clauses:[], milestones:[], rows:[], fileName:'', pages:0 };
 
 // โหลดไลบรารีเฉพาะตอนเปิดไฟล์ที่ต้องใช้จริง - ถ้าเน็ตเข้า CDN ไม่ได้ ไฟล์ .txt/.csv ยังใช้งานได้ปกติ
@@ -5439,6 +5439,42 @@ function torMoneyOfMilestone(text){
   };
 }
 
+// ===== ทำข้อความให้เป็น "สิ่งที่ต้องทำ" อ่านแล้วลงมือได้ทันที =====
+// TOR เขียนในมุมสัญญา ("ผู้ขายต้อง...") แต่ PM ต้องการมุมปฏิบัติ ("ต้อง...")
+// ตัดคำเรียกคู่สัญญาออกให้เหลือแต่เนื้องาน จะได้อ่านเป็นเช็คลิสต์ได้เลย
+function torActionText(t){
+  let x = String(t||'').trim();
+  x = x.replace(/^(?:ผู้ขาย|ผู้รับจ้าง|ผู้ให้เช่า|ผู้ยื่นข้อเสนอ|ผู้เสนอราคา|ผู้ชนะการคัดเลือก|คู่สัญญา|ผู้รับผิดชอบ)\s*(?:จะ)?(?=ต้อง|จะต้อง)/,'');
+  x = x.replace(/^(?:ผู้ขาย|ผู้รับจ้าง|ผู้ให้เช่า|ผู้ยื่นข้อเสนอ|ผู้เสนอราคา)\s*(?:จะ)?ต้อง/,'ต้อง');
+  x = x.replace(/^(?:ผู้ขาย|ผู้รับจ้าง|ผู้ให้เช่า)\s+(?=[ก-๙])/,'');
+  x = x.replace(/^จะต้อง/,'ต้อง');
+  return x.trim();
+}
+
+// แยกข้อย่อยในวงเล็บ (1) (2) (3) ออกมาขึ้นบรรทัดใหม่พร้อมย่อหน้า
+// TOR มักยัดข้อย่อยไว้ในย่อหน้าเดียวยาวเหยียด อ่านแล้วไม่เห็นว่ามีกี่รายการ
+function torBulletize(t, indent){
+  let x = String(t||'');
+  const pad = indent || '    ';
+  // ขึ้นบรรทัดก่อนข้อย่อยแบบ (N) และ N.N เมื่ออยู่กลางประโยค
+  // ตัดบรรทัดเฉพาะข้อย่อยจริง - ไม่ตัดถ้าเป็นการอ้างอิงกลางประโยค เช่น "ตามข้อ 4.1 (6)"
+  x = x.replace(/(^|[^\d])\s*(\((\d{1,2})\)\s)/g,
+    (m, pre, grp) => /ข้อ\s*\d[\d.]*\s*$/.test(pre) ? m : (pre + '\n' + pad + grp.trim() + ' '));
+  x = x.replace(/\s+(?=\d{1,2}\.\d{1,2}\.\d{1,2}\s)/g, '\n'+pad);
+  return x.replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+}
+
+// ข้อที่เป็น "สเปค/คุณลักษณะ" ไม่ใช่งานที่ต้องทำ -> ย้ายเนื้อหาไปคอลัมน์หมายเหตุ
+// เก็บไว้ให้ครบ (ไม่ตัดทิ้ง) แต่ไม่ปนกับรายการงาน และผูกกับข้อที่มันอ้างถึง
+const TOR_SPEC_CLAUSE = /^ข้อกำหนดและคุณลักษณะเฉพาะ|^คุณลักษณะเฉพาะ|^ข้อกำหนดทางเทคนิค|^รายละเอียดคุณลักษณะ/;
+function torIsSpecClause(t){ return TOR_SPEC_CLAUSE.test(String(t||'').trim()); }
+
+// ดึงเลขข้อที่สเปคนี้อ้างถึง เช่น "ตามข้อ 4.1 (2)" -> "4.1 (2)"
+function torSpecTarget(t){
+  const m = String(t||'').match(/ตามข้อ\s*(\d{1,2}(?:\.\d{1,2})?(?:\s*\(\d{1,2}\))?)/);
+  return m ? m[1].replace(/\s+/g,' ').trim() : null;
+}
+
 // ===== จับคู่เอกสารส่งมอบเข้ากับงวดที่ผลิตมันจริง =====
 // TOR มักรวมรายการเอกสารส่งมอบไว้ที่เดียว (เช่นข้อ 6.8) แล้วอ้างจากงวดสุดท้ายงวดเดียว
 // แต่ความจริงเอกสารแต่ละฉบับเกิดจากงานคนละงวด - Inception Report เกิดงวด 1, เอกสารทดสอบเกิดงวดที่ทดสอบ
@@ -5599,6 +5635,7 @@ function torRedistributeDeliverables(rows, ms){
 }
 
 function torBuildRows(clauses, ms){
+  const usedSpecNos = new Set();   // ข้อสเปคที่ย้ายไปเป็นหมายเหตุแล้ว ห้ามโผล่ซ้ำท้ายไฟล์
   const byNo = {}; clauses.forEach(c=>byNo[c.no]=c);
   const expand = ref => {           // "10.2.1-9" -> [10.2.1 ... 10.2.9]
     const out=[];
@@ -5689,6 +5726,7 @@ function torBuildRows(clauses, ms){
     };
     workRefs.sort(byClauseNo); docRefs.sort(byClauseNo);
     const extraDocs = [];      // เอกสารส่งมอบที่ซ่อนอยู่ในข้อย่อยของงาน
+    const specNotes = [];      // ข้อสเปค/คุณลักษณะ - เก็บไว้ผูกเป็นหมายเหตุของงานที่เกี่ยวข้อง
     if(workRefs.length){
       push({kind:'sec', desc:'งานที่ต้องดำเนินการ'});
       // ข้อที่เป็นแค่ตัวชี้ทาง ("ดำเนินงานตามขอบเขตงานข้อ X-Y") แสดงเป็นบรรทัดอ้างอิง ไม่ใช่งาน
@@ -5703,11 +5741,18 @@ function torBuildRows(clauses, ms){
                 ms:`งวดงานที่ ${m.no}`, cond:''});
           return;
         }
-        const i=n0++;
-        // ข้อที่อ้างถึงแต่หาเนื้อความไม่เจอ - ไม่ต้องใส่เลขข้อลวง ให้บอกตรง ๆ ว่าต้องไปเปิด TOR
         const found = !!c;
+        // ข้อที่เป็นสเปค/คุณลักษณะ ไม่ใช่งานที่ต้องทำ -> ย้ายไปคอลัมน์หมายเหตุ ไม่ตัดทิ้ง
+        if(found && torIsSpecClause(c.text)){
+          const tgt = torSpecTarget(c.text);
+          specNotes.push({no:r, target:tgt, text:c.text});
+          usedSpecNos.add(r);
+          clauses.forEach(x=>{ if(x.no.startsWith(r+'.')) usedSpecNos.add(x.no); });
+          return;
+        }
+        const i=n0++;
         push({tor: found ? r : '-', type: found ? torType(c.text) : 'Ref',
-              desc:`${i+1}) ${found ? c.text : 'งานตามขอบเขตข้อ '+r+' (ไม่พบเนื้อความในไฟล์ที่อัปโหลด - ตรวจกับ TOR ฉบับจริง)'}`,
+              desc:`${i+1}) ${found ? torBulletize(torActionText(c.text)) : 'งานตามขอบเขตข้อ '+r+' (ไม่พบเนื้อความในไฟล์ที่อัปโหลด - ตรวจกับ TOR ฉบับจริง)'}`,
               note: found ? '' : 'ระบบอ่านเนื้อความข้อนี้ไม่ได้',
               ms:`งวดงานที่ ${m.no}`, cond:found?`อ้างอิงตามข้อ ${r} ในเอกสาร TOR`:''});
         // ข้อย่อยของข้อนี้ - ถ้าเป็นเอกสารส่งมอบ ให้ย้ายไปหมวดเอกสาร ไม่ปนกับงาน
@@ -5716,7 +5761,9 @@ function torBuildRows(clauses, ms){
                .sort((p,q)=>byClauseNo(p.no,q.no)).forEach(sub=>{
           if(isDeliverable(sub.no)){ extraDocs.push(sub.no); return; }
           sj++;
-          push({tor:sub.no, type:torType(sub.text), desc:`   ${i+1}.${sj}) ${sub.text}`, ms:`งวดงานที่ ${m.no}`, cond:''});
+          push({tor:sub.no, type:torType(sub.text),
+                desc:`   ${i+1}.${sj}) ${torBulletize(torActionText(sub.text),'        ')}`,
+                ms:`งวดงานที่ ${m.no}`, cond:''});
         });
       });
     }
@@ -5729,6 +5776,18 @@ function torBuildRows(clauses, ms){
         note:'มักเกิดกับไฟล์สแกนที่ OCR อ่านเลขข้อผิด',
         ms:`งวดงานที่ ${m.no}`,
         cond:'ตรวจกับ TOR ฉบับจริงที่ข้อดังกล่าว แล้วเติมเนื้องานเอง'});
+    }
+    // ผูกสเปคเข้ากับงานที่มันอ้างถึง เช่น "ตามข้อ 4.1 (2)" -> ไปเป็นหมายเหตุของข้อ 4.1
+    if(specNotes.length){
+      specNotes.forEach(sn=>{
+        const body = torBulletize(torActionText(sn.text.replace(/^[^:]*?ดังนี้\s*/,''))).trim();
+        const host = rows.slice().reverse().find(x=>!x.kind && sn.target && x.tor===sn.target.split(' ')[0]);
+        const line = `[สเปคตามข้อ ${sn.no}${sn.target?` อ้างถึง ${sn.target}`:''}]\n${body}`;
+        if(host) host.note = (host.note ? host.note+'\n' : '') + line;
+        else push({tor:sn.no, type:'Spec', desc:`(สเปค) ${sn.text.split('ดังนี้')[0].trim()}`,
+                   note:line, ms:`งวดงานที่ ${m.no}`,
+                   cond:'เป็นคุณลักษณะที่ต้องตรวจ ไม่ใช่งานที่ต้องทำ'});
+      });
     }
     const allDocs = [...new Set([...docRefs, ...extraDocs])].sort(byClauseNo);
     if(allDocs.length){
@@ -5832,7 +5891,7 @@ function torBuildRows(clauses, ms){
   // ข้อที่เป็นเงื่อนไขของงวดงาน แสดงเป็นหัวงวดไปแล้ว ไม่ต้องซ้ำอีกในบล็อกท้ายไฟล์
   const msCondNos = new Set();
   ms.forEach(m=>{ if(m.clause) msCondNos.add(m.clause); });
-  const rest = clauses.filter(c=>!used.has(c.no) && c.depth<=2 && c.text.length>25
+  const rest = clauses.filter(c=>!used.has(c.no) && !usedSpecNos.has(c.no) && c.depth<=2 && c.text.length>25
                  && !/^\d{1,2}$/.test(c.no) && !specNos.has(c.no)
                  && !msCondNos.has(c.no)
                  && !/^งวดที่\s*\d{1,2}\s*(ส่งมอบงาน|จ่าย|ชำระ)/.test(c.text)
@@ -5870,7 +5929,8 @@ function torValidate(rows){
     .replace(/(?<![.\d])\.{3,}(?![.\d])/g,' ')     // ... ที่ไม่ใช่จุดไข่ปลาในเลข
     .replace(/\s*[-–—]{2,}\s*/g,' - ')
     .replace(/\s*\|\s*/g,' ')
-    .replace(/\s{2,}/g,' ')
+    .replace(/[ \t]{2,}(?![(\d])/g,' ')      // ยุบเฉพาะช่องว่าง ไม่แตะการขึ้นบรรทัดและย่อหน้าของข้อย่อย
+    .replace(/\n{3,}/g,'\n\n')
     .trim();
   // บรรทัดที่เป็นเลขหน้าล้วน หรือ "หน้า N" / "- N -"
   const isPageNo = t => /^\s*(?:หน้า\s*)?[-–]?\s*\d{1,3}\s*[-–]?\s*$/.test(t)
