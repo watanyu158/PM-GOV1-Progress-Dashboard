@@ -537,6 +537,9 @@
   .tor-ocr-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
   .tor-ocr-row label{font-size:11px;color:var(--ink-2);display:inline-flex;align-items:center;gap:5px;}
   .tor-ocr-row input{width:66px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:12px;font-family:'IBM Plex Mono',monospace;}
+  .tor-ai-done{margin:0 18px 10px;padding:9px 13px;border-radius:9px;font-size:11.5px;line-height:1.7;
+    background:#F2F6F1;border-left:3px solid var(--success);color:var(--ink-2);}
+  .tor-btn.ai{background:#EDE4D8;border-color:var(--brand-2);color:var(--brand);font-weight:700;}
   .tor-ai-msg{padding:0 18px 8px;font-size:11.5px;color:var(--ink-2);min-height:16px;}
   .tor-ai-note{padding:0 18px 14px;font-size:10px;color:var(--faint);line-height:1.65;}
   .tor-qa{margin:0 18px 12px;padding:10px 13px;border-radius:9px;font-size:11.5px;line-height:1.7;
@@ -5672,11 +5675,24 @@ function torProgress(pct, stage, stepIdx){
 // ส่งเฉพาะบรรทัดที่กฎทำไม่ได้ ไม่ส่งเอกสารทั้งฉบับ - เพราะ free tier จำกัด 6,000 tokens/นาที
 // และการหั่นเอกสารส่งทีละชิ้นจะทำให้ AI มองไม่เห็นภาพรวม ซึ่งเป็นจุดแข็งของกฎอยู่แล้ว
 async function torAiCall(task, items){
-  const r = await fetch(API_BASE+'/api/tor/classify', {
-    method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()},
-    body: JSON.stringify({task, items})
-  });
+  // ต้องมี timeout ไม่งั้นถ้าเซิร์ฟเวอร์หรือ Groq ค้าง หน้าจอจะนิ่งไปเฉย ๆ โดยไม่บอกอะไร
+  // backend อาจรอ retry จาก 429 ได้ถึง ~90 วินาที จึงเผื่อไว้ 150 วินาที
+  const ctrl = new AbortController();
+  const timer = setTimeout(()=>ctrl.abort(), 150000);
+  let r;
+  try{
+    r = await fetch(API_BASE+'/api/tor/classify', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()},
+      body: JSON.stringify({task, items}),
+      signal: ctrl.signal
+    });
+  }catch(e){
+    clearTimeout(timer);
+    if(e.name==='AbortError') throw new Error('เซิร์ฟเวอร์ไม่ตอบกลับภายใน 150 วินาที - ลองใหม่อีกครั้ง');
+    throw e;
+  }
+  clearTimeout(timer);
   const j = await r.json();
   if(!j.ok){
     // แสดงข้อความดิบที่ AI ตอบมาด้วย จะได้รู้ว่าติดตรงไหน ไม่ต้องเดา
@@ -5690,17 +5706,25 @@ async function torAiCall(task, items){
 
 async function torAiEnhance(){
   const btn=document.getElementById('torAiBtn');
-  const out=document.getElementById('torAiMsg');
   if(!btn) return;
   const nUnknown = TOR.rows.filter(r=>!r.kind && r.type==='Other').length;
   const est = Math.ceil(nUnknown/20)*20 + 60;
   if(nUnknown>20 && !confirm(`มีงานที่ต้องให้ AI จัดประเภท ${nUnknown} รายการ\n\nโควตา Groq แบบฟรีจำกัดราว 8,000 tokens ต่อนาที ระบบจึงต้องส่งทีละ 20 รายการและเว้นระยะ\nคาดว่าใช้เวลาประมาณ ${Math.ceil(est/60)} นาที\n\nดำเนินการต่อหรือไม่?`)) return;
   btn.disabled=true;
-  const setMsg=t=>{ if(out) out.innerHTML=t; };
+  // ต้องหา element ใหม่ทุกครั้ง เพราะ torShowResult() วาดผลลัพธ์ใหม่แล้วกล่องเดิมถูกทิ้ง
+  // (บั๊กเดิม: จับ element ไว้ครั้งเดียว ข้อความจึงหายไปหลังวาดใหม่ ดูเหมือนระบบค้าง)
+  const setMsg=t=>{ const el=document.getElementById('torAiMsg'); if(el) el.innerHTML=t; };
   let usedTokens=0, calls=0;
   try{
     // ---- งานที่ 1: จัดประเภทที่กฎเดาไม่ได้ ----
     const unknown = TOR.rows.filter(r=>!r.kind && r.type==='Other');
+    const specsAll = TOR.rows.filter(r=>!r.kind && r.type==='Spec');
+    const msAll = TOR.rows.filter(r=>r.kind==='ms' && /งวดที่/.test(r.desc));
+    if(!unknown.length && !specsAll.length && !msAll.length){
+      setMsg('<b>ไม่มีงานที่ AI ช่วยได้</b> - ไม่พบงานที่จัดประเภทไม่ได้ ไม่มีหมวดสเปค และไม่พบงวดงาน');
+      btn.disabled=false; return;
+    }
+    setMsg(`เริ่มทำงาน... (จัดประเภท ${unknown.length} · สเปค ${Math.min(specsAll.length,20)} · งวด ${Math.min(msAll.length,6)})`);
     if(unknown.length){
       // free tier จำกัดราว 8,000 tokens/นาที จึงส่งทีละ 20 รายการและเว้นระยะ 20 วินาที
       // (แต่ละรอบใช้ราว 2,000-2,500 tokens - ส่งถี่กว่านี้จะชนเพดานแล้วต้องรอนานกว่าเดิม)
@@ -5759,7 +5783,15 @@ async function torAiEnhance(){
         r.desc += `\n[AI] โฟกัส: ${r.aiFocus||'-'}` + (r.aiRisk?`\n[AI] ความเสี่ยง: ${r.aiRisk}`:'');
       }
     });
+    // เก็บสรุปไว้ใน TOR เพื่อให้แสดงต่อได้แม้วาดผลลัพธ์ใหม่
     TOR.aiDone=true;
+    TOR.aiSummary={
+      calls, tokens: usedTokens,
+      typed: TOR.rows.filter(r=>r.aiType).length,
+      flagged: TOR.rows.filter(r=>r.aiFlag).length,
+      focused: TOR.rows.filter(r=>r.aiFocus).length,
+      at: new Date().toLocaleTimeString('th-TH')
+    };
     torShowResult('');
     setMsg(`<b style="color:var(--success)">✓ AI ช่วยเสริมเรียบร้อย</b> - เรียก ${calls} ครั้ง${usedTokens?` · ใช้ ${usedTokens.toLocaleString()} tokens`:''}`);
   }catch(e){
@@ -5795,8 +5827,13 @@ function torShowResult(prefix){
     <div class="tor-actions">
       <button class="tor-btn primary" onclick="torExportExcel()">⬇ ดาวน์โหลด Scope of Work (Excel)</button>
       <button class="tor-btn" onclick="document.getElementById('torPreview').classList.toggle('open')">ดูตัวอย่างผลลัพธ์</button>
-      <button class="tor-btn" id="torAiBtn" onclick="torAiEnhance()">🤖 ให้ AI ช่วยเสริม</button>
+      <button class="tor-btn ${TOR.aiDone?'':'ai'}" id="torAiBtn" onclick="torAiEnhance()">${TOR.aiDone?'🤖 ให้ AI ช่วยอีกครั้ง':'🤖 ให้ AI ช่วยเสริม'}</button>
     </div>
+    ${TOR.aiSummary?`<div class="tor-ai-done">
+      <b>✓ AI ช่วยเสริมแล้ว</b> เมื่อ ${TOR.aiSummary.at} · เรียก ${TOR.aiSummary.calls} ครั้ง${TOR.aiSummary.tokens?` · ${TOR.aiSummary.tokens.toLocaleString()} tokens`:''}
+      <div class="tor-qa-l">จัดประเภทให้ ${TOR.aiSummary.typed} รายการ · ติดธงข้อผูกพันในสเปค ${TOR.aiSummary.flagged} รายการ · สรุปโฟกัส ${TOR.aiSummary.focused} งวด
+      ${TOR.aiSummary.typed+TOR.aiSummary.flagged+TOR.aiSummary.focused===0?'<br><b style="color:var(--warning)">AI ไม่ได้แก้อะไรเลย - อาจไม่มีงานที่ต้องจัดประเภท หรือ AI ตอบไม่ตรงรูปแบบ</b>':''}</div>
+    </div>`:''}
     <div id="torAiMsg" class="tor-ai-msg"></div>
     <div class="tor-ai-note">AI ช่วยเฉพาะจุดที่กฎทำไม่ได้ - จัดประเภทงานที่เดาไม่ออก · หาข้อผูกพันที่ซ่อนในสเปค · สรุปสิ่งที่ PM ควรโฟกัสแต่ละงวด
       <br>ส่งเฉพาะข้อความสั้น ๆ เท่าที่จำเป็น ไม่ส่งเอกสารทั้งฉบับ · โครงสร้างงวดงานและเลขข้อยังคำนวณในเครื่องเหมือนเดิม</div>
