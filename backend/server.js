@@ -533,7 +533,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       // Progress1 คือแกนหลัก ถ้าอ่านไม่ได้เลยแปลว่าไฟล์ผิดรูปแบบจริง ๆ - ไม่ควรเขียนทับข้อมูลเดิมที่ยังดีอยู่
       if (!rows.length) {
         console.error('⚠ อ่าน Progress1 ไม่ได้เลย - ยกเลิกการอัปเดต เก็บข้อมูลเดิมไว้ (กันข้อมูลหายทั้งระบบ)');
-        return res.status(400).json({ ok: false, error: 'อ่าน sheet Progress1 ไม่ได้ หรือไม่มีข้อมูล - ไม่อัปเดตข้อมูลเดิม', failedSheets: failed });
+        return res.status(400).json({ ok: false, error: 'อ่านข้อมูลความคืบหน้าโครงการไม่ได้ หรือไม่มีข้อมูล - ไม่อัปเดตข้อมูลเดิม', failedSheets: failed });
       }
 
       // PO ไม่มีคอลัมน์ PM ตรง ๆ - เดา PM เจ้าของจาก Project Code โดยอ้างอิงจาก Progress1 ก่อน (ครอบคลุมสุด)
