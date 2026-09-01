@@ -4798,7 +4798,7 @@ function allocateCollection(proj){
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
 // หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
 // จึงแกะด้วยกฎได้โดยไม่ต้องพึ่ง AI - แม่นกับเอกสารที่เป็น text ส่วนไฟล์สแกนต้อง OCR มาก่อน
-const TOR_ENGINE_VERSION = 'v194';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
+const TOR_ENGINE_VERSION = 'v197';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
 const TOR = { text:'', clauses:[], milestones:[], rows:[], fileName:'', pages:0 };
 
 // โหลดไลบรารีเฉพาะตอนเปิดไฟล์ที่ต้องใช้จริง - ถ้าเน็ตเข้า CDN ไม่ได้ ไฟล์ .txt/.csv ยังใช้งานได้ปกติ
@@ -4842,7 +4842,7 @@ const torType = t => (TOR_TYPES.find(([re])=>re.test(t))||[null,'Other'])[1];
 // วิธีแก้: อ่าน docx เป็น ZIP เอง แล้วสร้างเลขข้อขึ้นมาใหม่ตามลำดับที่ Word จะแสดง
 const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
-async function torUnzip(buf){
+async function torUnzip(buf, want){
   const dv=new DataView(buf), u8=new Uint8Array(buf);
   // หา End of Central Directory
   let eocd=-1;
@@ -4858,15 +4858,15 @@ async function torUnzip(buf){
           cmtLen=dv.getUint16(off+32,true), lho=dv.getUint32(off+42,true);
     const name=dec.decode(u8.subarray(off+46,off+46+nameLen));
     const method=dv.getUint16(off+10,true), csize=dv.getUint32(off+20,true);
-    if(name==='word/document.xml' || name==='word/numbering.xml'){
+    if(!want || want.includes(name)){
       const lNameLen=dv.getUint16(lho+26,true), lExtra=dv.getUint16(lho+28,true);
       const start=lho+30+lNameLen+lExtra;
       const raw=u8.subarray(start,start+csize);
-      if(method===0){ files[name]=dec.decode(raw); }
+      if(method===0){ files[name]=raw.slice(); }
       else {
         const ds=new DecompressionStream('deflate-raw');
         const ab=await new Response(new Blob([raw]).stream().pipeThrough(ds)).arrayBuffer();
-        files[name]=dec.decode(new Uint8Array(ab));
+        files[name]=new Uint8Array(ab);
       }
     }
     off+=46+nameLen+extraLen+cmtLen;
@@ -4875,14 +4875,16 @@ async function torUnzip(buf){
 }
 
 async function torDocxText(file){
-  const files=await torUnzip(await file.arrayBuffer());
+  const files=await torUnzip(await file.arrayBuffer(), ['word/document.xml','word/numbering.xml']);
   if(!files['word/document.xml']) throw new Error('ไม่พบเนื้อหาเอกสารในไฟล์ DOCX');
   const P=new DOMParser();
-  const doc=P.parseFromString(files['word/document.xml'],'application/xml');
+  const _dec=new TextDecoder();
+  const _txt=k=>files[k]?_dec.decode(files[k]):null;
+  const doc=P.parseFromString(_txt('word/document.xml'),'application/xml');
   // ---- ตารางเลขข้อ ----
   const n2a={}, abs={};
   if(files['word/numbering.xml']){
-    const nd=P.parseFromString(files['word/numbering.xml'],'application/xml');
+    const nd=P.parseFromString(_txt('word/numbering.xml'),'application/xml');
     [...nd.getElementsByTagNameNS(W,'num')].forEach(n=>{
       const a=n.getElementsByTagNameNS(W,'abstractNumId')[0];
       if(a) n2a[n.getAttributeNS(W,'numId')]=a.getAttributeNS(W,'val');
@@ -5910,212 +5912,165 @@ function torValidate(rows){
   return {rows:out, report};
 }
 
-// ===== เขียนไฟล์ .xlsx จริงเอง (ไม่พึ่งไลบรารี) =====
-// เดิมสร้างเป็น SpreadsheetML แล้วตั้งนามสกุล .xls ทำให้ Excel เตือนว่า
-// "file format and extension don't match" ทุกครั้งที่เปิด
-// จึงเขียน OOXML + ZIP เองด้วย CRC32 + store (ไม่บีบอัด) ซึ่งเป็น ZIP ที่ถูกต้องสมบูรณ์
-const TOR_CRC_TABLE = (() => {
-  const t = new Uint32Array(256);
-  for(let n=0;n<256;n++){
-    let c=n;
-    for(let k=0;k<8;k++) c = (c&1) ? (0xEDB88320 ^ (c>>>1)) : (c>>>1);
-    t[n]=c>>>0;
+// แก้ชื่อฟอนต์ในไฟล์ที่ SheetJS สร้าง ให้เป็น TH SarabunPSK ทุกเซลล์
+// วิธีนี้ปลอดภัยกว่าเขียน xlsx เองทั้งไฟล์ เพราะโครงสร้างมาจากไลบรารีที่ใช้งานจริงมาแล้ว
+// เราแตะแค่ชื่อฟอนต์กับขนาด ไม่ยุ่งกับโครงสร้างอื่นเลย
+async function torRestyleXlsx(buf){
+  try{
+    const files = await torUnzip(buf);                 // อ่านทุกส่วนออกมา
+    const dec=new TextDecoder(), enc=new TextEncoder();
+    ['xl/styles.xml','xl/theme/theme1.xml'].forEach(k=>{
+      if(!files[k]) return;
+      let x = dec.decode(files[k]);
+      x = x.replace(/(<(?:latin|name|font|majorFont|minorFont)[^>]*?(?:typeface|val)=")[^"]*(")/g, '$1TH SarabunPSK$2');
+      x = x.replace(/(<sz val=")(\d+(?:\.\d+)?)(")/g, (m,a,n,b)=>a+Math.max(12, Math.round(+n*1.3))+b);
+      files[k] = enc.encode(x);
+    });
+    const list = Object.keys(files).map(name=>({name, data:files[name]}));
+    return torZipStore(list);
+  }catch(e){
+    console.warn('แก้ฟอนต์ไม่สำเร็จ ใช้ไฟล์เดิม:', e.message);
+    return buf;
   }
+}
+
+// เขียน ZIP แบบ store - ใช้ประกอบไฟล์กลับหลังแก้ฟอนต์
+const TOR_CRC_TABLE = (() => {
+  const t=new Uint32Array(256);
+  for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; }
   return t;
 })();
-function torCrc32(buf){
-  let c = 0xFFFFFFFF;
-  for(let i=0;i<buf.length;i++) c = TOR_CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c>>>8);
-  return (c ^ 0xFFFFFFFF)>>>0;
-}
-function torZip(files){
-  const enc = new TextEncoder();
-  const parts=[], central=[];
-  let offset=0;
+function torCrc32(b){ let c=0xFFFFFFFF; for(let i=0;i<b.length;i++) c=TOR_CRC_TABLE[(c^b[i])&0xFF]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+const TOR_DOS_NOW=new Date();
+const TOR_DOS_DATE=((Math.max(1980,TOR_DOS_NOW.getFullYear())-1980)<<9)|((TOR_DOS_NOW.getMonth()+1)<<5)|TOR_DOS_NOW.getDate();
+const TOR_DOS_TIME=(TOR_DOS_NOW.getHours()<<11)|(TOR_DOS_NOW.getMinutes()<<5)|Math.floor(TOR_DOS_NOW.getSeconds()/2);
+function torZipStore(files){
+  const enc=new TextEncoder(); const parts=[],central=[]; let offset=0;
   files.forEach(f=>{
-    const name = enc.encode(f.name);
-    const data = typeof f.data==='string' ? enc.encode(f.data) : f.data;
-    const crc = torCrc32(data);
-    const lh = new Uint8Array(30 + name.length);
-    const dv = new DataView(lh.buffer);
-    dv.setUint32(0, 0x04034b50, true);   // local file header
-    dv.setUint16(4, 20, true);           // version needed
-    dv.setUint16(6, 0x0800, true);       // flag: UTF-8 filename
-    dv.setUint16(8, 0, true);            // method 0 = store
-    dv.setUint16(10, 0, true); dv.setUint16(12, 0, true);   // time/date
-    dv.setUint32(14, crc, true);
-    dv.setUint32(18, data.length, true);
-    dv.setUint32(22, data.length, true);
-    dv.setUint16(26, name.length, true);
-    dv.setUint16(28, 0, true);
-    lh.set(name, 30);
-    parts.push(lh, data);
-
-    const ch = new Uint8Array(46 + name.length);
-    const cv = new DataView(ch.buffer);
-    cv.setUint32(0, 0x02014b50, true);   // central directory header
-    cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
-    cv.setUint16(8, 0x0800, true); cv.setUint16(10, 0, true);
-    cv.setUint16(12, 0, true); cv.setUint16(14, 0, true);
-    cv.setUint32(16, crc, true);
-    cv.setUint32(20, data.length, true);
-    cv.setUint32(24, data.length, true);
-    cv.setUint16(28, name.length, true);
-    cv.setUint32(42, offset, true);
-    ch.set(name, 46);
-    central.push(ch);
-    offset += lh.length + data.length;
+    const name=enc.encode(f.name);
+    const data=typeof f.data==='string'?enc.encode(f.data):f.data;
+    const crc=torCrc32(data);
+    const lh=new Uint8Array(30+name.length); const dv=new DataView(lh.buffer);
+    dv.setUint32(0,0x04034b50,true); dv.setUint16(4,20,true); dv.setUint16(6,0x0800,true);
+    dv.setUint16(8,0,true); dv.setUint16(10,TOR_DOS_TIME,true); dv.setUint16(12,TOR_DOS_DATE,true);
+    dv.setUint32(14,crc,true); dv.setUint32(18,data.length,true); dv.setUint32(22,data.length,true);
+    dv.setUint16(26,name.length,true); dv.setUint16(28,0,true);
+    lh.set(name,30); parts.push(lh,data);
+    const ch=new Uint8Array(46+name.length); const cv=new DataView(ch.buffer);
+    cv.setUint32(0,0x02014b50,true); cv.setUint16(4,20,true); cv.setUint16(6,20,true);
+    cv.setUint16(8,0x0800,true); cv.setUint16(10,0,true);
+    cv.setUint16(12,TOR_DOS_TIME,true); cv.setUint16(14,TOR_DOS_DATE,true);
+    cv.setUint32(16,crc,true); cv.setUint32(20,data.length,true); cv.setUint32(24,data.length,true);
+    cv.setUint16(28,name.length,true); cv.setUint32(42,offset,true);
+    ch.set(name,46); central.push(ch); offset+=lh.length+data.length;
   });
-  const cdSize = central.reduce((a,c)=>a+c.length,0);
-  const eocd = new Uint8Array(22);
-  const ev = new DataView(eocd.buffer);
-  ev.setUint32(0, 0x06054b50, true);
-  ev.setUint16(8, files.length, true);
-  ev.setUint16(10, files.length, true);
-  ev.setUint32(12, cdSize, true);
-  ev.setUint32(16, offset, true);
-  const all = [...parts, ...central, eocd];
-  const total = all.reduce((a,x)=>a+x.length,0);
-  const out = new Uint8Array(total);
-  let p=0; all.forEach(x=>{ out.set(x,p); p+=x.length; });
-  return out;
+  const cdSize=central.reduce((a,c)=>a+c.length,0);
+  const eocd=new Uint8Array(22); const ev=new DataView(eocd.buffer);
+  ev.setUint32(0,0x06054b50,true); ev.setUint16(8,files.length,true); ev.setUint16(10,files.length,true);
+  ev.setUint32(12,cdSize,true); ev.setUint32(16,offset,true);
+  const all=[...parts,...central,eocd];
+  const outBuf=new Uint8Array(all.reduce((a,x)=>a+x.length,0));
+  let p=0; all.forEach(x=>{ outBuf.set(x,p); p+=x.length; });
+  return outBuf;
 }
-const torColName = n => { let s=''; n++; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26); } return s; };
 
 // ---------- 5) ส่งออก Excel (เขียน SpreadsheetML เอง ไม่ต้องพึ่งไลบรารีภายนอก) ----------
-function torExportExcel(){
+async function torExportExcel(){
   if(!TOR.rows || !TOR.rows.length){
     alert('ยังไม่มีข้อมูลให้ส่งออก - กรุณาอัปโหลดเอกสาร TOR แล้วรอให้ประมวลผลเสร็จก่อน');
     return;
   }
-  const esc = v => torThaiDigits(String(v==null?'':v))
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
-    .replace(/\r\n?/g,'\n')
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'')
-    .replace(/\n/g,'&#10;');
-  const H=['Item/ToR No.','ประเภท','Description/รายละเอียด','หมายเหตุ','งวดงานที่','เงื่อนไข/ข้อกำหนด',
-           'Sales','PM','PE','Sub1','Sub2','Sub3','Sub4','Sub5','Sub6','Sub7'];
+  const btn=document.querySelector('.tor-btn.primary');
+  if(btn){ btn.disabled=true; btn.textContent='กำลังสร้างไฟล์...'; }
+  try{
+    // ใช้ SheetJS สร้างไฟล์ - เคยเขียน xlsx เองแล้ว Excel ฟ้องไฟล์เสียหาย
+    // เพราะรายละเอียดของรูปแบบเข้มงวดกว่าที่ตรวจสอบเองได้ ไลบรารีนี้ผ่านการใช้งานจริงมาแล้ว
+    // โหลดจากเครื่องเรา (lib/) เหมือนเดิม ไม่ส่งข้อมูลออกไปที่ใด
+    await torLoadScript('lib/xlsx.full.min.js');
 
-  // ---- ประกอบข้อมูลเป็นตาราง ----
-  const table=[];   // {cells:[...], style:'title|sub|head|body|ms|sec', merge:bool}
-  table.push({cells:['Scope of Work/ Job Responsiblities Matrix'], style:'title', merge:true});
-  table.push({cells:[`ตัวแตก TOR ${TOR_ENGINE_VERSION} · แหล่งข้อมูล: ${TOR.fileName}${TOR.pages?` (${TOR.pages} หน้า)`:''} · สร้างเมื่อ ${new Date().toLocaleString('th-TH')} · พบ ${TOR.milestones.length} งวดงาน จาก ${TOR.clauses.length} ข้อ TOR`], style:'sub', merge:true});
-  if(TOR.pay && TOR.pay.items.length){
-    const line = 'สรุปเงินรายงวด: ' + TOR.pay.items.map(x=>
-      `งวดที่ ${x.no} = ${x.pct?x.pct+'%':(x.amount?Number(x.amount).toLocaleString()+' บาท':'ไม่ระบุ')}`
-      + (x.period?` (${x.period})`:(x.days?` (ภายใน ${x.days} วัน)`:''))).join(' · ')
-      + (TOR.pay.complete?'   [รวม 100%]':`   [รวม ${TOR.pay.pctSum}% - ตรวจสอบ]`);
-    table.push({cells:[line], style:'sub', merge:true});
-  }
-  table.push({cells:[''], style:'body'});
-  table.push({cells:H, style:'head'});
-  TOR.rows.forEach(r=>{
-    if(r.kind==='ms')      table.push({cells:[r.desc], style:'ms',  merge:true});
-    else if(r.kind==='sec')table.push({cells:[r.desc], style:'sec', merge:true});
-    else table.push({cells:[r.tor,r.type,r.desc,r.note,r.ms,r.cond,'','','','','','','','','',''], style:'body'});
-  });
+    const clean = v => torThaiDigits(String(v==null?'':v))
+      .replace(/\r\n?/g,'\n')
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'');
+    const H=['Item/ToR No.','ประเภท','Description/รายละเอียด','หมายเหตุ','งวดงานที่','เงื่อนไข/ข้อกำหนด',
+             'Sales','PM','PE','Sub1','Sub2','Sub3','Sub4','Sub5','Sub6','Sub7'];
+    const BLANK = Array(16).fill('');
 
-  // ---- sheet1.xml ----
-  const widths=[14,15,80,32,17,50].concat(Array(10).fill(9));
-  let sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-    + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-    + `<dimension ref="A1:P${table.length}"/>`
-    + `<sheetViews><sheetView tabSelected="1" workbookViewId="0"><pane ySplit="5" topLeftCell="A6" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A6" sqref="A6"/></sheetView></sheetViews>`
-    + '<sheetFormatPr defaultRowHeight="15"/>'
-    + '<cols>' + widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('') + '</cols>'
-    + '<sheetData>';
-  const merges=[];
-  table.forEach((row,ri)=>{
-    const rn = ri+1;
-    const st = {title:1, sub:2, head:3, body:4, ms:5, sec:6}[row.style] || 4;
-    const hasNl = row.cells.some(c=>/[\r\n]/.test(String(c||'')));
-    const ht = row.style==='title' ? 24 : (hasNl ? 34 : (row.style==='body' ? 30 : 20));
-    sheet += `<row r="${rn}" ht="${ht}" customHeight="1">`;
-    row.cells.forEach((c,ci)=>{
-      const v = esc(c);
-      if(v==='' && !row.merge) { sheet += `<c r="${torColName(ci)}${rn}" s="${st}"/>`; return; }
-      sheet += `<c r="${torColName(ci)}${rn}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${v}</t></is></c>`;
+    const aoa=[]; const merges=[]; const styleOf=[];   // จำสไตล์ของแต่ละแถวไว้ทาสีทีหลัง
+    const pushRow=(cells, style, merge)=>{
+      const row = BLANK.slice();
+      cells.forEach((c,i)=>{ row[i]=clean(c); });
+      aoa.push(row); styleOf.push(style);
+      if(merge) merges.push({s:{r:aoa.length-1,c:0}, e:{r:aoa.length-1,c:15}});
+    };
+
+    pushRow(['Scope of Work/ Job Responsiblities Matrix'],'title',true);
+    pushRow([`ตัวแตก TOR ${TOR_ENGINE_VERSION} · แหล่งข้อมูล: ${TOR.fileName}${TOR.pages?` (${TOR.pages} หน้า)`:''} · สร้างเมื่อ ${new Date().toLocaleString('th-TH')} · พบ ${TOR.milestones.length} งวดงาน จาก ${TOR.clauses.length} ข้อ TOR`],'sub',true);
+    if(TOR.pay && TOR.pay.items.length){
+      const line='สรุปเงินรายงวด: ' + TOR.pay.items.map(x=>
+        `งวดที่ ${x.no} = ${x.pct?x.pct+'%':(x.amount?Number(x.amount).toLocaleString()+' บาท':'ไม่ระบุ')}`
+        + (x.period?` (${x.period})`:(x.days?` (ภายใน ${x.days} วัน)`:''))).join(' · ')
+        + (TOR.pay.complete?'   [รวม 100%]':`   [รวม ${TOR.pay.pctSum}% - ตรวจสอบ]`);
+      pushRow([line],'sub',true);
+    }
+    pushRow([],'body');
+    pushRow(H,'head');
+    TOR.rows.forEach(r=>{
+      if(r.kind==='ms')       pushRow([r.desc],'ms',true);
+      else if(r.kind==='sec') pushRow([r.desc],'sec',true);
+      else pushRow([r.tor,r.type,r.desc,r.note,r.ms,r.cond],'body');
     });
-    // เติมเซลล์ที่เหลือให้ครบ 16 คอลัมน์ เพื่อให้พื้นหลัง/เส้นขอบต่อเนื่อง
-    for(let ci=row.cells.length; ci<16; ci++) sheet += `<c r="${torColName(ci)}${rn}" s="${st}"/>`;
-    sheet += '</row>';
-    if(row.merge) merges.push(`A${rn}:P${rn}`);
-  });
-  sheet += '</sheetData>';
-  // ลำดับตามมาตรฐาน OOXML: sheetData -> autoFilter -> mergeCells (สลับลำดับแล้ว Excel จะฟ้องไฟล์เสีย)
-  sheet += `<autoFilter ref="A5:P${table.length}"/>`;
-  if(merges.length) sheet += `<mergeCells count="${merges.length}">` + merges.map(m=>`<mergeCell ref="${m}"/>`).join('') + '</mergeCells>';
-  sheet += '</worksheet>';
 
-  // ---- styles.xml : TH SarabunPSK ทุกเซลล์ ----
-  const F='TH SarabunPSK';
-  const styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-    + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-    + '<fonts count="5">'
-      + `<font><sz val="12"/><name val="${F}"/></font>`
-      + `<font><b/><sz val="18"/><name val="${F}"/></font>`
-      + `<font><i/><sz val="12"/><color rgb="FF808080"/><name val="${F}"/></font>`
-      + `<font><b/><sz val="12"/><name val="${F}"/></font>`
-      + `<font><sz val="12"/><name val="${F}"/></font>`
-    + '</fonts>'
-    + '<fills count="6">'
-      + '<fill><patternFill patternType="none"/></fill>'
-      + '<fill><patternFill patternType="gray125"/></fill>'
-      + '<fill><patternFill patternType="solid"><fgColor rgb="FFD9D9D9"/><bgColor indexed="64"/></patternFill></fill>'
-      + '<fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill>'
-      + '<fill><patternFill patternType="solid"><fgColor rgb="FFE2EFDA"/><bgColor indexed="64"/></patternFill></fill>'
-      + '<fill><patternFill patternType="none"/></fill>'
-    + '</fills>'
-    + '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>'
-      + '<border><left style="thin"><color rgb="FFBFBFBF"/></left><right style="thin"><color rgb="FFBFBFBF"/></right>'
-      + '<top style="thin"><color rgb="FFBFBFBF"/></top><bottom style="thin"><color rgb="FFBFBFBF"/></bottom><diagonal/></border></borders>'
-    + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-    + '<cellXfs count="7">'
-      + '<xf numFmtId="0" xfId="0" fontId="0" fillId="0" borderId="0" applyFont="1"/>'                                                            /* 0 default */
-      + '<xf numFmtId="0" xfId="0" fontId="1" fillId="0" borderId="0" applyFont="1"/>'                                                            /* 1 title */
-      + '<xf numFmtId="0" xfId="0" fontId="2" fillId="0" borderId="0" applyFont="1"/>'                                                            /* 2 sub */
-      + '<xf numFmtId="0" xfId="0" fontId="3" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'  /* 3 head */
-      + '<xf numFmtId="0" xfId="0" fontId="0" fillId="0" borderId="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'                                       /* 4 body */
-      + '<xf numFmtId="0" xfId="0" fontId="3" fillId="3" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'                         /* 5 ms */
-      + '<xf numFmtId="0" xfId="0" fontId="3" fillId="4" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'                         /* 6 sec */
-    + '</cellXfs>'
-    + '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
-    + '<dxfs count="0"/><tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/>'
-    + '</styleSheet>';
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols']=[{wch:14},{wch:15},{wch:80},{wch:32},{wch:17},{wch:50}].concat(Array(10).fill({wch:9}));
+    ws['!merges']=merges;
+    ws['!freeze']={xSplit:'0', ySplit:'5', topLeftCell:'A6'};
+    ws['!autofilter']={ref:`A5:P${aoa.length}`};
+    ws['!rows']=styleOf.map((st,i)=>{
+      const hasNl=aoa[i].some(c=>String(c).indexOf('\n')>=0);
+      return {hpt: st==='title'?24 : (hasNl?34 : (st==='body'?30:20))};
+    });
 
-  const R='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
-  const files=[
-    {name:'[Content_Types].xml', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-      +'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-      +'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
-      +'<Default Extension="xml" ContentType="application/xml"/>'
-      +'<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
-      +'<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
-      +'<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
-      +'</Types>'},
-    {name:'_rels/.rels', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-      +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-      +`<Relationship Id="rId1" Type="${R}/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
-    {name:'xl/workbook.xml', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-      +`<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="${R}">`
-      +'<fileVersion appName="xl" lastEdited="7" lowestEdited="7" rupBuild="26426"/>'
-      +'<workbookPr defaultThemeVersion="166925"/>'
-      +'<bookViews><workbookView xWindow="0" yWindow="0" windowWidth="20490" windowHeight="7755"/></bookViews>'
-      +'<sheets><sheet name="Scope of Work" sheetId="1" r:id="rId1"/></sheets>'
-      +'<calcPr calcId="0"/></workbook>'},
-    {name:'xl/_rels/workbook.xml.rels', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-      +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-      +`<Relationship Id="rId1" Type="${R}/worksheet" Target="worksheets/sheet1.xml"/>`
-      +`<Relationship Id="rId2" Type="${R}/styles" Target="styles.xml"/></Relationships>`},
-    {name:'xl/styles.xml', data:styles},
-    {name:'xl/worksheets/sheet1.xml', data:sheet},
-  ];
-  const blob = new Blob([torZip(files)], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=`Scope_of_Work_${TOR.fileName.replace(/\.[^.]+$/,'')}.xlsx`;
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1500);
+    // จัดรูปแบบทุกเซลล์ - TH SarabunPSK ทั้งไฟล์ตามที่ใช้กันในเอกสารราชการ
+    const FILL={head:'D9D9D9', ms:'FFF2CC', sec:'E2EFDA'};
+    const border={style:'thin', color:{rgb:'FFBFBFBF'}};
+    for(let r=0;r<aoa.length;r++){
+      const st=styleOf[r];
+      for(let c=0;c<16;c++){
+        const ref=XLSX.utils.encode_cell({r,c});
+        if(!ws[ref]) ws[ref]={t:'s', v:''};
+        const sz = st==='title'?18 : (st==='sub'?12:12);
+        ws[ref].s = {
+          font:{ name:'TH SarabunPSK', sz,
+                 bold: st==='title'||st==='head'||st==='ms'||st==='sec',
+                 italic: st==='sub',
+                 color: st==='sub'?{rgb:'FF808080'}:undefined },
+          alignment:{ wrapText:true,
+                      vertical: st==='head'?'center':'top',
+                      horizontal: st==='head'?'center':undefined },
+          fill: FILL[st] ? {patternType:'solid', fgColor:{rgb:'FF'+FILL[st]}} : undefined,
+          border: (st==='title'||st==='sub') ? undefined
+                : {top:border,bottom:border,left:border,right:border}
+        };
+      }
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Scope of Work');
+    // ให้ SheetJS สร้างโครงไฟล์ (ถูกต้องแน่นอน) แล้วค่อยแก้ชื่อฟอนต์ในไฟล์สไตล์
+    // เพราะรุ่นฟรีของ SheetJS ไม่เขียนสไตล์ให้ ถ้าไม่แก้จะได้ Calibri แทน TH SarabunPSK
+    const buf = XLSX.write(wb, {bookType:'xlsx', type:'array', compression:true});
+    const out = await torRestyleXlsx(buf);
+    const blob = new Blob([out], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`Scope_of_Work_${TOR.fileName.replace(/\.[^.]+$/,'')}.xlsx`;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1500);
+  }catch(e){
+    alert('สร้างไฟล์ไม่สำเร็จ: ' + String(e.message||e));
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='⬇ ดาวน์โหลด Scope of Work (.xlsx)'; }
+  }
 }
 
 // ---------- 6) UI ----------
