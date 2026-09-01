@@ -537,6 +537,7 @@
   .tor-ocr-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
   .tor-ocr-row label{font-size:11px;color:var(--ink-2);display:inline-flex;align-items:center;gap:5px;}
   .tor-ocr-row input{width:66px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:12px;font-family:'IBM Plex Mono',monospace;}
+  .tor-ai-done.none{background:var(--warning-tint);border-left-color:var(--warning);}
   .tor-ai-done{margin:0 18px 10px;padding:9px 13px;border-radius:9px;font-size:11.5px;line-height:1.7;
     background:#F2F6F1;border-left:3px solid var(--success);color:var(--ink-2);}
   .tor-btn.ai{background:#EDE4D8;border-color:var(--brand-2);color:var(--brand);font-weight:700;}
@@ -4789,7 +4790,7 @@ function allocateCollection(proj){
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
 // หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
 // จึงแกะด้วยกฎได้โดยไม่ต้องพึ่ง AI - แม่นกับเอกสารที่เป็น text ส่วนไฟล์สแกนต้อง OCR มาก่อน
-const TOR_ENGINE_VERSION = 'v179';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
+const TOR_ENGINE_VERSION = 'v180';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
 const TOR = { text:'', clauses:[], milestones:[], rows:[], fileName:'', pages:0 };
 
 // โหลดไลบรารีเฉพาะตอนเปิดไฟล์ที่ต้องใช้จริง - ถ้าเน็ตเข้า CDN ไม่ได้ ไฟล์ .txt/.csv ยังใช้งานได้ปกติ
@@ -5977,6 +5978,8 @@ async function torAiEnhance(){
   // (บั๊กเดิม: จับ element ไว้ครั้งเดียว ข้อความจึงหายไปหลังวาดใหม่ ดูเหมือนระบบค้าง)
   const setMsg=t=>{ const el=document.getElementById('torAiMsg'); if(el) el.innerHTML=t; };
   let usedTokens=0, calls=0;
+  let nTyped=0, nFlagged=0, nFocused=0;   // นับผลของรอบนี้เท่านั้น
+  const skipped=[];                        // เก็บเหตุผลที่ข้ามงาน จะได้ไม่เงียบหาย
   try{
     // ---- งานที่ 1: จัดประเภทที่กฎเดาไม่ได้ ----
     const unknown = TOR.rows.filter(r=>!r.kind && r.type==='Other');
@@ -5987,6 +5990,7 @@ async function torAiEnhance(){
       btn.disabled=false; return;
     }
     setMsg(`เริ่มทำงาน... (จัดประเภท ${unknown.length} · สเปค ${Math.min(specsAll.length,20)} · งวด ${Math.min(msAll.length,6)})`);
+    if(!unknown.length) skipped.push('ไม่มีงานที่จัดประเภทไม่ได้');
     if(unknown.length){
       // free tier จำกัดราว 8,000 tokens/นาที จึงส่งทีละ 20 รายการและเว้นระยะ 20 วินาที
       // (แต่ละรอบใช้ราว 2,000-2,500 tokens - ส่งถี่กว่านี้จะชนเพดานแล้วต้องรอนานกว่าเดิม)
@@ -5998,7 +6002,7 @@ async function torAiEnhance(){
         const j=await torAiCall('classify', batch.map(r=>r.desc));
         (j.result||[]).forEach(x=>{
           const t=batch[(x.n|0)-1];
-          if(t && x.type && x.type!=='Other'){ t.type=x.type; t.aiType=true; }
+          if(t && x.type && x.type!=='Other'){ t.type=x.type; t.aiType=true; nTyped++; }
         });
         usedTokens+=j.tokens||0; calls++;
         if(i+BATCH<unknown.length){
@@ -6011,13 +6015,14 @@ async function torAiEnhance(){
     }
     // ---- งานที่ 2: หาข้อผูกพันที่ซ่อนในสเปค ----
     const specs = TOR.rows.filter(r=>!r.kind && r.type==='Spec').slice(0,20);
+    if(!specs.length) skipped.push('ไม่มีหมวดสเปคให้ตรวจ');
     if(specs.length){
       setMsg('รอโควตา Groq ก่อนหาข้อผูกพันที่ซ่อนในสเปค...');
       await new Promise(r=>setTimeout(r,20000));
       const j=await torAiCall('hidden', specs.map(r=>r.desc));
       (j.result||[]).forEach(x=>{
         const t=specs[(x.n|0)-1];
-        if(t){ t.note=(t.note?t.note+' · ':'')+'⚠ AI: '+(x.why||'อาจเป็นข้อผูกพัน'); t.aiFlag=true; }
+        if(t){ t.note=(t.note?t.note+' · ':'')+'⚠ AI: '+(x.why||'อาจเป็นข้อผูกพัน'); t.aiFlag=true; nFlagged++; }
       });
       usedTokens+=j.tokens||0; calls++;
     }
@@ -6029,12 +6034,12 @@ async function torAiEnhance(){
       for(let i=idx+1;i<TOR.rows.length && !(TOR.rows[i].kind==='ms');i++){
         if(!TOR.rows[i].kind) tasks.push(TOR.rows[i].desc);
       }
-      if(tasks.length<2) continue;
+      if(tasks.length<2){ skipped.push(`${ms.desc.split('|')[0].slice(0,26)} มีงานน้อยกว่า 2 รายการ`); continue; }
       setMsg(`รอโควตา แล้วสรุปโฟกัส: ${ms.desc.slice(0,30)}...`);
       await new Promise(r=>setTimeout(r,20000));
       const j=await torAiCall('focus', tasks.slice(0,20));
       const f=j.result||{};
-      if(f.focus) ms.aiFocus=f.focus;
+      if(f.focus){ ms.aiFocus=f.focus; nFocused++; }
       if(f.risk) ms.aiRisk=f.risk;
       usedTokens+=j.tokens||0; calls++;
     }
@@ -6049,13 +6054,17 @@ async function torAiEnhance(){
     TOR.aiDone=true;
     TOR.aiSummary={
       calls, tokens: usedTokens,
-      typed: TOR.rows.filter(r=>r.aiType).length,
-      flagged: TOR.rows.filter(r=>r.aiFlag).length,
-      focused: TOR.rows.filter(r=>r.aiFocus).length,
+      typed: nTyped, flagged: nFlagged, focused: nFocused,   // นับเฉพาะรอบนี้ ไม่สะสม
+      skipped,                                                // บอกด้วยว่าข้ามอะไรไปเพราะอะไร
       at: new Date().toLocaleTimeString('th-TH')
     };
     torShowResult('');
-    setMsg(`<b style="color:var(--success)">✓ AI ช่วยเสริมเรียบร้อย</b> - เรียก ${calls} ครั้ง${usedTokens?` · ใช้ ${usedTokens.toLocaleString()} tokens`:''}`);
+    if(calls===0){
+      setMsg(`<b style="color:var(--warning)">ไม่ได้เรียก AI เลย</b> - ไม่มีงานที่ AI ช่วยได้ในเอกสารนี้`
+        + (skipped.length?`<div style="font-size:10px;color:var(--faint);margin-top:4px">เหตุผล: ${skipped.join(' · ')}</div>`:''));
+    } else {
+      setMsg(`<b style="color:var(--success)">✓ AI ช่วยเสริมเรียบร้อย</b> - เรียก ${calls} ครั้ง${usedTokens?` · ใช้ ${usedTokens.toLocaleString()} tokens`:''}`);
+    }
   }catch(e){
     setMsg(`<b style="color:var(--critical)">AI ไม่สำเร็จ:</b> ${String(e.message||e)}`
       + (e.raw?`<div style="font-size:10px;color:var(--faint);margin-top:4px">AI ตอบมาว่า: ${String(e.raw).slice(0,220)}</div>`:''));
@@ -6091,10 +6100,11 @@ function torShowResult(prefix){
       <button class="tor-btn" onclick="document.getElementById('torPreview').classList.toggle('open')">ดูตัวอย่างผลลัพธ์</button>
       <button class="tor-btn ${TOR.aiDone?'':'ai'}" id="torAiBtn" onclick="torAiEnhance()">${TOR.aiDone?'🤖 ให้ AI ช่วยอีกครั้ง':'🤖 ให้ AI ช่วยเสริม'}</button>
     </div>
-    ${TOR.aiSummary?`<div class="tor-ai-done">
-      <b>✓ AI ช่วยเสริมแล้ว</b> เมื่อ ${TOR.aiSummary.at} · เรียก ${TOR.aiSummary.calls} ครั้ง${TOR.aiSummary.tokens?` · ${TOR.aiSummary.tokens.toLocaleString()} tokens`:''}
-      <div class="tor-qa-l">จัดประเภทให้ ${TOR.aiSummary.typed} รายการ · ติดธงข้อผูกพันในสเปค ${TOR.aiSummary.flagged} รายการ · สรุปโฟกัส ${TOR.aiSummary.focused} งวด
-      ${TOR.aiSummary.typed+TOR.aiSummary.flagged+TOR.aiSummary.focused===0?'<br><b style="color:var(--warning)">AI ไม่ได้แก้อะไรเลย - อาจไม่มีงานที่ต้องจัดประเภท หรือ AI ตอบไม่ตรงรูปแบบ</b>':''}</div>
+    ${TOR.aiSummary?`<div class="tor-ai-done ${TOR.aiSummary.calls?'':'none'}">
+      <b>${TOR.aiSummary.calls?'✓ AI ช่วยเสริมแล้ว':'AI ไม่ได้ทำงาน'}</b> เมื่อ ${TOR.aiSummary.at}${TOR.aiSummary.calls?` · เรียก ${TOR.aiSummary.calls} ครั้ง`:' · ไม่ได้เรียก API เลย'}${TOR.aiSummary.tokens?` · ${TOR.aiSummary.tokens.toLocaleString()} tokens`:''}
+      <div class="tor-qa-l">${TOR.aiSummary.calls
+        ? `จัดประเภทให้ ${TOR.aiSummary.typed} รายการ · ติดธงข้อผูกพันในสเปค ${TOR.aiSummary.flagged} รายการ · สรุปโฟกัส ${TOR.aiSummary.focused} งวด`
+        : `ไม่มีงานที่ AI ช่วยได้ในเอกสารนี้${(TOR.aiSummary.skipped||[]).length?` - ${TOR.aiSummary.skipped.join(' · ')}`:''}`}</div>
     </div>`:''}
     <div id="torAiMsg" class="tor-ai-msg"></div>
     <div class="tor-ai-note">AI ช่วยเฉพาะจุดที่กฎทำไม่ได้ - จัดประเภทงานที่เดาไม่ออก · หาข้อผูกพันที่ซ่อนในสเปค · สรุปสิ่งที่ PM ควรโฟกัสแต่ละงวด
