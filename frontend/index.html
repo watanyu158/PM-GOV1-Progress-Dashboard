@@ -4798,7 +4798,7 @@ function allocateCollection(proj){
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
 // หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
 // จึงแกะด้วยกฎได้โดยไม่ต้องพึ่ง AI - แม่นกับเอกสารที่เป็น text ส่วนไฟล์สแกนต้อง OCR มาก่อน
-const TOR_ENGINE_VERSION = 'v188';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
+const TOR_ENGINE_VERSION = 'v194';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
 const TOR = { text:'', clauses:[], milestones:[], rows:[], fileName:'', pages:0 };
 
 // โหลดไลบรารีเฉพาะตอนเปิดไฟล์ที่ต้องใช้จริง - ถ้าเน็ตเข้า CDN ไม่ได้ ไฟล์ .txt/.csv ยังใช้งานได้ปกติ
@@ -4987,7 +4987,20 @@ async function torExtract(file, onProg){
     for(let i=1;i<=pdf.numPages;i++){
       const page = await pdf.getPage(i);
       const tc = await page.getTextContent();
-      const txt = tc.items.map(x=>x.str).join(' ');
+      // จัดกลุ่มข้อความตามพิกัดแนวตั้ง เพื่อให้ได้ "บรรทัด" จริงตามที่เห็นในเอกสาร
+      // (ถ้า join ต่อกันเฉย ๆ จะได้บรรทัดเดียวยาวทั้งหน้า แล้วแตกข้อไม่ได้เลย)
+      const lineMap = new Map();
+      tc.items.forEach(it=>{
+        const y = Math.round((it.transform && it.transform[5]) || 0);
+        const key = Math.round(y/3);          // เผื่อความคลาดเคลื่อนของเส้นฐาน
+        const x = (it.transform && it.transform[4]) || 0;
+        if(!lineMap.has(key)) lineMap.set(key, []);
+        lineMap.get(key).push({x, s:it.str});
+      });
+      const txt = [...lineMap.entries()]
+        .sort((a,b)=>b[0]-a[0])                                  // บนลงล่าง
+        .map(([,parts])=>parts.sort((a,b)=>a.x-b.x).map(p=>p.s).join('').replace(/\s+/g,' ').trim())
+        .filter(Boolean).join('\n');
       if(txt.replace(/\s/g,'').length < 10) emptyPages++;
       out.push(txt);
       page.cleanup();                       // คืนหน่วยความจำทันที กันไฟล์ใหญ่กินแรม
@@ -5109,7 +5122,15 @@ function torJoinNumberLines(lines){
 async function torParseClausesAsync(text, onProg){
   let t = torThaiDigits(text)
             .replace(/(?<=[\u0E00-\u0E7F]) (?=[\u0E00-\u0E7F])/g,'').replace(/[ \t]+/g,' ');
-  const lines = torJoinNumberLines(t.split(/\r?\n/).map(x=>x.trim()).filter(Boolean));
+  // ถ้าบรรทัดยาวผิดปกติ (เอกสารบางไฟล์คืนข้อความมาเป็นก้อนเดียว) ให้ตัดก่อนเลขข้อเสียก่อน
+  const rawLines = t.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  const avgLen = rawLines.length ? t.length/rawLines.length : 0;
+  const split = avgLen > 200
+    ? rawLines.flatMap(l => l.replace(/\s(?=\d{1,2}(?:\.\d{1,2}){0,2}\.?\s+[\u0E00-\u0E7Fa-zA-Z(])/g,'\n')
+                             .replace(/\s(?=\(\d{1,2}\)\s)/g,'\n')
+                             .split('\n').map(x=>x.trim()).filter(Boolean))
+    : rawLines;
+  const lines = torJoinNumberLines(split);
   const out=[]; let cur=null, lastTopNo=null;
   for(let i=0;i<lines.length;i++){
     const ln=lines[i];
@@ -5206,7 +5227,21 @@ function torParseMilestones(clauses){
     cur.refs = [...new Set([...(cur.refs||[]), ...(m.refs||[])])];
     if(m.cond && cur.cond.indexOf(m.cond.slice(0,30))<0) cur.cond += ' | ' + m.cond;
   });
-  return Object.values(merged).sort((a,b)=>a.no-b.no);
+  const outMs = Object.values(merged).sort((a,b)=>a.no-b.no);
+  if(outMs.length) return outMs;
+
+  // ไม่มี "งวดที่ N" เลย -> มองหาเงื่อนไขจ่ายเงินครั้งเดียว (TOR จัดซื้อส่วนใหญ่เป็นแบบนี้)
+  const single = clauses.find(c =>
+    /(?:จะ)?จ่าย|ชำระเงิน/.test(c.text) &&
+    /เมื่อ.*ส่งมอบ|ส่งมอบ.*ครบถ้วน|ตรวจรับ/.test(c.text) &&
+    /ข้อ\s*\d/.test(c.text));
+  if(single){
+    const refs=[...new Set((single.text.match(/ข้อ\s*\d{1,2}(?:\.\d{1,2}){0,2}(?:\s*[-–]\s*(?:\d{1,2}\.)?\d{1,2})?/g)||[])
+      .map(x=>x.replace(/ข้อ\s*/,'').trim()))];
+    return [{no:1, pct:null, cond:'จ่ายครั้งเดียวเมื่อส่งมอบครบถ้วนและตรวจรับเรียบร้อย · ' + single.text,
+             refs, clause:single.no, single:true}];
+  }
+  return outMs;
 }
 
 // ไฟล์ Comply มักรวม 3 เอกสารไว้ด้วยกัน (เอกสารประกวดราคา / TOR / คุณลักษณะเฉพาะ)
@@ -5217,7 +5252,9 @@ function torPickTorSegment(clauses){
   const cuts=[0];
   for(let i=1;i<clauses.length;i++){
     const a=parseInt(clauses[i-1].no,10), b=parseInt(clauses[i].no,10);
-    if(b===1 && a>=3 && clauses[i].depth===1) cuts.push(i);
+    // ต้องเป็นการเริ่มเอกสารใหม่จริง ๆ ไม่ใช่รายการย่อยที่วนเลข - ดูว่าเลขก่อนหน้าสูงพอและข้อถัดไปไล่ต่อเนื่อง
+    const nextNo = clauses[i+1] ? parseInt(clauses[i+1].no,10) : 0;
+    if(b===1 && a>=6 && clauses[i].depth===1 && nextNo===2) cuts.push(i);
   }
   cuts.push(clauses.length);
   if(cuts.length<=2) return clauses;          // มีชุดเดียว ใช้ทั้งหมด
@@ -5289,6 +5326,9 @@ const TOR_HIDDEN=/ผู้ขายต้อง|ผู้รับจ้าง�
 
 // หมวดที่เป็นสาระของงานเสมอ ไม่ว่าเนื้อหาจะดูคล้ายอะไร - กันกรองแรงเกินจนของหาย
 const TOR_ALWAYS_WORK=/^(วัตถุประสงค์|ขอบเขต|ลักษณะงาน|ความต้องการ|การติดตั้ง|การทดสอบ|การฝึกอบรม|การอบรม|ระยะเวลา|การส่งมอบ|เอกสารส่งมอบ|การรับประกัน|อัตราค่าปรับ|ค่าปรับ|เงื่อนไขการชำระ|กรรมสิทธิ|ลิขสิทธิ|การดำเนินงาน|การดำเนินการ)/;
+
+// ข้อย่อยที่เป็น "งานที่ต้องทำ" แม้อยู่ในหมวดสเปค - ต้องดึงออกมาไม่ให้ตกหล่น
+const TOR_WORK_IN_SPEC = /^(?:การ)?(?:ติดตั้ง|ฝึกอบรม|อบรม|ทดสอบ|ส่งมอบ|บริการหลังการขาย|บำรุงรักษา|รับประกัน|ออกแบบ|โอนย้าย|รื้อถอน)/;
 
 function torClassify(head, kids){
   const ht=String(head&&head.text||'');
@@ -5559,7 +5599,7 @@ function torBuildRows(clauses, ms){
     // หัวงวดต้องตอบ 3 คำถามของ PM ทันที: ได้เงินเท่าไหร่ · ภายในเมื่อไหร่ · ต้องทำอะไร
     const money = torMoneyOfMilestone(m.cond);
     const scopeRefs = m.refs.filter(x=>!/^1[23]\./.test(x)).join(', ');
-    const parts = [`งวดที่ ${m.no}`];
+    const parts = [m.single ? 'ส่งมอบครั้งเดียว (จ่ายเงินงวดเดียว)' : `งวดที่ ${m.no}`];
     if(m.pct || money.pct) parts.push(`ร้อยละ ${m.pct || money.pct}`);
     if(money.amount) parts.push(`${Number(money.amount).toLocaleString()} บาท`);
     if(money.days) parts.push(`ภายใน ${money.days} วัน`);
@@ -5713,7 +5753,24 @@ function torBuildRows(clauses, ms){
       if(!kids.length) return;
       const cls = torClassify(h, kids);
       const isSkip = cls==='skip', isSpec = cls==='spec';
-      if(isSpec){ specHeads.push(h); return; }
+      if(isSpec){
+        specHeads.push(h);
+        // ดึงข้อย่อยที่เป็นงานจริงออกมาแสดง ไม่ให้หายไปกับหมวดสเปค
+        const realWork = kids.filter(c=>TOR_WORK_IN_SPEC.test(c.text.trim()));
+        if(realWork.length){
+          shown++;
+          push({kind:'ms', desc:`ข้อ ${h.no}. ${h.text.slice(0,150)}\n(หมวดนี้เป็นรายละเอียดพัสดุ แต่มีงานที่ต้องทำอยู่ข้างใน)`});
+          realWork.forEach((c,i)=>{
+            push({tor:c.no, type:torType(c.text), desc:`${i+1}) ${c.text}`,
+                  ms:'ตามเงื่อนไขส่งมอบ', cond:`อยู่ในหมวด ${h.no} รายละเอียดพัสดุ`});
+            clauses.filter(x=>x.no.startsWith(c.no+'.') && x.no!==c.no).forEach((sub,j)=>{
+              push({tor:sub.no, type:torType(sub.text), desc:`   ${i+1}.${j+1}) ${sub.text}`,
+                    ms:'ตามเงื่อนไขส่งมอบ', cond:''});
+            });
+          });
+        }
+        return;
+      }
       if(isSkip){ skippedHeads.push(h); return; }
       const isCond = KEEPCOND.test(h.text);
       shown++;
@@ -5932,8 +5989,10 @@ function torExportExcel(){
     return;
   }
   const esc = v => torThaiDigits(String(v==null?'':v))
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'');
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    .replace(/\r\n?/g,'\n')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'')
+    .replace(/\n/g,'&#10;');
   const H=['Item/ToR No.','ประเภท','Description/รายละเอียด','หมายเหตุ','งวดงานที่','เงื่อนไข/ข้อกำหนด',
            'Sales','PM','PE','Sub1','Sub2','Sub3','Sub4','Sub5','Sub6','Sub7'];
 
@@ -5960,15 +6019,16 @@ function torExportExcel(){
   const widths=[14,15,80,32,17,50].concat(Array(10).fill(9));
   let sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
     + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-    + '<sheetPr><outlinePr summaryBelow="1"/></sheetPr>'
-    + `<sheetViews><sheetView workbookViewId="0" tabSelected="1"><pane ySplit="5" topLeftCell="A6" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`
+    + `<dimension ref="A1:P${table.length}"/>`
+    + `<sheetViews><sheetView tabSelected="1" workbookViewId="0"><pane ySplit="5" topLeftCell="A6" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A6" sqref="A6"/></sheetView></sheetViews>`
+    + '<sheetFormatPr defaultRowHeight="15"/>'
     + '<cols>' + widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('') + '</cols>'
     + '<sheetData>';
   const merges=[];
   table.forEach((row,ri)=>{
     const rn = ri+1;
     const st = {title:1, sub:2, head:3, body:4, ms:5, sec:6}[row.style] || 4;
-    const hasNl = row.cells.some(c=>String(c||'').indexOf('\n')>=0);
+    const hasNl = row.cells.some(c=>/[\r\n]/.test(String(c||'')));
     const ht = row.style==='title' ? 24 : (hasNl ? 34 : (row.style==='body' ? 30 : 20));
     sheet += `<row r="${rn}" ht="${ht}" customHeight="1">`;
     row.cells.forEach((c,ci)=>{
@@ -5982,8 +6042,10 @@ function torExportExcel(){
     if(row.merge) merges.push(`A${rn}:P${rn}`);
   });
   sheet += '</sheetData>';
+  // ลำดับตามมาตรฐาน OOXML: sheetData -> autoFilter -> mergeCells (สลับลำดับแล้ว Excel จะฟ้องไฟล์เสีย)
+  sheet += `<autoFilter ref="A5:P${table.length}"/>`;
   if(merges.length) sheet += `<mergeCells count="${merges.length}">` + merges.map(m=>`<mergeCell ref="${m}"/>`).join('') + '</mergeCells>';
-  sheet += `<autoFilter ref="A5:P${table.length}"/></worksheet>`;
+  sheet += '</worksheet>';
 
   // ---- styles.xml : TH SarabunPSK ทุกเซลล์ ----
   const F='TH SarabunPSK';
@@ -6009,14 +6071,17 @@ function torExportExcel(){
       + '<top style="thin"><color rgb="FFBFBFBF"/></top><bottom style="thin"><color rgb="FFBFBFBF"/></bottom><diagonal/></border></borders>'
     + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
     + '<cellXfs count="7">'
-      + '<xf xfId="0" fontId="0" fillId="0" borderId="0" applyFont="1"/>'                                                            /* 0 default */
-      + '<xf xfId="0" fontId="1" fillId="0" borderId="0" applyFont="1"/>'                                                            /* 1 title */
-      + '<xf xfId="0" fontId="2" fillId="0" borderId="0" applyFont="1"/>'                                                            /* 2 sub */
-      + '<xf xfId="0" fontId="3" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'  /* 3 head */
-      + '<xf xfId="0" fontId="0" fillId="0" borderId="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'                                       /* 4 body */
-      + '<xf xfId="0" fontId="3" fillId="3" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'                         /* 5 ms */
-      + '<xf xfId="0" fontId="3" fillId="4" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'                         /* 6 sec */
-    + '</cellXfs></styleSheet>';
+      + '<xf numFmtId="0" xfId="0" fontId="0" fillId="0" borderId="0" applyFont="1"/>'                                                            /* 0 default */
+      + '<xf numFmtId="0" xfId="0" fontId="1" fillId="0" borderId="0" applyFont="1"/>'                                                            /* 1 title */
+      + '<xf numFmtId="0" xfId="0" fontId="2" fillId="0" borderId="0" applyFont="1"/>'                                                            /* 2 sub */
+      + '<xf numFmtId="0" xfId="0" fontId="3" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'  /* 3 head */
+      + '<xf numFmtId="0" xfId="0" fontId="0" fillId="0" borderId="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'                                       /* 4 body */
+      + '<xf numFmtId="0" xfId="0" fontId="3" fillId="3" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'                         /* 5 ms */
+      + '<xf numFmtId="0" xfId="0" fontId="3" fillId="4" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'                         /* 6 sec */
+    + '</cellXfs>'
+    + '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
+    + '<dxfs count="0"/><tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/>'
+    + '</styleSheet>';
 
   const R='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
   const files=[
@@ -6033,7 +6098,11 @@ function torExportExcel(){
       +`<Relationship Id="rId1" Type="${R}/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
     {name:'xl/workbook.xml', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       +`<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="${R}">`
-      +'<sheets><sheet name="Scope of Work" sheetId="1" r:id="rId1"/></sheets></workbook>'},
+      +'<fileVersion appName="xl" lastEdited="7" lowestEdited="7" rupBuild="26426"/>'
+      +'<workbookPr defaultThemeVersion="166925"/>'
+      +'<bookViews><workbookView xWindow="0" yWindow="0" windowWidth="20490" windowHeight="7755"/></bookViews>'
+      +'<sheets><sheet name="Scope of Work" sheetId="1" r:id="rId1"/></sheets>'
+      +'<calcPr calcId="0"/></workbook>'},
     {name:'xl/_rels/workbook.xml.rels', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
       +`<Relationship Id="rId1" Type="${R}/worksheet" Target="worksheets/sheet1.xml"/>`
