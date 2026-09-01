@@ -6082,11 +6082,17 @@ function torBuildRows(clauses, ms){
         const hidden = items.map(x=>({text:x, why:torHiddenReason(x)})).filter(x=>x.why);
         SPEC_SHEET.push({no:sn.no, target:sn.target, title, items, ms:m.no});
 
+        // หมายเหตุหน้าหลักต้องสั้น อ่านแล้วรู้ว่าไปดูที่ไหน + ต้องการของกี่ชิ้น
+        // (เดิมยาวเกินไปเมื่อข้อเดียวมีสเปคอ้างถึงหลายข้อ)
         const qty = torQtySummary(sn.text);
-        const parts = [`[สเปคข้อ ${sn.no}${sn.target?` (ของข้อ ${sn.target})`:''} - รายละเอียดอยู่ชีต Specs]`];
-        if(qty.length) parts.push(`จำนวนที่ต้องการ: ${qty.join(' · ')}`);
-        const line = parts.join('\n');
-        if(host) host.note = (host.note ? host.note+'\n' : '') + line;
+        host && (host._specRefs = host._specRefs || []);
+        if(host){
+          host._specRefs.push(sn.no + (sn.target?`→${sn.target}`:''));
+          if(qty.length) (host._specQty = host._specQty || []).push(...qty);
+          const uniqQty = [...new Set(host._specQty||[])];
+          host.note = `[สเปคข้อ ${host._specRefs.join(', ')} - รายละเอียดอยู่ชีต Specs]`
+            + (uniqQty.length ? `\nจำนวนที่ต้องการ: ${uniqQty.join(' · ')}` : '');
+        }
 
         // ของแปลกที่แฝงในสเปค = ต้องขึ้นหน้าหลัก ไม่ปล่อยให้จมอยู่ในชีต Specs
         hidden.forEach(h=>{
@@ -6438,6 +6444,8 @@ async function torExportExcel(){
         sp.items.forEach(it=>{
           const num=(it.match(/^\((\d{1,2})\)/)||[])[1]||'';
           const body=it.replace(/^\(\d{1,2}\)\s*/,'').trim();
+          // ตัดเศษท้ายหัวข้อที่ถูกนับเป็นข้อย่อย เช่น "(1) ดังนี้" ซึ่งไม่ใช่รายการสเปค
+          if(body.length<12 || /^(ดังนี้|ดังต่อไปนี้|ต่อไปนี้)$/.test(body)) return;
           const q=torQtySummary(it);
           sPush([sp.no, sp.target||'', '', `(${num})`, body, q.join(' · '), sp.ms?`งวดงานที่ ${sp.ms}`:'', ''],'body');
         });
