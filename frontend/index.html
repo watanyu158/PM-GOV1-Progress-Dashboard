@@ -4789,7 +4789,7 @@ function allocateCollection(proj){
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
 // หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
 // จึงแกะด้วยกฎได้โดยไม่ต้องพึ่ง AI - แม่นกับเอกสารที่เป็น text ส่วนไฟล์สแกนต้อง OCR มาก่อน
-const TOR_ENGINE_VERSION = 'v174';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
+const TOR_ENGINE_VERSION = 'v179';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
 const TOR = { text:'', clauses:[], milestones:[], rows:[], fileName:'', pages:0 };
 
 // โหลดไลบรารีเฉพาะตอนเปิดไฟล์ที่ต้องใช้จริง - ถ้าเน็ตเข้า CDN ไม่ได้ ไฟล์ .txt/.csv ยังใช้งานได้ปกติ
@@ -5298,7 +5298,7 @@ function torDocName(text){
 // ถ้าไม่แยก PM จะไม่รู้ว่าต้องเตรียมเอกสารอะไรตอนไหน และไปรู้ตัวตอนงวดสุดท้ายซึ่งสายเกินไป
 function torMatchDocToMilestone(docText, msWorkMap, fallbackNo){
   const t = String(docText||'');
-  let best = null, bestScore = 0;
+  let best = null, bestScore = 0; const scores = {};
   // คำเฉพาะที่บอกชนิดงานได้ชัด - ใช้เป็นตัวชี้หลัก
   // คู่คำ [ชื่อเอกสาร, งานที่ผลิตเอกสารนั้น] - งานต้องเป็นการลงมือทำจริง ไม่ใช่การวางแผน
   const CUES = [
@@ -5330,9 +5330,14 @@ function torMatchDocToMilestone(docText, msWorkMap, fallbackNo){
     const words = t.match(/[\u0E00-\u0E7F]{4,}|[A-Za-z]{4,}/g) || [];
     const uniq = [...new Set(words)].slice(0,12);
     uniq.forEach(w=>{ if(workText.includes(w)) sc += 1; });
+    scores[no] = sc;
     if(sc > bestScore){ bestScore = sc; best = no; }
   });
-  return bestScore >= 3 ? best : fallbackNo;   // ไม่มั่นใจพอ ให้อยู่งวดเดิมที่ TOR อ้างไว้
+  // งวดที่ TOR ระบุไว้เดิมได้เปรียบ - ต้องมีงวดอื่นชนะขาด (มากกว่า 4 คะแนน) ถึงจะย้าย
+  // ไม่งั้นเอกสารที่ TOR วางไว้ถูกต้องแล้วจะถูกย้ายผิดเพราะคำซ้ำเล็กน้อย
+  const ownScore = scores[fallbackNo] || 0;
+  if(best && best !== fallbackNo && bestScore > ownScore + 4) return best;
+  return ownScore > 0 ? fallbackNo : (bestScore >= 6 ? best : fallbackNo);
 }
 
 // ===== งวดที่มีการติดตั้งอุปกรณ์ ต้องมีรายงานตรวจสอบคุณสมบัติอุปกรณ์เสมอ =====
@@ -5489,7 +5494,15 @@ function torBuildRows(clauses, ms){
       if(/^(?:จัดทำ)?(?:เอกสาร|รายงาน|คู่มือ|Source code|ผลการทดสอบ|ผลการฝึกอบรม)/i.test(t.trim())) return true;
       // ข้อย่อยของหัวข้อเอกสารส่งมอบ ก็ถือเป็นเอกสารส่งมอบด้วย
       const parent = byNo[r.split('.').slice(0,-1).join('.')];
-      if(parent && /เอกสารและคู่มือที่(?:จะ)?ต้องส่งมอบ|เอกสารที่ต้องส่งมอบ/.test(parent.text)) return true;
+      // ข้อแม่ที่ลงท้ายว่า "และเอกสารประกอบด้วย" / "เอกสารดังนี้" -> ลูกทุกตัวคือเอกสารส่งมอบ
+      if(parent && /เอกสารและคู่มือที่(?:จะ)?ต้องส่งมอบ|เอกสารที่ต้องส่งมอบ|(?:และ)?เอกสารประกอบด้วย|เอกสารดังนี้|เอกสารต่อไปนี้/.test(parent.text)) return true;
+      // ชื่อภาษาอังกฤษที่บอกว่าเป็นเอกสาร - ใช้ได้เฉพาะบรรทัดสั้นที่เป็น "ชื่อเอกสาร" ล้วน
+      // ไม่ใช้กับประโยคคำสั่งงาน เช่น "จัดทำแผนดำเนินงาน (Inception Report) ที่ประกอบด้วย..."
+      // ซึ่งเป็นงาน ไม่ใช่เอกสาร ถ้าจับผิดจะลากข้อย่อยทั้งหมดไปเป็นเอกสารด้วย
+      const hasKids = clauses.some(x=>x.no.startsWith(r+'.') && x.no!==r);
+      if(!hasKids && t.length<110
+         && !/^(จัดทำ|ดำเนินการ|พัฒนา|ติดตั้ง|ออกแบบ|ศึกษา|ทดสอบ|จัดหา)/.test(t.trim())
+         && /\b(report|manual|specification)\b/i.test(t)) return true;
       return /^10\./.test(r);
     };
     const docRefs = refs.filter(isDeliverable);
@@ -5504,6 +5517,7 @@ function torBuildRows(clauses, ms){
       return 0;
     };
     workRefs.sort(byClauseNo); docRefs.sort(byClauseNo);
+    const extraDocs = [];      // เอกสารส่งมอบที่ซ่อนอยู่ในข้อย่อยของงาน
     if(workRefs.length){
       push({kind:'sec', desc:'งานที่ต้องดำเนินการ'});
       // ข้อที่เป็นแค่ตัวชี้ทาง ("ดำเนินงานตามขอบเขตงานข้อ X-Y") แสดงเป็นบรรทัดอ้างอิง ไม่ใช่งาน
@@ -5521,16 +5535,20 @@ function torBuildRows(clauses, ms){
         const i=n0++;
         push({tor:r, type:torType(c?c.text:r), desc:`${i+1}) ${c?c.text:'(อ้างถึงข้อ '+r+' - ไม่พบข้อความในเอกสาร)'}`,
               ms:`งวดงานที่ ${m.no}`, cond:c?`อ้างอิงตามข้อ ${r} ในเอกสาร TOR`:''});
-        // ข้อย่อยของข้อนี้
+        // ข้อย่อยของข้อนี้ - ถ้าเป็นเอกสารส่งมอบ ให้ย้ายไปหมวดเอกสาร ไม่ปนกับงาน
+        let sj=0;
         clauses.filter(x=>x.no.startsWith(r+'.') && x.no!==r)
-               .sort((p,q)=>byClauseNo(p.no,q.no)).forEach((sub,j)=>{
-          push({tor:sub.no, type:torType(sub.text), desc:`   ${i+1}.${j+1}) ${sub.text}`, ms:`งวดงานที่ ${m.no}`, cond:''});
+               .sort((p,q)=>byClauseNo(p.no,q.no)).forEach(sub=>{
+          if(isDeliverable(sub.no)){ extraDocs.push(sub.no); return; }
+          sj++;
+          push({tor:sub.no, type:torType(sub.text), desc:`   ${i+1}.${sj}) ${sub.text}`, ms:`งวดงานที่ ${m.no}`, cond:''});
         });
       });
     }
-    if(docRefs.length){
+    const allDocs = [...new Set([...docRefs, ...extraDocs])].sort(byClauseNo);
+    if(allDocs.length){
       push({kind:'sec', desc:`>> เอกสารส่งมอบ งวดที่ ${m.no} - ต้องส่งครบจึงจะตรวจรับและเบิกจ่ายได้`});
-      docRefs.forEach((r,i)=>{
+      allDocs.forEach((r,i)=>{
         const c=byNo[r];
         const full = c?c.text:'(อ้างถึงข้อ '+r+')';
         push({tor:r, type:'Document', desc:`${i+1}) ${full}`,
@@ -5673,6 +5691,10 @@ function torValidate(rows){
 
 // ---------- 5) ส่งออก Excel (เขียน SpreadsheetML เอง ไม่ต้องพึ่งไลบรารีภายนอก) ----------
 function torExportExcel(){
+  if(!TOR.rows || !TOR.rows.length){
+    alert('ยังไม่มีข้อมูลให้ส่งออก - กรุณาอัปโหลดเอกสาร TOR แล้วรอให้ประมวลผลเสร็จก่อน');
+    return;
+  }
   const esc=v=>torThaiDigits(String(v==null?'':v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
                 .replace(/"/g,'&quot;').replace(/\r?\n/g,'&#10;');
   const H=['Item/ToR No.','ประเภท','Description/รายละเอียด','หมายเหตุ','งวดงานที่','เงื่อนไข/ข้อกำหนด',
@@ -5779,10 +5801,10 @@ function torCleanCanvas(ctx,w,h,th){
 
 // ---------- OCR ในเครื่อง (Tesseract.js) สำหรับ PDF ที่เป็นภาพสแกน ----------
 async function torOcrRun(file, from, to){
+  torReset(file.name);            // เริ่ม OCR = เริ่มใหม่ทั้งหมด ไม่เอาผลเดิมมาปน
   const res=document.getElementById('torResult');
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   try{
-    res.innerHTML='';
     torProgress(3,'โหลดเครื่องมือ OCR (ครั้งแรกใช้เวลาสักครู่)',1);
     await torLoadScript('lib/tesseract.min.js');
     await torLoadScript('lib/pdf.min.js');
@@ -5891,7 +5913,11 @@ function renderTorBreakdown(){
     <div id="torResult"></div>`;
   const inp=document.getElementById('torFile'), drop=document.getElementById('torDrop');
   drop.onclick=()=>inp.click();
-  inp.onchange=e=>{ if(e.target.files[0]) torRun(e.target.files[0]); };
+  inp.onchange=e=>{
+    const f=e.target.files[0];
+    e.target.value='';            // ล้างค่า input เพื่อให้เลือกไฟล์เดิมซ้ำแล้วยังทำงานใหม่ได้
+    if(f) torRun(f);
+  };
   ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
   ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
   drop.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) torRun(f); });
@@ -6082,9 +6108,21 @@ function torShowResult(prefix){
     </div>`;
 }
 
+// ล้างสถานะเดิมทั้งหมด ก่อนเริ่มไฟล์ใหม่
+// สำคัญมาก: ถ้าไม่ล้าง ผลของไฟล์ก่อนหน้าจะค้างมาปน แล้วดาวน์โหลดได้ไฟล์ผิดโดยไม่รู้ตัว
+function torReset(fileName){
+  TOR.text=''; TOR.clauses=[]; TOR.milestones=[]; TOR.rows=[];
+  TOR.fileName=fileName||''; TOR.pages=0; TOR.emptyPages=0; TOR.imgCount=0;
+  TOR.qa=null; TOR.aiDone=false; TOR.aiSummary=null;
+  const res=document.getElementById('torResult'); if(res) res.innerHTML='';
+  const msg=document.getElementById('torAiMsg'); if(msg) msg.innerHTML='';
+  const cnt=document.getElementById('torCount'); if(cnt) cnt.textContent='';
+  const prog=document.getElementById('torProg'); if(prog) prog.style.display='none';
+}
+
 async function torRun(file){
-  const res=document.getElementById('torResult'); res.innerHTML='';
-  TOR.fileName=file.name; TOR.pages=0;
+  torReset(file.name);
+  const res=document.getElementById('torResult');
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   try{
     torProgress(5,`เปิดไฟล์ ${file.name} (${(file.size/1024/1024).toFixed(1)} MB)`,0); await sleep(60);
