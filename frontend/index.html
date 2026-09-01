@@ -122,6 +122,36 @@
   .sync svg{width:15px;height:15px;}
 
   /* ---------------- KPI ---------------- */
+  /* แถบสรุปงานส่งมอบ - กินเต็มความกว้างใต้การ์ด KPI */
+  .tf-bar{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:9px;
+    padding:12px 16px;border-radius:11px;background:#EAF0EC;
+    border:1px solid #C9D9CE;border-left:4px solid #4A6B5C;
+    font-size:12px;color:var(--ink-2);}
+  .tf-bar b{font-size:14px;color:#2F4A3C;font-weight:800;}
+  .tf-bar b em{font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:19px;
+    color:#4A6B5C;margin:0 3px;vertical-align:-1px;}
+  .tf-ico{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;
+    border-radius:8px;background:#4A6B5C;color:#fff;flex:none;}
+  .tf-ico svg{width:16px;height:16px;}
+  .tf-sep{color:var(--line);}
+  .tf-bar i{font-style:normal;font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--brand);}
+  .tf-bar i.tf-warn{color:var(--warning);}
+  .tf-btn{margin-left:auto;font-size:10.5px;padding:4px 11px;border-radius:7px;
+    border:1px solid var(--line);background:var(--surface);color:var(--ink-2);cursor:pointer;}
+  .tf-btn:hover{background:var(--surface-2);}
+  .tf-list{display:none;width:100%;margin-top:8px;border-top:1px solid var(--line-soft);padding-top:8px;}
+  .tf-list.open{display:block;}
+  .tf-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:5px 0;font-size:10.5px;
+    border-bottom:1px solid var(--line-soft);}
+  .tf-row:last-child{border-bottom:none;}
+  .tf-code{font-family:'IBM Plex Mono',monospace;color:var(--faint);min-width:78px;}
+  .tf-name{flex:1;min-width:150px;color:var(--ink-2);}
+  .tf-pf{font-size:9.5px;color:var(--faint);min-width:46px;}
+  .tf-tag{display:inline-block;padding:1px 6px;border-radius:5px;font-size:9px;font-weight:700;}
+  .tf-tag.ok{background:var(--success-tint);color:var(--success);}
+  .tf-tag.wait{background:var(--warning-tint);color:var(--warning);}
+  .tf-tag.na{background:var(--surface);color:var(--line);}
+
   .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:13px;margin-top:15px;}
   @media(max-width:1080px){.kpis{grid-template-columns:repeat(2,1fr);}}
   @media(max-width:340px){.kpis{grid-template-columns:1fr;}}
@@ -2118,6 +2148,7 @@ const SEED_REVENUE = [{"#": "1", "Project Code": "119250133", "Project Name": "A
 
 /* ---------- icons ---------- */
 const I = {
+  truck:'<path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
   folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   activity:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
   trending:'<path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/>',
@@ -2587,7 +2618,51 @@ function renderKPIs(list){
       ${gapRemark}
     </div>`;
 
-  document.getElementById('kpis').innerHTML = cardsHtml + valueCardHtml;
+  // ---- แถบสรุปงานส่งมอบ ----
+  // นับ "โครงการ" ไม่ซ้ำ เพราะไฟล์มีหลายแถวต่อโครงการ (อัปเดตความคืบหน้าคนละรอบ)
+  const tset = new Map();
+  list.forEach(p=>{
+    const st = String(p['Transfer Status']||'').trim();
+    const doc = String(p['Transfer Doc']||'').trim();
+    if((!st || st==='-') && (!doc || doc==='-')) return;
+    const code = String(p['Project Code']||'').trim() || String(p['Project Name']||'');
+    // แถวล่าสุดของโครงการนั้นเป็นตัวแทน (ไฟล์เรียงตามลำดับการอัปเดต)
+    tset.set(code, p);
+  });
+  const tItems = [...tset.values()];
+  let transferHtml = '';
+  if(tItems.length){
+    const done = s => /completed/i.test(String(s||''));
+    const full = tItems.filter(p=>done(p['BI'])&&done(p['SL'])&&done(p['KT'])).length;
+    const partial = tItems.filter(p=>String(p['Partial/Final']||'').trim()==='Partial').length;
+    const finalN = tItems.filter(p=>String(p['Partial/Final']||'').trim()==='Final').length;
+    const waiting = tItems.length - full;
+    transferHtml = `<div class="tf-bar">
+      <span class="tf-ico">${svg(I.truck||I.folder)}</span>
+      <b>กำลังส่งมอบ <em>${tItems.length}</em> โครงการ</b>
+      <span class="tf-sep">·</span>
+      <span>เอกสารครบทุกฝ่าย <i>${full}</i></span>
+      <span class="tf-sep">·</span>
+      <span>รอเอกสาร <i class="tf-warn">${waiting}</i></span>
+      ${finalN?`<span class="tf-sep">·</span><span>Final <i>${finalN}</i></span>`:''}
+      ${partial?`<span class="tf-sep">·</span><span>Partial <i>${partial}</i></span>`:''}
+      <button class="tf-btn" onclick="document.getElementById('tfList').classList.toggle('open')">ดูรายชื่อ</button>
+      <div id="tfList" class="tf-list">
+        ${tItems.map(p=>{
+          const bi=String(p['BI']||'-'), sl=String(p['SL']||'-'), kt=String(p['KT']||'-');
+          const cell = v => `<span class="tf-tag ${done(v)?'ok':(/^-?$/.test(v)?'na':'wait')}">${done(v)?'ครบ':(/^-?$/.test(v)?'-':'รอ')}</span>`;
+          return `<div class="tf-row">
+            <span class="tf-code">${p['Project Code']||'-'}</span>
+            <span class="tf-name">${String(p['Project Name']||'-').slice(0,44)}</span>
+            <span class="tf-pf">${p['Partial/Final']||'-'}</span>
+            <span>BI ${cell(bi)}</span><span>SL ${cell(sl)}</span><span>KT ${cell(kt)}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('kpis').innerHTML = cardsHtml + valueCardHtml + transferHtml;
 }
 
 function renderPM(list){
