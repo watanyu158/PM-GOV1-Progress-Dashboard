@@ -761,7 +761,7 @@ async function groqPickModel(ignorePref){
   }catch(e){ console.warn('[TOR AI] ถามรายการโมเดลไม่ได้:', e.message); }
   return GROQ_FALLBACKS[0];
 }
-const TOR_TYPES_LIST = 'Document, Test, Installation, Migration, Removal, Procurement, Design, Survey, Training, Meeting, Warranty, Configuration, Compliance, Penalty, SLA, Spec, Other';
+const TOR_TYPES_LIST = 'Document, Development, Planning, Requirement, Integration, Reporting, Test, Installation, Migration, Removal, Procurement, Design, Survey, Training, Meeting, Warranty, Configuration, Compliance, Penalty, SLA, Spec, Other';
 
 // จำกัดการใช้งานต่อคนต่อวัน กัน quota หมดโดยไม่ตั้งใจ
 const torAiUsage = {};   // { 'user|YYYY-MM-DD': count }

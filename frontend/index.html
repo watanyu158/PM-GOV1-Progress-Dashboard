@@ -4776,6 +4776,14 @@ function allocateCollection(proj){
 // 11. เลขไทย ๐-๙ -> อารบิก ตั้งแต่ตอนดึงข้อความ
 // 12. ตรวจและทำความสะอาดก่อนให้ดาวน์โหลดเสมอ พร้อมรายงานว่าทำอะไรไป
 // 13. ผลลัพธ์ต้องมีครบ: งวดงาน · Kick-Off · งานติดตั้ง · เอกสารส่งมอบรายงวด
+// 14. งวดหนึ่งห้ามดูดข้อที่เป็นเงื่อนไขของงวดอื่นมาเป็นงานตัวเอง (ไม่งั้นงานทุกงวดกองใต้งวดแรก)
+// 15. เรียงงานตามเลขข้อจริง เพื่อให้เห็นลำดับก่อน-หลังตามที่ TOR กำหนด
+// 16. เอกสารส่งมอบต้องอยู่ท้ายงวดเสมอ เป็นบทสรุปว่างวดนี้ต้องส่งอะไรบ้าง
+// 17. หาเอกสารส่งมอบจาก "เนื้อหา" ไม่ใช่เลขข้อตายตัว (AOT อยู่ข้อ 10 · GIS อยู่ข้อ 6.7-6.8)
+// 18. ต้องระบุชื่อเอกสารให้ตรงกับที่ TOR เรียก - PM ใช้ชื่อเดียวกันตอนส่งงาน กันถูกตีกลับ
+// 19. เลขข้อที่สร้างจาก auto-numbering ถ้าชนกับข้ออื่นที่คนละเนื้อหา ให้เลื่อนขึ้น
+//     (GIS: ข้อ 6.7 ฝึกอบรม กับ 6.8 เอกสารส่งมอบ ถูกให้เลข 6.7 ทั้งคู่จนปนกัน)
+// 20. เงื่อนไขงวดงานแสดงเป็นหัวงวดแล้ว ห้ามซ้ำอีกในบล็อกข้อกำหนดตลอดโครงการ
 //     ถ้าขาดข้อใด = ยังอ่านไม่ครบ ต้องกลับไปตรวจ
 // อ่านเอกสาร TOR (pdf/docx/xlsx/txt) -> แตกโครงสร้างข้อ -> จับคู่ งวดงาน x สิ่งส่งมอบ x ข้อ TOR
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
@@ -4807,6 +4815,11 @@ const TOR_TYPES = [
   [/sla|ระดับคุณภาพการให้บริการ/i,'SLA'],
   [/นโยบาย|ระเบียบ|กฎหมาย|policy|compliance|pdpa/i,'Compliance'],
   [/ประชุม|meeting|kick.?off/i,'Meeting'],
+  [/พัฒนา|จัดทำระบบ|develop|เขียนโปรแกรม|coding/i,'Development'],
+  [/แผนการ|แผนงาน|plan\b/i,'Planning'],
+  [/ระบบ.*รองรับ|สามารถ.*ได้|ต้องมีคุณสมบัติ|โครงสร้างข้อมูล|data model/i,'Requirement'],
+  [/เชื่อมโยง|เชื่อมต่อ|integration|etl|นำเข้าข้อมูล/i,'Integration'],
+  [/แสดงผล|dashboard|รายงานแสดงผล|visualiz/i,'Reporting'],
   [/เอกสาร|รายงาน|คู่มือ|จัดทำ|document|report/i,'Document'],
 ];
 const torType = t => (TOR_TYPES.find(([re])=>re.test(t))||[null,'Other'])[1];
@@ -4878,7 +4891,7 @@ async function torDocxText(file){
   // ---- ไล่ย่อหน้า สร้างเลขข้อตามลำดับ ----
   // เอกสาร Word มักมีหลายชุด numbering แต่ละชุดเริ่มนับ 1 ใหม่ ทำให้เลข "1.1" ซ้ำได้หลายที่
   // จึงจำหมวดหลักล่าสุด (เช่น 6.) ไว้เติมเป็นคำนำหน้า ให้เลขข้ออ้างอิงได้จริงไม่ซ้ำกัน
-  const cnt={}, out=[];
+  const cnt={}, out=[], usedLabels=new Map();
   let curTop='';          // เลขหมวดหลักล่าสุด เช่น "6"
   let topAid=null;        // ชุด numbering ที่ให้เลขหมวดหลัก
   [...doc.getElementsByTagNameNS(W,'p')].forEach(p=>{
@@ -4923,6 +4936,23 @@ async function torDocxText(file){
               && !label.startsWith(curTop+'.') && label!==curTop){
       // ชุด numbering คนละชุดกับที่ให้เลขหมวด และเริ่มนับใหม่ -> เติมหมวดนำหน้า
       label=curTop+'.'+label;
+    }
+    // ถ้าเลขที่สร้างได้ชนกับข้อที่ออกไปแล้ว (คนละหัวข้อ) ให้เลื่อนตัวท้ายขึ้น 1
+    // มิฉะนั้นสองหมวดจะถูกยุบรวมกันจนอ่านไม่ออกว่าอันไหนเป็นของใคร
+    if(label && txt){
+      const seenKey = label;
+      if(usedLabels.has(seenKey) && usedLabels.get(seenKey) !== txt.slice(0,30)){
+        const parts = label.split('.').map(Number);
+        if(parts.every(x=>!isNaN(x))){
+          parts[parts.length-1] += 1;
+          let bumped = parts.join('.');
+          while(usedLabels.has(bumped)){ parts[parts.length-1]++; bumped = parts.join('.'); }
+          // อัปเดตตัวนับด้วย เพื่อให้ข้อถัดไปนับต่อจากเลขใหม่
+          cnt[aid+'|'+lv] = parts[parts.length-1];
+          label = bumped;
+        }
+      }
+      usedLabels.set(label, txt.slice(0,30));
     }
     out.push(txt ? (label?label+' '+txt:txt) : '');
   });
@@ -5244,6 +5274,21 @@ function torAppendSpecBlocks(rows, push, clauses, specHeads){
   }
 }
 
+// ตั้งชื่อเอกสารส่งมอบให้ตรงกับที่ TOR เรียก - PM จะได้ใช้ชื่อเดียวกันตอนส่งงาน
+// ไม่ตั้งชื่อเอง แต่ดึงจากข้อความจริง เพราะชื่อที่ไม่ตรง TOR = เสี่ยงถูกตีกลับตอนตรวจรับ
+function torDocName(text){
+  let t=String(text||'').replace(/^\s*\d+(?:\.\d+)*\)?\s*/,'').trim();
+  // ตัดคำนำหน้าที่เป็นกริยา ให้เหลือชื่อเอกสารจริง
+  t=t.replace(/^(?:จัดทำ|ส่งมอบ|จัดส่ง|ต้องจัดทำ|ผู้รับจ้างต้องจัดทำ)\s*/,'');
+  // ชื่อภาษาอังกฤษในวงเล็บมักเป็นชื่อทางการของเอกสาร - ใช้เป็นชื่อหลัก
+  const en=t.match(/\(([A-Za-z][A-Za-z0-9 \/&.\-]{4,60})\)/);
+  // ตัดที่ตัวคั่นรายละเอียด ให้เหลือเฉพาะชื่อ
+  let th=t.split(/\s(?:ที่ประกอบด้วย|โดยมีรายละเอียด|ประกอบด้วย|ดังนี้|ซึ่ง|โดย)\s/)[0]
+          .replace(/[,;:.]\s*$/,'').trim();
+  if(th.length>90) th=th.slice(0,90).replace(/\s\S*$/,'')+'...';
+  return en ? `${th} [${en[1].trim()}]`.replace(/\s*\[\s*\]/,'') : th;
+}
+
 function torBuildRows(clauses, ms){
   const byNo = {}; clauses.forEach(c=>byNo[c.no]=c);
   const expand = ref => {           // "10.2.1-9" -> [10.2.1 ... 10.2.9]
@@ -5260,7 +5305,15 @@ function torBuildRows(clauses, ms){
   const push=o=>rows.push(Object.assign({tor:'',type:'',desc:'',note:'',ms:'',cond:''},o));
 
   ms.forEach(m=>{
-    push({kind:'ms', desc:`ส่งมอบงาน งวดที่ ${m.no}${m.pct?` - ร้อยละ ${m.pct}`:''} | เงื่อนไข: ${m.cond}`});
+    // หัวงวดต้องอ่านแล้วเห็นภาพทันที: งวดที่เท่าไหร่ · กี่ % · ภายในกี่วัน · ครอบคลุมข้อไหน
+    const days = (m.cond.match(/ภายใน\s*(\d{1,4})\s*วัน/)||[])[1];
+    const scopeRefs = m.refs.filter(x=>!/^1[23]\./.test(x)).join(', ');
+    push({kind:'ms', desc:
+      `งวดที่ ${m.no}` +
+      (m.pct?` · ร้อยละ ${m.pct}`:'') +
+      (days?` · ภายใน ${days} วัน`:'') +
+      (scopeRefs?` · ขอบเขตงานข้อ ${scopeRefs}`:'') +
+      `\nเงื่อนไข: ${m.cond}`});
     // TOR มักอ้างต่อกันเป็นทอด: งวดที่ 1 -> "ส่งมอบงานข้อ 6.1" -> "ตามขอบเขตงานข้อ 4.1-4.4"
     // ต้องตามอ้างอิงลงไปอีกชั้นจึงจะเจองานจริง ไม่งั้นได้แค่ข้อกลางทางที่ไม่มีเนื้องาน
     const resolve = (list, depth) => {
@@ -5281,10 +5334,41 @@ function torBuildRows(clauses, ms){
       });
       return [...new Set(out)];
     };
-    // งานที่ต้องทำ = ข้อที่ถูกอ้างถึง (ไม่ใช่เอกสารส่งมอบ)
-    const refs = resolve(m.refs.flatMap(expand), 2);
-    const docRefs = refs.filter(r=>/^10\./.test(r));
-    const workRefs = refs.filter(r=>!/^10\./.test(r));
+    // ตัดข้อที่เป็น "เงื่อนไขของงวดอื่น" ออกก่อน ไม่งั้นงวดนี้จะดูดงานของงวดอื่นมาทั้งหมด
+    const notOtherMs = r => {
+      const c = byNo[r];
+      if(!c) return true;
+      const g = c.text.match(/งวดที่\s*(\d{1,2})/);
+      return !g || parseInt(g[1],10) === m.no;
+    };
+    const ownRefs = m.refs.flatMap(expand).filter(notOtherMs);
+    const refs = resolve(ownRefs, 2).filter(notOtherMs);
+    // เอกสารส่งมอบ: ดูจากเนื้อหาว่าเป็น "สิ่งที่ต้องส่งมอบ" ไม่ใช่ดูแค่เลขข้อ
+    // (TOR แต่ละฉบับวางเอกสารส่งมอบไว้คนละข้อ - AOT อยู่ข้อ 10, GIS อยู่ข้อ 6.7/6.8)
+    const isDeliverable = r => {
+      const c = byNo[r];
+      if(!c) return /^10\./.test(r);
+      const t = c.text;
+      // หัวข้อที่ประกาศตัวว่าเป็นเอกสารส่งมอบ หรือบรรทัดที่เป็นชื่อเอกสารชัดเจน
+      if(/(?:จัดทำ)?เอกสารและคู่มือที่(?:จะ)?ต้องส่งมอบ|เอกสารที่ต้องส่งมอบ|รายการเอกสารส่งมอบ/.test(t)) return true;
+      if(/^(?:จัดทำ)?(?:เอกสาร|รายงาน|คู่มือ|Source code|ผลการทดสอบ|ผลการฝึกอบรม)/i.test(t.trim())) return true;
+      // ข้อย่อยของหัวข้อเอกสารส่งมอบ ก็ถือเป็นเอกสารส่งมอบด้วย
+      const parent = byNo[r.split('.').slice(0,-1).join('.')];
+      if(parent && /เอกสารและคู่มือที่(?:จะ)?ต้องส่งมอบ|เอกสารที่ต้องส่งมอบ/.test(parent.text)) return true;
+      return /^10\./.test(r);
+    };
+    const docRefs = refs.filter(isDeliverable);
+    const workRefs = refs.filter(r=>!isDeliverable(r));
+    // เรียงตามเลขข้อ เพื่อให้เห็นลำดับงานก่อน-หลังตามที่ TOR กำหนดไว้จริง
+    const byClauseNo = (a,b) => {
+      const pa=String(a).split('.').map(Number), pb=String(b).split('.').map(Number);
+      for(let i=0;i<Math.max(pa.length,pb.length);i++){
+        const x=pa[i]||0, y=pb[i]||0;
+        if(x!==y) return x-y;
+      }
+      return 0;
+    };
+    workRefs.sort(byClauseNo); docRefs.sort(byClauseNo);
     if(workRefs.length){
       push({kind:'sec', desc:'งานที่ต้องดำเนินการ'});
       // ข้อที่เป็นแค่ตัวชี้ทาง ("ดำเนินงานตามขอบเขตงานข้อ X-Y") แสดงเป็นบรรทัดอ้างอิง ไม่ใช่งาน
@@ -5292,6 +5376,8 @@ function torBuildRows(clauses, ms){
       let n0=0;
       workRefs.forEach(r=>{
         const c=byNo[r];
+        // ข้อที่เป็นเงื่อนไขของงวดนี้เอง ซ้ำกับหัวงวดอยู่แล้ว ไม่ต้องแสดงเป็นงาน
+        if(c && /งวดที่\s*\d/.test(c.text) && /ส่งมอบงานภายใน|ประกอบด้วยขอบเขต/.test(c.text)) return;
         if(isPointer(c)){
           push({tor:r, type:'Ref', desc:c.text, note:'บรรทัดอ้างอิง - งานจริงอยู่ข้อที่ถูกอ้างถึง',
                 ms:`งวดงานที่ ${m.no}`, cond:''});
@@ -5301,7 +5387,8 @@ function torBuildRows(clauses, ms){
         push({tor:r, type:torType(c?c.text:r), desc:`${i+1}) ${c?c.text:'(อ้างถึงข้อ '+r+' - ไม่พบข้อความในเอกสาร)'}`,
               ms:`งวดงานที่ ${m.no}`, cond:c?`อ้างอิงตามข้อ ${r} ในเอกสาร TOR`:''});
         // ข้อย่อยของข้อนี้
-        clauses.filter(x=>x.no.startsWith(r+'.') && x.no!==r).forEach((sub,j)=>{
+        clauses.filter(x=>x.no.startsWith(r+'.') && x.no!==r)
+               .sort((p,q)=>byClauseNo(p.no,q.no)).forEach((sub,j)=>{
           push({tor:sub.no, type:torType(sub.text), desc:`   ${i+1}.${j+1}) ${sub.text}`, ms:`งวดงานที่ ${m.no}`, cond:''});
         });
       });
@@ -5310,8 +5397,16 @@ function torBuildRows(clauses, ms){
       push({kind:'sec', desc:`>> เอกสารส่งมอบ งวดที่ ${m.no} - ต้องส่งครบจึงจะตรวจรับและเบิกจ่ายได้`});
       docRefs.forEach((r,i)=>{
         const c=byNo[r];
-        push({tor:r, type:'Document', desc:`${i+1}) ${c?c.text:'(อ้างถึงข้อ '+r+')'}`,
-              note:'เอกสารส่งมอบงวดนี้', ms:`งวดงานที่ ${m.no}`, cond:''});
+        const full = c?c.text:'(อ้างถึงข้อ '+r+')';
+        push({tor:r, type:'Document', desc:`${i+1}) ${full}`,
+              note:`ชื่อเอกสาร: ${torDocName(full)}`,
+              ms:`งวดงานที่ ${m.no}`, cond:'ต้องส่งครบจึงจะตรวจรับและเบิกจ่ายงวดนี้ได้'});
+        // ข้อย่อยของเอกสารนี้ (เช่น 6.8.5.1, 6.8.5.2)
+        clauses.filter(x=>x.no.startsWith(r+'.') && x.no!==r)
+               .sort((p,q)=>byClauseNo(p.no,q.no)).forEach((sub,j)=>{
+          push({tor:sub.no, type:'Document', desc:`   ${i+1}.${j+1}) ${sub.text}`,
+                note:`ชื่อเอกสาร: ${torDocName(sub.text)}`, ms:`งวดงานที่ ${m.no}`, cond:''});
+        });
       });
     }
   });
@@ -5379,8 +5474,13 @@ function torBuildRows(clauses, ms){
 
   // ข้อที่ไม่ถูกอ้างในงวดใดเลย -> ข้อกำหนดตลอดโครงการ (ไม่รวมหมวดสเปค เพราะแยกไปแล้ว)
   const used=new Set(rows.map(r=>r.tor).filter(Boolean));
+  // ข้อที่เป็นเงื่อนไขของงวดงาน แสดงเป็นหัวงวดไปแล้ว ไม่ต้องซ้ำอีกในบล็อกท้ายไฟล์
+  const msCondNos = new Set();
+  ms.forEach(m=>{ if(m.clause) msCondNos.add(m.clause); });
   const rest = clauses.filter(c=>!used.has(c.no) && c.depth<=2 && c.text.length>25
                  && !/^\d{1,2}$/.test(c.no) && !specNos.has(c.no)
+                 && !msCondNos.has(c.no)
+                 && !/^งวดที่\s*\d{1,2}\s*(ส่งมอบงาน|จ่าย|ชำระ)/.test(c.text)
                  && !TOR_SKIP_HEAD.test(c.text) && !TOR_SKIP_BODY.test(c.text)
                  && !torIsScoreRow(c));
   if(rest.length){
