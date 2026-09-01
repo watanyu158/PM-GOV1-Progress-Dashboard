@@ -4789,6 +4789,7 @@ function allocateCollection(proj){
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
 // หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
 // จึงแกะด้วยกฎได้โดยไม่ต้องพึ่ง AI - แม่นกับเอกสารที่เป็น text ส่วนไฟล์สแกนต้อง OCR มาก่อน
+const TOR_ENGINE_VERSION = 'v174';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
 const TOR = { text:'', clauses:[], milestones:[], rows:[], fileName:'', pages:0 };
 
 // โหลดไลบรารีเฉพาะตอนเปิดไฟล์ที่ต้องใช้จริง - ถ้าเน็ตเข้า CDN ไม่ได้ ไฟล์ .txt/.csv ยังใช้งานได้ปกติ
@@ -4815,8 +4816,10 @@ const TOR_TYPES = [
   [/sla|ระดับคุณภาพการให้บริการ/i,'SLA'],
   [/นโยบาย|ระเบียบ|กฎหมาย|policy|compliance|pdpa/i,'Compliance'],
   [/ประชุม|meeting|kick.?off/i,'Meeting'],
+  // ต้องตรวจ "แผนการ..." ก่อนคำอื่นเสมอ - ไม่งั้น "แผนการติดตั้ง" จะถูกจัดเป็น Installation
+  // แล้วกฎที่อิงประเภทงาน (เช่น ต้องมีรายงานตรวจสเปค) จะยิงผิดงวด
+  [/^\s*[\d.)\s]*แผนการ|^\s*[\d.)\s]*แผนงาน|\bplan\b/i,'Planning'],
   [/พัฒนา|จัดทำระบบ|develop|เขียนโปรแกรม|coding/i,'Development'],
-  [/แผนการ|แผนงาน|plan\b/i,'Planning'],
   [/ระบบ.*รองรับ|สามารถ.*ได้|ต้องมีคุณสมบัติ|โครงสร้างข้อมูล|data model/i,'Requirement'],
   [/เชื่อมโยง|เชื่อมต่อ|integration|etl|นำเข้าข้อมูล/i,'Integration'],
   [/แสดงผล|dashboard|รายงานแสดงผล|visualiz/i,'Reporting'],
@@ -5289,6 +5292,138 @@ function torDocName(text){
   return en ? `${th} [${en[1].trim()}]`.replace(/\s*\[\s*\]/,'') : th;
 }
 
+// ===== จับคู่เอกสารส่งมอบเข้ากับงวดที่ผลิตมันจริง =====
+// TOR มักรวมรายการเอกสารส่งมอบไว้ที่เดียว (เช่นข้อ 6.8) แล้วอ้างจากงวดสุดท้ายงวดเดียว
+// แต่ความจริงเอกสารแต่ละฉบับเกิดจากงานคนละงวด - Inception Report เกิดงวด 1, เอกสารทดสอบเกิดงวดที่ทดสอบ
+// ถ้าไม่แยก PM จะไม่รู้ว่าต้องเตรียมเอกสารอะไรตอนไหน และไปรู้ตัวตอนงวดสุดท้ายซึ่งสายเกินไป
+function torMatchDocToMilestone(docText, msWorkMap, fallbackNo){
+  const t = String(docText||'');
+  let best = null, bestScore = 0;
+  // คำเฉพาะที่บอกชนิดงานได้ชัด - ใช้เป็นตัวชี้หลัก
+  // คู่คำ [ชื่อเอกสาร, งานที่ผลิตเอกสารนั้น] - งานต้องเป็นการลงมือทำจริง ไม่ใช่การวางแผน
+  const CUES = [
+    [/inception|แผนดำเนินงาน|แผนงานโครงการ|project (master )?plan/i, /จัดทำแผนดำเนินงาน|inception|แผนงานโครงการ/i],
+    [/requirement|ความต้องการ/i, /ศึกษา\s*วิเคราะห์|requirement gathering|รวบรวมความต้องการ/i],
+    [/design document|ออกแบบระบบ/i, /ออกแบบระบบ|system design|วิเคราะห์และออกแบบ/i],
+    [/สรุปการติดตั้ง|installation (report|summary)|ติดตั้งระบบฮาร์ดแวร์/i, /ติดตั้งระบบ|ติดตั้งอุปกรณ์|ติดตั้งฮาร์ดแวร์/i],
+    [/unit test/i, /ทดสอบระบบในแต่ละส่วน|unit test/i],
+    [/system integration test|ทดสอบการเชื่อมโยง/i, /ทดสอบ.*เชื่อมโยง|integration test/i],
+    [/user acceptance|ตรวจรับระบบ|uat/i, /ทดสอบเพื่อการตรวจรับ|user acceptance/i],
+    [/คู่มือการทดสอบ|เอกสารการทดสอบ/i, /ดำเนินการทดสอบ|system test/i],
+    [/ฝึกอบรม|อบรม|training|หลักสูตร/i, /ฝึกอบรม|อบรม|training/i],
+    [/source code|โปรแกรมต้นฉบับ/i, /พัฒนาระบบ|develop/i],
+    [/บำรุงรักษา|maintenance/i, /บำรุงรักษา|maintenance/i],
+  ];
+  Object.keys(msWorkMap).forEach(no=>{
+    const raw = msWorkMap[no];
+    // ตัดวลี "แผนการ..." ออก เพราะเป็นการวางแผน ไม่ใช่การลงมือทำ
+    // (งวด 1 มี "แผนการติดตั้ง/แผนการทดสอบ" ครบ ถ้าไม่ตัดจะแย่งเอกสารจากงวดที่ติดตั้ง/ทดสอบจริง)
+    const workText = raw.replace(/แผนการ[\u0E00-\u0E7F]*|[Pp]lan\b/g,' ');
+    let sc = 0;
+    CUES.forEach(([docRe, workRe])=>{
+      if(docRe.test(t) && workRe.test(workText)) sc += 3;
+    });
+    // ชื่อเอกสารที่ตรงกับข้อความงานแบบเป๊ะ ๆ ให้คะแนนหนัก (เช่น Inception Report อยู่ในงาน 6.1 ตรง ๆ)
+    const key = t.replace(/^\s*\d+(?:\.\d+)*\)?\s*/,'').replace(/^เอกสาร|^จัดทำ/,'').trim().slice(0,28);
+    if(key.length>=8 && raw.includes(key)) sc += 6;
+    // คำร่วมทั่วไป (ชื่อระบบ/โมดูล) ให้คะแนนรอง
+    const words = t.match(/[\u0E00-\u0E7F]{4,}|[A-Za-z]{4,}/g) || [];
+    const uniq = [...new Set(words)].slice(0,12);
+    uniq.forEach(w=>{ if(workText.includes(w)) sc += 1; });
+    if(sc > bestScore){ bestScore = sc; best = no; }
+  });
+  return bestScore >= 3 ? best : fallbackNo;   // ไม่มั่นใจพอ ให้อยู่งวดเดิมที่ TOR อ้างไว้
+}
+
+// ===== งวดที่มีการติดตั้งอุปกรณ์ ต้องมีรายงานตรวจสอบคุณสมบัติอุปกรณ์เสมอ =====
+// เหตุผล: ต้องพิสูจน์ว่าของที่ส่งมอบตรงกับสเปคในหมวดเทคนิคของ TOR ทุกข้อ
+// เป็นเอกสารที่ TOR มักไม่เขียนไว้ตรง ๆ แต่คณะกรรมการตรวจรับขอเสมอ - ถ้าไม่เตรียมจะตรวจรับไม่ผ่าน
+function torNeedsSpecReport(workRows){
+  return workRows.some(r => {
+    const t = String(r.desc||'');
+    // "แผนการติดตั้ง / Installation Plan / แผนการจัดหา" = การวางแผน ไม่ใช่การลงมือติดตั้ง
+    // งวดที่แค่วางแผนยังไม่มีอุปกรณ์ให้ตรวจ จึงไม่ต้องมีรายงานตรวจสเปค
+    if(/แผนการ(ติดตั้ง|จัดหา|ส่งมอบ)|(installation|procurement|delivery)\s*plan/i.test(t)) return false;
+    return /Installation|Procurement/.test(r.type)
+        || /ติดตั้ง|จัดหา|ส่งมอบอุปกรณ์|ฮาร์ดแวร์|hardware/i.test(t);
+  });
+}
+
+// จัดเอกสารส่งมอบใหม่ให้ไปอยู่งวดที่ผลิตมันจริง + เติมรายงานตรวจสเปคให้งวดที่มีการติดตั้ง
+function torRedistributeDeliverables(rows, ms){
+  if(!ms.length) return rows;
+  // 1) รวบรวมข้อความงานของแต่ละงวด ไว้ใช้จับคู่
+  // สร้างแผนที่ "ข้อความงาน" ของแต่ละงวด - ต้องนับเฉพาะงานจริง ไม่รวมรายการเอกสารส่งมอบ
+  // (ถ้ารวมเข้าไป เอกสารจะจับคู่กับตัวเองในงวดที่ TOR รวมรายการไว้ แล้วกองอยู่งวดเดียวเหมือนเดิม)
+  const msWorkMap = {}; let curMs = null, inDoc = false;
+  rows.forEach(r=>{
+    if(r.kind==='ms'){
+      const g = String(r.desc).match(/งวดที่\s*(\d{1,2})/);
+      curMs = g ? g[1] : null; inDoc = false;
+      if(curMs) msWorkMap[curMs] = msWorkMap[curMs] || '';
+      return;
+    }
+    if(r.kind==='sec'){ inDoc = /เอกสารส่งมอบ/.test(r.desc); return; }
+    if(r.kind || !curMs || inDoc) return;
+    msWorkMap[curMs] += ' ' + r.desc;
+  });
+
+  // 2) ดึงเอกสารส่งมอบทั้งหมดออกมา แล้วจับคู่ใหม่
+  const docsByMs = {};
+  const kept = [];
+  let inDocSec = false, secMs = null;
+  rows.forEach(r=>{
+    if(r.kind==='ms'){ inDocSec=false; const g=String(r.desc).match(/งวดที่\s*(\d{1,2})/); secMs=g?g[1]:null; kept.push(r); return; }
+    if(r.kind==='sec'){
+      inDocSec = /เอกสารส่งมอบ/.test(r.desc);
+      if(!inDocSec) kept.push(r);
+      return;
+    }
+    if(inDocSec && secMs){
+      const target = torMatchDocToMilestone(r.desc, msWorkMap, secMs);
+      (docsByMs[target] = docsByMs[target] || []).push(r);
+      return;
+    }
+    kept.push(r);
+  });
+
+  // 3) ประกอบกลับ - เอกสารส่งมอบไว้ท้ายงวดของตัวเอง
+  const out = [];
+  const flush = no => {
+    if(!no) return;
+    const works = [];
+    for(let i=out.length-1;i>=0;i--){
+      if(out[i].kind==='ms') break;
+      if(!out[i].kind) works.push(out[i]);
+    }
+    const docs = docsByMs[no] || [];
+    // งวดที่มีการติดตั้ง ต้องมีรายงานตรวจสอบคุณสมบัติอุปกรณ์
+    const needSpec = torNeedsSpecReport(works);
+    const hasSpecDoc = docs.some(d=>/ตรวจสอบคุณสมบัติ|specification compliance|ตรวจสเปค/i.test(d.desc));
+    if(!docs.length && !needSpec) return;
+    out.push({kind:'sec', tor:'', type:'', desc:`>> เอกสารส่งมอบ งวดที่ ${no} - ต้องส่งครบจึงจะตรวจรับและเบิกจ่ายได้`, note:'', ms:'', cond:''});
+    docs.forEach((d,i)=>{ d.desc = d.desc.replace(/^\s*\d+(?:\.\d+)*\)\s*/, `${i+1}) `); d.ms=`งวดงานที่ ${no}`; out.push(d); });
+    if(needSpec && !hasSpecDoc){
+      out.push({kind:'', tor:'-', type:'Document',
+        desc:`${docs.length+1}) รายงานผลการตรวจสอบคุณสมบัติอุปกรณ์ที่ส่งมอบ เทียบกับข้อกำหนดทางเทคนิคใน TOR ทุกข้อ`,
+        note:'ชื่อเอกสาร: รายงานผลการตรวจสอบคุณสมบัติอุปกรณ์ [Specification Compliance Report] · เพิ่มโดยระบบ',
+        ms:`งวดงานที่ ${no}`,
+        cond:'งวดนี้มีการติดตั้ง/จัดหาอุปกรณ์ จึงต้องพิสูจน์ว่าของที่ส่งมอบตรงกับสเปคในหมวดเทคนิคของ TOR - คณะกรรมการตรวจรับมักขอเอกสารนี้แม้ TOR ไม่ได้ระบุไว้ตรง ๆ'});
+    }
+  };
+  let cur = null;
+  kept.forEach(r=>{
+    if(r.kind==='ms'){
+      flush(cur);
+      const g=String(r.desc).match(/งวดที่\s*(\d{1,2})/);
+      cur = g ? g[1] : null;
+    }
+    out.push(r);
+  });
+  flush(cur);
+  return out;
+}
+
 function torBuildRows(clauses, ms){
   const byNo = {}; clauses.forEach(c=>byNo[c.no]=c);
   const expand = ref => {           // "10.2.1-9" -> [10.2.1 ... 10.2.9]
@@ -5488,7 +5623,7 @@ function torBuildRows(clauses, ms){
     rest.forEach(c=>push({tor:c.no, type:torType(c.text), desc:c.text, ms:'ทุกงวด', cond:''}));
   }
   torAppendSpecBlocks(rows, push, clauses, specHeads);
-  return rows;
+  return torRedistributeDeliverables(rows, ms);
 }
 
 // ===== ตรวจสอบและทำความสะอาดผลลัพธ์ ก่อนให้ดาวน์โหลด =====
@@ -5545,7 +5680,7 @@ function torExportExcel(){
   const cell=(v,st)=>`<Cell${st?` ss:StyleID="${st}"`:''}><Data ss:Type="String">${esc(v)}</Data></Cell>`;
   const rowsXml=[];
   rowsXml.push(`<Row><Cell ss:StyleID="t" ss:MergeAcross="15"><Data ss:Type="String">Scope of Work/ Job Responsiblities Matrix</Data></Cell></Row>`);
-  rowsXml.push(`<Row><Cell ss:StyleID="sub" ss:MergeAcross="15"><Data ss:Type="String">${esc('แหล่งข้อมูล: '+TOR.fileName+(TOR.pages?` (${TOR.pages} หน้า)`:'')+' · สร้างเมื่อ '+new Date().toLocaleString('th-TH')+' · พบ '+TOR.milestones.length+' งวดงาน จาก '+TOR.clauses.length+' ข้อ TOR')}</Data></Cell></Row>`);
+  rowsXml.push(`<Row><Cell ss:StyleID="sub" ss:MergeAcross="15"><Data ss:Type="String">${esc('ตัวแตก TOR '+TOR_ENGINE_VERSION+' · แหล่งข้อมูล: '+TOR.fileName+(TOR.pages?` (${TOR.pages} หน้า)`:'')+' · สร้างเมื่อ '+new Date().toLocaleString('th-TH')+' · พบ '+TOR.milestones.length+' งวดงาน จาก '+TOR.clauses.length+' ข้อ TOR')}</Data></Cell></Row>`);
   rowsXml.push('<Row/>');
   rowsXml.push('<Row>'+H.map(h=>cell(h,'h')).join('')+'</Row>');
   TOR.rows.forEach(r=>{
@@ -5745,7 +5880,8 @@ function renderTorBreakdown(){
       <div class="tor-drop-t">ลากไฟล์ TOR มาวาง หรือ <b>คลิกเพื่อเลือกไฟล์</b></div>
       <div class="tor-drop-s">รองรับ PDF · Word (.docx) · Excel (.xlsx) · ข้อความ (.txt)<br>
         <b style="color:var(--success)">🔒 ไฟล์ถูกประมวลผลในเครื่องคุณทั้งหมด ไม่ถูกอัปโหลดขึ้นเซิร์ฟเวอร์หรือส่งออกไปที่ใด</b><br>
-        ไฟล์ PDF ที่เป็นภาพสแกนต้องแปลงเป็นข้อความ (OCR) ก่อน · รองรับเอกสารหลายร้อยหน้า</div>
+        ไฟล์ PDF ที่เป็นภาพสแกนต้องแปลงเป็นข้อความ (OCR) ก่อน · รองรับเอกสารหลายร้อยหน้า
+        <br><span style="color:var(--line)">ตัวแตก TOR ${TOR_ENGINE_VERSION}</span></div>
     </div>
     <div id="torProg" class="tor-prog" style="display:none">
       <div class="tor-prog-head"><span id="torStage">กำลังเตรียม...</span><b id="torPct">0%</b></div>
