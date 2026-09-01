@@ -4798,7 +4798,7 @@ function allocateCollection(proj){
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
 // หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
 // จึงแกะด้วยกฎได้โดยไม่ต้องพึ่ง AI - แม่นกับเอกสารที่เป็น text ส่วนไฟล์สแกนต้อง OCR มาก่อน
-const TOR_ENGINE_VERSION = 'v197';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
+const TOR_ENGINE_VERSION = 'v199';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
 const TOR = { text:'', clauses:[], milestones:[], rows:[], fileName:'', pages:0 };
 
 // โหลดไลบรารีเฉพาะตอนเปิดไฟล์ที่ต้องใช้จริง - ถ้าเน็ตเข้า CDN ไม่ได้ ไฟล์ .txt/.csv ยังใช้งานได้ปกติ
@@ -5912,68 +5912,6 @@ function torValidate(rows){
   return {rows:out, report};
 }
 
-// แก้ชื่อฟอนต์ในไฟล์ที่ SheetJS สร้าง ให้เป็น TH SarabunPSK ทุกเซลล์
-// วิธีนี้ปลอดภัยกว่าเขียน xlsx เองทั้งไฟล์ เพราะโครงสร้างมาจากไลบรารีที่ใช้งานจริงมาแล้ว
-// เราแตะแค่ชื่อฟอนต์กับขนาด ไม่ยุ่งกับโครงสร้างอื่นเลย
-async function torRestyleXlsx(buf){
-  try{
-    const files = await torUnzip(buf);                 // อ่านทุกส่วนออกมา
-    const dec=new TextDecoder(), enc=new TextEncoder();
-    ['xl/styles.xml','xl/theme/theme1.xml'].forEach(k=>{
-      if(!files[k]) return;
-      let x = dec.decode(files[k]);
-      x = x.replace(/(<(?:latin|name|font|majorFont|minorFont)[^>]*?(?:typeface|val)=")[^"]*(")/g, '$1TH SarabunPSK$2');
-      x = x.replace(/(<sz val=")(\d+(?:\.\d+)?)(")/g, (m,a,n,b)=>a+Math.max(12, Math.round(+n*1.3))+b);
-      files[k] = enc.encode(x);
-    });
-    const list = Object.keys(files).map(name=>({name, data:files[name]}));
-    return torZipStore(list);
-  }catch(e){
-    console.warn('แก้ฟอนต์ไม่สำเร็จ ใช้ไฟล์เดิม:', e.message);
-    return buf;
-  }
-}
-
-// เขียน ZIP แบบ store - ใช้ประกอบไฟล์กลับหลังแก้ฟอนต์
-const TOR_CRC_TABLE = (() => {
-  const t=new Uint32Array(256);
-  for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; }
-  return t;
-})();
-function torCrc32(b){ let c=0xFFFFFFFF; for(let i=0;i<b.length;i++) c=TOR_CRC_TABLE[(c^b[i])&0xFF]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
-const TOR_DOS_NOW=new Date();
-const TOR_DOS_DATE=((Math.max(1980,TOR_DOS_NOW.getFullYear())-1980)<<9)|((TOR_DOS_NOW.getMonth()+1)<<5)|TOR_DOS_NOW.getDate();
-const TOR_DOS_TIME=(TOR_DOS_NOW.getHours()<<11)|(TOR_DOS_NOW.getMinutes()<<5)|Math.floor(TOR_DOS_NOW.getSeconds()/2);
-function torZipStore(files){
-  const enc=new TextEncoder(); const parts=[],central=[]; let offset=0;
-  files.forEach(f=>{
-    const name=enc.encode(f.name);
-    const data=typeof f.data==='string'?enc.encode(f.data):f.data;
-    const crc=torCrc32(data);
-    const lh=new Uint8Array(30+name.length); const dv=new DataView(lh.buffer);
-    dv.setUint32(0,0x04034b50,true); dv.setUint16(4,20,true); dv.setUint16(6,0x0800,true);
-    dv.setUint16(8,0,true); dv.setUint16(10,TOR_DOS_TIME,true); dv.setUint16(12,TOR_DOS_DATE,true);
-    dv.setUint32(14,crc,true); dv.setUint32(18,data.length,true); dv.setUint32(22,data.length,true);
-    dv.setUint16(26,name.length,true); dv.setUint16(28,0,true);
-    lh.set(name,30); parts.push(lh,data);
-    const ch=new Uint8Array(46+name.length); const cv=new DataView(ch.buffer);
-    cv.setUint32(0,0x02014b50,true); cv.setUint16(4,20,true); cv.setUint16(6,20,true);
-    cv.setUint16(8,0x0800,true); cv.setUint16(10,0,true);
-    cv.setUint16(12,TOR_DOS_TIME,true); cv.setUint16(14,TOR_DOS_DATE,true);
-    cv.setUint32(16,crc,true); cv.setUint32(20,data.length,true); cv.setUint32(24,data.length,true);
-    cv.setUint16(28,name.length,true); cv.setUint32(42,offset,true);
-    ch.set(name,46); central.push(ch); offset+=lh.length+data.length;
-  });
-  const cdSize=central.reduce((a,c)=>a+c.length,0);
-  const eocd=new Uint8Array(22); const ev=new DataView(eocd.buffer);
-  ev.setUint32(0,0x06054b50,true); ev.setUint16(8,files.length,true); ev.setUint16(10,files.length,true);
-  ev.setUint32(12,cdSize,true); ev.setUint32(16,offset,true);
-  const all=[...parts,...central,eocd];
-  const outBuf=new Uint8Array(all.reduce((a,x)=>a+x.length,0));
-  let p=0; all.forEach(x=>{ outBuf.set(x,p); p+=x.length; });
-  return outBuf;
-}
-
 // ---------- 5) ส่งออก Excel (เขียน SpreadsheetML เอง ไม่ต้องพึ่งไลบรารีภายนอก) ----------
 async function torExportExcel(){
   if(!TOR.rows || !TOR.rows.length){
@@ -5986,7 +5924,7 @@ async function torExportExcel(){
     // ใช้ SheetJS สร้างไฟล์ - เคยเขียน xlsx เองแล้ว Excel ฟ้องไฟล์เสียหาย
     // เพราะรายละเอียดของรูปแบบเข้มงวดกว่าที่ตรวจสอบเองได้ ไลบรารีนี้ผ่านการใช้งานจริงมาแล้ว
     // โหลดจากเครื่องเรา (lib/) เหมือนเดิม ไม่ส่งข้อมูลออกไปที่ใด
-    await torLoadScript('lib/xlsx.full.min.js');
+    await torLoadScript('lib/xlsx-style.min.js');
 
     const clean = v => torThaiDigits(String(v==null?'':v))
       .replace(/\r\n?/g,'\n')
@@ -6032,7 +5970,9 @@ async function torExportExcel(){
 
     // จัดรูปแบบทุกเซลล์ - TH SarabunPSK ทั้งไฟล์ตามที่ใช้กันในเอกสารราชการ
     const FILL={head:'D9D9D9', ms:'FFF2CC', sec:'E2EFDA'};
-    const border={style:'thin', color:{rgb:'FFBFBFBF'}};
+    const border={style:'thin', color:{rgb:'BFBFBF'}};
+    // ต้องกำหนดขอบเขตชีตให้ครบ 16 คอลัมน์ทุกแถวก่อน ไม่งั้นเซลล์ที่ถูก merge ซ่อนไว้จะไม่ได้สไตล์
+    ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:aoa.length-1, c:15}});
     for(let r=0;r<aoa.length;r++){
       const st=styleOf[r];
       for(let c=0;c<16;c++){
@@ -6043,11 +5983,11 @@ async function torExportExcel(){
           font:{ name:'TH SarabunPSK', sz,
                  bold: st==='title'||st==='head'||st==='ms'||st==='sec',
                  italic: st==='sub',
-                 color: st==='sub'?{rgb:'FF808080'}:undefined },
+                 color: st==='sub'?{rgb:'808080'}:undefined },
           alignment:{ wrapText:true,
                       vertical: st==='head'?'center':'top',
                       horizontal: st==='head'?'center':undefined },
-          fill: FILL[st] ? {patternType:'solid', fgColor:{rgb:'FF'+FILL[st]}} : undefined,
+          fill: FILL[st] ? {patternType:'solid', fgColor:{rgb:FILL[st]}} : undefined,
           border: (st==='title'||st==='sub') ? undefined
                 : {top:border,bottom:border,left:border,right:border}
         };
@@ -6058,14 +5998,8 @@ async function torExportExcel(){
     XLSX.utils.book_append_sheet(wb, ws, 'Scope of Work');
     // ให้ SheetJS สร้างโครงไฟล์ (ถูกต้องแน่นอน) แล้วค่อยแก้ชื่อฟอนต์ในไฟล์สไตล์
     // เพราะรุ่นฟรีของ SheetJS ไม่เขียนสไตล์ให้ ถ้าไม่แก้จะได้ Calibri แทน TH SarabunPSK
-    const buf = XLSX.write(wb, {bookType:'xlsx', type:'array', compression:true});
-    const out = await torRestyleXlsx(buf);
-    const blob = new Blob([out], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download=`Scope_of_Work_${TOR.fileName.replace(/\.[^.]+$/,'')}.xlsx`;
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1500);
+    XLSX.writeFile(wb, `Scope_of_Work_${TOR.fileName.replace(/\.[^.]+$/,'')}.xlsx`,
+                   {bookType:'xlsx', compression:true});
   }catch(e){
     alert('สร้างไฟล์ไม่สำเร็จ: ' + String(e.message||e));
   }finally{
