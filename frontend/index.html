@@ -4798,7 +4798,7 @@ function allocateCollection(proj){
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
 // หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
 // จึงแกะด้วยกฎได้โดยไม่ต้องพึ่ง AI - แม่นกับเอกสารที่เป็น text ส่วนไฟล์สแกนต้อง OCR มาก่อน
-const TOR_ENGINE_VERSION = 'v186';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
+const TOR_ENGINE_VERSION = 'v188';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
 const TOR = { text:'', clauses:[], milestones:[], rows:[], fileName:'', pages:0 };
 
 // โหลดไลบรารีเฉพาะตอนเปิดไฟล์ที่ต้องใช้จริง - ถ้าเน็ตเข้า CDN ไม่ได้ ไฟล์ .txt/.csv ยังใช้งานได้ปกติ
@@ -5043,6 +5043,31 @@ async function torExtract(file, onProg){
 
 // ---------- 2) แตกโครงสร้างข้อ ----------
 // TOR ราชการจำนวนมากใช้เลขไทย ๐-๙ ในการนับข้อ ต้องแปลงเป็นอารบิกก่อนจึงจะแตกข้อได้
+// แก้คำเพี้ยนที่ OCR ไทยผิดซ้ำ ๆ - ทำเฉพาะรูปแบบที่ปลอดภัยและมีบริบทชัดเจน
+// ไม่เดาคำ เพราะเสี่ยงแก้ผิดมากกว่าปล่อยไว้
+function torFixThai(t){
+  if(!t) return t;
+  return String(t)
+    // รวมสระอำที่ถูกแยกเป็น นิคหิต+สระอา ให้เป็นตัวเดียว
+    .replace(/\u0E4D\u0E32/g,'\u0E33')
+    // ื กับ ี สลับกันบ่อยที่สุด - แก้เฉพาะคำที่ตามด้วยพยัญชนะที่ทำให้เป็นคำจริง
+    .replace(/มื(?=องค์|ความ|ผลงาน|รายละเอียด|ลักษณะ|จำนวน|ส่วนร่วม|ศักยภาพ|คุณภาพ|ประสิทธิ)/g,'มี')
+    .replace(/ท่ี/g,'ที่').replace(/เเ/g,'แ')
+    // ตัดอักขระขยะจากตราประทับ/ลายเซ็นที่หลงเหลือ
+    .replace(/(?<=[\u0E00-\u0E7F])\s+[a-zA-Z]{1,2}\s+(?=[\u0E00-\u0E7F])/g,' ')
+    .replace(/[ \t]{2,}/g,' ')
+    .trim();
+}
+
+// ล้างเศษอักขระจากตราประทับ/ลายเซ็นที่ปนอยู่ในบรรทัด - ทำบนข้อความ ไม่แตะลำดับคำ
+function torStripJunk(t){
+  return String(t||'')
+    .replace(/[@#^*_~`|\\<>{}\[\]«»""„‟]/g,' ')
+    .replace(/(?<=[\u0E00-\u0E7F])\s+[a-zA-Z]{1,2}(?=\s+[\u0E00-\u0E7F])/g,' ')
+    .replace(/^\s*[\u0E00-\u0E7F]\s+(?=[\u0E00-\u0E7F]{3,})/gm,'')
+    .replace(/[ \t]{2,}/g,' ');
+}
+
 const TH_DIGITS='๐๑๒๓๔๕๖๗๘๙';
 // แปลงเลขไทยเป็นอารบิกทั้งเอกสาร - ทั้งเลขข้อ เลขในเนื้อหา จำนวนเงิน วันที่ ฯลฯ
 // ทำตั้งแต่ตอนดึงข้อความ ผลจึงเป็นอารบิกทุกที่ รวมถึงไฟล์ Excel ที่ส่งออก
@@ -5636,6 +5661,16 @@ function torBuildRows(clauses, ms){
         });
       });
     }
+    // ถ้าอ้างถึงข้อแต่หาเนื้อความไม่เจอเลย ต้องบอก PM ว่าให้ไปเปิดข้อไหนใน TOR ฉบับจริง
+    const resolved = workRefs.filter(r=>byNo[r]).length;
+    if(refs.length && resolved===0){
+      push({kind:'sec', desc:'⚠ อ่านเนื้องานของงวดนี้จากไฟล์ไม่ได้ - ต้องเปิด TOR ฉบับจริงประกอบ'});
+      push({tor:'-', type:'Ref',
+        desc:`งานของงวดนี้อยู่ที่ ${m.refs.join(', ')} ในเอกสาร TOR แต่ระบบอ่านเลขข้อจากไฟล์ไม่ตรง จึงดึงเนื้อความมาไม่ได้`,
+        note:'มักเกิดกับไฟล์สแกนที่ OCR อ่านเลขข้อผิด',
+        ms:`งวดงานที่ ${m.no}`,
+        cond:'ตรวจกับ TOR ฉบับจริงที่ข้อดังกล่าว แล้วเติมเนื้องานเอง'});
+    }
     const allDocs = [...new Set([...docRefs, ...extraDocs])].sort(byClauseNo);
     if(allDocs.length){
       push({kind:'sec', desc:`>> เอกสารส่งมอบ งวดที่ ${m.no} - ต้องส่งครบจึงจะตรวจรับและเบิกจ่ายได้`});
@@ -5793,8 +5828,102 @@ function torValidate(rows){
   const other=tasks.filter(r=>r.type==='Other').length;
   if(tasks.length && other/tasks.length>0.5) report.warn.push(`จัดประเภทไม่ได้ ${other} จาก ${tasks.length} งาน - อาจมีเนื้อหาที่ไม่ใช่งาน`);
   if(!out.some(r=>r.kind==='ms')) report.warn.push('ไม่พบงวดงานเลย - ตรวจว่าเป็นเอกสาร TOR หรือไม่');
+  // เลขงวดต้องเรียง 1,2,3,... ถ้าข้ามแสดงว่าอ่านเลขผิด (OCR มักอ่าน ๔ เป็น 5)
+  const msNos = out.filter(r=>r.kind==='ms').map(r=>{
+    const g=String(r.desc).match(/งวดที่\s*(\d{1,2})/); return g?parseInt(g[1],10):null;
+  }).filter(Boolean).sort((a,b)=>a-b);
+  if(msNos.length>1){
+    const gaps=[];
+    for(let i=1;i<=msNos[msNos.length-1];i++) if(!msNos.includes(i)) gaps.push(i);
+    if(gaps.length) report.warn.push(`เลขงวดข้าม (ไม่พบงวดที่ ${gaps.join(', ')}) - OCR อาจอ่านเลขผิด ตรวจกับ TOR ฉบับจริง`);
+  }
+  // งวดที่ไม่มีทั้งงานและเอกสาร = อ่านไม่ครบ
+  const emptyMs=[];
+  let curNo=null, hasRow=false;
+  out.forEach(r=>{
+    if(r.kind==='ms'){
+      const g=String(r.desc).match(/งวดที่\s*(\d{1,2})/);
+      if(curNo && !hasRow) emptyMs.push(curNo);
+      curNo = g?g[1]:null; hasRow=false; return;
+    }
+    if(!r.kind && curNo) hasRow=true;
+  });
+  if(curNo && !hasRow) emptyMs.push(curNo);
+  if(emptyMs.length) report.warn.push(`งวดที่ ${emptyMs.join(', ')} ไม่มีเนื้องานเลย - ระบบอ่านข้อที่งวดนั้นอ้างถึงไม่ได้`);
   return {rows:out, report};
 }
+
+// ===== เขียนไฟล์ .xlsx จริงเอง (ไม่พึ่งไลบรารี) =====
+// เดิมสร้างเป็น SpreadsheetML แล้วตั้งนามสกุล .xls ทำให้ Excel เตือนว่า
+// "file format and extension don't match" ทุกครั้งที่เปิด
+// จึงเขียน OOXML + ZIP เองด้วย CRC32 + store (ไม่บีบอัด) ซึ่งเป็น ZIP ที่ถูกต้องสมบูรณ์
+const TOR_CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for(let n=0;n<256;n++){
+    let c=n;
+    for(let k=0;k<8;k++) c = (c&1) ? (0xEDB88320 ^ (c>>>1)) : (c>>>1);
+    t[n]=c>>>0;
+  }
+  return t;
+})();
+function torCrc32(buf){
+  let c = 0xFFFFFFFF;
+  for(let i=0;i<buf.length;i++) c = TOR_CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c>>>8);
+  return (c ^ 0xFFFFFFFF)>>>0;
+}
+function torZip(files){
+  const enc = new TextEncoder();
+  const parts=[], central=[];
+  let offset=0;
+  files.forEach(f=>{
+    const name = enc.encode(f.name);
+    const data = typeof f.data==='string' ? enc.encode(f.data) : f.data;
+    const crc = torCrc32(data);
+    const lh = new Uint8Array(30 + name.length);
+    const dv = new DataView(lh.buffer);
+    dv.setUint32(0, 0x04034b50, true);   // local file header
+    dv.setUint16(4, 20, true);           // version needed
+    dv.setUint16(6, 0x0800, true);       // flag: UTF-8 filename
+    dv.setUint16(8, 0, true);            // method 0 = store
+    dv.setUint16(10, 0, true); dv.setUint16(12, 0, true);   // time/date
+    dv.setUint32(14, crc, true);
+    dv.setUint32(18, data.length, true);
+    dv.setUint32(22, data.length, true);
+    dv.setUint16(26, name.length, true);
+    dv.setUint16(28, 0, true);
+    lh.set(name, 30);
+    parts.push(lh, data);
+
+    const ch = new Uint8Array(46 + name.length);
+    const cv = new DataView(ch.buffer);
+    cv.setUint32(0, 0x02014b50, true);   // central directory header
+    cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true); cv.setUint16(10, 0, true);
+    cv.setUint16(12, 0, true); cv.setUint16(14, 0, true);
+    cv.setUint32(16, crc, true);
+    cv.setUint32(20, data.length, true);
+    cv.setUint32(24, data.length, true);
+    cv.setUint16(28, name.length, true);
+    cv.setUint32(42, offset, true);
+    ch.set(name, 46);
+    central.push(ch);
+    offset += lh.length + data.length;
+  });
+  const cdSize = central.reduce((a,c)=>a+c.length,0);
+  const eocd = new Uint8Array(22);
+  const ev = new DataView(eocd.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(8, files.length, true);
+  ev.setUint16(10, files.length, true);
+  ev.setUint32(12, cdSize, true);
+  ev.setUint32(16, offset, true);
+  const all = [...parts, ...central, eocd];
+  const total = all.reduce((a,x)=>a+x.length,0);
+  const out = new Uint8Array(total);
+  let p=0; all.forEach(x=>{ out.set(x,p); p+=x.length; });
+  return out;
+}
+const torColName = n => { let s=''; n++; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26); } return s; };
 
 // ---------- 5) ส่งออก Excel (เขียน SpreadsheetML เอง ไม่ต้องพึ่งไลบรารีภายนอก) ----------
 function torExportExcel(){
@@ -5802,208 +5931,122 @@ function torExportExcel(){
     alert('ยังไม่มีข้อมูลให้ส่งออก - กรุณาอัปโหลดเอกสาร TOR แล้วรอให้ประมวลผลเสร็จก่อน');
     return;
   }
-  const esc=v=>torThaiDigits(String(v==null?'':v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-                .replace(/"/g,'&quot;').replace(/\r?\n/g,'&#10;');
+  const esc = v => torThaiDigits(String(v==null?'':v))
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'');
   const H=['Item/ToR No.','ประเภท','Description/รายละเอียด','หมายเหตุ','งวดงานที่','เงื่อนไข/ข้อกำหนด',
            'Sales','PM','PE','Sub1','Sub2','Sub3','Sub4','Sub5','Sub6','Sub7'];
-  const cell=(v,st)=>`<Cell${st?` ss:StyleID="${st}"`:''}><Data ss:Type="String">${esc(v)}</Data></Cell>`;
-  const rowsXml=[];
-  rowsXml.push(`<Row><Cell ss:StyleID="t" ss:MergeAcross="15"><Data ss:Type="String">Scope of Work/ Job Responsiblities Matrix</Data></Cell></Row>`);
-  rowsXml.push(`<Row><Cell ss:StyleID="sub" ss:MergeAcross="15"><Data ss:Type="String">${esc('ตัวแตก TOR '+TOR_ENGINE_VERSION+' · แหล่งข้อมูล: '+TOR.fileName+(TOR.pages?` (${TOR.pages} หน้า)`:'')+' · สร้างเมื่อ '+new Date().toLocaleString('th-TH')+' · พบ '+TOR.milestones.length+' งวดงาน จาก '+TOR.clauses.length+' ข้อ TOR')}</Data></Cell></Row>`);
+
+  // ---- ประกอบข้อมูลเป็นตาราง ----
+  const table=[];   // {cells:[...], style:'title|sub|head|body|ms|sec', merge:bool}
+  table.push({cells:['Scope of Work/ Job Responsiblities Matrix'], style:'title', merge:true});
+  table.push({cells:[`ตัวแตก TOR ${TOR_ENGINE_VERSION} · แหล่งข้อมูล: ${TOR.fileName}${TOR.pages?` (${TOR.pages} หน้า)`:''} · สร้างเมื่อ ${new Date().toLocaleString('th-TH')} · พบ ${TOR.milestones.length} งวดงาน จาก ${TOR.clauses.length} ข้อ TOR`], style:'sub', merge:true});
   if(TOR.pay && TOR.pay.items.length){
     const line = 'สรุปเงินรายงวด: ' + TOR.pay.items.map(x=>
       `งวดที่ ${x.no} = ${x.pct?x.pct+'%':(x.amount?Number(x.amount).toLocaleString()+' บาท':'ไม่ระบุ')}`
       + (x.period?` (${x.period})`:(x.days?` (ภายใน ${x.days} วัน)`:''))).join(' · ')
-      + (TOR.pay.complete?'  [รวม 100%]':`  [รวม ${TOR.pay.pctSum}% - ตรวจสอบ]`);
-    rowsXml.push(`<Row><Cell ss:StyleID="sub" ss:MergeAcross="15"><Data ss:Type="String">${esc(line)}</Data></Cell></Row>`);
+      + (TOR.pay.complete?'   [รวม 100%]':`   [รวม ${TOR.pay.pctSum}% - ตรวจสอบ]`);
+    table.push({cells:[line], style:'sub', merge:true});
   }
-  rowsXml.push('<Row/>');
-  rowsXml.push('<Row>'+H.map(h=>cell(h,'h')).join('')+'</Row>');
+  table.push({cells:[''], style:'body'});
+  table.push({cells:H, style:'head'});
   TOR.rows.forEach(r=>{
-    if(r.kind==='ms'||r.kind==='sec'){
-      rowsXml.push(`<Row><Cell ss:StyleID="${r.kind}" ss:MergeAcross="15"><Data ss:Type="String">${esc(r.desc)}</Data></Cell></Row>`);
-    } else {
-      rowsXml.push('<Row>'+[r.tor,r.type,r.desc,r.note,r.ms,r.cond].map(v=>cell(v,'b')).join('')
-                   +Array(10).fill(cell('','b')).join('')+'</Row>');
-    }
+    if(r.kind==='ms')      table.push({cells:[r.desc], style:'ms',  merge:true});
+    else if(r.kind==='sec')table.push({cells:[r.desc], style:'sec', merge:true});
+    else table.push({cells:[r.tor,r.type,r.desc,r.note,r.ms,r.cond,'','','','','','','','','',''], style:'body'});
   });
-  const widths=[100,105,560,215,115,370].concat(Array(10).fill(58));
-  const xml=`<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-<Styles>
-<Style ss:ID="t"><Font ss:FontName="TH SarabunPSK" ss:Size="18" ss:Bold="1"/></Style>
-<Style ss:ID="sub"><Font ss:FontName="TH SarabunPSK" ss:Size="12" ss:Italic="1" ss:Color="#808080"/></Style>
-<Style ss:ID="h"><Font ss:FontName="TH SarabunPSK" ss:Size="12" ss:Bold="1"/><Interior ss:Color="#D9D9D9" ss:Pattern="Solid"/><Alignment ss:Vertical="Center" ss:Horizontal="Center" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
-<Style ss:ID="b"><Font ss:FontName="TH SarabunPSK" ss:Size="12"/><Alignment ss:Vertical="Top" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFBFBF"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFBFBF"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFBFBF"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFBFBF"/></Borders></Style>
-<Style ss:ID="ms"><Font ss:FontName="TH SarabunPSK" ss:Size="12" ss:Bold="1"/><Interior ss:Color="#FFF2CC" ss:Pattern="Solid"/><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
-<Style ss:ID="sec"><Font ss:FontName="TH SarabunPSK" ss:Size="12" ss:Bold="1"/><Interior ss:Color="#E2EFDA" ss:Pattern="Solid"/><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
-</Styles>
-<Worksheet ss:Name="Scope of Work"><Table>
-${widths.map(w=>`<Column ss:Width="${w}"/>`).join('')}
-${rowsXml.join('\n')}
-</Table>
-<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><SplitHorizontal>4</SplitHorizontal><TopRowBottomPane>4</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions>
-</Worksheet></Workbook>`;
-  const blob=new Blob(['\ufeff'+xml],{type:'application/vnd.ms-excel;charset=utf-8'});
+
+  // ---- sheet1.xml ----
+  const widths=[14,15,80,32,17,50].concat(Array(10).fill(9));
+  let sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    + '<sheetPr><outlinePr summaryBelow="1"/></sheetPr>'
+    + `<sheetViews><sheetView workbookViewId="0" tabSelected="1"><pane ySplit="5" topLeftCell="A6" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`
+    + '<cols>' + widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('') + '</cols>'
+    + '<sheetData>';
+  const merges=[];
+  table.forEach((row,ri)=>{
+    const rn = ri+1;
+    const st = {title:1, sub:2, head:3, body:4, ms:5, sec:6}[row.style] || 4;
+    const hasNl = row.cells.some(c=>String(c||'').indexOf('\n')>=0);
+    const ht = row.style==='title' ? 24 : (hasNl ? 34 : (row.style==='body' ? 30 : 20));
+    sheet += `<row r="${rn}" ht="${ht}" customHeight="1">`;
+    row.cells.forEach((c,ci)=>{
+      const v = esc(c);
+      if(v==='' && !row.merge) { sheet += `<c r="${torColName(ci)}${rn}" s="${st}"/>`; return; }
+      sheet += `<c r="${torColName(ci)}${rn}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${v}</t></is></c>`;
+    });
+    // เติมเซลล์ที่เหลือให้ครบ 16 คอลัมน์ เพื่อให้พื้นหลัง/เส้นขอบต่อเนื่อง
+    for(let ci=row.cells.length; ci<16; ci++) sheet += `<c r="${torColName(ci)}${rn}" s="${st}"/>`;
+    sheet += '</row>';
+    if(row.merge) merges.push(`A${rn}:P${rn}`);
+  });
+  sheet += '</sheetData>';
+  if(merges.length) sheet += `<mergeCells count="${merges.length}">` + merges.map(m=>`<mergeCell ref="${m}"/>`).join('') + '</mergeCells>';
+  sheet += `<autoFilter ref="A5:P${table.length}"/></worksheet>`;
+
+  // ---- styles.xml : TH SarabunPSK ทุกเซลล์ ----
+  const F='TH SarabunPSK';
+  const styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    + '<fonts count="5">'
+      + `<font><sz val="12"/><name val="${F}"/></font>`
+      + `<font><b/><sz val="18"/><name val="${F}"/></font>`
+      + `<font><i/><sz val="12"/><color rgb="FF808080"/><name val="${F}"/></font>`
+      + `<font><b/><sz val="12"/><name val="${F}"/></font>`
+      + `<font><sz val="12"/><name val="${F}"/></font>`
+    + '</fonts>'
+    + '<fills count="6">'
+      + '<fill><patternFill patternType="none"/></fill>'
+      + '<fill><patternFill patternType="gray125"/></fill>'
+      + '<fill><patternFill patternType="solid"><fgColor rgb="FFD9D9D9"/><bgColor indexed="64"/></patternFill></fill>'
+      + '<fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill>'
+      + '<fill><patternFill patternType="solid"><fgColor rgb="FFE2EFDA"/><bgColor indexed="64"/></patternFill></fill>'
+      + '<fill><patternFill patternType="none"/></fill>'
+    + '</fills>'
+    + '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>'
+      + '<border><left style="thin"><color rgb="FFBFBFBF"/></left><right style="thin"><color rgb="FFBFBFBF"/></right>'
+      + '<top style="thin"><color rgb="FFBFBFBF"/></top><bottom style="thin"><color rgb="FFBFBFBF"/></bottom><diagonal/></border></borders>'
+    + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+    + '<cellXfs count="7">'
+      + '<xf xfId="0" fontId="0" fillId="0" borderId="0" applyFont="1"/>'                                                            /* 0 default */
+      + '<xf xfId="0" fontId="1" fillId="0" borderId="0" applyFont="1"/>'                                                            /* 1 title */
+      + '<xf xfId="0" fontId="2" fillId="0" borderId="0" applyFont="1"/>'                                                            /* 2 sub */
+      + '<xf xfId="0" fontId="3" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'  /* 3 head */
+      + '<xf xfId="0" fontId="0" fillId="0" borderId="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'                                       /* 4 body */
+      + '<xf xfId="0" fontId="3" fillId="3" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'                         /* 5 ms */
+      + '<xf xfId="0" fontId="3" fillId="4" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'                         /* 6 sec */
+    + '</cellXfs></styleSheet>';
+
+  const R='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const files=[
+    {name:'[Content_Types].xml', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      +'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+      +'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+      +'<Default Extension="xml" ContentType="application/xml"/>'
+      +'<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+      +'<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+      +'<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+      +'</Types>'},
+    {name:'_rels/.rels', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      +`<Relationship Id="rId1" Type="${R}/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+    {name:'xl/workbook.xml', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      +`<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="${R}">`
+      +'<sheets><sheet name="Scope of Work" sheetId="1" r:id="rId1"/></sheets></workbook>'},
+    {name:'xl/_rels/workbook.xml.rels', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      +`<Relationship Id="rId1" Type="${R}/worksheet" Target="worksheets/sheet1.xml"/>`
+      +`<Relationship Id="rId2" Type="${R}/styles" Target="styles.xml"/></Relationships>`},
+    {name:'xl/styles.xml', data:styles},
+    {name:'xl/worksheets/sheet1.xml', data:sheet},
+  ];
+  const blob = new Blob([torZip(files)], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download=`Scope_of_Work_${TOR.fileName.replace(/\.[^.]+$/,'')}.xls`;
+  a.download=`Scope_of_Work_${TOR.fileName.replace(/\.[^.]+$/,'')}.xlsx`;
   document.body.appendChild(a); a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1500);
-}
-
-// แก้คำเพี้ยนที่ OCR ไทยผิดซ้ำ ๆ - ทำเฉพาะรูปแบบที่ปลอดภัยและมีบริบทชัดเจน
-// ไม่เดาคำ เพราะเสี่ยงแก้ผิดมากกว่าปล่อยไว้
-function torFixThai(t){
-  if(!t) return t;
-  return String(t)
-    // รวมสระอำที่ถูกแยกเป็น นิคหิต+สระอา ให้เป็นตัวเดียว (ทำให้ค้นหา/เทียบคำได้ถูกต้อง)
-    .replace(/\u0E4D\u0E32/g,'\u0E33')
-    // ื กับ ี สลับกันบ่อยที่สุดในภาษาไทย - แก้เฉพาะคำที่ขึ้นต้นด้วย "มื" แล้วตามด้วยพยัญชนะที่ทำให้เป็นคำจริง
-    .replace(/มื(?=องค์|ความ|ผลงาน|รายละเอียด|ลักษณะ|จำนวน|ส่วนร่วม|ศักยภาพ|คุณภาพ|ประสิทธิ)/g,'มี')
-    .replace(/ท่ี/g,'ที่').replace(/เเ/g,'แ')
-    // ตัดอักขระขยะที่ OCR อ่านจากตราประทับ/ลายเซ็นที่หลงเหลือ (ตัวละตินเดี่ยว ๆ ปนกลางข้อความไทย)
-    .replace(/(?<=[\u0E00-\u0E7F])\s+[a-zA-Z]{1,2}\s+(?=[\u0E00-\u0E7F])/g,' ')
-    .replace(/[ \t]{2,}/g,' ')
-    .trim();
-}
-
-// ค่า threshold ที่ใช้ลองอ่านซ้ำ - เรียงจากที่ได้ผลดีที่สุดโดยเฉลี่ยไปหาทางเลือกสำรอง
-const TOR_OCR_TRIES=[170, 200, 140];
-// ประเมินคุณภาพการอ่านจากค่าความมั่นใจรายคำ - ไม่ประกอบข้อความใหม่
-// (เคยลองประกอบเองแล้วลำดับคำเพี้ยนหนัก จึงใช้ข้อความที่ tesseract จัดมาให้ตามเดิม)
-function torScoreOcr(data){
-  const text=(data&&data.text)||'';
-  const words=(data&&data.words)||[];
-  const kept=words.filter(w=>(w.text||'').trim());
-  const conf = kept.length ? kept.reduce((a,w)=>a+(w.confidence||0),0)/kept.length
-                           : ((data&&data.confidence)||0);
-  const junk = kept.filter(w=>(w.confidence||0)<45
-                 && !/[\u0E00-\u0E7F]{2,}|[a-zA-Z]{3,}|\d{2,}/.test((w.text||'').trim())).length;
-  return {text, conf, dropped:junk};
-}
-
-// ล้างเศษอักขระจากตราประทับ/ลายเซ็นที่ปนอยู่ในบรรทัด - ทำบนข้อความ ไม่แตะลำดับคำ
-function torStripJunk(t){
-  return String(t||'')
-    // สัญลักษณ์แปลกปลอมที่ไม่ใช่อักขระไทย/อังกฤษ/ตัวเลข/วรรคตอนปกติ
-    .replace(/[@#^*_~`|\\<>{}\[\]«»“”„‟]/g,' ')
-    // ตัวอักษรละตินโดดเดี่ยว 1-2 ตัวที่แทรกกลางข้อความไทย
-    .replace(/(?<=[\u0E00-\u0E7F])\s+[a-zA-Z]{1,2}(?=\s+[\u0E00-\u0E7F])/g,' ')
-    // อักขระไทยโดดเดี่ยวตัวเดียวที่ขึ้นต้นบรรทัด (เศษเลขข้อที่อ่านเพี้ยน)
-    .replace(/^\s*[\u0E00-\u0E7F]\s+(?=[\u0E00-\u0E7F]{3,})/gm,'')
-    .replace(/[ \t]{2,}/g,' ');
-}
-
-// เตรียมภาพก่อน OCR: ลบตราประทับแดง/ลายเซ็นน้ำเงินที่ทับตัวหนังสือ แล้วแปลงเป็นขาวดำ
-// เอกสารราชการไทยมักประทับตราครุฑแดงและเซ็นชื่อน้ำเงินทับข้อความ ทำให้ OCR อ่านเพี้ยนหนัก
-// วิธี: พิกเซลที่มีสีเด่นชัด (แดงหรือน้ำเงิน) เปลี่ยนเป็นขาว ที่เหลือแปลงเป็นเทาแล้วตัดเป็นขาว-ดำ
-function torCleanCanvas(ctx,w,h,th){
-  const TH = th||170;
-  const img=ctx.getImageData(0,0,w,h), d=img.data;
-  for(let i=0;i<d.length;i+=4){
-    const r=d[i], g=d[i+1], b=d[i+2];
-    const isRed  = (r-g>40) && (r-b>40);
-    const isBlue = (b-r>40) && (b-g>25);
-    if(isRed||isBlue){ d[i]=d[i+1]=d[i+2]=255; continue; }
-    const y = 0.299*r + 0.587*g + 0.114*b;
-    const v = y>TH ? 255 : 0;          // binarize ให้ตัวอักษรคมชัด
-    d[i]=d[i+1]=d[i+2]=v;
-  }
-  ctx.putImageData(img,0,0);
-}
-
-// ---------- OCR ในเครื่อง (Tesseract.js) สำหรับ PDF ที่เป็นภาพสแกน ----------
-async function torOcrRun(file, from, to){
-  torReset(file.name);            // เริ่ม OCR = เริ่มใหม่ทั้งหมด ไม่เอาผลเดิมมาปน
-  const res=document.getElementById('torResult');
-  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-  try{
-    torProgress(3,'โหลดเครื่องมือ OCR (ครั้งแรกใช้เวลาสักครู่)',1);
-    await torLoadScript('lib/tesseract.min.js');
-    await torLoadScript('lib/pdf.min.js');
-    const pdfjsLib=window['pdfjsLib'];
-    pdfjsLib.GlobalWorkerOptions.workerSrc='lib/pdf.worker.min.js';
-
-    torProgress(6,'เตรียมตัวอ่านภาษาไทย',1);
-    const worker = await Tesseract.createWorker(['tha','eng'], 1, {
-      workerPath:'lib/tess/worker.min.js',
-      corePath:'lib/tess/',
-      langPath:'lib/tess/',
-      gzip:true,
-    });
-    await worker.setParameters({
-      preserve_interword_spaces:'1',       // คงช่องว่างระหว่างคำ ช่วยให้แตกข้อแม่นขึ้น
-      tessedit_pageseg_mode:'6',           // มองทั้งหน้าเป็นบล็อกข้อความเดียว เหมาะกับ TOR
-    });
-
-    const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
-    TOR.pages = pdf.numPages;
-    from=Math.max(1,from); to=Math.min(pdf.numPages,Math.max(from,to));
-    const total=to-from+1, out=[]; const t0=Date.now();
-    let confSum=0, confN=0, dropped=0;
-
-    for(let i=from;i<=to;i++){
-      const page=await pdf.getPage(i);
-      // เรนเดอร์ที่ 4 เท่า (~300 DPI) - จำเป็นสำหรับภาษาไทยที่มีสระบน/ล่างตัวเล็ก
-      const vp=page.getViewport({scale:4});
-      const cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
-      const ctx=cv.getContext('2d', {willReadFrequently:true});
-      await page.render({canvasContext:ctx, viewport:vp}).promise;
-      const raw = ctx.getImageData(0,0,cv.width,cv.height);
-
-      // อ่านหลายรอบด้วยการปรับภาพต่างกัน แล้วเลือกผลที่ระบบมั่นใจสูงสุด
-      // (บางหน้าที่ตราประทับทับหนัก ค่า threshold ต่างกันให้ผลต่างกันมาก)
-      let best=null;
-      for(const th of TOR_OCR_TRIES){
-        ctx.putImageData(new ImageData(new Uint8ClampedArray(raw.data), raw.width, raw.height),0,0);
-        torCleanCanvas(ctx, cv.width, cv.height, th);
-        const {data} = await worker.recognize(cv);
-        const cleaned = torScoreOcr(data);
-        if(!best || cleaned.conf > best.conf) best = cleaned;
-        // มั่นใจสูงพอแล้ว ไม่ต้องลองรอบถัดไป (ประหยัดเวลา)
-        if(best.conf >= 90) break;
-        torProgress(6+Math.round((i-from)/total*54), `OCR หน้า ${i} - ลองปรับภาพเพิ่ม (มั่นใจ ${best.conf.toFixed(0)}%)`, 1);
-        await sleep(0);
-      }
-      confSum += best.conf; confN++; dropped += best.dropped;
-      out.push(best.text);
-      page.cleanup(); cv.width=cv.height=0;      // คืนหน่วยความจำทันที
-      const done=i-from+1, el=(Date.now()-t0)/1000;
-      const eta=done>1?Math.round(el/done*(total-done)):null;
-      torProgress(6+Math.round(done/total*54),
-        `OCR หน้า ${i} (${done}/${total})` + (eta!==null?` · เหลืออีกประมาณ ${eta>60?Math.round(eta/60)+' นาที':eta+' วินาที'}`:''), 1);
-      await sleep(0);
-    }
-    await worker.terminate();
-
-    // OCR ไทยแทรกช่องว่างระหว่างอักษร ต้องยุบก่อนแตกข้อ
-    const text = torFixThai(torThaiDigits(torStripJunk(out.join('\n'))));   // ล้างขยะ + ๐-๙ -> 0-9 + แก้คำเพี้ยน
-    TOR.text = text;
-    torProgress(62,'แตกโครงสร้างข้อจากผล OCR',2); await sleep(40);
-    TOR.clauses = torPickTorSegment(await torParseClausesAsync(text,(p,st)=>torProgress(Math.min(78,p),st,2)));
-    if(TOR.clauses.length<3){
-      torProgress(100,'OCR ได้ผลน้อยเกินไป',5);
-      res.innerHTML=`<div class="tor-warn"><b>OCR อ่านได้ แต่แตกเป็นข้อไม่ได้</b><br>
-        ได้ข้อความ ${text.replace(/\s/g,'').length} ตัวอักษร แต่พบเพียง ${TOR.clauses.length} ข้อ<br>
-        อาจเป็นเพราะเอกสารสแกนไม่ชัด หรือรูปแบบการนับข้อต่างจากที่รองรับ
-        - ลอง OCR ช่วงหน้าที่มีเนื้อหาขอบเขตงานโดยตรง หรือขอไฟล์ต้นฉบับ Word/PDF จากผู้ว่าจ้างจะแม่นกว่ามาก</div>`;
-      return;
-    }
-    torProgress(85,`พบ ${TOR.clauses.length} ข้อ - จับคู่งวดงาน`,3); await sleep(40);
-    TOR.milestones = torParseMilestones(TOR.clauses);
-    { const v=torValidate(torBuildRows(TOR.clauses,TOR.milestones)); TOR.rows=v.rows; TOR.qa=v.report; }
-    torProgress(100,'เสร็จเรียบร้อย (จาก OCR)',5);
-    const avgConf = confN ? (confSum/confN) : 0;
-    const qual = avgConf>=90?'ดี':avgConf>=80?'พอใช้':'ต่ำ';
-    torShowResult(`<div class="tor-warn" style="margin-bottom:12px"><b>ผลนี้มาจาก OCR</b> ของหน้า ${from}-${to}
-      · ความมั่นใจเฉลี่ย <b>${avgConf.toFixed(1)}%</b> (${qual})${dropped?` · ตัดอักขระขยะจากตราประทับ/ลายเซ็นออก ${dropped} จุด`:''}
-      <br>ข้อความอาจคลาดเคลื่อนจากต้นฉบับได้ ควรตรวจทานก่อนนำไปใช้จริง${avgConf<85?' <b>- ความมั่นใจไม่สูง แนะนำให้ขอไฟล์ต้นฉบับ Word/PDF จากผู้ว่าจ้าง</b>':''}</div>`);
-  }catch(err){
-    torProgress(100,'OCR ไม่สำเร็จ',5);
-    res.innerHTML=`<div class="tor-warn"><b>OCR ไม่สำเร็จ</b><br>${String(err.message||err)}<br>
-      ตรวจว่าโฟลเดอร์ lib/tess/ ถูก deploy ไปด้วยหรือไม่</div>`;
-  }
 }
 
 // ---------- 6) UI ----------
@@ -6184,6 +6227,122 @@ async function torAiEnhance(){
   }finally{ if(btn) btn.disabled=false; }
 }
 
+// ค่า threshold ที่ใช้ลองอ่านซ้ำ - เรียงจากที่ได้ผลดีที่สุดโดยเฉลี่ยไปหาทางเลือกสำรอง
+const TOR_OCR_TRIES=[170, 200, 140];
+
+// ประเมินคุณภาพการอ่านจากค่าความมั่นใจรายคำ - ไม่ประกอบข้อความใหม่
+// (เคยลองประกอบเองแล้วลำดับคำเพี้ยนหนัก จึงใช้ข้อความที่ tesseract จัดมาให้ตามเดิม)
+function torScoreOcr(data){
+  const text=(data&&data.text)||'';
+  const words=(data&&data.words)||[];
+  const kept=words.filter(w=>(w.text||'').trim());
+  const conf = kept.length ? kept.reduce((a,w)=>a+(w.confidence||0),0)/kept.length
+                           : ((data&&data.confidence)||0);
+  const junk = kept.filter(w=>(w.confidence||0)<45
+                 && !/[\u0E00-\u0E7F]{2,}|[a-zA-Z]{3,}|\d{2,}/.test((w.text||'').trim())).length;
+  return {text, conf, dropped:junk};
+}
+
+// เตรียมภาพก่อน OCR: ลบตราประทับแดง/ลายเซ็นน้ำเงินที่ทับตัวหนังสือ แล้วแปลงเป็นขาวดำ
+// เอกสารราชการไทยมักประทับตราครุฑแดงและเซ็นชื่อน้ำเงินทับข้อความ ทำให้ OCR อ่านเพี้ยนหนัก
+function torCleanCanvas(ctx,w,h,th){
+  const TH = th||170;
+  const img=ctx.getImageData(0,0,w,h), d=img.data;
+  for(let i=0;i<d.length;i+=4){
+    const r=d[i], g=d[i+1], b=d[i+2];
+    const isRed  = (r-g>40) && (r-b>40);
+    const isBlue = (b-r>40) && (b-g>25);
+    if(isRed||isBlue){ d[i]=d[i+1]=d[i+2]=255; continue; }
+    const y = 0.299*r + 0.587*g + 0.114*b;
+    const v = y>TH ? 255 : 0;
+    d[i]=d[i+1]=d[i+2]=v;
+  }
+  ctx.putImageData(img,0,0);
+}
+
+// ---------- OCR ในเครื่อง (Tesseract.js) สำหรับ PDF ที่เป็นภาพสแกน ----------
+async function torOcrRun(file, from, to){
+  torReset(file.name);
+  const res=document.getElementById('torResult');
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  try{
+    torProgress(3,'โหลดเครื่องมือ OCR (ครั้งแรกใช้เวลาสักครู่)',1);
+    await torLoadScript('lib/tesseract.min.js');
+    await torLoadScript('lib/pdf.min.js');
+    const pdfjsLib=window['pdfjsLib'];
+    pdfjsLib.GlobalWorkerOptions.workerSrc='lib/pdf.worker.min.js';
+
+    torProgress(6,'เตรียมตัวอ่านภาษาไทย',1);
+    const worker = await Tesseract.createWorker(['tha','eng'], 1, {
+      workerPath:'lib/tess/worker.min.js', corePath:'lib/tess/', langPath:'lib/tess/', gzip:true,
+    });
+    await worker.setParameters({ preserve_interword_spaces:'1', tessedit_pageseg_mode:'6' });
+
+    const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
+    TOR.pages = pdf.numPages;
+    from=Math.max(1,from); to=Math.min(pdf.numPages,Math.max(from,to));
+    const total=to-from+1, out=[]; const t0=Date.now();
+    let confSum=0, confN=0, dropped=0;
+
+    for(let i=from;i<=to;i++){
+      const page=await pdf.getPage(i);
+      const vp=page.getViewport({scale:4});      // ~300 DPI จำเป็นสำหรับสระไทยตัวเล็ก
+      const cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
+      const ctx=cv.getContext('2d', {willReadFrequently:true});
+      await page.render({canvasContext:ctx, viewport:vp}).promise;
+      const raw = ctx.getImageData(0,0,cv.width,cv.height);
+
+      let best=null;
+      for(const th of TOR_OCR_TRIES){
+        ctx.putImageData(new ImageData(new Uint8ClampedArray(raw.data), raw.width, raw.height),0,0);
+        torCleanCanvas(ctx, cv.width, cv.height, th);
+        const {data} = await worker.recognize(cv);
+        const cleaned = torScoreOcr(data);
+        if(!best || cleaned.conf > best.conf) best = cleaned;
+        if(best.conf >= 90) break;
+        torProgress(6+Math.round((i-from)/total*54), `OCR หน้า ${i} - ลองปรับภาพเพิ่ม (มั่นใจ ${best.conf.toFixed(0)}%)`, 1);
+        await sleep(0);
+      }
+      confSum += best.conf; confN++; dropped += best.dropped;
+      out.push(best.text);
+      page.cleanup(); cv.width=cv.height=0;
+      const done=i-from+1, el=(Date.now()-t0)/1000;
+      const eta=done>1?Math.round(el/done*(total-done)):null;
+      torProgress(6+Math.round(done/total*54),
+        `OCR หน้า ${i} (${done}/${total})` + (eta!==null?` · เหลืออีกประมาณ ${eta>60?Math.round(eta/60)+' นาที':eta+' วินาที'}`:''), 1);
+      await sleep(0);
+    }
+    await worker.terminate();
+
+    const text = torFixThai(torThaiDigits(torStripJunk(out.join('\n'))));
+    TOR.text = text;
+    torProgress(62,'แตกโครงสร้างข้อจากผล OCR',2); await sleep(40);
+    TOR.clauses = torPickTorSegment(await torParseClausesAsync(text,(p,st)=>torProgress(Math.min(78,p),st,2)));
+    if(TOR.clauses.length<3){
+      torProgress(100,'OCR ได้ผลน้อยเกินไป',5);
+      res.innerHTML=`<div class="tor-warn"><b>OCR อ่านได้ แต่แตกเป็นข้อไม่ได้</b><br>
+        ได้ข้อความ ${text.replace(/\s/g,'').length} ตัวอักษร แต่พบเพียง ${TOR.clauses.length} ข้อ<br>
+        อาจเป็นเพราะเอกสารสแกนไม่ชัด หรือรูปแบบการนับข้อต่างจากที่รองรับ
+        - ลอง OCR ช่วงหน้าที่มีเนื้อหาขอบเขตงานโดยตรง หรือขอไฟล์ต้นฉบับ Word/PDF จากผู้ว่าจ้างจะแม่นกว่ามาก</div>`;
+      return;
+    }
+    torProgress(85,`พบ ${TOR.clauses.length} ข้อ - จับคู่งวดงาน`,3); await sleep(40);
+    TOR.milestones = torParseMilestones(TOR.clauses);
+    { const v=torValidate(torBuildRows(TOR.clauses,TOR.milestones)); TOR.rows=v.rows; TOR.qa=v.report;
+      TOR.pay = torPaymentSummary(TOR.rows, TOR.milestones); }
+    torProgress(100,'เสร็จเรียบร้อย (จาก OCR)',5);
+    const avgConf = confN ? (confSum/confN) : 0;
+    const qual = avgConf>=90?'ดี':avgConf>=80?'พอใช้':'ต่ำ';
+    torShowResult(`<div class="tor-warn" style="margin-bottom:12px"><b>ผลนี้มาจาก OCR</b> ของหน้า ${from}-${to}
+      · ความมั่นใจเฉลี่ย <b>${avgConf.toFixed(1)}%</b> (${qual})${dropped?` · ตัดอักขระขยะออก ${dropped} จุด`:''}
+      <br>ข้อความอาจคลาดเคลื่อนจากต้นฉบับได้ ควรตรวจทานก่อนนำไปใช้จริง${avgConf<85?' <b>- ความมั่นใจไม่สูง แนะนำให้ขอไฟล์ต้นฉบับ Word/PDF จากผู้ว่าจ้าง</b>':''}</div>`);
+  }catch(err){
+    torProgress(100,'OCR ไม่สำเร็จ',5);
+    res.innerHTML=`<div class="tor-warn"><b>OCR ไม่สำเร็จ</b><br>${String(err.message||err)}<br>
+      ตรวจว่าโฟลเดอร์ lib/tess/ ถูก deploy ไปด้วยหรือไม่</div>`;
+  }
+}
+
 function torShowResult(prefix){
   const res=document.getElementById('torResult');
   const tasks=TOR.rows.filter(r=>!r.kind).length;
@@ -6214,7 +6373,7 @@ function torShowResult(prefix){
     </div>
     <div class="tor-types">${Object.entries(types).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span class="tor-chip">${k} ${v}</span>`).join('')}</div>
     <div class="tor-actions">
-      <button class="tor-btn primary" onclick="torExportExcel()">⬇ ดาวน์โหลด Scope of Work (Excel)</button>
+      <button class="tor-btn primary" onclick="torExportExcel()">⬇ ดาวน์โหลด Scope of Work (.xlsx)</button>
       <button class="tor-btn" onclick="document.getElementById('torPreview').classList.toggle('open')">ดูตัวอย่างผลลัพธ์</button>
       <button class="tor-btn ${TOR.aiDone?'':'ai'}" id="torAiBtn" onclick="torAiEnhance()">${TOR.aiDone?'🤖 ให้ AI ช่วยอีกครั้ง':'🤖 ให้ AI ช่วยเสริม'}</button>
     </div>
