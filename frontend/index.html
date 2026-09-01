@@ -4798,7 +4798,7 @@ function allocateCollection(proj){
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
 // หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
 // จึงแกะด้วยกฎได้โดยไม่ต้องพึ่ง AI - แม่นกับเอกสารที่เป็น text ส่วนไฟล์สแกนต้อง OCR มาก่อน
-const TOR_ENGINE_VERSION = 'v199';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
+const TOR_ENGINE_VERSION = 'v201';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
 const TOR = { text:'', clauses:[], milestones:[], rows:[], fileName:'', pages:0 };
 
 // โหลดไลบรารีเฉพาะตอนเปิดไฟล์ที่ต้องใช้จริง - ถ้าเน็ตเข้า CDN ไม่ได้ ไฟล์ .txt/.csv ยังใช้งานได้ปกติ
@@ -5090,6 +5090,8 @@ function torThaiDigits(t){
   if(!t) return t;
   return String(t)
     .replace(/[๐-๙]/g, d=>String(TH_DIGITS.indexOf(d)))
+    // ขีดยาวทุกชนิด (– — ‒ ― −) ให้เป็นขีดสั้นธรรมดา จะได้ค้นหาและเทียบข้อความได้ตรงกัน
+    .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g,'-')
     // เลขข้อที่ถูกแยกด้วยช่องว่าง เช่น "4. 1.2" -> "4.1.2" (เจอในไฟล์ Excel ที่ merge cell)
     .replace(/(?<=^|\s)(\d{1,2})\.\s+(\d{1,2})(\.\s*\d{1,2})?(?=\s)/gm,
              (m,a,b,c)=>a+'.'+b+(c?c.replace(/\s+/g,''):''))
@@ -5255,8 +5257,10 @@ function torPickTorSegment(clauses){
   for(let i=1;i<clauses.length;i++){
     const a=parseInt(clauses[i-1].no,10), b=parseInt(clauses[i].no,10);
     // ต้องเป็นการเริ่มเอกสารใหม่จริง ๆ ไม่ใช่รายการย่อยที่วนเลข - ดูว่าเลขก่อนหน้าสูงพอและข้อถัดไปไล่ต่อเนื่อง
+    // ต้องเป็นการเริ่มเอกสารใหม่จริง: เลขก่อนหน้าสูงมาก + ข้อถัดไปไล่ต่อเนื่อง
+    // + ข้อความสั้นแบบหัวข้อ (ตารางคะแนนมักเป็นประโยคยาว)
     const nextNo = clauses[i+1] ? parseInt(clauses[i+1].no,10) : 0;
-    if(b===1 && a>=6 && clauses[i].depth===1 && nextNo===2) cuts.push(i);
+    if(b===1 && a>=9 && clauses[i].depth===1 && nextNo===2 && clauses[i].text.length<80) cuts.push(i);
   }
   cuts.push(clauses.length);
   if(cuts.length<=2) return clauses;          // มีชุดเดียว ใช้ทั้งหมด
@@ -5274,8 +5278,21 @@ function torPickTorSegment(clauses){
     if(/คุณสมบัติของผู้ยื่นข้อเสนอ|หลักฐานการยื่นข้อเสนอ|หลักประกันการเสนอราคา/.test(txt)) score-=3;
     if(!best || score>best.score) best={score, seg};
   }
-  // ถ้าไม่มีชุดไหนดูเป็น TOR เลย ใช้ทั้งไฟล์ตามเดิม
-  return (best && best.score>=6) ? best.seg : clauses;
+  // ตรวจก่อนตัด: ช่วงที่เลือกต้องไม่ทำให้เสียข้อที่งวดงานอ้างถึง
+  // (เคยตัดขอบเขตงานข้อ 4.1-4.8 ทิ้ง เพราะเห็นเลขวนกลับ 1 จากตารางคะแนน)
+  if(best && best.score>=6){
+    const refs = new Set();
+    clauses.forEach(c=>{
+      if(!/งวดที่\s*\d|จ่าย|ชำระเงิน|ส่งมอบ/.test(c.text)) return;
+      (c.text.match(/ข้อ\s*(\d{1,2}(?:\.\d{1,2})?)/g)||[])
+        .forEach(x=>refs.add(x.replace(/ข้อ\s*/,'').trim()));
+    });
+    const has = seg => [...refs].filter(r=>seg.some(c=>c.no===r)).length;
+    // ถ้าตัดแล้วเสียข้อที่ถูกอ้างถึงไปมากกว่าที่เก็บได้ อย่าตัด
+    if(refs.size && has(best.seg) < has(clauses)) return clauses;
+    return best.seg;
+  }
+  return clauses;
 }
 
 // ===== ตรวจว่า "หัวข้อ" ที่แตกได้เป็นหัวข้อจริงหรือเป็นข้อย่อยที่ OCR อ่านเลขเพี้ยน =====
@@ -5927,6 +5944,7 @@ async function torExportExcel(){
     await torLoadScript('lib/xlsx-style.min.js');
 
     const clean = v => torThaiDigits(String(v==null?'':v))
+      .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g,'-')
       .replace(/\r\n?/g,'\n')
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'');
     const H=['Item/ToR No.','ประเภท','Description/รายละเอียด','หมายเหตุ','งวดงานที่','เงื่อนไข/ข้อกำหนด',
