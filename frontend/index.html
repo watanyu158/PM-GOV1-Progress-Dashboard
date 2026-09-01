@@ -496,6 +496,28 @@
   .cs-bar{height:5px;background:var(--line-soft);border-radius:5px;overflow:hidden;margin-top:7px;}
   .cs-bar i{display:block;height:100%;background:var(--brand);}
 
+  /* ---------------- Revenue Recognition ---------------- */
+  .rr-note{margin:0 18px 12px;padding:9px 13px;border-radius:9px;background:var(--surface-2);
+    border:1px solid var(--line-soft);font-size:10.5px;color:var(--faint);line-height:1.7;}
+  .rr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;padding:0 18px 12px;}
+  .rr-card{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;padding:11px 13px;}
+  .rr-h{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink);}
+  .rr-no{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;
+    background:var(--brand);color:#fff;font-size:10.5px;font-weight:700;flex:none;}
+  .rr-h b{flex:1;font-size:12px;}
+  .rr-cnt{font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--brand);font-weight:700;}
+  .rr-def{font-size:10px;color:var(--faint);line-height:1.6;margin:5px 0 8px;}
+  .rr-pct{display:flex;gap:8px;}
+  .rr-pct span{flex:1;background:var(--surface);border:1px solid var(--line-soft);border-radius:7px;padding:5px 9px;
+    display:flex;flex-direction:column;gap:1px;}
+  .rr-pct i{font-style:normal;font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.03em;}
+  .rr-pct b{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink);}
+  .rr-warn{margin:0 18px 12px;padding:9px 13px;border-radius:9px;background:var(--warning-tint);
+    border-left:3px solid var(--warning);font-size:11px;color:var(--ink-2);line-height:1.7;}
+  .rr-actions{padding:0 18px 14px;}
+  .rr-list{display:none;padding:0 18px 16px;max-height:460px;overflow:auto;}
+  .rr-list.open{display:block;}
+
   /* ---------------- TOR Breakdown ---------------- */
   .tor-drop{margin:14px 18px;padding:30px 20px;border:2px dashed var(--line);border-radius:12px;text-align:center;cursor:pointer;background:var(--surface-2);transition:.15s;}
   .tor-drop:hover,.tor-drop.over{border-color:var(--brand);background:#FBF7F0;}
@@ -1921,6 +1943,17 @@
       </div>
     </div>
 
+    <div class="panel" id="panel-rrType">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Revenue Recognition <span class="sep">-</span> <span class="th">ชนิดโครงการและสัดส่วนการรับรู้รายได้</span>
+        </div>
+        <span class="p-count" id="rrCount"></span>
+      </div>
+      <div class="p-body"><div id="rrBox"></div></div>
+    </div>
+
     <div class="panel" id="panel-torBreakdown">
       <div class="p-head">
         <div class="p-title">
@@ -2324,6 +2357,7 @@ const CARD_REGISTRY = [
   {tab:'3', tabLabel:'Project Information', id:'projectsByYear', en:'Projects by Year', th:'จำนวน/มูลค่าโครงการรายปี'},
   {tab:'3', tabLabel:'Project Information', id:'siteHistory', en:'Site History', th:'ใครเคยดูแลลูกค้ารายนี้บ้าง'},
   {tab:'3', tabLabel:'Project Information', id:'pmProfile', en:'PM Profile', th:'ประวัติการทำงานราย PM'},
+  {tab:'3', tabLabel:'Project Information', id:'rrType', en:'Revenue Recognition', th:'ชนิดโครงการและสัดส่วนการรับรู้รายได้'},
   {tab:'3', tabLabel:'Project Information', id:'torBreakdown', en:'TOR Breakdown', th:'แตกเอกสาร TOR เป็น Scope of Work', scope:false},
   {tab:'3', tabLabel:'Project Information', id:'companySearch', en:'Project Search', th:'ค้นหาโครงการทั้งบริษัท'},
 ];
@@ -4768,6 +4802,109 @@ function allocateCollection(proj){
     };
   });
   return out;
+}
+
+// ===================== Revenue Recognition =====================
+// ตารางรับรู้รายได้ของ OAT - จำแนกชนิดโครงการจาก 3 ตัวแปร แล้วบอกสัดส่วนการรับรู้
+// ตัวแปร: มีส่งของไหม · มีติดตั้ง/อบรมไหม · ระยะเวลาโครงการ (<=30 วัน / 1-3 เดือน / >3 เดือน)
+// รูปแบบ % เขียนแบบ A:B หรือ A:B:C = สัดส่วนตามลำดับขั้น (ส่งของ : ติดตั้ง : อบรม)
+const RR_TABLE = {
+  1:{name:'ส่งของอย่างเดียว',            def:'มีแต่การส่งของ ไม่มีการติดตั้ง',                       acc:'100',      pm:'100'},
+  2:{name:'ติดตั้ง/บริการ อย่างเดียว',   def:'มีแต่การติดตั้งหรือให้บริการอย่างเดียว',                acc:'100',      pm:'100'},
+  3:{name:'ส่งของและติดตั้ง แบบที่ 1',   def:'ส่งของ+ติดตั้ง ไม่มีฝึกอบรม ไม่เกิน 30 วัน',           acc:'100',      pm:'90:10'},
+  4:{name:'ส่งของและติดตั้ง แบบที่ 2',   def:'ส่งของ+ติดตั้ง มีฝึกอบรม ไม่เกิน 30 วัน',              acc:'100',      pm:'80:10:10'},
+  5:{name:'ส่งของและติดตั้ง แบบที่ 3',   def:'ส่งของ+ติดตั้ง ไม่มีฝึกอบรม 1-3 เดือน',                acc:'90:10',    pm:'80:20'},
+  6:{name:'ส่งของและติดตั้ง แบบที่ 4',   def:'ส่งของ+ติดตั้ง มีฝึกอบรม 1-3 เดือน',                   acc:'90:10',    pm:'70:20:10'},
+  7:{name:'ส่งของและติดตั้ง แบบที่ 5',   def:'ส่งของ+ติดตั้ง ไม่มีฝึกอบรม มากกว่า 3 เดือน',          acc:'70:30',    pm:'70:30'},
+  8:{name:'ส่งของและติดตั้ง แบบที่ 6',   def:'ส่งของ+ติดตั้ง มีฝึกอบรม มากกว่า 3 เดือน',             acc:'70:30',    pm:'60:30:10'},
+  9:{name:'จ้างเหมาทั่วไป',              def:'ขึ้นกับลักษณะลูกค้า สัญญา และความยากง่าย',              acc:'ตาม PM',   pm:'ตาม PM'},
+ 10:{name:'พัฒนาระบบงาน (Application)',  def:'ความยากขึ้นกับการสรุปความต้องการผู้ใช้เป็นหลัก',        acc:'40:30:30', pm:'40:30:30'},
+ 11:{name:'ที่ปรึกษา (Consultant)',      def:'ขึ้นกับลักษณะลูกค้า สัญญา และความยากง่าย',              acc:'ตาม PM',   pm:'ตาม PM'},
+};
+
+function rrDays(p){
+  const a=parseD(p['Start Date']), b=parseD(p['End Date']);
+  if(!a||!b) return null;
+  return Math.round((b-a)/86400000);
+}
+
+// จำแนกชนิดโครงการตามกฎที่ OAT กำหนด
+// - Project Type กับ Service Type สัมพันธ์กัน: Project Type บอกระดับสัญญา · Service Type บอกลักษณะงาน
+// - Training ว่าง = สันนิษฐานว่าไม่มีอบรมไว้ก่อน (ถ้าแผนมีอบรมค่อยถือว่ามี)
+// - งาน MA / งานเช่า ถือว่าไม่เข้าข่ายตารางนี้
+function rrClassify(p){
+  const pt=String(p['Project Type']||'').trim().toUpperCase();
+  const st=String(p['Service Type']||'').trim();
+  const tr=String(p['Training']||'').trim().toUpperCase();
+  const parts=st.split(',').map(x=>x.trim()).filter(x=>x && x!=='-');
+
+  if(pt==='MA'||pt==='RENT'||parts.some(x=>/MA|เช่า/.test(x)))
+    return {n:null, why:'ไม่เข้าข่ายตาราง (งาน MA/เช่า)', kind:'na'};
+  if(/ที่ปรึกษา/.test(st)) return {n:11};
+  if(pt==='TURNKEY' && !parts.length) return {n:9};
+
+  const deliver = parts.some(x=>/ส่งของ/.test(x));
+  const install = parts.some(x=>/ติดตั้ง|บริการ/.test(x));
+  const training = (tr==='YES');
+  const days = rrDays(p);
+
+  if(deliver && install){
+    if(days===null) return {n:null, why:'ระบุชนิดไม่ได้ - ไม่มีวันที่เริ่ม/สิ้นสุด', kind:'miss'};
+    const n = days<=30 ? (training?4:3) : (days<=92 ? (training?6:5) : (training?8:7));
+    return {n, days, training};
+  }
+  if(deliver) return {n:1, days};
+  if(install) return {n:2, days};
+  return {n:null, why:'ระบุชนิดไม่ได้ - ไม่มี Service Type', kind:'miss'};
+}
+
+function renderRevenueRecognition(list){
+  const el=document.getElementById('rrBox'); if(!el) return;
+  const src = (list && list.length) ? list : (PROJINFO||[]);
+  if(!src.length){ el.innerHTML='<div class="empty">ยังไม่มีข้อมูลประวัติโครงการ</div>'; return; }
+
+  const byType={}, na=[], miss=[];
+  src.forEach(p=>{
+    const r=rrClassify(p);
+    if(r.n===null){ (r.kind==='na'?na:miss).push({p, why:r.why}); return; }
+    (byType[r.n]=byType[r.n]||[]).push({p, r});
+  });
+  const nOk=Object.values(byType).reduce((a,x)=>a+x.length,0);
+  document.getElementById('rrCount').textContent=`จำแนกได้ ${nOk} จาก ${src.length}`;
+
+  const nums=Object.keys(byType).map(Number).sort((a,b)=>a-b);
+  el.innerHTML=`
+    <div class="rr-note">จำแนกชนิดโครงการจาก <b>Project Type</b> + <b>Service Type</b> + <b>Training</b> + ระยะเวลาโครงการ
+      · รูปแบบ A:B:C คือสัดส่วนรับรู้ตามลำดับขั้น (ส่งของ : ติดตั้ง : อบรม)
+      · โครงการที่ไม่ระบุ Training ถือว่าไม่มีอบรมไว้ก่อน</div>
+    <div class="rr-grid">
+      ${nums.map(n=>{
+        const t=RR_TABLE[n], items=byType[n];
+        return `<div class="rr-card">
+          <div class="rr-h"><span class="rr-no">${n}</span><b>${t.name}</b><span class="rr-cnt">${items.length}</span></div>
+          <div class="rr-def">${t.def}</div>
+          <div class="rr-pct"><span><i>มุมบัญชี</i><b>${t.acc}</b></span><span><i>มุม PM</i><b>${t.pm}</b></span></div>
+        </div>`;
+      }).join('')}
+    </div>
+    ${(na.length||miss.length)?`<div class="rr-warn">
+      ${na.length?`<b>${na.length} โครงการ</b> ไม่เข้าข่ายตาราง (งาน MA/เช่า)`:''}
+      ${(na.length&&miss.length)?' · ':''}
+      ${miss.length?`<b>${miss.length} โครงการ</b> ระบุชนิดไม่ได้ - ${[...new Set(miss.map(x=>x.why))].join(' · ')}`:''}
+    </div>`:''}
+    <div class="rr-actions">
+      <button class="tor-btn" onclick="document.getElementById('rrList').classList.toggle('open')">ดูรายโครงการ</button>
+    </div>
+    <div id="rrList" class="rr-list">
+      <table class="tor-table"><thead><tr><th>Project Code</th><th>ชื่อโครงการ</th><th>ชนิด</th><th>ระยะเวลา</th><th>อบรม</th><th>มุมบัญชี</th><th>มุม PM</th></tr></thead><tbody>
+      ${nums.flatMap(n=>byType[n].slice(0,40).map(({p,r})=>{
+        const t=RR_TABLE[n];
+        return `<tr><td>${p['Project Code']||'-'}</td><td>${String(p['Project Name']||'-').slice(0,50)}</td>
+          <td>${n}. ${t.name}</td><td>${r.days!=null?r.days+' วัน':'-'}</td>
+          <td>${r.training?'มี':'-'}</td><td>${t.acc}</td><td>${t.pm}</td></tr>`;
+      })).join('')}
+      </tbody></table>
+    </div>`;
 }
 
 // ===================== TOR Breakdown =====================
@@ -8452,6 +8589,7 @@ function renderFiltered(){
   renderClosure(listFor('closureTransfer'));
   renderStalled(listFor('stalledProgress'));
   renderRiskFinder(listFor('riskFinder'));
+  renderRevenueRecognition(listFor('rrType'));
   renderTorBreakdown();
   renderProgressTimeline(listFor('progressTimeline'),
     hasTeamWideScope('progressTimeline') && ROWS_TEAMWIDE.length ? ROWS_TEAMWIDE : HIST);
