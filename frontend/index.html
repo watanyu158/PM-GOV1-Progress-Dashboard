@@ -5142,13 +5142,19 @@ async function torParseClausesAsync(text, onProg){
     // (TOR หลายฉบับเขียนงวดงานเป็นย่อหน้าธรรมดาใต้หมวดการส่งมอบ/การชำระเงิน)
     // "งวดที่ N" ต้องเริ่มข้อใหม่เสมอ - รวมถึงกรณีอยู่บรรทัดเดียวโดด ๆ (TOR ที่ทำเป็นตาราง)
     // บรรทัดถัด ๆ ไปจะถูกผนวกเข้ามาเองโดยเงื่อนไขด้านล่าง จนกว่าจะเจอ "งวดที่" ตัวถัดไป
-    const gm = ln.match(/^งวดที่\s*(\d{1,2})\b(.*)$/);
+    // รองรับคำเรียกงวดทุกแบบที่เจอใน TOR จริง:
+    //   "งวดที่ 1" · "งวดงานที่ 1" · "-งวดที่ 1" · "งวดที่ 1ส่งมอบ" (ไม่มีช่องว่างคั่น)
+    const gm = ln.match(/^[-•\s]*งวด(?:งาน)?ที่\s*(\d{1,2})\b(.*)$/);
     if(gm){
       if(cur) out.push(cur);
       const gno = gm[1];
       cur = {no:(lastTopNo||'0')+'.'+gno, text:('งวดที่ '+gno+' '+(gm[2]||'')).trim(),
              depth:2, idx:out.length, synthetic:true};
       continue;
+    }
+    // หัวข้อหลักใหม่ต้องปิดบล็อกของงวด ไม่งั้นงวดสุดท้ายจะดูดหมวดถัดไป (ค่าปรับ วงเงิน) เข้ามาด้วย
+    if(cur && cur.synthetic && /^\d{1,2}[.\s]\s*(?:วงเงิน|ค่าปรับ|อัตราค่าปรับ|หลักเกณฑ์|การรับประกัน|หลักประกัน|กรรมสิทธิ|เงื่อนไขอื่น|ข้อกำหนดด้าน|การบำรุงรักษา)/.test(ln)){
+      out.push(cur); cur=null;
     }
     // เลขข้ออาจติดข้อความโดยไม่มีช่องว่าง เช่น "12.1งวดที่ 1" / "8.หลักเกณฑ์" (เจอจริงใน TOR GIS)
     const m = ln.match(/^(\d{1,2}(?:\.\d{1,2}){0,3})\.?\s*(.+)$/);
@@ -5174,7 +5180,7 @@ function torParseClauses(text){
   const lines = t.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
   const out=[]; let cur=null, lastTopNo=null;
   for(const ln of lines){
-    const gm = ln.match(/^งวดที่\s*(\d{1,2})\b(.*)$/);
+    const gm = ln.match(/^[-•\s]*งวด(?:งาน)?ที่\s*(\d{1,2})\b(.*)$/);
     if(gm){
       if(cur) out.push(cur);
       cur = {no:(lastTopNo||'0')+'.'+gm[1], text:('งวดที่ '+gm[1]+' '+(gm[2]||'')).trim(), depth:2, synthetic:true};
@@ -5202,7 +5208,10 @@ function torParseMilestones(clauses){
     if(!m) return;
     if(!/จ่าย|ชำระ|เบิก|ส่งมอบงาน|ร้อยละ|%|ประกอบด้วย/.test(c.text)) return;
     const no = parseInt(m[1],10);
-    const pct = (c.text.match(/(?:เป็นจำนวนเงิน)?ร้อยละ\s*([\d.]+)|([\d.]+)\s*%/)||[])[1];
+    // ห้ามหยิบ % จากบริบทค่าปรับ/หลักประกัน ซึ่งไม่ใช่สัดส่วนการจ่ายเงินของงวด
+    const pctCand = [...c.text.matchAll(/(.{0,120})ร้อยละ\s*([\d.]+)/g)]
+      .filter(x=>!/ค่าปรับ|ปรับเป็นราย|หลักประกัน|ภาษี|ดอกเบี้ย|เงินล่วงหน้า/.test(x[1]) && parseFloat(x[2])<=100);
+    const pct = pctCand.length ? pctCand[0][2] : undefined;
     // ข้อ TOR ที่ถูกอ้างถึงในเงื่อนไขงวดนี้
     const refs=[...new Set((c.text.match(/ข้อ\s*\d{1,2}(?:\.\d{1,2}){0,2}(?:\s*[-–]\s*\d{1,2}(?:\.\d{1,2}){0,2})?/g)||[])
       .map(x=>x.replace(/ข้อ\s*/,'').trim()))];
@@ -5211,6 +5220,25 @@ function torParseMilestones(clauses){
   // TOR หลายฉบับแยก "การส่งมอบงาน" กับ "เงื่อนไขการจ่ายเงิน" คนละหมวด ต้องรวมเข้าด้วยกันด้วยเลขงวด
   // กวาดซ้ำอีกชั้นในหมวดที่เกี่ยวกับการส่งมอบ/จ่ายเงินโดยเฉพาะ
   // เพราะบางฉบับเขียนงวดงานแบบไม่มีคำว่า "จ่าย/ร้อยละ" ในบรรทัดเดียวกัน จะหลุดจากรอบแรก
+  // กวาด % จากทุกบรรทัดที่พูดถึงทั้ง "งวดที่ N" และ "ร้อยละ" พร้อมกัน
+  // TOR หลายฉบับแยกหมวดจ่ายเงินออกไปต่างหาก เช่น "ชำระเงินร้อยละ 10 ... ตรวจรับงานงวดที่ 1"
+  clauses.forEach(c=>{
+    const t=c.text;
+    if(!/ร้อยละ/.test(t)) return;
+    const re=/งวด(?:งาน)?ที่\s*(\d{1,2})/g; let g;
+    while((g=re.exec(t))!==null){
+      const no=parseInt(g[1],10);
+      const near=t.slice(Math.max(0,g.index-90), g.index+90);
+      // ห้ามหยิบ % จากบริบทค่าปรับ/หลักประกัน ซึ่งไม่ใช่สัดส่วนการจ่ายเงินของงวด
+      if(/ค่าปรับ|ปรับเป็นราย|หลักประกัน|ภาษี|ดอกเบี้ย/.test(near)) continue;
+      const p=(near.match(/ร้อยละ\s*([\d.]+)/)||[])[1];
+      if(!p || parseFloat(p)>100) continue;
+      const found=ms.find(x=>x.no===no);
+      if(found){ if(!found.pct) found.pct=p; }
+      else ms.push({no, pct:p, cond:t, refs:[], clause:c.no});
+    }
+  });
+
   clauses.forEach((c,ci)=>{
     if(!TOR_MILESTONE_HEADS.test(c.text)) return;
     // ไล่ดูข้อถัดไปในหมวดนี้ หาบรรทัดที่พูดถึงงวดที่ N
@@ -5423,7 +5451,7 @@ function torDocName(text){
 // ===== หมวดที่ PM ต้องอ่านให้ขาดเสมอ - เป็นหัวใจของการส่งมอบและเบิกเงิน =====
 // TOR เป็นส่วนหนึ่งของสัญญาเสมอ สิ่งที่ PM ต้องรู้คือ 3 อย่าง: เนื้องาน · เอกสาร · เงิน รายงวด
 // หมวดพวกนี้อาจใช้ชื่อต่างกันไปในแต่ละฉบับ แต่หน้าที่เหมือนกัน จึงต้องจับให้ครบทุกแบบ
-const TOR_MILESTONE_HEADS = /งวดงานและการจ่ายเงิน|เงื่อนไขชำระเงิน|การดำเนินการส่งมอบ|เงื่อนไขการส่งมอบ|เงื่อนไขการชำระ|เงื่อนไขการจ่าย|การส่งมอบงาน|การส่งงาน|การส่งมอบ|การชำระเงิน|การจ่ายเงิน|ค่าจ้างและการจ่ายเงิน|งวดงาน|การแบ่งงวด|กำหนดการส่งมอบ|การตรวจรับ/;
+const TOR_MILESTONE_HEADS = /การแบ่งงวดงาน|งวดงานและการจ่ายเงิน|เงื่อนไขชำระเงิน|การดำเนินการส่งมอบ|เงื่อนไขการส่งมอบ|เงื่อนไขการชำระ|เงื่อนไขการจ่าย|การส่งมอบงาน|การส่งงาน|การส่งมอบ|การชำระเงิน|การจ่ายเงิน|ค่าจ้างและการจ่ายเงิน|งวดงาน|การแบ่งงวด|กำหนดการส่งมอบ|การตรวจรับ/;
 
 // ดึงจำนวนเงินหรือเปอร์เซ็นต์ของงวดออกมา - TOR ระบุได้ทั้ง % และจำนวนเงินตรง ๆ (ถ้าเป็นสัญญา)
 function torMoneyOfMilestone(text){
@@ -5699,8 +5727,9 @@ function torBuildRows(clauses, ms){
       if(mi0>=0){
         const ni0 = clauses.findIndex((c,k)=>k>mi0 && c.synthetic && /^งวดที่/.test(c.text));
         const blk = clauses.slice(mi0, ni0>mi0 ? ni0 : mi0+40).map(c=>c.text).join('\n');
-        const p = blk.match(/ร้อยละ\s*([\d.]+)/);
-        if(p) m.pct = p[1];
+        const cand = [...blk.matchAll(/(.{0,150})ร้อยละ\s*([\d.]+)/g)]
+          .filter(x=>!/ค่าปรับ|ปรับเป็นราย|หลักประกัน|ภาษี|ดอกเบี้ย|เงินล่วงหน้า/.test(x[1]) && parseFloat(x[2])<=100);
+        if(cand.length) m.pct = cand[0][2];
       }
     }
 
@@ -5763,6 +5792,26 @@ function torBuildRows(clauses, ms){
           desc:`${i+1}) ${torActionText(d)}`,
           note:`ชื่อเอกสาร: ${torDocName(d)}`,
           ms:`งวดงานที่ ${m.no}`, cond:'ต้องส่งครบจึงจะตรวจรับและเบิกจ่ายงวดนี้ได้'}));
+      }
+      // ถ้ายังไม่ได้อะไรเลย ให้ดึงงานจากประโยคเงื่อนไขของงวดเอง
+      if(!works.length && !docs.length){
+        const cond = String(m.cond||'');
+        // "เมื่อผู้ขายได้ ...(งาน)... แล้วเสร็จ / ภายใน N วัน"
+        const seg = cond.match(/เมื่อ(?:ผู้(?:ขาย|รับจ้าง|ให้เช่า|ยื่นข้อเสนอ))?(?:ได้)?\s*([\s\S]{10,400}?)(?:\s*(?:แล้วเสร็จ|ภายใน\s*\d{1,4}\s*วัน|$))/);
+        if(seg){
+          const body = seg[1].replace(/^(?:ทำการ|ดำเนินการ)\s*/,'').trim();
+          if(body.length>8){
+            // แยกด้วยคำเชื่อมเพื่อให้เห็นเป็นรายการงาน ไม่ใช่ประโยคเดียวยาว
+            const parts = body.split(/\s+และ\s+|\s*,\s*/).map(x=>x.trim()).filter(x=>x.length>5);
+            const list = parts.length>1 ? parts : [body];
+            push({kind:'sec', desc:'งานที่ต้องดำเนินการ'});
+            list.forEach((w,i)=>push({tor:'-', type:torType(w),
+              desc:`${i+1}) ต้อง${w.replace(/^ต้อง/,'')}`,
+              ms:`งวดงานที่ ${m.no}`,
+              cond:'ระบุไว้ในเงื่อนไขการจ่ายเงินของงวดนี้ (ไม่มีเลขข้อกำกับ)'}));
+            works.push(...list);
+          }
+        }
       }
       if(works.length || docs.length){
         // กันไม่ให้ข้อเหล่านี้ไปโผล่ซ้ำในบล็อกข้อกำหนดตลอดโครงการ
@@ -6056,6 +6105,24 @@ function torPaymentSummary(rows, ms){
     return {no:m.no, pct: m.pct || money.pct, amount: money.amount,
             period: money.period, days: money.days};
   });
+  // งวดสุดท้ายมักเขียน "จ่ายเงินส่วนที่เหลือ" โดยไม่ระบุ % - คำนวณให้จากส่วนที่ขาด
+  // งวดที่ระบุว่า "จ่ายเงินส่วนที่เหลือ" ต้องคำนวณเสมอ ไม่เชื่อ % ที่ดึงมาได้
+  // (บล็อกของงวดสุดท้ายมักมี % ของเรื่องอื่นปนอยู่ เช่น การรับประกัน)
+  items.forEach(x=>{
+    const m0 = ms.find(y=>String(y.no)===String(x.no));
+    if(m0 && /จ่ายเงินส่วนที่เหลือ|ชำระเงินส่วนที่เหลือ|ส่วนที่เหลือของวงเงิน|ส่วนที่เหลือของค่าจ้าง/.test(m0.cond||'')){
+      x.pct = null; x.isRemainder = true;
+    }
+  });
+  const known = items.filter(x=>x.pct).reduce((a,x)=>a+parseFloat(x.pct),0);
+  const blanks = items.filter(x=>!x.pct);
+  if(blanks.length===1 && known>0 && known<100){
+    const m0 = ms.find(x=>String(x.no)===String(blanks[0].no));
+    if(blanks[0].isRemainder || (m0 && /ส่วนที่เหลือ|ที่เหลือทั้งหมด|งวดสุดท้าย/.test(m0.cond||''))){
+      blanks[0].pct = String(Math.round((100-known)*100)/100);
+      blanks[0].derived = true;
+    }
+  }
   const pctSum = items.reduce((a,x)=>a + (parseFloat(x.pct)||0), 0);
   const amtSum = items.reduce((a,x)=>a + (parseFloat(x.amount)||0), 0);
   return {items, pctSum, amtSum, complete: Math.abs(pctSum-100) < 0.5};
