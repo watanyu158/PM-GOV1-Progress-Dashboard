@@ -124,7 +124,7 @@
   /* ---------------- KPI ---------------- */
   /* แถบสรุปงานส่งมอบ - กินเต็มความกว้างใต้การ์ด KPI */
   .tf-bar{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:9px;
-    padding:12px 16px;border-radius:11px;background:#EAF0EC;
+    min-width:0;overflow:hidden;padding:12px 16px;border-radius:11px;background:#EAF0EC;
     border:1px solid #C9D9CE;border-left:4px solid #4A6B5C;
     font-size:12px;color:var(--ink-2);}
   .tf-bar b{font-size:14px;color:#2F4A3C;font-weight:800;}
@@ -139,18 +139,27 @@
   .tf-btn{margin-left:auto;font-size:10.5px;padding:4px 11px;border-radius:7px;
     border:1px solid var(--line);background:var(--surface);color:var(--ink-2);cursor:pointer;}
   .tf-btn:hover{background:var(--surface-2);}
-  .tf-list{display:none;width:100%;margin-top:8px;border-top:1px solid var(--line-soft);padding-top:8px;}
+  .tf-list{display:none;width:100%;margin-top:8px;border-top:1px solid var(--line-soft);padding-top:8px;
+    overflow-x:auto;}   /* ตารางมี 6 คอลัมน์ จอเล็กต้องเลื่อนแนวนอนได้ ไม่ดันหน้าจอ */
+  .tf-tbl{min-width:560px;}
   .tf-list.open{display:block;}
-  .tf-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:5px 0;font-size:10.5px;
-    border-bottom:1px solid var(--line-soft);}
-  .tf-row:last-child{border-bottom:none;}
-  .tf-code{font-family:'IBM Plex Mono',monospace;color:var(--faint);min-width:78px;}
-  .tf-name{flex:1;min-width:150px;color:var(--ink-2);}
-  .tf-pf{font-size:9.5px;color:var(--faint);min-width:46px;}
-  .tf-tag{display:inline-block;padding:1px 6px;border-radius:5px;font-size:9px;font-weight:700;}
+  .tf-tbl{width:100%;border-collapse:collapse;font-size:10.5px;}
+  .tf-tbl th{text-align:left;font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;
+    letter-spacing:.03em;padding:4px 8px 6px;border-bottom:1px solid var(--line-soft);white-space:nowrap;}
+  .tf-tbl td{padding:6px 8px;border-bottom:1px solid var(--line-soft);vertical-align:middle;color:var(--ink-2);}
+  .tf-tbl tr:last-child td{border-bottom:none;}
+  .tf-code{font-family:'IBM Plex Mono',monospace;color:var(--faint);white-space:nowrap;}
+  .tf-name{color:var(--ink-2);min-width:150px;}
+  .tf-pf-tag{display:inline-block;padding:1px 7px;border-radius:5px;font-size:9.5px;font-weight:700;
+    background:var(--surface);color:var(--faint);}
+  .tf-pf-tag.fin{background:#E3EBE5;color:#3D6B54;}
+  .tf-pf-tag.par{background:#EFE6D9;color:#8A6A3E;}
+  .tf-tag{display:inline-block;padding:1px 7px;border-radius:5px;font-size:9px;font-weight:600;white-space:nowrap;}
   .tf-tag.ok{background:var(--success-tint);color:var(--success);}
   .tf-tag.wait{background:var(--warning-tint);color:var(--warning);}
+  .tf-tag.new{background:#F0E7E4;color:#A8482F;}
   .tf-tag.na{background:var(--surface);color:var(--line);}
+  .tf-legend{margin-top:8px;font-size:9.5px;color:var(--faint);line-height:1.6;}
 
   .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:13px;margin-top:15px;}
   @media(max-width:1080px){.kpis{grid-template-columns:repeat(2,1fr);}}
@@ -2648,16 +2657,31 @@ function renderKPIs(list){
       ${partial?`<span class="tf-sep">·</span><span>Partial <i>${partial}</i></span>`:''}
       <button class="tf-btn" onclick="document.getElementById('tfList').classList.toggle('open')">ดูรายชื่อ</button>
       <div id="tfList" class="tf-list">
-        ${tItems.map(p=>{
-          const bi=String(p['BI']||'-'), sl=String(p['SL']||'-'), kt=String(p['KT']||'-');
-          const cell = v => `<span class="tf-tag ${done(v)?'ok':(/^-?$/.test(v)?'na':'wait')}">${done(v)?'ครบ':(/^-?$/.test(v)?'-':'รอ')}</span>`;
-          return `<div class="tf-row">
-            <span class="tf-code">${p['Project Code']||'-'}</span>
-            <span class="tf-name">${String(p['Project Name']||'-').slice(0,44)}</span>
-            <span class="tf-pf">${p['Partial/Final']||'-'}</span>
-            <span>BI ${cell(bi)}</span><span>SL ${cell(sl)}</span><span>KT ${cell(kt)}</span>
-          </div>`;
-        }).join('')}
+        <table class="tf-tbl">
+          <thead><tr>
+            <th>Project Code</th><th>ชื่อโครงการ</th>
+            <th>Partial/Final</th><th>BI</th><th>SL</th><th>KT</th>
+          </tr></thead>
+          <tbody>
+          ${tItems.map(p=>{
+            // แสดงสถานะเต็มตามที่บันทึกไว้ ไม่ย่อ - Inprogress-Waiting CS กับ New-Waiting CS คนละความหมาย
+            const cell = v => {
+              const t=String(v||'').trim();
+              if(!t || t==='-') return '<span class="tf-tag na">-</span>';
+              const cls = done(t) ? 'ok' : (/^new/i.test(t) ? 'new' : 'wait');
+              return `<span class="tf-tag ${cls}">${t}</span>`;
+            };
+            const pf=String(p['Partial/Final']||'-').trim();
+            return `<tr>
+              <td class="tf-code">${p['Project Code']||'-'}</td>
+              <td class="tf-name">${String(p['Project Name']||'-').slice(0,44)}</td>
+              <td><span class="tf-pf-tag ${pf==='Final'?'fin':(pf==='Partial'?'par':'')}">${pf}</span></td>
+              <td>${cell(p['BI'])}</td><td>${cell(p['SL'])}</td><td>${cell(p['KT'])}</td>
+            </tr>`;
+          }).join('')}
+          </tbody>
+        </table>
+        <div class="tf-legend">BI = Billing · SL = Sale · KT = Knowledge Transfer · แสดงสถานะเต็มตามที่บันทึกไว้ในระบบ</div>
       </div>
     </div>`;
   }
@@ -5010,7 +5034,7 @@ function renderRevenueRecognition(list){
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
 // หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
 // จึงแกะด้วยกฎได้โดยไม่ต้องพึ่ง AI - แม่นกับเอกสารที่เป็น text ส่วนไฟล์สแกนต้อง OCR มาก่อน
-const TOR_ENGINE_VERSION = 'v224';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
+const TOR_ENGINE_VERSION = 'v226';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
 const TOR = { text:'', clauses:[], milestones:[], rows:[], fileName:'', pages:0 };
 
 // โหลดไลบรารีเฉพาะตอนเปิดไฟล์ที่ต้องใช้จริง - ถ้าเน็ตเข้า CDN ไม่ได้ ไฟล์ .txt/.csv ยังใช้งานได้ปกติ
@@ -6005,6 +6029,23 @@ function torBuildRows(clauses, ms){
           note:`ชื่อเอกสาร: ${torDocName(d)}`,
           ms:`งวดงานที่ ${m.no}`, cond:'ต้องส่งครบจึงจะตรวจรับและเบิกจ่ายงวดนี้ได้'}));
       }
+      // กวาดทั้งเอกสารหาข้อที่ระบุ "งวดที่ N" ในตัวเอง แล้วผูกเข้างวดนั้น
+      // ใช้ได้แม้เลขข้อเพี้ยนจาก OCR เพราะอาศัยคำว่า "งวดที่ N" ในเนื้อความแทนเลขข้อ
+      clauses.forEach(c=>{
+        if(c.synthetic) return;
+        const t=String(c.text||'');
+        const g=t.match(/งวด(?:งาน)?ที่\s*(\d{1,2})/);
+        if(!g || parseInt(g[1],10)!==m.no) return;
+        // ตัดส่วนหัวที่เป็นแค่การอ้างงวด ให้เหลือเนื้องานจริง
+        const body=t.replace(/^[\s\S]{0,40}?งวด(?:งาน)?ที่\s*\d{1,2}\s*/,'').trim();
+        if(body.length<12) return;
+        // ข้ามบรรทัดที่พูดถึงการจ่ายเงินอย่างเดียว ไม่ใช่เนื้องาน
+        if(/^(?:ชำระ|จ่าย)เงิน|^กำหนดจ่าย/.test(body)) return;
+        const isDoc=/^(?:ส่งมอบ)?(?:เอกสาร|รายงาน|คู่มือ|ผลทดสอบ|ผลการ)/.test(body);
+        (isDoc?docs:works).push(body);
+        usedSpecNos.add(c.no);
+      });
+
       // ถ้ายังไม่ได้อะไรเลย ให้ดึงงานจากประโยคเงื่อนไขของงวดเอง
       if(!works.length && !docs.length){
         const cond = String(m.cond||'');
@@ -6014,7 +6055,11 @@ function torBuildRows(clauses, ms){
           const body = seg[1].replace(/^(?:ทำการ|ดำเนินการ)\s*/,'').trim();
           if(body.length>8){
             // แยกด้วยคำเชื่อมเพื่อให้เห็นเป็นรายการงาน ไม่ใช่ประโยคเดียวยาว
-            const parts = body.split(/\s+และ\s+|\s*,\s*/).map(x=>x.trim()).filter(x=>x.length>5);
+            const parts = body.split(/\s+และ\s+|\s*,\s*/).map(x=>x.trim())
+              .filter(x=>x.length>5)
+              // "ส่งมอบงานงวดที่ N" / "กรมบัญชีกลางตรวจรับ" เป็นการอ้างวนกลับ ไม่ใช่เนื้องาน
+              .filter(x=>!/^ส่งมอบงานงวด(?:งาน)?ที่\s*\d/.test(x))
+              .filter(x=>!/ตรวจรับเรียบร้อย|ได้ตรวจรับ/.test(x));
             const list = parts.length>1 ? parts : [body];
             push({kind:'sec', desc:'งานที่ต้องดำเนินการ'});
             list.forEach((w,i)=>push({tor:'-', type:torType(w),
