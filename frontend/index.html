@@ -5036,7 +5036,7 @@ function renderRevenueRecognition(list){
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
 // หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
 // จึงแกะด้วยกฎได้โดยไม่ต้องพึ่ง AI - แม่นกับเอกสารที่เป็น text ส่วนไฟล์สแกนต้อง OCR มาก่อน
-const TOR_ENGINE_VERSION = 'v235';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
+const TOR_ENGINE_VERSION = 'v237';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
 const TOR = { text:'', clauses:[], milestones:[], rows:[], fileName:'', pages:0 };
 
 // โหลดไลบรารีเฉพาะตอนเปิดไฟล์ที่ต้องใช้จริง - ถ้าเน็ตเข้า CDN ไม่ได้ ไฟล์ .txt/.csv ยังใช้งานได้ปกติ
@@ -5596,7 +5596,41 @@ function torMergeFalseHeads(clauses){
 // ส่วนหมวดสเปคเทคนิคไม่ใช่ "งานที่ต้องทำ" แต่ต้องเก็บไว้เทียบ BOM/PO
 // และต้องกวาดหา "ข้อผูกพันที่ซ่อนอยู่ในสเปค" ซึ่งเป็นจุดที่มักตกหล่นแล้วมีปัญหาทีหลัง
 const TOR_SKIP_HEAD=/ความเป็นมา|หลักการและเหตุผล|คุณสมบัติผู้เสนอ|คุณสมบัติของผู้|ผู้มีสิทธิ์เสนอ|การเสนอราคา|หลักฐานการเสนอราคา|การยื่นข้อเสนอ|หลักประกัน|หลักเกณฑ์การพิจารณา|เกณฑ์การให้คะแนน|เกณฑ์การประเมิน|การประเมินค่าประสิทธิภาพ|การทำสัญญา|กลุ่มเป้าหมาย|วงเงินในการจัดจ้าง|วงเงินงบประมาณ/;
-const TOR_SKIP_BODY=/ไม่เป็นบุคคล|ไม่เป็นผู้|ไม่อยู่ระหว่าง|ล้มละลาย|ผู้ยื่นข้อเสนอต้อง|ลงทะเบียนในระบบจัดซื้อ|มีความสามารถตามกฎหมาย|คะแนน\)|\(\d+ คะแนน|บัญชีรายชื่อผู้ทิ้งงาน/;
+// ============ ขั้นตอนการยื่นประมูล - ตัดทั้งข้อ ไม่ใช่แค่คำ ============
+// OAT: เรื่องพวกนี้ไม่เกี่ยวกับ PM เลย TOR ต้องเขียนไว้เพราะเป็นข้อกำหนดการยื่นซองเท่านั้น
+// ระวัง: TOR ไทยใช้คำว่า "ผู้ยื่นข้อเสนอ" เรียกผู้รับจ้างตลอดทั้งฉบับ รวมงานหลังเซ็นสัญญา
+// จึงตัดด้วยคำนี้ตรง ๆ ไม่ได้ ต้องดูบริบทว่าเป็นเรื่องที่จบก่อนเซ็นสัญญาหรือไม่
+const TOR_BIDDING = new RegExp([
+  // คุณสมบัติผู้ยื่น - จบตั้งแต่ตอนคัดกรอง
+  'เป็นนิติบุคคล','มีอาชีพ(?:ขาย|รับจ้าง|ให้เช่า)','ผู้ทิ้งงาน',
+  'ผู้มีผลประโยชน์ร่วมกัน','ขัดขวางการแข่งขัน','กิจการร่วมค้า','ผู้เข้าร่วมค้า',
+  'มีความสามารถตามกฎหมาย','ไม่เป็นบุคคลล้มละลาย','อยู่ระหว่างเลิกกิจการ',
+  // เอกสารที่ต้องแนบตอนยื่นซอง
+  'หนังสือรับรองการจดทะเบียน','หนังสือบริคณห์','สำเนาบัตรประชาชน','ใบทะเบียนพาณิชย์',
+  'ทะเบียนภาษีมูลค่าเพิ่ม','หนังสือมอบอำนาจ','อากรแสตมป์','บัญชีผู้ถือหุ้น','บัญชีรายชื่อกรรมการ',
+  'แคตตาล็อก','ในวันที่ยื่นข้อเสนอ','พร้อมการเสนอราคา','ซองข้อเสนอ','ยื่นมาพร้อมการเสนอ',
+  // การเสนอราคาและการพิจารณา
+  'ยืนราคา','ถอนการเสนอราคา','ราคาที่เสนอ','เสนอราคาโดยไม่มีเงื่อนไข','แยกราคาต่อหน่วย',
+  'หลักเกณฑ์(?:ใน)?การพิจารณา','เกณฑ์การให้คะแนน','เกณฑ์การประเมิน',
+  'ผู้ชนะการ(?:เสนอราคา|คัดเลือก|ประกวด)','ประกวดราคา(?:อิเล็กทรอนิกส์|ซื้อ|จ้าง|ทางอิเล็ก)',
+  'e-?bidding','e-?GP','วิธีประกวดราคา',
+  // หลักประกัน - เรื่องการเงินฝ่ายขาย ไม่ใช่งานของ PM
+  'หลักประกัน','ริบหลักประกัน',
+].join('|'), 'i');
+
+const TOR_SKIP_BODY=/ไม่เป็นบุคคล|ไม่เป็นผู้|ไม่อยู่ระหว่าง|ล้มละลาย|ผู้ยื่นข้อเสนอ|ผู้เสนอราคา|ผู้เข้าร่วมค้า|ในวันที่ยื่นข้อเสนอ|ลงทะเบียนในระบบจัดซื้อ|มีความสามารถตามกฎหมาย|คะแนน\)|\(\d+ คะแนน|บัญชีรายชื่อผู้ทิ้งงาน|ประกวดราคาอิเล็กทรอนิกส์|e-bidding|หนังสือรับรองการจดทะเบียน|สำเนาบัตรประชาชน/;
+
+// ตารางรายชื่อสถานที่/หน่วยงาน ไม่ใช่งานที่ต้องทำ - มักโผล่มาจาก OCR ตารางแนบท้าย
+// (เจอจริงใน TOR กรมบัญชีกลาง: รายชื่อคลังจังหวัดทั้งประเทศกลายเป็นแถวงานนับสิบแถว)
+const TOR_LOCATION_ROW=/^[\s\d.,'"+\-]*(?:คลัง(?:จังหวัด|เขต)|สำนักงานคลัง|เขต\s*\d+\s*[,.]?\s*(?:คลัง|จังหวัด))/;
+
+// ข้อความที่ OCR อ่านเสียจนอ่านไม่รู้เรื่อง - สัดส่วนอักขระที่อ่านได้ต่ำกว่า 60%
+function torIsGarbled(t){
+  const x=String(t||'').trim();
+  if(x.length<12) return true;
+  const good=(x.match(/[\u0E00-\u0E7Fa-zA-Z]/g)||[]).length;
+  return good/x.length < 0.6;
+}
 // ตารางเกณฑ์ให้คะแนน - เลขนำหน้าคือ "คะแนน" ไม่ใช่เลขข้อ ต้องตัดทิ้งทั้งแถว
 // (เจอจริง: "30 | คะแนนมีการนำเสนอกรอบแนวคิดครบถ้วน...")
 const TOR_SCORE_ROW=/^คะแนน|คณะกรรมการพิจารณาผล|เสนอราคาต่ำจน|เสนอราคาตำจน|พิจารณาแล้วว่า|พิจารณาแล้วความคิด|^ไม่มีการนำเสนอ|^ไม่นำเสนอ|น้ำหนักร้อยละ|นำหนักร้อยละ|ข้อเสนอด้านคุณภาพ|ข้อเสนอด้านราคา|คะแนนเต็ม|เกณฑ์การให้คะแนน/;
@@ -5748,12 +5782,34 @@ function torQtySummary(t){
 // ===== ทำข้อความให้เป็น "สิ่งที่ต้องทำ" อ่านแล้วลงมือได้ทันที =====
 // TOR เขียนในมุมสัญญา ("ผู้ขายต้อง...") แต่ PM ต้องการมุมปฏิบัติ ("ต้อง...")
 // ตัดคำเรียกคู่สัญญาออกให้เหลือแต่เนื้องาน จะได้อ่านเป็นเช็คลิสต์ได้เลย
+// ตรวจว่าข้อความในเซลล์รายละเอียด "อ่านรู้เรื่อง" หรือไม่
+// ถ้าไม่ผ่าน = ไม่ควรอยู่ในชีต Scope of Work เลย (ไม่ใช่แค่จัดหมวดผิด)
+function torReadable(t){
+  const x = String(t||'').replace(/^\s*[\d.]+\)\s*/,'').replace(/^[-–—•*·)\s]+/,'').trim();
+  if(x.length < 10) return false;                                   // สั้นเกินกว่าจะเป็นเนื้องาน
+  const good = (x.match(/[\u0E00-\u0E7Fa-zA-Z]/g)||[]).length;
+  if(good / x.length < 0.55) return false;                          // อักขระเสียจาก OCR
+  if(/^[\d\s.,\-'"+()]+$/.test(x)) return false;                    // มีแต่ตัวเลขและสัญลักษณ์
+  // ตารางรายชื่อสถานที่ล้วน ๆ (ไม่มีเนื้องานตามหลัง) - เป็นตารางแนบท้าย ไม่ใช่งาน
+  if(/^[\s\d.,'"+\-]*(?:คลัง(?:จังหวัด|เขต)|สำนักงานคลัง)[ก-๙\s]{0,40}$/.test(x)) return false;
+  // ต้องมีคำที่อ่านออกอย่างน้อย 1 คำ
+  const words = x.match(/[\u0E00-\u0E7F]{3,}|[A-Za-z]{3,}/g) || [];
+  if(!words.length) return false;
+  return true;
+}
+
 function torActionText(t){
   let x = String(t||'').trim();
-  x = x.replace(/^(?:ผู้ขาย|ผู้รับจ้าง|ผู้ให้เช่า|ผู้ยื่นข้อเสนอ|ผู้เสนอราคา|ผู้ชนะการคัดเลือก|คู่สัญญา|ผู้รับผิดชอบ)\s*(?:จะ)?(?=ต้อง|จะต้อง)/,'');
-  x = x.replace(/^(?:ผู้ขาย|ผู้รับจ้าง|ผู้ให้เช่า|ผู้ยื่นข้อเสนอ|ผู้เสนอราคา)\s*(?:จะ)?ต้อง/,'ต้อง');
-  x = x.replace(/^(?:ผู้ขาย|ผู้รับจ้าง|ผู้ให้เช่า)\s+(?=[ก-๙])/,'');
+  // ตัดสัญลักษณ์นำหน้า (ขีด จุด บุลเล็ต) ก่อน ไม่งั้นตัวตัดคำที่ยึดต้นข้อความจะทำงานไม่ได้
+  x = x.replace(/^[-–—•*·.)\s]+/,'');   // รวมวงเล็บปิดที่หลงมาจากรายการแบบ "1)" ด้วย
+  const WHO = '(?:ผู้ขาย|ผู้รับจ้าง|ผู้ให้เช่า|ผู้ยื่นข้อเสนอ|ผู้ยื่นเสนอราคา|ผู้เสนอราคา|ผู้ชนะการคัดเลือก|ผู้รับผิดชอบ|คู่สัญญา|บริษัทฯ|ผู้ประกอบการ)';
+  // "ผู้ยื่นข้อเสนอต้อง..." -> "ต้อง..."  ·  "ผู้ขายจะต้อง..." -> "ต้อง..."
+  x = x.replace(new RegExp('^'+WHO+'\\s*(?:จะ)?(?=ต้อง)'), '');
+  x = x.replace(new RegExp('^'+WHO+'\\s*(?:จะ)?ต้อง'), 'ต้อง');
+  // "ผู้ยื่นข้อเสนอส่งมอบ..." -> "ต้องส่งมอบ..." (ไม่มีคำว่าต้องแต่เป็นหน้าที่)
+  x = x.replace(new RegExp('^'+WHO+'\\s*(?=[\\u0E00-\\u0E7F])'), 'ต้อง');
   x = x.replace(/^จะต้อง/,'ต้อง');
+  x = x.replace(/^ต้องต้อง/,'ต้อง');
   return x.trim();
 }
 
@@ -5941,7 +5997,8 @@ function torRedistributeDeliverables(rows, ms){
 }
 
 function torBuildRows(clauses, ms){
-  SPEC_SHEET.length = 0;             // ล้างของไฟล์ก่อนหน้า
+  SPEC_SHEET.length = 0;
+  let rowsMutable;             // ล้างของไฟล์ก่อนหน้า
   const usedSpecNos = new Set();   // ข้อสเปคที่ย้ายไปเป็นหมายเหตุแล้ว ห้ามโผล่ซ้ำท้ายไฟล์
   const byNo = {}; clauses.forEach(c=>byNo[c.no]=c);
   const expand = ref => {           // "10.2.1-9" -> [10.2.1 ... 10.2.9]
@@ -5954,8 +6011,8 @@ function torBuildRows(clauses, ms){
     if(r3) return [r3[1], r3[2]];
     return [ref];
   };
-  const rows=[];
-  const push=o=>rows.push(Object.assign({tor:'',type:'',desc:'',note:'',ms:'',cond:''},o));
+  let rows=[];
+  const push=o=>{ if(!o.kind && o.desc && !torReadable(o.desc)) return; rows.push(Object.assign({tor:'',type:'',desc:'',note:'',ms:'',cond:''},o)); };
 
   ms.forEach(m=>{
     // หัวงวดต้องอ่านแล้วเห็นภาพทันที: งวดที่เท่าไหร่ · กี่ % · ภายในกี่วัน · ครอบคลุมข้อไหน
@@ -6015,6 +6072,7 @@ function torBuildRows(clauses, ms){
       const works=[], docs=[];
       lines.forEach(ln=>{
         if(/^งวดที่\s*\d/.test(ln)) return;
+        if(TOR_BIDDING.test(ln)) return;
         if(/^ร้อยละ|^ของวงเงิน|^เมื่อผู้(?:ขาย|รับจ้าง)ดำเนินการ|^ส่งมอบงาน\s*ภายใน|^ภายใน\s*\d{1,4}\s*วัน/.test(ln)) return;
         (/(?:^|\s)(?:เอกสาร|รายงาน|คู่มือ|Software License|Report|Document|Specification)/i.test(ln) ? docs : works).push(ln);
       });
@@ -6158,6 +6216,7 @@ function torBuildRows(clauses, ms){
         let sj=0;
         clauses.filter(x=>x.no.startsWith(r+'.') && x.no!==r)
                .sort((p,q)=>byClauseNo(p.no,q.no)).forEach(sub=>{
+          if(TOR_BIDDING.test(sub.text)) return;
           if(isDeliverable(sub.no)){ extraDocs.push(sub.no); return; }
           sj++;
           push({tor:sub.no, type:torType(sub.text),
@@ -6332,12 +6391,24 @@ function torBuildRows(clauses, ms){
                  && !msCondNos.has(c.no)
                  && !/^งวดที่\s*\d{1,2}\s*(ส่งมอบงาน|จ่าย|ชำระ)/.test(c.text)
                  && !TOR_SKIP_HEAD.test(c.text) && !TOR_SKIP_BODY.test(c.text)
+                 && !TOR_BIDDING.test(c.text) && !TOR_LOCATION_ROW.test(c.text) && !torIsGarbled(c.text)
+                 && !TOR_LOCATION_ROW.test(c.text) && !torIsGarbled(c.text)
                  && !torIsScoreRow(c));
   if(rest.length){
     push({kind:'ms', desc:'Z. ข้อกำหนดที่ใช้บังคับตลอดโครงการ (ไม่ผูกกับงวดใดงวดหนึ่ง)'});
     rest.forEach(c=>push({tor:c.no, type:torType(c.text), desc:c.text, ms:'ทุกงวด', cond:''}));
   }
   torAppendSpecBlocks(rows, push, clauses, specHeads);
+  // ย้ายแถวสเปคที่หลุดมาอยู่หน้าหลัก ไปชีต Specs ตามที่ OAT กำหนด
+  // (Scope of Work ต้องมีแต่สิ่งที่ต้องลงมือทำ ส่วนคุณลักษณะเฉพาะอยู่คนละชีต)
+  const strays = rows.filter(r=>!r.kind && r.type==='Spec');
+  if(strays.length){
+    strays.forEach(r=>SPEC_SHEET.push({
+      no:r.tor||'-', target:null, title:'คุณลักษณะเฉพาะที่พบในหมวดงาน',
+      items:[r.desc.replace(/^\s*[\d.]+\)\s*/,'')], ms:(String(r.ms||'').match(/\d+/)||[''])[0]
+    }));
+    rows = rows.filter(r=>!(!r.kind && r.type==='Spec'));
+  }
   return torRedistributeDeliverables(rows, ms);
 }
 
@@ -6738,7 +6809,7 @@ async function torAiEnhance(){
       const j=await torAiCall('hidden', specs.map(r=>r.desc));
       (j.result||[]).forEach(x=>{
         const t=specs[(x.n|0)-1];
-        if(t){ t.note=(t.note?t.note+' · ':'')+'⚠ AI: '+(x.why||'อาจเป็นข้อผูกพัน'); t.aiFlag=true; nFlagged++; }
+        if(t){ t.note=(t.note?t.note+' · ':'')+'⚠ '+(x.why||'อาจเป็นข้อผูกพัน'); t.aiFlag=true; nFlagged++; }
       });
       usedTokens+=j.tokens||0; calls++;
     }
@@ -6763,7 +6834,7 @@ async function torAiEnhance(){
     TOR.rows.forEach(r=>{
       if(r.kind==='ms' && (r.aiFocus||r.aiRisk) && !r.aiApplied){
         r.aiApplied=true;
-        r.desc += `\n[AI] โฟกัส: ${r.aiFocus||'-'}` + (r.aiRisk?`\n[AI] ความเสี่ยง: ${r.aiRisk}`:'');
+        r.desc += `\nสิ่งที่ควรโฟกัส: ${r.aiFocus||'-'}` + (r.aiRisk?`\nความเสี่ยงที่ต้องเฝ้า: ${r.aiRisk}`:'');
       }
     });
     // เก็บสรุปไว้ใน TOR เพื่อให้แสดงต่อได้แม้วาดผลลัพธ์ใหม่
@@ -6950,11 +7021,28 @@ async function torAiMapMilestones(){
     // เพราะเมื่อกฎจับคู่ไม่ได้ ข้อเหล่านั้นจะหายไปเฉย ๆ ไม่ได้ไปอยู่ในบล็อกท้ายไฟล์
     const shown = new Set(TOR.rows.filter(r=>!r.kind && r.ms && /งวดงานที่/.test(r.ms))
                                   .map(r=>String(r.desc).replace(/^\s*[\d.]+\)\s*/,'').slice(0,40)));
-    const SKIP = /^(?:คุณสมบัติผู้|หลักเกณฑ์|หลักฐานการยื่น|การเสนอราคา|วงเงิน|ความเป็นมา|หลักการและเหตุผล)/;
+    // กรองสิ่งที่ไม่ใช่ "งานที่ผู้รับจ้างต้องทำ" ออกให้หมดก่อนส่งให้ AI
+    // ไม่งั้นจะได้เรื่องผู้ยื่นข้อเสนอ ตารางรายชื่อสถานที่ และข้อความ OCR เสีย ปนเข้ามาในงวด
+    const SKIP_HEAD = /^(?:คุณสมบัติผู้|หลักเกณฑ์|หลักฐานการยื่น|การเสนอราคา|การยื่นข้อเสนอ|วงเงิน|ความเป็นมา|หลักการและเหตุผล|วัตถุประสงค์|กลุ่มเป้าหมาย|นิยาม|คำจำกัดความ)/;
+    // เรื่องของ "ผู้ยื่นข้อเสนอ/ผู้เสนอราคา" = ขั้นตอนประมูล ไม่ใช่งานหลังเซ็นสัญญา
+    const SKIP_BIDDER = TOR_BIDDING;
+    const isJunk = t => {
+      const x=String(t||'').trim();
+      // สัดส่วนอักขระที่อ่านได้ต่ำ = OCR เสีย
+      const good=(x.match(/[\u0E00-\u0E7Fa-zA-Z]/g)||[]).length;
+      if(good/x.length < 0.6) return true;
+      // ตารางรายชื่อสถานที่/หน่วยงาน - ไม่ใช่งาน (เจอจริง: รายชื่อคลังจังหวัดทั้งประเทศ)
+      if(/^[\s\d.,'"+\-]*(?:คลัง(?:จังหวัด|เขต)|สำนักงานคลัง|เขต\s*\d)/.test(x)) return true;
+      // ไม่มีคำกริยาที่บ่งบอกว่าเป็นงาน
+      if(!/ต้อง|จะต้อง|ให้|จัด|ดำเนิน|ติดตั้ง|ส่งมอบ|ทดสอบ|อบรม|จัดทำ|ออกแบบ|สำรวจ|พัฒนา|บำรุง|รับประกัน/.test(x)) return true;
+      return false;
+    };
     const pool = (TOR.clauses||[])
       .filter(c=>!c.synthetic)
-      .filter(c=>String(c.text||'').trim().length>25)
-      .filter(c=>!SKIP.test(String(c.text||'').trim()))
+      .filter(c=>String(c.text||'').trim().length>40)
+      .filter(c=>!SKIP_HEAD.test(String(c.text||'').trim()))
+      .filter(c=>!SKIP_BIDDER.test(String(c.text||'')))
+      .filter(c=>!isJunk(c.text))
       .filter(c=>!shown.has(String(c.text||'').slice(0,40)))
       .map(c=>({tor:c.no, desc:String(c.text||'').trim()}));
     if(!pool.length){ setMsg('<b>ทุกข้อถูกจัดเข้างวดแล้ว</b> - ไม่มีอะไรให้ AI จับคู่'); return; }
@@ -6992,7 +7080,7 @@ async function torAiMapMilestones(){
           type: x.kind==='doc' ? 'Document' : torType(t.desc),
           desc: torBulletize(torActionText(String(t.desc||'').replace(/^[\s\S]{0,30}?งวด(?:งาน)?ที่\s*\d{1,2}\s*/,''))),
           note:'', ms:`งวดงานที่ ${no}`, aiMapped:true,
-          cond:'AI จับคู่เข้างวดนี้จากเนื้อหา - เลขข้อในไฟล์ไม่ตรงจึงจับด้วยกฎไม่ได้'
+          cond:'จัดเข้างวดนี้จากเนื้อหา - เลขข้อในไฟล์ไม่ตรงจึงอ้างอิงด้วยเลขไม่ได้'
         });
         moved++;
       });
@@ -7004,6 +7092,17 @@ async function torAiMapMilestones(){
       }
     }
     // จัดแถวใหม่ให้ข้อที่ AI จับคู่แล้วไปอยู่ใต้งวดของตัวเอง
+    // ถ้าผลลงไปกองอยู่งวดเดียวเกิน 70% แปลว่า AI จับคู่ไม่ได้จริง ไม่ใช่ผลที่เชื่อถือได้
+    const dist={}; TOR.rows.filter(r=>r.aiMapped).forEach(r=>{ dist[r.ms]=(dist[r.ms]||0)+1; });
+    const maxIn=Math.max(0,...Object.values(dist));
+    if(moved>=5 && ms.length>1 && maxIn/moved > 0.7){
+      TOR.rows = TOR.rows.filter(r=>!r.aiMapped);
+      TOR.aiMapDone={moved:0, calls, tokens, at:new Date().toLocaleTimeString('th-TH'), rejected:true};
+      torShowResult('');
+      setMsg('<b style="color:var(--warning)">ยกเลิกผลการจับคู่</b> - ระบบจัดงานลงงวดเดียวเกือบทั้งหมด ซึ่งไม่น่าจะถูกต้อง'
+        + '<div style="font-size:10px;color:var(--faint);margin-top:4px">มักเกิดกับไฟล์สแกนที่ OCR อ่านเนื้อหาไม่ชัด - แนะนำให้ขอไฟล์ต้นฉบับ Word จากผู้ว่าจ้าง</div>');
+      return;
+    }
     if(moved) TOR.rows = torRegroupByMilestone(TOR.rows);
     TOR.aiMapDone = {moved, calls, tokens, at:new Date().toLocaleTimeString('th-TH')};
     torShowResult('');
@@ -7032,11 +7131,11 @@ function torRegroupByMilestone(rows){
     const works = byMs[cur].filter(r=>r.type!=='Document');
     const docs  = byMs[cur].filter(r=>r.type==='Document');
     if(works.length){
-      out.push({kind:'sec', tor:'', type:'', desc:'งานที่ AI จับคู่เข้างวดนี้', note:'', ms:'', cond:''});
+      out.push({kind:'sec', tor:'', type:'', desc:'งานที่ต้องดำเนินการ (จัดเข้างวดจากเนื้อหา)', note:'', ms:'', cond:''});
       works.forEach((r,i)=>{ r.desc = r.desc.replace(/^\s*\d+\)\s*/,'') ; out.push({...r, desc:`${i+1}) ${r.desc}`}); });
     }
     if(docs.length){
-      out.push({kind:'sec', tor:'', type:'', desc:`>> เอกสารส่งมอบ งวดที่ ${cur} (AI จับคู่)`, note:'', ms:'', cond:''});
+      out.push({kind:'sec', tor:'', type:'', desc:`>> เอกสารส่งมอบ งวดที่ ${cur}`, note:'', ms:'', cond:''});
       docs.forEach((r,i)=>{ r.desc = r.desc.replace(/^\s*\d+\)\s*/,''); out.push({...r, desc:`${i+1}) ${r.desc}`}); });
     }
     delete byMs[cur];
@@ -7052,7 +7151,7 @@ function torRegroupByMilestone(rows){
   flush();
   // งวดที่ไม่มีหัวข้อในไฟล์ (เช่นงวดที่ OCR อ่านไม่เจอ) ให้ต่อท้าย
   Object.keys(byMs).forEach(no=>{
-    out.push({kind:'ms', tor:'', type:'', desc:`งวดที่ ${no} (AI จับคู่ - ไม่พบหัวงวดในเอกสาร)`, note:'', ms:'', cond:''});
+    out.push({kind:'ms', tor:'', type:'', desc:`งวดที่ ${no} (ไม่พบหัวงวดในเอกสาร)`, note:'', ms:'', cond:''});
     byMs[no].forEach((r,i)=>out.push({...r, desc:`${i+1}) ${r.desc.replace(/^\s*\d+\)\s*/,'')}`}));
   });
   return out;
