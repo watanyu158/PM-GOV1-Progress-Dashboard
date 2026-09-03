@@ -57,15 +57,49 @@ const TEAM_PM_NAMES = ['Antika Prasadsil', 'Lomdetch Puangsombut', 'Virojt Chang
 const TEAM_SET = new Set(TEAM_PM_NAMES.map(normName));
 const inTeam = (name) => TEAM_SET.has(normName(name));
 
-const tokens = new Map(); // token -> { username, name, expires }
+const tokens = new Map(); // token -> { username, name, expires } (แคชในหน่วยความจำ)
 const TOKEN_TTL = 12 * 60 * 60 * 1000; // 12 ชั่วโมง
+
+// Render free tier หลับเมื่อไม่มีคนใช้ พอตื่นมาหน่วยความจำถูกล้าง token ที่เก็บไว้จึงหายหมด
+// ผู้ใช้จะเจอ "Unauthorized" กลางคันทั้งที่เพิ่งล็อกอิน - แก้ด้วย token ที่เซ็นลายเซ็นไว้
+// ตรวจสอบได้จากลายเซ็นโดยไม่ต้องเก็บสถานะ จึงรอดการรีสตาร์ทของเซิร์ฟเวอร์
+const TOKEN_SECRET = process.env.TOKEN_SECRET
+  || crypto.createHash('sha256').update(String(process.env.AUTH_USERS||'pm-gov1')).digest('hex');
+
+function signToken(payload){
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig = crypto.createHmac('sha256', TOKEN_SECRET).update(body).digest('base64url');
+  return body + '.' + sig;
+}
+function verifyToken(token){
+  const i = String(token||'').lastIndexOf('.');
+  if(i < 1) return null;
+  const body = token.slice(0,i), sig = token.slice(i+1);
+  const expect = crypto.createHmac('sha256', TOKEN_SECRET).update(body).digest('base64url');
+  // เทียบแบบ timing-safe กันการเดาลายเซ็นทีละตัว
+  if(sig.length !== expect.length) return null;
+  if(!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return null;
+  try{
+    const p = JSON.parse(Buffer.from(body,'base64url').toString('utf8'));
+    if(!p || !p.exp || p.exp < Date.now()) return null;
+    return p;
+  }catch{ return null; }
+}
 
 function requireAuth(req, res, next) {
   const h = req.headers['authorization'] || '';
   const token = h.startsWith('Bearer ') ? h.slice(7) : null;
-  const entry = token ? tokens.get(token) : null;
-  if (!entry || entry.expires < Date.now()) {
-    if (token) tokens.delete(token);
+  let entry = token ? tokens.get(token) : null;
+  if (entry && entry.expires < Date.now()) { tokens.delete(token); entry = null; }
+  // ไม่มีในหน่วยความจำ (เซิร์ฟเวอร์เพิ่งรีสตาร์ท) -> ตรวจจากลายเซ็นแทน แล้วใส่กลับเข้าแคช
+  if (!entry && token) {
+    const p = verifyToken(token);
+    if (p) {
+      entry = { username: p.u, name: p.n, pmName: p.p || null, role: p.r || 'pm', expires: p.exp };
+      tokens.set(token, entry);
+    }
+  }
+  if (!entry) {
     return res.status(401).json({ ok: false, error: 'Unauthorized - please sign in again' });
   }
   entry.expires = Date.now() + TOKEN_TTL; // ใช้งานต่อเนื่อง = ต่ออายุ session ให้อัตโนมัติ
@@ -84,8 +118,14 @@ app.post('/api/login', async (req, res) => {
   const match = await bcrypt.compare(String(password), user.passwordHash);
   if (!match) return res.status(401).json({ ok: false, error: 'Incorrect username or password' });
 
-  const token = crypto.randomBytes(24).toString('hex');
-  tokens.set(token, { username: user.username, name: user.name || user.username, pmName: user.pmName || null, role: user.role || 'pm', expires: Date.now() + TOKEN_TTL });
+  const exp = Date.now() + TOKEN_TTL;
+  // token เซ็นลายเซ็น = ตรวจสอบได้แม้เซิร์ฟเวอร์รีสตาร์ท ผู้ใช้ไม่หลุดกลางคัน
+  const token = signToken({
+    u: user.username, n: user.name || user.username,
+    p: user.pmName || null, r: user.role || 'pm',
+    exp, s: crypto.randomBytes(8).toString('hex')
+  });
+  tokens.set(token, { username: user.username, name: user.name || user.username, pmName: user.pmName || null, role: user.role || 'pm', expires: exp });
   console.log(`✓ Login: ${user.username}`);
   res.json({ ok: true, token, username: user.username, name: user.name || user.username, scope: (user.role === 'admin' || !user.pmName) ? 'all' : user.pmName, expiresIn: TOKEN_TTL });
 });

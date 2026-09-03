@@ -1869,6 +1869,17 @@
     <div class="p-body"><div id="rev"></div></div>
   </div>
 
+    <div class="panel" id="panel-rrType">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Revenue Recognition <span class="sep">-</span> <span class="th">ชนิดโครงการและสัดส่วนการรับรู้รายได้</span>
+        </div>
+        <span class="p-count" id="rrCount"></span>
+      </div>
+      <div class="p-body"><div id="rrBox"></div></div>
+    </div>
+
     <div class="panel" id="panel-invoiceTimeline">
       <div class="p-head">
         <div class="p-title">
@@ -1980,17 +1991,6 @@
         </div>
         <div id="piCompanyResults"></div>
       </div>
-    </div>
-
-    <div class="panel" id="panel-rrType">
-      <div class="p-head">
-        <div class="p-title">
-          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          Revenue Recognition <span class="sep">-</span> <span class="th">ชนิดโครงการและสัดส่วนการรับรู้รายได้</span>
-        </div>
-        <span class="p-count" id="rrCount"></span>
-      </div>
-      <div class="p-body"><div id="rrBox"></div></div>
     </div>
 
     <div class="panel" id="panel-torBreakdown">
@@ -2389,6 +2389,7 @@ const CARD_REGISTRY = [
   {tab:'1', tabLabel:'Project Tracking', id:'teamScorecard', en:'Team Performance Scorecard', th:'ภาพรวมผลงานทีม'},
   {tab:'2', tabLabel:'Finance & Stock', id:'revenuePlan', en:'Revenue Plan', th:'แผนรับรู้รายได้รายเดือน', scope:true},
   {tab:'2', tabLabel:'Finance & Stock', id:'revenueAttainment', en:'Revenue Attainment', th:'รายได้สะสมเทียบเป้า', scope:true},
+  {tab:'2', tabLabel:'Finance & Stock', id:'rrType', en:'Revenue Recognition', th:'ชนิดโครงการและสัดส่วนการรับรู้รายได้', scope:true},
   {tab:'2', tabLabel:'Finance & Stock', id:'invoiceTimeline', en:'Invoice Timeline', th:'วางบิลรายเดือน', scope:true},
   {tab:'2', tabLabel:'Finance & Stock', id:'paymentCollection', en:'Payment Collection', th:'การเก็บเงินจากลูกค้า', scope:true},
   {tab:'2', tabLabel:'Finance & Stock', id:'purchaseOrders', en:'Purchase Orders', th:'PO และการจ่ายเงินผู้รับเหมา', scope:true},
@@ -2397,7 +2398,6 @@ const CARD_REGISTRY = [
   {tab:'3', tabLabel:'Project Information', id:'projectsByYear', en:'Projects by Year', th:'จำนวน/มูลค่าโครงการรายปี'},
   {tab:'3', tabLabel:'Project Information', id:'siteHistory', en:'Site History', th:'ใครเคยดูแลลูกค้ารายนี้บ้าง'},
   {tab:'3', tabLabel:'Project Information', id:'pmProfile', en:'PM Profile', th:'ประวัติการทำงานราย PM'},
-  {tab:'3', tabLabel:'Project Information', id:'rrType', en:'Revenue Recognition', th:'ชนิดโครงการและสัดส่วนการรับรู้รายได้'},
   {tab:'3', tabLabel:'Project Information', id:'torBreakdown', en:'TOR Breakdown', th:'แตกเอกสาร TOR เป็น Scope of Work', scope:false},
   {tab:'3', tabLabel:'Project Information', id:'companySearch', en:'Project Search', th:'ค้นหาโครงการทั้งบริษัท'},
 ];
@@ -5034,7 +5034,7 @@ function renderRevenueRecognition(list){
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
 // หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
 // จึงแกะด้วยกฎได้โดยไม่ต้องพึ่ง AI - แม่นกับเอกสารที่เป็น text ส่วนไฟล์สแกนต้อง OCR มาก่อน
-const TOR_ENGINE_VERSION = 'v230';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
+const TOR_ENGINE_VERSION = 'v232';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
 const TOR = { text:'', clauses:[], milestones:[], rows:[], fileName:'', pages:0 };
 
 // โหลดไลบรารีเฉพาะตอนเปิดไฟล์ที่ต้องใช้จริง - ถ้าเน็ตเข้า CDN ไม่ได้ ไฟล์ .txt/.csv ยังใช้งานได้ปกติ
@@ -6648,10 +6648,12 @@ async function torAiCall(task, items){
     });
   }catch(e){
     clearTimeout(timer);
+  if(r.status===401){ const e=new Error('SESSION_EXPIRED'); e.session=true; throw e; }
     if(e.name==='AbortError') throw new Error('เซิร์ฟเวอร์ไม่ตอบกลับภายใน 150 วินาที - ลองใหม่อีกครั้ง');
     throw e;
   }
   clearTimeout(timer);
+  if(r.status===401){ const e=new Error('SESSION_EXPIRED'); e.session=true; throw e; }
   const j = await r.json();
   if(!j.ok){
     // แสดงข้อความดิบที่ AI ตอบมาด้วย จะได้รู้ว่าติดตรงไหน ไม่ต้องเดา
@@ -6683,6 +6685,14 @@ async function torAiEnhance(){
     const msAll = TOR.rows.filter(r=>r.kind==='ms' && /งวดที่/.test(r.desc));
     if(!unknown.length && !specsAll.length && !msAll.length){
       setMsg('<b>ไม่มีงานที่ AI ช่วยได้</b> - ไม่พบงานที่จัดประเภทไม่ได้ ไม่มีหมวดสเปค และไม่พบงวดงาน');
+      btn.disabled=false; return;
+    }
+    setMsg('กำลังตรวจสอบการเชื่อมต่อ...');
+    const chk0 = await torCheckSession();
+    if(!chk0.ok){
+      setMsg(chk0.why==='session' ? torSessionMsg()
+        : chk0.why==='nokey' ? '<b style="color:var(--warning)">ยังไม่ได้ตั้งค่า GROQ_API_KEY ที่เซิร์ฟเวอร์</b>'
+        : `<b style="color:var(--critical)">เชื่อมต่อเซิร์ฟเวอร์ไม่ได้</b> - ${chk0.msg||''}`);
       btn.disabled=false; return;
     }
     setMsg(`เริ่มทำงาน... (จัดประเภท ${unknown.length} · สเปค ${Math.min(specsAll.length,20)} · งวด ${Math.min(msAll.length,6)})`);
@@ -6762,7 +6772,7 @@ async function torAiEnhance(){
       setMsg(`<b style="color:var(--success)">✓ AI ช่วยเสริมเรียบร้อย</b> - เรียก ${calls} ครั้ง${usedTokens?` · ใช้ ${usedTokens.toLocaleString()} tokens`:''}`);
     }
   }catch(e){
-    setMsg(`<b style="color:var(--critical)">AI ไม่สำเร็จ:</b> ${String(e.message||e)}`
+    setMsg(e.session ? torSessionMsg() : `<b style="color:var(--critical)">AI ไม่สำเร็จ:</b> ${String(e.message||e)}`
       + (e.raw?`<div style="font-size:10px;color:var(--faint);margin-top:4px">AI ตอบมาว่า: ${String(e.raw).slice(0,220)}</div>`:''));
   }finally{ if(btn) btn.disabled=false; }
 }
@@ -6883,6 +6893,30 @@ async function torOcrRun(file, from, to){
   }
 }
 
+// ตรวจว่า session ยังใช้ได้ก่อนเริ่มงาน AI ที่กินเวลาหลายนาที
+// Render free tier หลับเมื่อไม่มีคนใช้ พอตื่นมา token ที่เก็บในหน่วยความจำจะหายหมด
+async function torCheckSession(){
+  try{
+    const r = await fetch(API_BASE+'/api/tor/ai-status', {
+      headers:{'Authorization':'Bearer '+getToken()}
+    });
+    if(r.status===401) return {ok:false, why:'session'};
+    const j = await r.json();
+    if(!j.enabled) return {ok:false, why:'nokey'};
+    return {ok:true, model:j.model, used:j.used, limit:j.limit};
+  }catch(e){ return {ok:false, why:'net', msg:String(e.message||e)}; }
+}
+
+// ข้อความอธิบายเมื่อ session หมดอายุ - บอกวิธีแก้โดยไม่เสียงานที่แตกไว้แล้ว
+function torSessionMsg(){
+  return `<b style="color:var(--warning)">เซสชันหมดอายุ</b> - เซิร์ฟเวอร์รีสตาร์ทระหว่างที่คุณทำงานอยู่
+    <div style="font-size:10px;color:var(--faint);margin-top:5px;line-height:1.7">
+      ข้อมูล TOR ที่แตกไว้ยังอยู่ครบ ดาวน์โหลดไฟล์ Excel ได้ตามปกติ<br>
+      ถ้าจะใช้ AI ต่อ: เปิดแดชบอร์ดในแท็บใหม่แล้วเข้าสู่ระบบอีกครั้ง จากนั้นกลับมากดปุ่มนี้ใหม่
+      <b>อย่ารีเฟรชหน้านี้</b> เพราะข้อมูล TOR จะหาย
+    </div>`;
+}
+
 // ===== ให้ AI จับคู่ข้อ TOR เข้ากับงวดงาน =====
 // ใช้เมื่อกฎจับคู่ไม่ได้ - มักเกิดกับไฟล์สแกนที่ OCR อ่านเลขข้อเพี้ยน
 // กฎดึงข้อความได้ดีอยู่แล้ว แต่การเข้าใจว่า "ข้อไหนเป็นของงวดไหน" ต้องอาศัยความเข้าใจภาษา
@@ -6893,6 +6927,14 @@ async function torAiMapMilestones(){
   try{
     const ms = TOR.milestones||[];
     if(!ms.length){ setMsg('<b>ไม่พบงวดงานในเอกสาร</b> - AI จับคู่ไม่ได้ถ้าไม่รู้ว่ามีกี่งวด'); return; }
+    setMsg('กำลังตรวจสอบการเชื่อมต่อ...');
+    const chk = await torCheckSession();
+    if(!chk.ok){
+      setMsg(chk.why==='session' ? torSessionMsg()
+        : chk.why==='nokey' ? '<b style="color:var(--warning)">ยังไม่ได้ตั้งค่า GROQ_API_KEY ที่เซิร์ฟเวอร์</b> - ตั้งค่าใน Environment Variables ของ Render ก่อน'
+        : `<b style="color:var(--critical)">เชื่อมต่อเซิร์ฟเวอร์ไม่ได้</b> - ${chk.msg||''}`);
+      return;
+    }
 
     // หาข้อที่ยังไม่ได้แสดงเป็นงานของงวดใดเลย - รวมข้อที่ไม่ได้กลายเป็นแถวด้วย
     // เพราะเมื่อกฎจับคู่ไม่ได้ ข้อเหล่านั้นจะหายไปเฉย ๆ ไม่ได้ไปอยู่ในบล็อกท้ายไฟล์
@@ -6921,6 +6963,7 @@ async function torAiMapMilestones(){
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()},
         body: JSON.stringify({task:'map', items:batch.map(x=>x.desc), milestones:msDesc})
       });
+      if(r.status===401){ const e=new Error('SESSION_EXPIRED'); e.session=true; throw e; }
       const j = await r.json();
       if(!j.ok) throw new Error(j.error||'เรียก AI ไม่สำเร็จ');
       calls++; tokens += j.tokens||0;
@@ -6958,7 +7001,8 @@ async function torAiMapMilestones(){
       ? `<b style="color:var(--success)">✓ AI จับคู่ได้ ${moved} ข้อ</b> - เรียก ${calls} ครั้ง${tokens?` · ${tokens.toLocaleString()} tokens`:''}`
       : `<b style="color:var(--warning)">AI จับคู่ไม่ได้เลย</b> - เนื้อหาอาจไม่ชัดพอ ตรวจกับ TOR ฉบับจริง`);
   }catch(e){
-    setMsg(`<b style="color:var(--critical)">จับคู่ไม่สำเร็จ:</b> ${String(e.message||e)}`);
+    setMsg(e.session ? torSessionMsg()
+      : `<b style="color:var(--critical)">จับคู่ไม่สำเร็จ:</b> ${String(e.message||e)}`);
   }finally{ if(btn) btn.disabled=false; }
 }
 
