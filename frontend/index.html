@@ -603,6 +603,8 @@
     background:#F2F6F1;border-left:3px solid var(--success);color:var(--ink-2);}
   .tor-btn.ai{background:#EDE4D8;border-color:var(--brand-2);color:var(--brand);font-weight:700;}
   .tor-ai-msg{padding:0 18px 8px;font-size:11.5px;color:var(--ink-2);min-height:16px;}
+  .tor-step-hint{margin:0 18px 10px;padding:8px 13px;border-radius:9px;font-size:11px;line-height:1.7;
+    background:#EDE4D8;border-left:3px solid var(--brand-2);color:var(--brand);}
   .tor-ai-note{padding:0 18px 14px;font-size:10px;color:var(--faint);line-height:1.65;}
   .tor-pay{margin:0 18px 12px;padding:10px 13px;border-radius:9px;background:var(--surface-2);
     border:1px solid var(--line-soft);font-size:11.5px;color:var(--ink-2);}
@@ -1987,7 +1989,7 @@
       <div class="p-body">
         <div style="padding:13px 18px;border-bottom:1px solid var(--line-soft)">
           <div style="font-size:11px;color:#3D6B7A;font-weight:600;margin-bottom:9px;display:flex;align-items:center;gap:5px">🌐 ผลค้นหาครอบคลุมทุก PM ทุกทีมในบริษัท (535 โครงการ) - ต่างจาก 3 การ์ดด้านบนที่ล็อกแค่ทีมนี้</div>
-          <input type="text" id="piCompanySearch" placeholder="ค้นหาด้วยชื่อ site/ลูกค้า, รหัสโครงการ, หรือชื่อ PM..." style="width:100%;padding:9px 13px;border:1px solid var(--line);border-radius:9px;font-family:'Inter',sans-serif;font-size:13px;color:var(--ink);background:var(--surface);box-shadow:var(--sh-sm)">
+          <input type="text" id="piCompanySearch" placeholder="ค้นหา site/ลูกค้า, รหัสโครงการ, ชื่อ PM  ·  ใส่หลายคำได้ เช่น  กปภ &amp; network" style="width:100%;padding:9px 13px;border:1px solid var(--line);border-radius:9px;font-family:'Inter',sans-serif;font-size:13px;color:var(--ink);background:var(--surface);box-shadow:var(--sh-sm)">
         </div>
         <div id="piCompanyResults"></div>
       </div>
@@ -5034,7 +5036,7 @@ function renderRevenueRecognition(list){
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
 // หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
 // จึงแกะด้วยกฎได้โดยไม่ต้องพึ่ง AI - แม่นกับเอกสารที่เป็น text ส่วนไฟล์สแกนต้อง OCR มาก่อน
-const TOR_ENGINE_VERSION = 'v232';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
+const TOR_ENGINE_VERSION = 'v235';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
 const TOR = { text:'', clauses:[], milestones:[], rows:[], fileName:'', pages:0 };
 
 // โหลดไลบรารีเฉพาะตอนเปิดไฟล์ที่ต้องใช้จริง - ถ้าเน็ตเข้า CDN ไม่ได้ ไฟล์ .txt/.csv ยังใช้งานได้ปกติ
@@ -6668,6 +6670,14 @@ async function torAiCall(task, items){
 async function torAiEnhance(){
   const btn=document.getElementById('torAiBtn');
   if(!btn) return;
+  // ถ้ายังมีข้อรอจับคู่อยู่ ควรจับคู่ก่อน ไม่งั้นงานที่เพิ่งเข้ามาจะไม่ได้จัดประเภท
+  if(!TOR.aiMapDone && (TOR.milestones||[]).length){
+    const shown0 = new Set(TOR.rows.filter(r=>!r.kind && r.ms && /งวดงานที่/.test(r.ms))
+                                   .map(r=>String(r.desc).replace(/^\s*[\d.]+\)\s*/,'').slice(0,40)));
+    const pend = (TOR.clauses||[]).filter(c=>!c.synthetic
+      && String(c.text||'').trim().length>25 && !shown0.has(String(c.text||'').slice(0,40))).length;
+    if(pend>0 && !confirm(`ยังมี ${pend} ข้อที่ยังไม่ได้จับคู่เข้างวด\n\nแนะนำให้กด "ขั้นที่ 1 · จับคู่ข้อเข้างวด" ก่อน\nไม่งั้นงานที่จับคู่เข้ามาทีหลังจะไม่ได้รับการจัดประเภท ต้องกดซ้ำอีกรอบ\n\nจะข้ามไปช่วยเสริมเลยหรือไม่?`)) return;
+  }
   const nUnknown = TOR.rows.filter(r=>!r.kind && r.type==='Other').length;
   const est = Math.ceil(nUnknown/20)*20 + 60;
   if(nUnknown>20 && !confirm(`มีงานที่ต้องให้ AI จัดประเภท ${nUnknown} รายการ\n\nโควตา Groq แบบฟรีจำกัดราว 8,000 tokens ต่อนาที ระบบจึงต้องส่งทีละ 20 รายการและเว้นระยะ\nคาดว่าใช้เวลาประมาณ ${Math.ceil(est/60)} นาที\n\nดำเนินการต่อหรือไม่?`)) return;
@@ -7080,17 +7090,26 @@ function torShowResult(prefix){
     <div class="tor-actions">
       <button class="tor-btn primary" onclick="torExportExcel()">⬇ ดาวน์โหลด Scope of Work (.xlsx)</button>
       <button class="tor-btn" onclick="document.getElementById('torPreview').classList.toggle('open')">ดูตัวอย่างผลลัพธ์</button>
-      <button class="tor-btn ${TOR.aiDone?'':'ai'}" id="torAiBtn" onclick="torAiEnhance()">${TOR.aiDone?'🤖 ให้ AI ช่วยอีกครั้ง':'🤖 ให้ AI ช่วยเสริม'}</button>
       ${(()=>{
+        // ลำดับปุ่มต้องตรงกับลำดับการใช้งาน: จับคู่ก่อน (เพิ่มงานเข้างวด) แล้วค่อยช่วยเสริม (ปรับปรุงงานที่มี)
+        // ถ้ากดช่วยเสริมก่อน งานที่ AI จับคู่เข้ามาทีหลังจะไม่ได้รับการจัดประเภท ต้องกดซ้ำ
         const shown = new Set(TOR.rows.filter(r=>!r.kind && r.ms && /งวดงานที่/.test(r.ms))
                                       .map(r=>String(r.desc).replace(/^\s*[\d.]+\)\s*/,'').slice(0,40)));
         const unmapped = (TOR.clauses||[]).filter(c=>!c.synthetic
           && String(c.text||'').trim().length>25
           && !shown.has(String(c.text||'').slice(0,40))).length;
         const hasMs = (TOR.milestones||[]).length>0;
-        return (hasMs && unmapped>0)
-          ? `<button class="tor-btn ai" id="torMapBtn" onclick="torAiMapMilestones()">🧩 ให้ AI จับคู่ข้อเข้างวด (${unmapped} ข้อ)</button>`
-          : '';
+        const needMap = hasMs && unmapped>0 && !TOR.aiMapDone;   // ยังไม่ได้จับคู่ = ควรทำก่อน
+        const twoStep = hasMs && (unmapped>0 || TOR.aiMapDone);  // เอกสารนี้ต้องทำ 2 ขั้น
+        return `
+          ${(hasMs && unmapped>0)
+            ? `<button class="tor-btn ${needMap?'ai':''}" id="torMapBtn" onclick="torAiMapMilestones()">
+                 ${TOR.aiMapDone?`🧩 จับคู่อีกครั้ง (${unmapped} ข้อ)`:`🧩 ขั้นที่ 1 · ให้ AI จับคู่ข้อเข้างวด (${unmapped} ข้อ)`}</button>`
+            : ''}
+          <button class="tor-btn ${(TOR.aiDone||needMap)?'':'ai'}" id="torAiBtn" onclick="torAiEnhance()"
+                  title="${needMap?'แนะนำให้กดปุ่มจับคู่ก่อน จะได้จัดประเภทงานที่จับคู่เข้ามาด้วย':''}">
+            ${TOR.aiDone ? '🤖 ให้ AI ช่วยอีกครั้ง'
+              : (twoStep ? '🤖 ขั้นที่ 2 · ให้ AI ช่วยเสริม' : '🤖 ให้ AI ช่วยเสริม')}</button>`;
       })()}
     </div>
     ${TOR.aiMapDone?`<div class="tor-ai-done ${TOR.aiMapDone.moved?'':'none'}">
@@ -7105,6 +7124,16 @@ function torShowResult(prefix){
         : `ไม่มีงานที่ AI ช่วยได้ในเอกสารนี้${(TOR.aiSummary.skipped||[]).length?` - ${TOR.aiSummary.skipped.join(' · ')}`:''}`}</div>
     </div>`:''}
     <div id="torAiMsg" class="tor-ai-msg"></div>
+    ${(()=>{
+      const hasMs=(TOR.milestones||[]).length>0;
+      const shown2 = new Set(TOR.rows.filter(r=>!r.kind && r.ms && /งวดงานที่/.test(r.ms))
+                                     .map(r=>String(r.desc).replace(/^\s*[\d.]+\)\s*/,'').slice(0,40)));
+      const un2 = (TOR.clauses||[]).filter(c=>!c.synthetic
+        && String(c.text||'').trim().length>25 && !shown2.has(String(c.text||'').slice(0,40))).length;
+      return (hasMs && un2>0 && !TOR.aiMapDone)
+        ? `<div class="tor-step-hint">แนะนำให้กด <b>ขั้นที่ 1</b> ก่อน เพื่อดึงงานที่ยังไม่เข้างวดเข้ามาให้ครบ แล้วค่อยกด <b>ขั้นที่ 2</b> จัดประเภทและหาจุดเสี่ยง</div>`
+        : '';
+    })()}
     <div class="tor-ai-note">AI ช่วยเฉพาะจุดที่กฎทำไม่ได้ - จัดประเภทงานที่เดาไม่ออก · หาข้อผูกพันที่ซ่อนในสเปค · สรุปสิ่งที่ PM ควรโฟกัสแต่ละงวด
       <br>ส่งเฉพาะข้อความสั้น ๆ เท่าที่จำเป็น ไม่ส่งเอกสารทั้งฉบับ · โครงสร้างงวดงานและเลขข้อยังคำนวณในเครื่องเหมือนเดิม</div>
     <div id="torPreview" class="tor-preview">
@@ -8239,23 +8268,43 @@ function renderCompanySearch(query){
   const countEl = document.getElementById('piCompanyCount');
   if(!PROJINFO_ALL.length){ el.innerHTML=''; countEl.textContent=''; return; }
 
-  const q = (query||'').trim().toLowerCase();
-  if(q.length < 2){
-    el.innerHTML = `<div class="empty">พิมพ์อย่างน้อย 2 ตัวอักษรเพื่อค้นหา (ชื่อ site/ลูกค้า, รหัสโครงการ, หรือชื่อ PM)</div>`;
+  const raw = (query||'').trim();
+  // รองรับค้นหาหลายคำ: คั่นด้วย & หรือ , = ต้องมีครบทุกคำ (AND) · | = มีคำใดคำหนึ่งก็พอ (OR)
+  // เช่น "กปภ & network" = โครงการของ กปภ. ที่มีคำว่า network ด้วย
+  const isOr = /\|/.test(raw) && !/[&,]/.test(raw);
+  const terms = raw.split(isOr ? /\|/ : /[&,]/)
+                   .map(x=>x.trim().toLowerCase())
+                   .filter(Boolean);
+
+  if(!terms.length || terms.join('').length < 2){
+    el.innerHTML = `<div class="empty">พิมพ์อย่างน้อย 2 ตัวอักษรเพื่อค้นหา (ชื่อ site/ลูกค้า, รหัสโครงการ, หรือชื่อ PM)
+      <div style="margin-top:7px;font-size:10.5px;line-height:1.8">
+        ค้นหาหลายคำพร้อมกันได้:
+        <b>กปภ &amp; network</b> = ต้องมีครบทั้งสองคำ ·
+        <b>กปภ, network, 2569</b> = ใส่ได้หลายคำ ใช้ , หรือ &amp; ก็ได้ ·
+        <b>กปภ | ทอท</b> = มีคำใดคำหนึ่งก็พอ
+      </div></div>`;
     countEl.textContent = `${PROJINFO_ALL.length} โครงการทั้งบริษัท`;
     return;
   }
 
   const matches = PROJINFO_ALL.filter(p=>{
-    const cust = String(p['Customer']||'').toLowerCase();
-    const code = String(p['Project Code']||'').toLowerCase();
-    const pm = String(p['PM Name']||'').toLowerCase();
-    const name = String(p['Project Name']||'').toLowerCase();
-    return cust.includes(q) || code.includes(q) || pm.includes(q) || name.includes(q);
+    // รวมทุกฟิลด์เป็นข้อความเดียว เพื่อให้แต่ละคำไปตรงคนละฟิลด์ได้
+    // (เช่น "กปภ" ตรงที่ลูกค้า ส่วน "network" ตรงที่ชื่อโครงการ)
+    const hay = [p['Customer'], p['Project Code'], p['PM Name'], p['Project Name'],
+                 p['Team'], p['Site'], p['Service Type']]
+                .map(x=>String(x||'')).join(' ').toLowerCase();
+    return isOr ? terms.some(t=>hay.includes(t)) : terms.every(t=>hay.includes(t));
   });
 
-  countEl.textContent = `${matches.length} โครงการตรงกับคำค้นหา`;
-  if(!matches.length){ el.innerHTML = `<div class="empty">ไม่พบโครงการ/site/PM ที่ตรงกับ "${query}"</div>`; return; }
+  const modeLabel = terms.length<2 ? ''
+    : (isOr ? ` · มีคำใดคำหนึ่งใน ${terms.length} คำ` : ` · มีครบทั้ง ${terms.length} คำ`);
+  countEl.textContent = `${matches.length} โครงการตรงกับคำค้นหา${modeLabel}`;
+  if(!matches.length){
+    el.innerHTML = `<div class="empty">ไม่พบโครงการที่${isOr?'มีคำใดคำหนึ่ง':'มีครบทุกคำ'}: ${terms.map(t=>`<b>${t}</b>`).join(isOr?' หรือ ':' และ ')}
+      ${terms.length>1?'<div style="margin-top:6px;font-size:10.5px">ลองลดจำนวนคำ หรือใช้ <b>|</b> แทน <b>&amp;</b> เพื่อค้นหาแบบมีคำใดคำหนึ่ง</div>':''}</div>`;
+    return;
+  }
 
   const byCust = {};
   matches.forEach(p=>{
