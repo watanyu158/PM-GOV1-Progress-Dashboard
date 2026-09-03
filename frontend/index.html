@@ -1989,7 +1989,7 @@
       <div class="p-body">
         <div style="padding:13px 18px;border-bottom:1px solid var(--line-soft)">
           <div style="font-size:11px;color:#3D6B7A;font-weight:600;margin-bottom:9px;display:flex;align-items:center;gap:5px">🌐 ผลค้นหาครอบคลุมทุก PM ทุกทีมในบริษัท (535 โครงการ) - ต่างจาก 3 การ์ดด้านบนที่ล็อกแค่ทีมนี้</div>
-          <input type="text" id="piCompanySearch" placeholder="ค้นหา site/ลูกค้า, รหัสโครงการ, ชื่อ PM  ·  ใส่หลายคำได้ เช่น  กปภ &amp; network" style="width:100%;padding:9px 13px;border:1px solid var(--line);border-radius:9px;font-family:'Inter',sans-serif;font-size:13px;color:var(--ink);background:var(--surface);box-shadow:var(--sh-sm)">
+          <input type="text" id="piCompanySearch" placeholder="ค้นหา site/ลูกค้า, รหัสโครงการ, ชื่อ PM  ·  รวมหลายคำ: nnt &amp; prd  ·  กรองซ้อน: กปภ + network" style="width:100%;padding:9px 13px;border:1px solid var(--line);border-radius:9px;font-family:'Inter',sans-serif;font-size:13px;color:var(--ink);background:var(--surface);box-shadow:var(--sh-sm)">
         </div>
         <div id="piCompanyResults"></div>
       </div>
@@ -8368,10 +8368,11 @@ function renderCompanySearch(query){
   if(!PROJINFO_ALL.length){ el.innerHTML=''; countEl.textContent=''; return; }
 
   const raw = (query||'').trim();
-  // รองรับค้นหาหลายคำ: คั่นด้วย & หรือ , = ต้องมีครบทุกคำ (AND) · | = มีคำใดคำหนึ่งก็พอ (OR)
-  // เช่น "กปภ & network" = โครงการของ กปภ. ที่มีคำว่า network ด้วย
-  const isOr = /\|/.test(raw) && !/[&,]/.test(raw);
-  const terms = raw.split(isOr ? /\|/ : /[&,]/)
+  // "nnt & prd" = เอา nnt และ prd มาให้ดูทั้งคู่ (รวมผล) - ตรงกับที่คนพูดกันจริง
+  //   & หรือ , หรือ | = รวมผลทุกคำ (union)
+  //   + = กรองซ้อน ต้องมีครบทุกคำในโครงการเดียว เช่น "กปภ + network"
+  const isAll = /\+/.test(raw);
+  const terms = raw.split(isAll ? /\+/ : /[&,|]/)
                    .map(x=>x.trim().toLowerCase())
                    .filter(Boolean);
 
@@ -8379,9 +8380,9 @@ function renderCompanySearch(query){
     el.innerHTML = `<div class="empty">พิมพ์อย่างน้อย 2 ตัวอักษรเพื่อค้นหา (ชื่อ site/ลูกค้า, รหัสโครงการ, หรือชื่อ PM)
       <div style="margin-top:7px;font-size:10.5px;line-height:1.8">
         ค้นหาหลายคำพร้อมกันได้:
-        <b>กปภ &amp; network</b> = ต้องมีครบทั้งสองคำ ·
-        <b>กปภ, network, 2569</b> = ใส่ได้หลายคำ ใช้ , หรือ &amp; ก็ได้ ·
-        <b>กปภ | ทอท</b> = มีคำใดคำหนึ่งก็พอ
+        <b>nnt &amp; prd</b> = เอาทั้ง nnt และ prd มาให้ดู (รวมผล) ·
+        ใช้ <b>,</b> หรือ <b>|</b> แทน <b>&amp;</b> ก็ได้ ·
+        <b>กปภ + network</b> = กรองซ้อน เอาเฉพาะโครงการที่มีครบทั้งสองคำ
       </div></div>`;
     countEl.textContent = `${PROJINFO_ALL.length} โครงการทั้งบริษัท`;
     return;
@@ -8393,15 +8394,15 @@ function renderCompanySearch(query){
     const hay = [p['Customer'], p['Project Code'], p['PM Name'], p['Project Name'],
                  p['Team'], p['Site'], p['Service Type']]
                 .map(x=>String(x||'')).join(' ').toLowerCase();
-    return isOr ? terms.some(t=>hay.includes(t)) : terms.every(t=>hay.includes(t));
+    return isAll ? terms.every(t=>hay.includes(t)) : terms.some(t=>hay.includes(t));
   });
 
   const modeLabel = terms.length<2 ? ''
-    : (isOr ? ` · มีคำใดคำหนึ่งใน ${terms.length} คำ` : ` · มีครบทั้ง ${terms.length} คำ`);
+    : (isAll ? ` · มีครบทั้ง ${terms.length} คำ` : ` · รวมผลจาก ${terms.length} คำ`);
   countEl.textContent = `${matches.length} โครงการตรงกับคำค้นหา${modeLabel}`;
   if(!matches.length){
-    el.innerHTML = `<div class="empty">ไม่พบโครงการที่${isOr?'มีคำใดคำหนึ่ง':'มีครบทุกคำ'}: ${terms.map(t=>`<b>${t}</b>`).join(isOr?' หรือ ':' และ ')}
-      ${terms.length>1?'<div style="margin-top:6px;font-size:10.5px">ลองลดจำนวนคำ หรือใช้ <b>|</b> แทน <b>&amp;</b> เพื่อค้นหาแบบมีคำใดคำหนึ่ง</div>':''}</div>`;
+    el.innerHTML = `<div class="empty">ไม่พบโครงการที่${isAll?'มีครบทุกคำ':'ตรงกับคำใดคำหนึ่ง'}: ${terms.map(t=>`<b>${t}</b>`).join(isAll?' และ ':' หรือ ')}
+      ${(terms.length>1&&isAll)?'<div style="margin-top:6px;font-size:10.5px">ลองใช้ <b>&amp;</b> แทน <b>+</b> เพื่อรวมผลจากทุกคำแทนการกรองซ้อน</div>':''}</div>`;
     return;
   }
 
