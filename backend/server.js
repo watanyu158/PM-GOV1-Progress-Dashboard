@@ -789,12 +789,16 @@ app.post('/api/tor/classify', requireAuth, async (req, res) => {
   if ((torAiUsage[key]||0) >= TOR_AI_DAILY_LIMIT)
     return res.status(429).json({ ok:false, error:`ใช้ครบโควตาวันนี้แล้ว (${TOR_AI_DAILY_LIMIT} ครั้ง)` });
 
-  const items = Array.isArray(req.body && req.body.items) ? req.body.items.slice(0,20) : [];
+  const task0 = (req.body && req.body.task) || 'classify';
+  // งานจับคู่งวดต้องเห็นข้อจำนวนมากพร้อมกันจึงจะจับลำดับงานได้ถูก แต่ต้องไม่เกินโควตาต่อนาที
+  const LIMIT = task0==='map' ? 35 : 20;
+  const items = Array.isArray(req.body && req.body.items) ? req.body.items.slice(0,LIMIT) : [];
   const task = (req.body && req.body.task) || 'classify';
   if (!items.length) return res.json({ ok:true, result: [] });
 
   // ตัดข้อความให้สั้นก่อนส่ง ประหยัด token และอยู่ในเพดาน 6,000 TPM
-  const lines = items.map((x,i)=>`${i+1}. ${String(x).replace(/\s+/g,' ').slice(0,110)}`).join('\n');
+  const CUT = task0==='map' ? 130 : 110;
+  const lines = items.map((x,i)=>`${i+1}. ${String(x).replace(/\s+/g,' ').slice(0,CUT)}`).join('\n');
 
   const prompts = {
     classify: `จัดประเภทงานในเอกสาร TOR ภาษาไทยต่อไปนี้ ให้เลือกประเภทที่เหมาะที่สุดจากรายการนี้เท่านั้น: ${TOR_TYPES_LIST}
@@ -806,6 +810,21 @@ ${lines}`,
 ตอบเป็น JSON object อย่างเดียว: {"items":[{"n":1,"why":"เหตุผลสั้นๆ"}]} ถ้าไม่มีให้ตอบ {"items":[]}
 
 ${lines}`,
+    map: `ต่อไปนี้เป็นข้อมูลจากเอกสาร TOR ภาษาไทย ที่ผ่าน OCR มาจึงอาจมีตัวอักษรและเลขข้อผิดพลาด
+
+${(req.body && req.body.milestones) || ''}
+
+รายการข้อในเอกสาร (แต่ละบรรทัดขึ้นต้นด้วยหมายเลขอ้างอิงที่เราตั้งให้):
+${lines}
+
+งานของคุณ: จับคู่ว่าแต่ละข้อเป็นงานของงวดใด โดยดูจากเนื้อหาและลำดับของงาน
+- ถ้าข้อนั้นระบุงวดไว้ชัดเจน ให้ใช้ตามนั้น
+- ถ้าไม่ระบุ ให้ดูลักษณะงาน: วางแผน/สำรวจมักอยู่งวดต้น · ติดตั้ง/พัฒนาอยู่งวดกลาง · ทดสอบ/อบรม/ส่งมอบเอกสารอยู่งวดท้าย
+- ข้อที่เป็นคุณสมบัติอุปกรณ์ (สเปค) หรือเงื่อนไขทั่วไป ให้ใส่ ms เป็น 0
+- ระบุ kind เป็น "work" (งานที่ต้องทำ) หรือ "doc" (เอกสารที่ต้องส่งมอบ)
+
+ตอบเป็น JSON object อย่างเดียว: {"items":[{"n":1,"ms":2,"kind":"work"},{"n":2,"ms":0,"kind":"work"}]}`,
+
     focus: `ต่อไปนี้เป็นรายการงานของงวดงานหนึ่งในโครงการ (เอกสาร TOR ภาษาไทย)
 สรุปสั้นๆ ว่า Project Manager ควรโฟกัสอะไรในงวดนี้ และมีความเสี่ยงอะไรที่มักตกหล่น
 ตอบเป็น JSON อย่างเดียว: {"focus":"...","risk":"..."} ความยาวไม่เกินอย่างละ 2 บรรทัด

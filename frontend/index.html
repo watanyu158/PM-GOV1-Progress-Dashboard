@@ -5034,7 +5034,7 @@ function renderRevenueRecognition(list){
 // -> ส่งออกเป็น Excel รูปแบบ Scope of Work
 // หลักการ: TOR ราชการไทยมีโครงสร้างมาตรฐาน (ข้อ N / N.M / N.M.K, "งวดที่ X", "เอกสารส่งมอบ")
 // จึงแกะด้วยกฎได้โดยไม่ต้องพึ่ง AI - แม่นกับเอกสารที่เป็น text ส่วนไฟล์สแกนต้อง OCR มาก่อน
-const TOR_ENGINE_VERSION = 'v226';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
+const TOR_ENGINE_VERSION = 'v230';   // เลื่อนทุกครั้งที่แก้ตรรกะการแตก TOR
 const TOR = { text:'', clauses:[], milestones:[], rows:[], fileName:'', pages:0 };
 
 // โหลดไลบรารีเฉพาะตอนเปิดไฟล์ที่ต้องใช้จริง - ถ้าเน็ตเข้า CDN ไม่ได้ ไฟล์ .txt/.csv ยังใช้งานได้ปกติ
@@ -6029,23 +6029,6 @@ function torBuildRows(clauses, ms){
           note:`ชื่อเอกสาร: ${torDocName(d)}`,
           ms:`งวดงานที่ ${m.no}`, cond:'ต้องส่งครบจึงจะตรวจรับและเบิกจ่ายงวดนี้ได้'}));
       }
-      // กวาดทั้งเอกสารหาข้อที่ระบุ "งวดที่ N" ในตัวเอง แล้วผูกเข้างวดนั้น
-      // ใช้ได้แม้เลขข้อเพี้ยนจาก OCR เพราะอาศัยคำว่า "งวดที่ N" ในเนื้อความแทนเลขข้อ
-      clauses.forEach(c=>{
-        if(c.synthetic) return;
-        const t=String(c.text||'');
-        const g=t.match(/งวด(?:งาน)?ที่\s*(\d{1,2})/);
-        if(!g || parseInt(g[1],10)!==m.no) return;
-        // ตัดส่วนหัวที่เป็นแค่การอ้างงวด ให้เหลือเนื้องานจริง
-        const body=t.replace(/^[\s\S]{0,40}?งวด(?:งาน)?ที่\s*\d{1,2}\s*/,'').trim();
-        if(body.length<12) return;
-        // ข้ามบรรทัดที่พูดถึงการจ่ายเงินอย่างเดียว ไม่ใช่เนื้องาน
-        if(/^(?:ชำระ|จ่าย)เงิน|^กำหนดจ่าย/.test(body)) return;
-        const isDoc=/^(?:ส่งมอบ)?(?:เอกสาร|รายงาน|คู่มือ|ผลทดสอบ|ผลการ)/.test(body);
-        (isDoc?docs:works).push(body);
-        usedSpecNos.add(c.no);
-      });
-
       // ถ้ายังไม่ได้อะไรเลย ให้ดึงงานจากประโยคเงื่อนไขของงวดเอง
       if(!works.length && !docs.length){
         const cond = String(m.cond||'');
@@ -6900,6 +6883,127 @@ async function torOcrRun(file, from, to){
   }
 }
 
+// ===== ให้ AI จับคู่ข้อ TOR เข้ากับงวดงาน =====
+// ใช้เมื่อกฎจับคู่ไม่ได้ - มักเกิดกับไฟล์สแกนที่ OCR อ่านเลขข้อเพี้ยน
+// กฎดึงข้อความได้ดีอยู่แล้ว แต่การเข้าใจว่า "ข้อไหนเป็นของงวดไหน" ต้องอาศัยความเข้าใจภาษา
+async function torAiMapMilestones(){
+  const btn=document.getElementById('torMapBtn');
+  const setMsg=t=>{ const el=document.getElementById('torAiMsg'); if(el) el.innerHTML=t; };
+  if(btn) btn.disabled=true;
+  try{
+    const ms = TOR.milestones||[];
+    if(!ms.length){ setMsg('<b>ไม่พบงวดงานในเอกสาร</b> - AI จับคู่ไม่ได้ถ้าไม่รู้ว่ามีกี่งวด'); return; }
+
+    // หาข้อที่ยังไม่ได้แสดงเป็นงานของงวดใดเลย - รวมข้อที่ไม่ได้กลายเป็นแถวด้วย
+    // เพราะเมื่อกฎจับคู่ไม่ได้ ข้อเหล่านั้นจะหายไปเฉย ๆ ไม่ได้ไปอยู่ในบล็อกท้ายไฟล์
+    const shown = new Set(TOR.rows.filter(r=>!r.kind && r.ms && /งวดงานที่/.test(r.ms))
+                                  .map(r=>String(r.desc).replace(/^\s*[\d.]+\)\s*/,'').slice(0,40)));
+    const SKIP = /^(?:คุณสมบัติผู้|หลักเกณฑ์|หลักฐานการยื่น|การเสนอราคา|วงเงิน|ความเป็นมา|หลักการและเหตุผล)/;
+    const pool = (TOR.clauses||[])
+      .filter(c=>!c.synthetic)
+      .filter(c=>String(c.text||'').trim().length>25)
+      .filter(c=>!SKIP.test(String(c.text||'').trim()))
+      .filter(c=>!shown.has(String(c.text||'').slice(0,40)))
+      .map(c=>({tor:c.no, desc:String(c.text||'').trim()}));
+    if(!pool.length){ setMsg('<b>ทุกข้อถูกจัดเข้างวดแล้ว</b> - ไม่มีอะไรให้ AI จับคู่'); return; }
+
+    const msDesc = 'โครงการนี้มี ' + ms.length + ' งวด:\n'
+      + ms.map(m=>`  งวดที่ ${m.no}${m.pct?` (ร้อยละ ${m.pct})`:''}: ${String(m.cond||'').slice(0,120)}`).join('\n');
+
+    const BATCH=35, GAP=20000;
+    const rounds=Math.ceil(pool.length/BATCH);
+    let moved=0, calls=0, tokens=0;
+    for(let i=0,rd=1;i<pool.length;i+=BATCH,rd++){
+      const batch=pool.slice(i,i+BATCH);
+      setMsg(`AI กำลังจับคู่ข้อเข้ากับงวด รอบ ${rd}/${rounds} (${batch.length} ข้อ)...`);
+      const r = await fetch(API_BASE+'/api/tor/classify', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()},
+        body: JSON.stringify({task:'map', items:batch.map(x=>x.desc), milestones:msDesc})
+      });
+      const j = await r.json();
+      if(!j.ok) throw new Error(j.error||'เรียก AI ไม่สำเร็จ');
+      calls++; tokens += j.tokens||0;
+      (j.result||[]).forEach(x=>{
+        const t=batch[(x.n|0)-1];
+        if(!t) return;
+        let no=parseInt(x.ms,10);
+        // ถ้าข้อความระบุงวดไว้ในตัวเองชัดเจน ให้เชื่อเอกสารมากกว่าที่ AI เดา
+        const selfMs = String(t.desc||'').match(/^[\s\S]{0,30}?งวด(?:งาน)?ที่\s*(\d{1,2})/);
+        if(selfMs && ms.some(m=>m.no===parseInt(selfMs[1],10))) no = parseInt(selfMs[1],10);
+        if(!no || !ms.some(m=>m.no===no)) return;     // ms=0 คือสเปค/เงื่อนไขทั่วไป ไม่ต้องใส่
+        const key=String(t.desc||'').slice(0,40);
+        if(TOR.rows.some(r=>!r.kind && String(r.desc||'').includes(key.slice(0,30)))) return;
+        TOR.rows.push({
+          kind:'', tor:t.tor||'-',
+          type: x.kind==='doc' ? 'Document' : torType(t.desc),
+          desc: torBulletize(torActionText(String(t.desc||'').replace(/^[\s\S]{0,30}?งวด(?:งาน)?ที่\s*\d{1,2}\s*/,''))),
+          note:'', ms:`งวดงานที่ ${no}`, aiMapped:true,
+          cond:'AI จับคู่เข้างวดนี้จากเนื้อหา - เลขข้อในไฟล์ไม่ตรงจึงจับด้วยกฎไม่ได้'
+        });
+        moved++;
+      });
+      if(i+BATCH<pool.length){
+        for(let sec=GAP/1000; sec>0; sec--){
+          setMsg(`จับคู่แล้ว ${Math.min(i+BATCH,pool.length)}/${pool.length} · รออีก ${sec} วินาที (โควตา Groq)`);
+          await new Promise(z=>setTimeout(z,1000));
+        }
+      }
+    }
+    // จัดแถวใหม่ให้ข้อที่ AI จับคู่แล้วไปอยู่ใต้งวดของตัวเอง
+    if(moved) TOR.rows = torRegroupByMilestone(TOR.rows);
+    TOR.aiMapDone = {moved, calls, tokens, at:new Date().toLocaleTimeString('th-TH')};
+    torShowResult('');
+    setMsg(moved
+      ? `<b style="color:var(--success)">✓ AI จับคู่ได้ ${moved} ข้อ</b> - เรียก ${calls} ครั้ง${tokens?` · ${tokens.toLocaleString()} tokens`:''}`
+      : `<b style="color:var(--warning)">AI จับคู่ไม่ได้เลย</b> - เนื้อหาอาจไม่ชัดพอ ตรวจกับ TOR ฉบับจริง`);
+  }catch(e){
+    setMsg(`<b style="color:var(--critical)">จับคู่ไม่สำเร็จ:</b> ${String(e.message||e)}`);
+  }finally{ if(btn) btn.disabled=false; }
+}
+
+// ย้ายแถวที่ AI จับคู่แล้ว ไปอยู่ใต้หัวงวดของตัวเอง
+function torRegroupByMilestone(rows){
+  const moved = rows.filter(r=>r.aiMapped);
+  if(!moved.length) return rows;
+  const rest = rows.filter(r=>!r.aiMapped);
+  const byMs = {};
+  moved.forEach(r=>{
+    const g=String(r.ms||'').match(/(\d{1,2})/);
+    if(g) (byMs[g[1]] = byMs[g[1]]||[]).push(r);
+  });
+  const out=[]; let cur=null;
+  const flush = () => {
+    if(!cur || !byMs[cur]) return;
+    const works = byMs[cur].filter(r=>r.type!=='Document');
+    const docs  = byMs[cur].filter(r=>r.type==='Document');
+    if(works.length){
+      out.push({kind:'sec', tor:'', type:'', desc:'งานที่ AI จับคู่เข้างวดนี้', note:'', ms:'', cond:''});
+      works.forEach((r,i)=>{ r.desc = r.desc.replace(/^\s*\d+\)\s*/,'') ; out.push({...r, desc:`${i+1}) ${r.desc}`}); });
+    }
+    if(docs.length){
+      out.push({kind:'sec', tor:'', type:'', desc:`>> เอกสารส่งมอบ งวดที่ ${cur} (AI จับคู่)`, note:'', ms:'', cond:''});
+      docs.forEach((r,i)=>{ r.desc = r.desc.replace(/^\s*\d+\)\s*/,''); out.push({...r, desc:`${i+1}) ${r.desc}`}); });
+    }
+    delete byMs[cur];
+  };
+  rest.forEach(r=>{
+    if(r.kind==='ms'){
+      flush();
+      const g=String(r.desc).match(/งวดที่\s*(\d{1,2})/);
+      cur = g?g[1]:null;
+    }
+    out.push(r);
+  });
+  flush();
+  // งวดที่ไม่มีหัวข้อในไฟล์ (เช่นงวดที่ OCR อ่านไม่เจอ) ให้ต่อท้าย
+  Object.keys(byMs).forEach(no=>{
+    out.push({kind:'ms', tor:'', type:'', desc:`งวดที่ ${no} (AI จับคู่ - ไม่พบหัวงวดในเอกสาร)`, note:'', ms:'', cond:''});
+    byMs[no].forEach((r,i)=>out.push({...r, desc:`${i+1}) ${r.desc.replace(/^\s*\d+\)\s*/,'')}`}));
+  });
+  return out;
+}
+
 function torShowResult(prefix){
   const res=document.getElementById('torResult');
   const tasks=TOR.rows.filter(r=>!r.kind).length;
@@ -6933,7 +7037,23 @@ function torShowResult(prefix){
       <button class="tor-btn primary" onclick="torExportExcel()">⬇ ดาวน์โหลด Scope of Work (.xlsx)</button>
       <button class="tor-btn" onclick="document.getElementById('torPreview').classList.toggle('open')">ดูตัวอย่างผลลัพธ์</button>
       <button class="tor-btn ${TOR.aiDone?'':'ai'}" id="torAiBtn" onclick="torAiEnhance()">${TOR.aiDone?'🤖 ให้ AI ช่วยอีกครั้ง':'🤖 ให้ AI ช่วยเสริม'}</button>
+      ${(()=>{
+        const shown = new Set(TOR.rows.filter(r=>!r.kind && r.ms && /งวดงานที่/.test(r.ms))
+                                      .map(r=>String(r.desc).replace(/^\s*[\d.]+\)\s*/,'').slice(0,40)));
+        const unmapped = (TOR.clauses||[]).filter(c=>!c.synthetic
+          && String(c.text||'').trim().length>25
+          && !shown.has(String(c.text||'').slice(0,40))).length;
+        const hasMs = (TOR.milestones||[]).length>0;
+        return (hasMs && unmapped>0)
+          ? `<button class="tor-btn ai" id="torMapBtn" onclick="torAiMapMilestones()">🧩 ให้ AI จับคู่ข้อเข้างวด (${unmapped} ข้อ)</button>`
+          : '';
+      })()}
     </div>
+    ${TOR.aiMapDone?`<div class="tor-ai-done ${TOR.aiMapDone.moved?'':'none'}">
+      <b>${TOR.aiMapDone.moved?'✓ AI จับคู่ข้อเข้างวดแล้ว':'AI จับคู่ไม่ได้'}</b> เมื่อ ${TOR.aiMapDone.at}
+      ${TOR.aiMapDone.moved?` · ย้าย ${TOR.aiMapDone.moved} ข้อเข้างวด`:''}${TOR.aiMapDone.tokens?` · ${TOR.aiMapDone.tokens.toLocaleString()} tokens`:''}
+      <div class="tor-qa-l">ข้อที่ AI จับคู่จะมีหมายเหตุกำกับไว้ - ควรตรวจทานกับ TOR ฉบับจริงก่อนใช้งาน</div>
+    </div>`:''}
     ${TOR.aiSummary?`<div class="tor-ai-done ${TOR.aiSummary.calls?'':'none'}">
       <b>${TOR.aiSummary.calls?'✓ AI ช่วยเสริมแล้ว':'AI ไม่ได้ทำงาน'}</b> เมื่อ ${TOR.aiSummary.at}${TOR.aiSummary.calls?` · เรียก ${TOR.aiSummary.calls} ครั้ง`:' · ไม่ได้เรียก API เลย'}${TOR.aiSummary.tokens?` · ${TOR.aiSummary.tokens.toLocaleString()} tokens`:''}
       <div class="tor-qa-l">${TOR.aiSummary.calls
@@ -6957,7 +7077,7 @@ function torShowResult(prefix){
 function torReset(fileName){
   TOR.text=''; TOR.clauses=[]; TOR.milestones=[]; TOR.rows=[];
   TOR.fileName=fileName||''; TOR.pages=0; TOR.emptyPages=0; TOR.imgCount=0;
-  TOR.qa=null; TOR.aiDone=false; TOR.aiSummary=null;
+  TOR.qa=null; TOR.aiDone=false; TOR.aiSummary=null; TOR.aiMapDone=null;
   const res=document.getElementById('torResult'); if(res) res.innerHTML='';
   const msg=document.getElementById('torAiMsg'); if(msg) msg.innerHTML='';
   const cnt=document.getElementById('torCount'); if(cnt) cnt.textContent='';
