@@ -535,6 +535,41 @@
   .cs-bar{height:5px;background:var(--line-soft);border-radius:5px;overflow:hidden;margin-top:7px;}
   .cs-bar i{display:block;height:100%;background:var(--brand);}
 
+  .panel.wide{grid-column:1/-1;}
+  .ph-closed{padding:0 18px 10px;display:flex;flex-direction:column;gap:8px;}
+  .ph-cl{border-radius:10px;padding:10px 14px;background:var(--surface-2);border:1px solid var(--line-soft);}
+  .ph-cl.ok{border-left:4px solid var(--success);}
+  .ph-cl.warn{border-left:4px solid var(--warning);background:var(--warning-tint);}
+  .ph-clh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .ph-clh b{font-size:12.5px;color:var(--ink);font-weight:700;}
+  .ph-cltag{font-size:9.5px;font-weight:800;padding:2px 8px;border-radius:11px;flex:none;
+    background:var(--success-tint);color:var(--success);}
+  .ph-cltag.warn{background:var(--warning);color:#fff;}
+  .ph-clm{font-size:10.5px;color:var(--faint);margin-top:3px;}
+  .ph-clw{margin-top:5px;font-size:11px;color:var(--warning);font-weight:600;}
+  .ph-report{margin:0 18px 12px;padding:12px 15px;border-radius:10px;
+    background:var(--surface);border:1px dashed var(--line);}
+  .ph-rh{font-size:10px;color:var(--faint);margin-bottom:6px;}
+  .ph-rb{font-size:12px;color:var(--ink-2);line-height:1.9;user-select:all;}
+
+  .ph-watch{padding:0 18px 10px;display:flex;flex-direction:column;gap:9px;}
+  .ph-w{border-radius:10px;padding:11px 14px;background:var(--surface-2);border:1px solid var(--line-soft);}
+  .ph-w.crit{border-left:4px solid var(--critical);background:var(--critical-tint);}
+  .ph-w.warn{border-left:4px solid var(--warning);background:var(--warning-tint);}
+  .ph-w.stall{border-left:4px solid var(--line);}
+  .ph-wh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .ph-wh b{font-size:12.5px;color:var(--ink);font-weight:700;}
+  .ph-wc{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--faint);}
+  .ph-hb{font-size:9.5px;font-weight:800;padding:2px 8px;border-radius:11px;flex:none;}
+  .ph-hb.crit{background:var(--critical);color:#fff;}
+  .ph-hb.warn{background:var(--warning);color:#fff;}
+  .ph-wm{font-size:10.5px;color:var(--faint);margin-top:3px;}
+  .ph-wn{margin-top:7px;display:flex;flex-direction:column;gap:3px;}
+  .ph-wn span{font-size:11.5px;color:var(--ink-2);line-height:1.7;padding-left:13px;position:relative;}
+  .ph-wn span:before{content:'';position:absolute;left:3px;top:8px;width:4px;height:4px;border-radius:50%;background:var(--line);}
+  .ph-wn.empty{font-size:10.5px;color:var(--warning);font-style:italic;}
+  .ph-tip{padding:0 18px 12px;font-size:9.5px;color:var(--faint);line-height:1.6;}
+
   /* ป้ายสถานะโครงการ - ให้กวาดตาเจอก่อนข้อมูลอื่นในแถว */
   .nd-row .st-tag{margin-left:auto;}
   .st-tag{display:inline-flex;align-items:center;gap:5px;padding:2px 9px 2px 7px;border-radius:11px;
@@ -1800,7 +1835,7 @@
       </div>
     </div>
 
-    <div class="panel" id="panel-projectHealth">
+    <div class="panel wide" id="panel-projectHealth">
       <div class="p-head">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
@@ -5265,6 +5300,79 @@ async function phUpload(files){
 const phFmt = n => n==null ? '-' : Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
 const phM = n => n==null ? '-' : (n/1e6).toFixed(1);
 
+// หาข้อมูลปัจจุบันของโครงการจากรหัส - ใช้ยืนยันสมมติฐานว่าโครงการที่หายไปปิดจริงไหม
+function phLive(code){
+  const c = String(code||'').trim();
+  const pick = arr => {
+    let hit=null;
+    (arr||[]).forEach(p=>{ if(String(p['Project Code']||'').trim()===c) hit=p; });  // แถวท้ายสุด = ใหม่สุด
+    return hit;
+  };
+  // ข้อมูลติดตามรายสัปดาห์ใหม่กว่าทะเบียนโครงการ จึงให้ความสำคัญก่อน
+  return pick(typeof ALL!=='undefined' ? ALL : null)
+      || pick(typeof ROWS!=='undefined' ? ROWS : null)
+      || pick(PROJINFO_ALL);
+}
+
+// ตรวจว่าโครงการที่หายจากรายงาน "ปิดสัญญาแล้วจริง" ตามที่สันนิษฐานหรือไม่
+function phClosedCheck(code){
+  const p = phLive(code);
+  if(!p) return {ok:false, why:'ไม่พบในข้อมูลปัจจุบัน - ตรวจกับ PMS'};
+  const st  = projectStatus(p);
+  const pct = parseFloat(String(p['%Progress']||'').replace(/,/g,''));
+  const closed = /Contract Closed|Completely Closed/i.test(st);
+  const full   = !isNaN(pct) && pct >= 99.995;
+  if(closed && full)  return {ok:true,  st, pct, why:null};
+  if(closed && !full) return {ok:false, st, pct, why:`ปิดสัญญาแล้วแต่ความคืบหน้ายัง ${isNaN(pct)?'ไม่ระบุ':pct.toFixed(1)+'%'} - ตรวจว่าอัปเดตครบหรือยัง`};
+  if(!closed && full) return {ok:false, st, pct, why:`อยู่ที่ 100% แล้วแต่สถานะยังเป็น ${st} - ตรวจว่าปิดสัญญาแล้วหรือยัง`};
+  return {ok:false, st, pct, why:`ยังไม่ปิดสัญญา (${st} · ${isNaN(pct)?'ไม่ระบุ':pct.toFixed(1)+'%'}) แต่หายจากรายงาน - ตรวจกับ PMS`};
+}
+
+// สรุปโครงการที่ต้องเฝ้าประจำเดือน - ดึงสถานะสุขภาพและบันทึกของ PM จากข้อมูลปัจจุบัน
+// เพื่อให้ใช้เป็นร่างรายงานประจำเดือนได้เลย ไม่ต้องพิมพ์ใหม่ทั้งหมด
+function phWatchList(kept, B){
+  const live = {};
+  (PROJINFO_ALL||[]).concat(window.ROWS||[]).forEach(p=>{
+    const c = String(p['Project Code']||'').trim();
+    if(c) live[c] = p;   // แถวหลังทับแถวหน้า = ได้ข้อมูลอัปเดตล่าสุด
+  });
+  const items = kept.map(({a,b})=>{
+    const lv = live[b.code] || {};
+    const health = String(lv['Project Health']||'').trim();
+    const note = String(lv['Progress Update']||'').replace(/\r/g,'').trim();
+    const move = (b.last!=null && a.last!=null) ? b.last-a.last : null;
+    return {b, a, health, note, move};
+  }).filter(x =>
+    /Critical|Warning/i.test(x.health) || (x.move!=null && x.move<=0.01)
+  ).sort((x,y)=>{
+    const rank = h => /Critical/i.test(h)?0 : (/Warning/i.test(h)?1 : 2);
+    return rank(x.health)-rank(y.health) || (x.move||0)-(y.move||0);
+  });
+  if(!items.length) return '';
+
+  const badge = h => /Critical/i.test(h) ? '<span class="ph-hb crit">Critical</span>'
+                   : /Warning/i.test(h)  ? '<span class="ph-hb warn">Warning</span>' : '';
+  return `
+    <div class="ph-sec">โครงการที่ต้องเฝ้าในเดือน ${B.label}</div>
+    <div class="ph-watch">
+      ${items.map(x=>`
+        <div class="ph-w ${/Critical/i.test(x.health)?'crit':(/Warning/i.test(x.health)?'warn':'stall')}">
+          <div class="ph-wh">
+            ${badge(x.health)}
+            <b>${x.b.name}</b>
+            <span class="ph-wc">${x.b.code}</span>
+          </div>
+          <div class="ph-wm">${x.b.pm} · Lv.${x.b.lv} · ฿${phM(x.b.value)}M · ความคืบหน้า ${
+            x.a.last!=null&&x.b.last!=null
+              ? `${x.a.last.toFixed(1)}% → ${x.b.last.toFixed(1)}%${x.move!=null&&x.move<=0.01?' (ไม่ขยับจากเดือนก่อน)':` (+${x.move.toFixed(1)})`}`
+              : 'ไม่มีข้อมูล'}</div>
+          ${x.note ? `<div class="ph-wn">${x.note.split(/\n+/).map(l=>l.replace(/^[-•\s]+/,'')).filter(Boolean).map(l=>`<span>${l}</span>`).join('')}</div>`
+                   : `<div class="ph-wn empty">ยังไม่มีบันทึกความคืบหน้าใน PMS - ต้องเติมเหตุผลก่อนส่งรายงาน</div>`}
+        </div>`).join('')}
+    </div>
+    <div class="ph-tip">บันทึกที่แสดงมาจากช่อง Progress Update ใน PMS · แก้ที่ PMS แล้ว sync ข้อมูล เนื้อหาตรงนี้จะอัปเดตตาม</div>`;
+}
+
 function renderProjectHealthCompare(){
   const box = document.getElementById('phBox');
   if(!box) return;
@@ -5312,17 +5420,39 @@ function renderProjectHealthCompare(){
     <div class="ph-strip">
       <div class="ph-cell"><i>โครงการเดือนนี้</i><b>${B.rows.length}</b><u>${A.rows.length} เมื่อ ${A.label}</u></div>
       <div class="ph-cell ${added.length?'in':''}"><i>รับงานใหม่</i><b>${added.length}</b><u>${added.length?'฿'+phM(added.reduce((s,r)=>s+r.value,0))+'M':'ไม่มี'}</u></div>
-      <div class="ph-cell ${removed.length?'out':''}"><i>ออกจากรายการ</i><b>${removed.length}</b><u>${removed.length?'ปิดงานหรือส่งมอบแล้ว':'ไม่มี'}</u></div>
+      <div class="ph-cell ${removed.length?'out':''}"><i>ไม่อยู่ในรายงานเดือนนี้</i><b>${removed.length}</b><u>${removed.length?'ปิดสัญญาหรือส่งมอบครบแล้ว':'ไม่มี'}</u></div>
       <div class="ph-cell"><i>เปลี่ยนระดับ</i><b>${lvUp.length}</b><u>${lvUp.length?'ตรวจว่าตรงกับงานจริง':'คงเดิมทั้งหมด'}</u></div>
     </div>
 
-    ${added.length||removed.length ? `<div class="ph-flow">
-      ${added.map(r=>`<div class="ph-fl in"><span class="ph-tag">เข้าใหม่</span>
+    ${added.length ? `<div class="ph-flow">
+      ${added.map(r=>`<div class="ph-fl in"><span class="ph-tag">รับงานใหม่</span>
         <b>${r.name}</b><i>${r.pm} · Lv.${r.lv} · ฿${phM(r.value)}M</i></div>`).join('')}
-      ${removed.map(r=>{const a=mapA.get(r.code);return `<div class="ph-fl out"><span class="ph-tag">ออก</span>
-        <b>${r.name}</b><i>${r.pm} · ปิดที่ ${a&&a.last!=null?a.last.toFixed(0)+'%':'-'} · ฿${phM(r.value)}M</i></div>`;}).join('')}
     </div>` : ''}
 
+    ${removed.length ? (()=>{
+      const checked = removed.map(r=>({r, c:phClosedCheck(r.code), a:mapA.get(r.code)}));
+      const okList  = checked.filter(x=>x.c.ok);
+      const badList = checked.filter(x=>!x.c.ok);
+      return `<div class="ph-sec">ปิดสัญญาในเดือน ${B.label}</div>
+      <div class="ph-closed">
+        ${okList.map(({r,c})=>`<div class="ph-cl ok">
+          <div class="ph-clh"><span class="ph-cltag">ปิดสัญญาแล้ว</span><b>${r.name}</b><span class="ph-wc">${r.code}</span></div>
+          <div class="ph-clm">${r.pm} · ฿${phM(r.value)}M · ความคืบหน้า ${c.pct.toFixed(0)}% · สถานะใน PMS: ${c.st}</div>
+        </div>`).join('')}
+        ${badList.map(({r,c,a})=>`<div class="ph-cl warn">
+          <div class="ph-clh"><span class="ph-cltag warn">ต้องตรวจสอบ</span><b>${r.name}</b><span class="ph-wc">${r.code}</span></div>
+          <div class="ph-clm">${r.pm} · ฿${phM(r.value)}M · ${a&&a.last!=null?`รายงาน ${A.label} อยู่ที่ ${a.last.toFixed(1)}%`:'ไม่มีข้อมูลความคืบหน้า'}</div>
+          <div class="ph-clw">${c.why}</div>
+        </div>`).join('')}
+      </div>
+      ${okList.length ? `<div class="ph-report">
+        <div class="ph-rh">ข้อความสำหรับรายงานประจำเดือน</div>
+        <div class="ph-rb">เดือน${B.label} มีโครงการที่ปิดสัญญาแล้ว ${okList.length} โครงการ${okList.length>1?' ได้แก่':' คือ'}<br>
+        ${okList.map(({r})=>`${r.code} ${r.name} (${r.pm}) มูลค่า ฿${phM(r.value)}M`).join('<br>')}</div>
+      </div>` : ''}`;
+    })() : ''}
+
+    ${phWatchList(kept, B)}
     <div class="ph-sec">ความคืบหน้ารายโครงการ</div>
     <div class="ph-tbl">
       ${kept.sort((x,y)=>((y.b.last||0)-(y.a.last||0))-((x.b.last||0)-(x.a.last||0))).map(({a,b})=>{
