@@ -566,6 +566,9 @@
   .ph-hb{font-size:9.5px;font-weight:800;padding:2px 8px;border-radius:11px;flex:none;}
   .ph-hb.crit{background:var(--critical);color:#fff;}
   .ph-hb.warn{background:var(--warning);color:#fff;}
+  .ph-hb.stall{background:var(--line);color:#fff;}
+  .ph-fg{font-size:9.5px;padding:2px 8px;border-radius:11px;background:var(--brand-2);color:#fff;font-weight:700;}
+  .ph-src{padding:0 18px 12px;font-size:9.5px;color:var(--faint);line-height:1.6;}
   .ph-wm{font-size:10.5px;color:var(--faint);margin-top:3px;}
   .ph-wn{margin-top:7px;display:flex;flex-direction:column;gap:3px;}
   .ph-wn span{font-size:11.5px;color:var(--ink-2);line-height:1.7;padding-left:13px;position:relative;}
@@ -5373,41 +5376,51 @@ function phWatchList(kept, A, B){
     const c = String(p['Project Code']||'').trim();
     if(c) live[c] = p;   // แถวหลังทับแถวหน้า = ได้ข้อมูลอัปเดตล่าสุด
   });
-  // เกณฑ์ที่ใช้ตัดสินต้องมาจากตัวรายงานที่เทียบอยู่เท่านั้น
-  // ไม่ใช้ Project Health จากข้อมูลรายสัปดาห์ เพราะเป็นคนละช่วงเวลากับเดือนที่เทียบ
+  // รายงาน PDF แสดงสุขภาพเป็นแถบสี อ่านจากข้อความไม่ได้
+  // จึงใช้สถานะจากข้อมูลติดตามสัปดาห์ปัจจุบัน และระบุที่มาให้ชัดว่าคนละช่วงเวลากับรายงาน
   const items = kept.map(({a,b})=>{
     const lv = live[b.code] || {};
+    const health = String(lv['Project Health']||'').trim();
     const note = String(lv['Progress Update']||'').replace(/\r/g,'').trim();
     const move = (b.last!=null && a.last!=null) ? b.last-a.last : null;
-    // เหลือเวลาน้อยแต่ความคืบหน้ายังต่ำ = ต้องเฝ้า
     const end = b.end ? new Date(b.end.replace(/(\d{1,2})-([A-Za-z]{3})-(\d{2})/, '$2 $1, 20$3')) : null;
     const daysLeft = end && !isNaN(end) ? Math.round((end - new Date())/86400000) : null;
-    const behind = (b.last!=null && daysLeft!=null && daysLeft<120 && b.last<70);
-    let why = null;
-    if(move!=null && move<=0.01) why = 'ความคืบหน้าไม่ขยับจาก'+A.label;
-    else if(behind) why = 'เหลือ '+daysLeft+' วันแต่ความคืบหน้ายัง '+b.last.toFixed(0)+'%';
-    return {b, a, note, move, why, daysLeft};
-  }).filter(x => x.why).sort((x,y)=>(x.move||0)-(y.move||0));
-  if(!items.length) return '';
-
+    const flags = [];
+    if(move!=null && move<=0.01) flags.push('ไม่ขยับจาก'+A.label);
+    if(b.last!=null && daysLeft!=null && daysLeft<120 && b.last<70)
+      flags.push('เหลือ '+daysLeft+' วันแต่ยัง '+b.last.toFixed(0)+'%');
+    return {b, a, health, note, move, daysLeft, flags};
+  }).filter(x => /Critical|Warning/i.test(x.health) || x.flags.length)
+    .sort((x,y)=>{
+      const rank = h => /Critical/i.test(h)?0 : (/Warning/i.test(h)?1 : 2);
+      return rank(x.health)-rank(y.health) || (x.move||0)-(y.move||0);
+    });
+  const nCrit = items.filter(x=>/Critical/i.test(x.health)).length;
+  const nWarn = items.filter(x=>/Warning/i.test(x.health)).length;
   return `
-    <div class="ph-sec">โครงการที่ควรเฝ้าจากการเทียบ ${A.label} กับ ${B.label}</div>
+    <div class="ph-sec">โครงการที่ควรเฝ้า${nCrit?` · Critical ${nCrit}`:''}${nWarn?` · Warning ${nWarn}`:''}</div>
     <div class="ph-watch">
-      ${items.map(x=>`
-        <div class="ph-w ${x.move!=null&&x.move<=0.01?'crit':'warn'}">
+      ${items.map(x=>{
+        const isC = /Critical/i.test(x.health), isW = /Warning/i.test(x.health);
+        return `<div class="ph-w ${isC?'crit':(isW?'warn':'stall')}">
           <div class="ph-wh">
-            <span class="ph-hb ${x.move!=null&&x.move<=0.01?'crit':'warn'}">${x.why}</span>
+            ${isC ? '<span class="ph-hb crit">Critical</span>'
+                  : isW ? '<span class="ph-hb warn">Warning</span>'
+                        : '<span class="ph-hb stall">ต้องตาม</span>'}
             <b>${x.b.name}</b>
             <span class="ph-wc">${x.b.code}</span>
+            ${x.flags.map(f=>`<span class="ph-fg">${f}</span>`).join('')}
           </div>
           <div class="ph-wm">${x.b.pm} · Lv.${x.b.lv} · มูลค่า ${phBaht(x.b.value)} · ความคืบหน้า ${
             x.a.last!=null&&x.b.last!=null
               ? `${x.a.last.toFixed(1)}% → ${x.b.last.toFixed(1)}%${x.move>0.01?` (+${x.move.toFixed(1)})`:''}`
               : 'ไม่มีข้อมูล'}${x.daysLeft!=null?` · เหลือ ${x.daysLeft} วัน`:''}</div>
           ${x.note ? `<div class="ph-wn">${x.note.split(/\n+/).map(l=>l.replace(/^[-•\s]+/,'')).filter(Boolean).map(l=>`<span>${l}</span>`).join('')}</div>` : ''}
-        </div>`).join('')}
+        </div>`;
+      }).join('')}
     </div>
-`;
+    <div class="ph-src">สถานะ Critical/Warning มาจากข้อมูลติดตามสัปดาห์ปัจจุบัน (รายงาน PDF แสดงสุขภาพเป็นแถบสี อ่านเป็นข้อความไม่ได้) · ป้ายสีน้ำตาลคือสิ่งที่พบจากการเทียบสองเดือน</div>
+    `;
 }
 
 function renderProjectHealthCompare(){
