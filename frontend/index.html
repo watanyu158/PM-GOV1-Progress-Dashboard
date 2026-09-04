@@ -659,21 +659,19 @@
   .ph-dd.up{background:var(--success-tint);color:var(--success);}
   .ph-dd.stall{background:var(--critical-tint);color:var(--critical);}
 
-  .ph-pm{padding:0 18px 12px;display:flex;flex-direction:column;gap:9px;}
-  .ph-pmrow{display:flex;flex-wrap:wrap;align-items:center;gap:12px;}
-  .ph-pmn{flex:0 0 120px;font-size:11.5px;font-weight:600;color:var(--ink);}
+  .ph-pm{padding:0 18px 12px;display:flex;flex-direction:column;gap:2px;}
+  .ph-pmrow{display:flex;align-items:center;gap:12px;padding:7px 0;
+    border-bottom:1px solid var(--line-soft);}
+  .ph-pmrow:last-child{border-bottom:none;}
+  .ph-pmn{flex:0 0 148px;font-size:12px;font-weight:600;color:var(--ink);}
   .ph-pmn i{display:block;font-style:normal;font-size:9.5px;color:var(--faint);font-weight:400;}
-  .ph-pmbars{flex:1 1 260px;display:flex;flex-direction:column;gap:3px;min-width:0;}
-  .ph-pmb{display:flex;align-items:center;gap:8px;}
-  .ph-pl{font-size:9px;color:var(--faint);flex:0 0 42px;}
-  .ph-pbar{flex:1;height:11px;background:var(--surface-2);border-radius:6px;overflow:hidden;}
-  .ph-pfill{height:100%;border-radius:6px;}
-  .ph-pfill.old{background:var(--line);}
+  .ph-pbar{flex:1;height:20px;background:var(--surface-2);border-radius:5px;overflow:hidden;min-width:80px;}
+  .ph-pfill{height:100%;border-radius:5px;}
   .ph-pfill.new{background:var(--brand-2);}
-  .ph-pmb b{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-2);flex:0 0 68px;text-align:right;}
+  .ph-pmv{flex:0 0 82px;text-align:right;font-family:'IBM Plex Mono',monospace;
+    font-size:13px;font-weight:700;color:var(--ink);}
   .ph-pmd{flex:0 0 92px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;}
   .ph-pmd.up{color:var(--success);} .ph-pmd.down{color:var(--critical);} .ph-pmd.flat{color:var(--faint);}
-
   .ph-foot{padding:6px 18px 16px;font-size:9.5px;color:var(--faint);line-height:1.6;}
 
   /* ---------------- Revenue Recognition ---------------- */
@@ -5191,19 +5189,47 @@ const PH = { months: [] };   // [{label, ym, total, rows:[...]}]
 const PH_MON = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
 const PH_TH  = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 
+// สร้างตัวแยกฟิลด์โดยใช้ "รายชื่อ PM ที่มีจริง" เป็นตัวแบ่ง
+// เดาจากรูปแบบคำอังกฤษไม่ได้ เพราะชื่อโครงการมีคำขึ้นต้นตัวใหญ่เต็มไปหมด (PDPA · Project · Cloud)
+function phRowRe(){
+  const names = new Set(['Watanyu','Antika','Lomdetch','Prapasiri','Virojt']);
+  // เติมชื่อจริงจากข้อมูลปัจจุบัน เผื่อมี PM ใหม่เข้าทีม
+  ((typeof ALL!=='undefined' ? ALL : []) || []).forEach(p=>{
+    const first = String(p['PM Name']||'').trim().split(/\s+/)[0];
+    if(/^[A-Z][a-z]{2,}$/.test(first)) names.add(first);
+  });
+  const pms = [...names].sort((a,b)=>b.length-a.length).join('|');
+  return new RegExp('^([\\s\\S]*?)\\s*(' + pms + ')\\s+(\\d)\\s+' +
+    '(?:(\\d{1,2}-[A-Za-z]{3}-\\d{2})\\s+(\\d{1,2}-[A-Za-z]{3}-\\d{2})|[—-]\\s+[—-])' +
+    '\\s*([\\d,]+\\.\\d{2})((?:\\s*\\d{1,3}\\.\\d{2})*)');
+}
+
 // ชื่อโครงการที่ยาวเกินความกว้างคอลัมน์จะถูกตัดขึ้นบรรทัดใหม่ใน PDF
 // ทำให้ส่วนหน้าของบล็อกว่าง - ต้องไปหาชื่อจากข้อความถัดจากรหัสแทน
-function phNameFallback(flat, idx, code){
-  // ชื่อยาวถูกตัดขึ้นบรรทัดใหม่ ทำให้ส่วนหน้าของบล็อกว่าง
-  // ส่วนที่เหลือของชื่อจะอยู่หลังตัวเลขความคืบหน้าชุดสุดท้ายของบล็อกนี้
-  const seg = flat.slice(idx+9, idx+420);
-  const cut = seg.search(/[A-Z][a-z]{2,}\s+\d\s+(?:\d{1,2}-[A-Za-z]{3}-\d{2}|[—-])/);
-  const head = cut>0 ? seg.slice(0,cut).trim() : '';
-  if(head.length>3) return head.replace(/\s{2,}/g,' ');
-  // มองหาคำท้ายชื่อที่หลุดไปอยู่หลังตัวเลข เช่น "... 59.00 platform 5 335254762"
-  const m = seg.match(/\d{1,3}\.\d{2}\s+([A-Za-z][A-Za-z \-()]{2,50}?)\s+\d{1,2}\s+\d{9}/);
-  return m ? ('(' + m[1].trim() + ') รหัส ' + code) : ('รหัส ' + code);
+// ชื่อโครงการที่ยาวถูกตัดเป็น 2 บรรทัดใน PDF
+// ตัวอ่านจัดกลุ่มตามพิกัดแนวตั้ง ชื่อจึงมาอยู่ "ก่อน" รหัสโครงการในลำดับการอ่าน
+// เช่น "... PDPA  119252478 Prapasiri 3 ... 59.00 platform 5 335254762 ..."
+function phNameBefore(flat, idx, code){
+  const pre = flat.slice(0, idx);
+  // หาแถวก่อนหน้า (รหัส 9 หลักตัวสุดท้ายก่อนตำแหน่งนี้) แล้วข้ามฟิลด์ของแถวนั้นทั้งหมด
+  const prev = [...pre.matchAll(/\b\d{9}\b/g)].pop();
+  let head = '';
+  if(prev){
+    const seg = pre.slice(prev.index + 9);
+    // ฟิลด์ของแถวก่อนหน้าจบที่ตัวเลขความคืบหน้าตัวสุดท้าย ตามด้วยลำดับแถวนี้
+    const done = [...seg.matchAll(/\d{1,3}\.\d{2}/g)].pop();
+    head = (done ? seg.slice(done.index + done[0].length) : seg)
+      .replace(/^\s*\d{1,2}\s+/,'')     // ลำดับแถวนี้
+      .trim();
+  }
+  const after = flat.slice(idx+9, idx+300);
+  const tail = (after.match(/\d{1,3}\.\d{2}\s+([A-Za-z][A-Za-z()\- ]{2,40}?)\s+\d{1,2}\s+\d{9}/) || [])[1] || '';
+  const name = (head + ' ' + tail).replace(/\s{2,}/g,' ').trim();
+  return name.length>3 ? name : 'รหัส ' + code;
 }
+
+
+
 
 
 // แตกรายงาน Project Health หนึ่งเดือนจากข้อความที่อ่านได้จาก PDF
@@ -5238,16 +5264,19 @@ function phParse(text, fileName){
     if(rows.some(r=>r.code===code)) return;
     const body = flat.slice(mk.index + 9, i+1 < marks.length ? marks[i+1].index : flat.length);
     // ฟิลด์หลัง PM: ระดับ · วันเริ่ม · วันจบ · มูลค่า · ความคืบหน้ารายเดือน
-    const f = body.match(/\s*(?:(.*?)\s+)?([A-Z][a-z]{2,})\s+(\d)\s+(?:(\d{1,2}-[A-Za-z]{3}-\d{2})\s+(\d{1,2}-[A-Za-z]{3}-\d{2})|[—-]\s+[—-])\s+([\d,]+\.\d{2})((?:\s+\d{1,3}\.\d{2})*)/);
+    // จับจาก "ท้ายสุด" ของบล็อก เพราะรูปแบบ PM+ระดับ+วันที่+มูลค่า เป็นเอกลักษณ์
+    // ส่วนที่เหลือข้างหน้าทั้งหมดคือชื่อโครงการ (อาจมีคำอังกฤษหลายคำติดกัน)
+    const f = body.match(phRowRe());
     if(!f) return;
     // ความคืบหน้าเขียนทศนิยม 2 ตำแหน่งเสมอ - รับเฉพาะรูปแบบนี้
     // ไม่งั้นจะเก็บ "ลำดับแถวถัดไป" (เลขจำนวนเต็ม) มาเป็นความคืบหน้า
     const prog = [...String(f[7]||'').matchAll(/(\d{1,3}\.\d{2})/g)]
                   .map(x=>+x[1]).filter(n=>n<=100);
     rows.push({
-      code, name: (String(f[1]||'').trim() ? String(f[1]||'') : phNameFallback(flat, mk.index, code))
+      code, name: (String(f[1]||'').trim() ? String(f[1]||'') : phNameBefore(flat, mk.index, code))
         .replace(/^\s*\d{1,2}\s+/,'')      // ลำดับแถวที่นำหน้าชื่อ
         .replace(/\s+\d{1,2}\s*$/,'')      // ลำดับแถวถัดไปที่ติดท้ายมา
+        .replace(/([a-z])([A-Z])/g,'$1 $2')   // "PDPAplatform" -> "PDPA platform" (คำติดกันจากการตัดบรรทัด)
         .replace(/\s{2,}/g,' ').trim() || '(อ่านชื่อไม่ได้ - ดูรหัส '+code+')',
       pm: f[2], lv: +f[3], start: f[4]||null, end: f[5]||null,
       value: +f[6].replace(/,/g,''),
@@ -5335,47 +5364,47 @@ function phClosedCheck(code){
 
 // สรุปโครงการที่ต้องเฝ้าประจำเดือน - ดึงสถานะสุขภาพและบันทึกของ PM จากข้อมูลปัจจุบัน
 // เพื่อให้ใช้เป็นร่างรายงานประจำเดือนได้เลย ไม่ต้องพิมพ์ใหม่ทั้งหมด
-function phWatchList(kept, B){
+function phWatchList(kept, A, B){
   const live = {};
-  (PROJINFO_ALL||[]).concat(window.ROWS||[]).forEach(p=>{
+  (PROJINFO_ALL||[]).concat(typeof ALL!=='undefined' ? ALL : []).forEach(p=>{
     const c = String(p['Project Code']||'').trim();
     if(c) live[c] = p;   // แถวหลังทับแถวหน้า = ได้ข้อมูลอัปเดตล่าสุด
   });
+  // เกณฑ์ที่ใช้ตัดสินต้องมาจากตัวรายงานที่เทียบอยู่เท่านั้น
+  // ไม่ใช้ Project Health จากข้อมูลรายสัปดาห์ เพราะเป็นคนละช่วงเวลากับเดือนที่เทียบ
   const items = kept.map(({a,b})=>{
     const lv = live[b.code] || {};
-    const health = String(lv['Project Health']||'').trim();
     const note = String(lv['Progress Update']||'').replace(/\r/g,'').trim();
     const move = (b.last!=null && a.last!=null) ? b.last-a.last : null;
-    return {b, a, health, note, move};
-  }).filter(x =>
-    /Critical|Warning/i.test(x.health) || (x.move!=null && x.move<=0.01)
-  ).sort((x,y)=>{
-    const rank = h => /Critical/i.test(h)?0 : (/Warning/i.test(h)?1 : 2);
-    return rank(x.health)-rank(y.health) || (x.move||0)-(y.move||0);
-  });
+    // เหลือเวลาน้อยแต่ความคืบหน้ายังต่ำ = ต้องเฝ้า
+    const end = b.end ? new Date(b.end.replace(/(\d{1,2})-([A-Za-z]{3})-(\d{2})/, '$2 $1, 20$3')) : null;
+    const daysLeft = end && !isNaN(end) ? Math.round((end - new Date())/86400000) : null;
+    const behind = (b.last!=null && daysLeft!=null && daysLeft<120 && b.last<70);
+    let why = null;
+    if(move!=null && move<=0.01) why = 'ความคืบหน้าไม่ขยับจาก'+A.label;
+    else if(behind) why = 'เหลือ '+daysLeft+' วันแต่ความคืบหน้ายัง '+b.last.toFixed(0)+'%';
+    return {b, a, note, move, why, daysLeft};
+  }).filter(x => x.why).sort((x,y)=>(x.move||0)-(y.move||0));
   if(!items.length) return '';
 
-  const badge = h => /Critical/i.test(h) ? '<span class="ph-hb crit">Critical</span>'
-                   : /Warning/i.test(h)  ? '<span class="ph-hb warn">Warning</span>' : '';
   return `
-    <div class="ph-sec">โครงการที่ต้องเฝ้าในเดือน ${B.label}</div>
+    <div class="ph-sec">โครงการที่ควรเฝ้าจากการเทียบ ${A.label} กับ ${B.label}</div>
     <div class="ph-watch">
       ${items.map(x=>`
-        <div class="ph-w ${/Critical/i.test(x.health)?'crit':(/Warning/i.test(x.health)?'warn':'stall')}">
+        <div class="ph-w ${x.move!=null&&x.move<=0.01?'crit':'warn'}">
           <div class="ph-wh">
-            ${badge(x.health)}
+            <span class="ph-hb ${x.move!=null&&x.move<=0.01?'crit':'warn'}">${x.why}</span>
             <b>${x.b.name}</b>
             <span class="ph-wc">${x.b.code}</span>
           </div>
           <div class="ph-wm">${x.b.pm} · Lv.${x.b.lv} · ฿${phM(x.b.value)}M · ความคืบหน้า ${
             x.a.last!=null&&x.b.last!=null
-              ? `${x.a.last.toFixed(1)}% → ${x.b.last.toFixed(1)}%${x.move!=null&&x.move<=0.01?' (ไม่ขยับจากเดือนก่อน)':` (+${x.move.toFixed(1)})`}`
-              : 'ไม่มีข้อมูล'}</div>
-          ${x.note ? `<div class="ph-wn">${x.note.split(/\n+/).map(l=>l.replace(/^[-•\s]+/,'')).filter(Boolean).map(l=>`<span>${l}</span>`).join('')}</div>`
-                   : `<div class="ph-wn empty">ยังไม่มีบันทึกความคืบหน้าใน PMS - ต้องเติมเหตุผลก่อนส่งรายงาน</div>`}
+              ? `${x.a.last.toFixed(1)}% → ${x.b.last.toFixed(1)}%${x.move>0.01?` (+${x.move.toFixed(1)})`:''}`
+              : 'ไม่มีข้อมูล'}${x.daysLeft!=null?` · เหลือ ${x.daysLeft} วัน`:''}</div>
+          ${x.note ? `<div class="ph-wn">${x.note.split(/\n+/).map(l=>l.replace(/^[-•\s]+/,'')).filter(Boolean).map(l=>`<span>${l}</span>`).join('')}</div>` : ''}
         </div>`).join('')}
     </div>
-    <div class="ph-tip">บันทึกที่แสดงมาจากช่อง Progress Update ใน PMS · แก้ที่ PMS แล้ว sync ข้อมูล เนื้อหาตรงนี้จะอัปเดตตาม</div>`;
+`;
 }
 
 function renderProjectHealthCompare(){
@@ -5457,7 +5486,7 @@ function renderProjectHealthCompare(){
       </div>` : ''}`;
     })() : ''}
 
-    ${phWatchList(kept, B)}
+    ${phWatchList(kept, A, B)}
     <div class="ph-sec">ความคืบหน้ารายโครงการ</div>
     <div class="ph-tbl">
       ${kept.sort((x,y)=>((y.b.last||0)-(y.a.last||0))-((x.b.last||0)-(x.a.last||0))).map(({a,b})=>{
@@ -5481,21 +5510,19 @@ function renderProjectHealthCompare(){
       }).join('')}
     </div>
 
-    <div class="ph-sec">มูลค่าที่รับผิดชอบรายคน</div>
+    <div class="ph-sec">มูลค่าที่รับผิดชอบรายคน · ${B.label}</div>
     <div class="ph-pm">
       ${pmVal.map(x=>{
         const dv = x.b - x.a;
+        const pct = vMax ? (x.b/vMax*100) : 0;
         return `<div class="ph-pmrow">
-          <div class="ph-pmn">${x.pm}<i>${x.nb} โครงการ${x.nb!==x.na?` (เดิม ${x.na})`:''}</i></div>
-          <div class="ph-pmbars">
-            <div class="ph-pmb"><span class="ph-pl">${A.label}</span><div class="ph-pbar"><div class="ph-pfill old" style="width:${(x.a/vMax*100)}%"></div></div><b>฿${phM(x.a)}M</b></div>
-            <div class="ph-pmb"><span class="ph-pl">${B.label}</span><div class="ph-pbar"><div class="ph-pfill new" style="width:${(x.b/vMax*100)}%"></div></div><b>฿${phM(x.b)}M</b></div>
-          </div>
-          <div class="ph-pmd ${sign(dv)}">${dv?arrow(dv)+' '+phM(Math.abs(dv))+'M':'คงเดิม'}</div>
+          <div class="ph-pmn">${x.pm}<i>${x.nb} โครงการ</i></div>
+          <div class="ph-pbar"><div class="ph-pfill new" style="width:${pct}%"></div></div>
+          <div class="ph-pmv">฿${phM(x.b)}M</div>
+          <div class="ph-pmd ${sign(dv)}">${dv ? `${arrow(dv)} ${phM(Math.abs(dv))}M` : 'เท่าเดิม'}</div>
         </div>`;
       }).join('')}
     </div>
-
     <div class="ph-foot">อ่านจาก ${PH.months.map(m=>m.label).join(' · ')} · เพิ่มไฟล์เดือนถัดไปได้เรื่อย ๆ ระบบจะเทียบสองเดือนล่าสุดเสมอ</div>`;
 }
 
