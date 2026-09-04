@@ -535,6 +535,20 @@
   .cs-bar{height:5px;background:var(--line-soft);border-radius:5px;overflow:hidden;margin-top:7px;}
   .cs-bar i{display:block;height:100%;background:var(--brand);}
 
+  /* ป้ายสถานะโครงการ - ให้กวาดตาเจอก่อนข้อมูลอื่นในแถว */
+  .nd-row .st-tag{margin-left:auto;}
+  .st-tag{display:inline-flex;align-items:center;gap:5px;padding:2px 9px 2px 7px;border-radius:11px;
+    font-size:10px;font-weight:700;white-space:nowrap;line-height:1.7;}
+  .st-tag i{width:6px;height:6px;border-radius:50%;flex:none;}
+  .st-tag.live{background:#E7F0E9;color:#2F6B45;}
+  .st-tag.live i{background:#3D8A5C;box-shadow:0 0 0 2px #C9E3D2;}
+  .st-tag.closed{background:#EFE6D9;color:#8A6A3E;}
+  .st-tag.closed i{background:#B08A4F;}
+  .st-tag.done{background:#E8E9EC;color:#5A6270;}
+  .st-tag.done i{background:#8A93A3;}
+  .st-tag.other{background:var(--surface-2);color:var(--faint);}
+  .st-tag.other i{background:var(--line);}
+
   /* ---------------- Project Health · เทียบเดือนต่อเดือน ---------------- */
   .ph-sep{height:1px;background:var(--line-soft);margin:14px 18px 0;}
   .ph-drop{margin:14px 18px;padding:16px;border:1.5px dashed var(--line);border-radius:11px;
@@ -2403,6 +2417,19 @@ const pmKey = s => String(s||'').replace(/\s+/g,' ').trim();
 
 // สถานะโครงการ "จริง" ที่ควรใช้แสดงผล/กรอง - ไม่ใช่แค่คอลัมน์ Status (ซึ่งมักค้างเป็น Inprogress ตลอด)
 // ต้องดู Contract Closed Date / Completely Closed Date ประกอบด้วยเสมอ
+// ป้ายสถานะโครงการ - แต่ละสถานะมีสีของตัวเองเพื่อให้กวาดตาเจอได้ทันที
+// Inprogress = ยังต้องดูแล · Contract Closed = ส่งมอบแล้วรอปิดบัญชี · Completely Closed = จบสมบูรณ์
+function statusTag(p){
+  const st = projectStatus(p);
+  const cls = /Completely/i.test(st) ? 'done'
+            : /Contract Closed/i.test(st) ? 'closed'
+            : /Inprogress|In Progress/i.test(st) ? 'live' : 'other';
+  const th  = /Completely/i.test(st) ? 'ปิดสมบูรณ์'
+            : /Contract Closed/i.test(st) ? 'ปิดสัญญาแล้ว'
+            : /Inprogress|In Progress/i.test(st) ? 'กำลังดำเนินการ' : st;
+  return `<span class="st-tag ${cls}" title="${st}"><i></i>${th}</span>`;
+}
+
 function projectStatus(p){
   if(p['Completely Closed Date']) return 'Completely Closed';
   if(p['Contract Closed Date']) return 'Contract Closed';
@@ -8621,7 +8648,7 @@ function renderPiSites(query){
       return `<div class="nd">
         <div class="nd-top"><span class="nd-name">${p['Project Name']||'-'}</span><span class="nd-prog">${thb(piValue(p))}</span></div>
         <div class="nd-row"><span class="nd-tag">PM</span><span class="nd-txt">${pmKey(p['PM Name'])||'-'}</span></div>
-        <div class="nd-row"><span class="nd-tag">วันที่</span><span class="nd-txt">${d?fmtDate(d):'-'} · ${projectStatus(p)}</span></div>
+        <div class="nd-row"><span class="nd-tag">วันที่</span><span class="nd-txt">${d?fmtDate(d):'-'}</span>${statusTag(p)}</div>
       </div>`;
     }).join('');
     return `<div class="pi-site-row">
@@ -8670,7 +8697,7 @@ function renderPiProfiles(){
       return `<div class="nd">
         <div class="nd-top"><span class="nd-name">${p['Project Name']||'-'} <span class="code-tag">#${p['Project Code']||'-'}</span></span><span class="nd-prog">${thb(piValue(p))}</span></div>
         <div class="nd-row"><span class="nd-tag">ลูกค้า</span><span class="nd-txt">${p['Customer']||'-'}</span></div>
-        <div class="nd-row"><span class="nd-tag">เริ่ม</span><span class="nd-txt">${d?fmtDate(d):'ไม่ระบุวันที่'} · ${projectStatus(p)}</span></div>
+        <div class="nd-row"><span class="nd-tag">เริ่ม</span><span class="nd-txt">${d?fmtDate(d):'ไม่ระบุวันที่'}</span>${statusTag(p)}</div>
       </div>`;
     }).join('');
     return `<div class="pi-profile-card">
@@ -8760,7 +8787,7 @@ function renderCompanySearch(query){
         <div class="pi-co-meta">
           <span>PM <b>${pmKey(p['PM Name'])||'ไม่ระบุ'}</b></span>
           <span>วันที่ <b>${d?fmtDate(d):'ไม่ระบุ'}</b></span>
-          <span>สถานะ <b>${projectStatus(p)}</b></span>
+          ${statusTag(p)}
         </div>
       </div>`;
     }).join('');
