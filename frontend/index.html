@@ -633,7 +633,8 @@
   .ph-tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;flex:none;}
   .ph-fl.in .ph-tag{background:var(--success-tint);color:var(--success);}
   .ph-fl.out .ph-tag{background:var(--warning-tint);color:var(--warning);}
-  .ph-fl b{flex:1;color:var(--ink);font-weight:600;}
+  .ph-fl b{color:var(--ink);font-weight:600;}
+  .ph-fl i{margin-left:auto;}
   .ph-fl i{font-style:normal;font-size:10px;color:var(--faint);}
 
   .ph-sec{padding:4px 18px 8px;font-size:11px;font-weight:700;color:var(--ink-2);}
@@ -5332,6 +5333,8 @@ async function phUpload(files){
 }
 
 const phFmt = n => n==null ? '-' : Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
+// มูลค่าเต็มจำนวนพร้อมทศนิยม - ย่อเป็น M ทำให้อ่านไม่ออกว่าเท่าไหร่จริง (฿0.1M คือ 149,800 บาท)
+const phBaht = n => n==null ? '-' : Number(n).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2}) + ' บาท';
 const phM = n => n==null ? '-' : (n/1e6).toFixed(1);
 
 // หาข้อมูลปัจจุบันของโครงการจากรหัส - ใช้ยืนยันสมมติฐานว่าโครงการที่หายไปปิดจริงไหม
@@ -5397,7 +5400,7 @@ function phWatchList(kept, A, B){
             <b>${x.b.name}</b>
             <span class="ph-wc">${x.b.code}</span>
           </div>
-          <div class="ph-wm">${x.b.pm} · Lv.${x.b.lv} · ฿${phM(x.b.value)}M · ความคืบหน้า ${
+          <div class="ph-wm">${x.b.pm} · Lv.${x.b.lv} · มูลค่า ${phBaht(x.b.value)} · ความคืบหน้า ${
             x.a.last!=null&&x.b.last!=null
               ? `${x.a.last.toFixed(1)}% → ${x.b.last.toFixed(1)}%${x.move>0.01?` (+${x.move.toFixed(1)})`:''}`
               : 'ไม่มีข้อมูล'}${x.daysLeft!=null?` · เหลือ ${x.daysLeft} วัน`:''}</div>
@@ -5453,14 +5456,15 @@ function renderProjectHealthCompare(){
 
     <div class="ph-strip">
       <div class="ph-cell"><i>โครงการเดือนนี้</i><b>${B.rows.length}</b><u>${A.rows.length} เมื่อ ${A.label}</u></div>
-      <div class="ph-cell ${added.length?'in':''}"><i>รับงานใหม่</i><b>${added.length}</b><u>${added.length?'฿'+phM(added.reduce((s,r)=>s+r.value,0))+'M':'ไม่มี'}</u></div>
+      <div class="ph-cell ${added.length?'in':''}"><i>รับงานใหม่</i><b>${added.length}</b><u>${added.length?phBaht(added.reduce((s,r)=>s+r.value,0)):'ไม่มี'}</u></div>
       <div class="ph-cell ${removed.length?'out':''}"><i>ไม่อยู่ในรายงานเดือนนี้</i><b>${removed.length}</b><u>${removed.length?'ปิดสัญญาหรือส่งมอบครบแล้ว':'ไม่มี'}</u></div>
       <div class="ph-cell"><i>เปลี่ยนระดับ</i><b>${lvUp.length}</b><u>${lvUp.length?'ตรวจว่าตรงกับงานจริง':'คงเดิมทั้งหมด'}</u></div>
     </div>
 
     ${added.length ? `<div class="ph-flow">
       ${added.map(r=>`<div class="ph-fl in"><span class="ph-tag">รับงานใหม่</span>
-        <b>${r.name}</b><i>${r.pm} · Lv.${r.lv} · ฿${phM(r.value)}M</i></div>`).join('')}
+        <b>${r.name}</b><span class="ph-wc">${r.code}</span>
+        <i>${r.pm} · Lv.${r.lv} · มูลค่า ${phBaht(r.value)}</i></div>`).join('')}
     </div>` : ''}
 
     ${removed.length ? (()=>{
@@ -5471,18 +5475,18 @@ function renderProjectHealthCompare(){
       <div class="ph-closed">
         ${okList.map(({r,c})=>`<div class="ph-cl ok">
           <div class="ph-clh"><span class="ph-cltag">ปิดสัญญาแล้ว</span><b>${r.name}</b><span class="ph-wc">${r.code}</span></div>
-          <div class="ph-clm">${r.pm} · ฿${phM(r.value)}M · ความคืบหน้า ${c.pct.toFixed(0)}% · สถานะใน PMS: ${c.st}</div>
+          <div class="ph-clm">${r.pm} · มูลค่า ${phBaht(r.value)} · ความคืบหน้า ${c.pct.toFixed(0)}% · สถานะใน PMS: ${c.st}</div>
         </div>`).join('')}
         ${badList.map(({r,c,a})=>`<div class="ph-cl warn">
           <div class="ph-clh"><span class="ph-cltag warn">ต้องตรวจสอบ</span><b>${r.name}</b><span class="ph-wc">${r.code}</span></div>
-          <div class="ph-clm">${r.pm} · ฿${phM(r.value)}M · ${a&&a.last!=null?`รายงาน ${A.label} อยู่ที่ ${a.last.toFixed(1)}%`:'ไม่มีข้อมูลความคืบหน้า'}</div>
+          <div class="ph-clm">${r.pm} · มูลค่า ${phBaht(r.value)} · ${a&&a.last!=null?`รายงาน ${A.label} อยู่ที่ ${a.last.toFixed(1)}%`:'ไม่มีข้อมูลความคืบหน้า'}</div>
           <div class="ph-clw">${c.why}</div>
         </div>`).join('')}
       </div>
       ${okList.length ? `<div class="ph-report">
         <div class="ph-rh">ข้อความสำหรับรายงานประจำเดือน</div>
         <div class="ph-rb">เดือน${B.label} มีโครงการที่ปิดสัญญาแล้ว ${okList.length} โครงการ${okList.length>1?' ได้แก่':' คือ'}<br>
-        ${okList.map(({r})=>`${r.code} ${r.name} (${r.pm}) มูลค่า ฿${phM(r.value)}M`).join('<br>')}</div>
+        ${okList.map(({r})=>`${r.code} ${r.name} (${r.pm}) มูลค่า ${phBaht(r.value)}`).join('<br>')}</div>
       </div>` : ''}`;
     })() : ''}
 
@@ -5493,7 +5497,7 @@ function renderProjectHealthCompare(){
         const d = (b.last!=null && a.last!=null) ? b.last-a.last : null;
         const stall = d!=null && d<=0.01;
         return `<div class="ph-row">
-          <div class="ph-nm"><b>${b.name}</b><i>${b.pm} · Lv.${b.lv}${b.lv!==a.lv?` <em>เดิม ${a.lv}</em>`:''} · ฿${phM(b.value)}M</i></div>
+          <div class="ph-nm"><b>${b.name}</b><i>${b.code} · ${b.pm} · Lv.${b.lv}${b.lv!==a.lv?` <em>เดิม ${a.lv}</em>`:''} · มูลค่า ${phBaht(b.value)}</i></div>
           <div class="ph-bar">
             <div class="ph-track">
               <div class="ph-fill old" style="width:${a.last||0}%"></div>
