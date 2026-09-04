@@ -535,6 +535,95 @@
   .cs-bar{height:5px;background:var(--line-soft);border-radius:5px;overflow:hidden;margin-top:7px;}
   .cs-bar i{display:block;height:100%;background:var(--brand);}
 
+  /* ---------------- Project Health · เทียบเดือนต่อเดือน ---------------- */
+  .ph-sep{height:1px;background:var(--line-soft);margin:14px 18px 0;}
+  .ph-drop{margin:14px 18px;padding:16px;border:1.5px dashed var(--line);border-radius:11px;
+    text-align:center;cursor:pointer;transition:border-color .15s,background .15s;}
+  .ph-drop:hover,.ph-drop.over{border-color:var(--brand-2);background:var(--surface-2);}
+  .ph-drop-t{font-size:13px;font-weight:700;color:var(--ink);}
+  .ph-drop-s{font-size:10.5px;color:var(--faint);margin-top:4px;line-height:1.6;}
+  .ph-loading,.ph-hint{margin:0 18px 14px;padding:11px 14px;border-radius:9px;font-size:11.5px;
+    background:var(--surface-2);border:1px solid var(--line-soft);color:var(--ink-2);}
+  .ph-err{margin:0 18px 14px;padding:11px 14px;border-radius:9px;font-size:11.5px;
+    background:var(--critical-tint);border-left:3px solid var(--critical);color:var(--ink-2);}
+
+  /* หัวเรื่อง - ให้ "การเปลี่ยนแปลง" เป็นสิ่งที่เห็นก่อน ไม่ใช่ตัวเลขนิ่ง */
+  .ph-hero{margin:0 18px 12px;padding:15px 18px;border-radius:12px;
+    background:linear-gradient(180deg,var(--surface-2),var(--surface));border:1px solid var(--line-soft);
+    display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px;}
+  .ph-span{display:flex;align-items:baseline;gap:9px;}
+  .ph-mon{font-size:15px;color:var(--faint);font-weight:600;}
+  .ph-mon.now{font-size:22px;color:var(--ink);font-weight:800;}
+  .ph-to{font-size:10.5px;color:var(--line);}
+  .ph-val{display:flex;align-items:flex-end;gap:14px;}
+  .ph-v{display:flex;flex-direction:column;gap:2px;}
+  .ph-v i{font-style:normal;font-size:9.5px;color:var(--faint);}
+  .ph-v b{font-family:'IBM Plex Mono',monospace;font-size:24px;color:var(--brand);line-height:1;}
+  .ph-d{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;
+    display:flex;flex-direction:column;align-items:flex-end;gap:1px;padding-bottom:2px;}
+  .ph-d.up{color:var(--success);} .ph-d.down{color:var(--critical);} .ph-d.flat{color:var(--faint);}
+  .ph-d u{text-decoration:none;font-size:9.5px;opacity:.75;}
+
+  .ph-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px;padding:0 18px 12px;}
+  .ph-cell{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;padding:10px 13px;
+    display:flex;flex-direction:column;gap:2px;}
+  .ph-cell.in{border-left:3px solid var(--success);}
+  .ph-cell.out{border-left:3px solid var(--warning);}
+  .ph-cell i{font-style:normal;font-size:9.5px;color:var(--faint);}
+  .ph-cell b{font-family:'IBM Plex Mono',monospace;font-size:21px;color:var(--ink);line-height:1.1;}
+  .ph-cell u{text-decoration:none;font-size:9.5px;color:var(--faint);}
+
+  .ph-flow{display:flex;flex-direction:column;gap:6px;padding:0 18px 12px;}
+  .ph-fl{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:9px;
+    background:var(--surface-2);border:1px solid var(--line-soft);font-size:11.5px;}
+  .ph-fl.in{border-left:3px solid var(--success);}
+  .ph-fl.out{border-left:3px solid var(--warning);}
+  .ph-tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;flex:none;}
+  .ph-fl.in .ph-tag{background:var(--success-tint);color:var(--success);}
+  .ph-fl.out .ph-tag{background:var(--warning-tint);color:var(--warning);}
+  .ph-fl b{flex:1;color:var(--ink);font-weight:600;}
+  .ph-fl i{font-style:normal;font-size:10px;color:var(--faint);}
+
+  .ph-sec{padding:4px 18px 8px;font-size:11px;font-weight:700;color:var(--ink-2);}
+  .ph-tbl{padding:0 18px 12px;display:flex;flex-direction:column;gap:7px;}
+  .ph-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:8px 0;
+    border-bottom:1px solid var(--line-soft);}
+  .ph-row:last-child{border-bottom:none;}
+  .ph-nm{flex:1 1 220px;min-width:0;}
+  .ph-nm b{display:block;font-size:11.5px;color:var(--ink);font-weight:600;}
+  .ph-nm i{font-style:normal;font-size:9.5px;color:var(--faint);}
+  .ph-nm em{font-style:normal;background:var(--warning-tint);color:var(--warning);
+    padding:0 5px;border-radius:4px;font-size:9px;font-weight:700;}
+  .ph-bar{flex:1 1 260px;display:flex;align-items:center;gap:11px;min-width:0;}
+  .ph-track{flex:1;height:15px;background:var(--surface-2);border-radius:8px;position:relative;overflow:hidden;}
+  .ph-fill{position:absolute;left:0;top:0;height:100%;border-radius:8px;}
+  .ph-fill.old{background:var(--line);}
+  .ph-fill.new{background:var(--brand-2);}
+  .ph-num{display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:11px;
+    color:var(--faint);flex:none;}
+  .ph-arr{color:var(--line);}
+  .ph-now{color:var(--ink);font-weight:700;font-size:12.5px;}
+  .ph-dd{font-size:9.5px;padding:1px 6px;border-radius:5px;font-weight:700;}
+  .ph-dd.up{background:var(--success-tint);color:var(--success);}
+  .ph-dd.stall{background:var(--critical-tint);color:var(--critical);}
+
+  .ph-pm{padding:0 18px 12px;display:flex;flex-direction:column;gap:9px;}
+  .ph-pmrow{display:flex;flex-wrap:wrap;align-items:center;gap:12px;}
+  .ph-pmn{flex:0 0 120px;font-size:11.5px;font-weight:600;color:var(--ink);}
+  .ph-pmn i{display:block;font-style:normal;font-size:9.5px;color:var(--faint);font-weight:400;}
+  .ph-pmbars{flex:1 1 260px;display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .ph-pmb{display:flex;align-items:center;gap:8px;}
+  .ph-pl{font-size:9px;color:var(--faint);flex:0 0 42px;}
+  .ph-pbar{flex:1;height:11px;background:var(--surface-2);border-radius:6px;overflow:hidden;}
+  .ph-pfill{height:100%;border-radius:6px;}
+  .ph-pfill.old{background:var(--line);}
+  .ph-pfill.new{background:var(--brand-2);}
+  .ph-pmb b{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-2);flex:0 0 68px;text-align:right;}
+  .ph-pmd{flex:0 0 92px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;}
+  .ph-pmd.up{color:var(--success);} .ph-pmd.down{color:var(--critical);} .ph-pmd.flat{color:var(--faint);}
+
+  .ph-foot{padding:6px 18px 16px;font-size:9.5px;color:var(--faint);line-height:1.6;}
+
   /* ---------------- Revenue Recognition ---------------- */
   .rr-note{margin:0 18px 12px;padding:9px 13px;border-radius:9px;background:var(--surface-2);
     border:1px solid var(--line-soft);font-size:10.5px;color:var(--faint);line-height:1.7;}
@@ -1710,6 +1799,13 @@
           <svg id="donut" width="148" height="148" viewBox="0 0 148 148"></svg>
           <div class="legend" id="legend"></div>
         </div>
+        <div class="ph-sep"></div>
+        <div class="ph-drop" id="phDrop" onclick="document.getElementById('phFile').click()">
+          <input type="file" id="phFile" accept=".pdf" multiple style="display:none">
+          <div class="ph-drop-t">เทียบรายงานรายเดือน</div>
+          <div class="ph-drop-s">ลากไฟล์ Project Health Report จาก PMS มาวาง หรือคลิกเพื่อเลือก · ใส่ได้ครั้งละหลายเดือน</div>
+        </div>
+        <div id="phBox"></div>
       </div>
     </div>
   </div>
@@ -5006,6 +5102,239 @@ function renderRevenueRecognition(list){
       })).join('')}
       </tbody></table>
     </div>`;
+}
+
+let phBound=false;
+function phBind(){
+  if(phBound) return;
+  const drop=document.getElementById('phDrop'), inp=document.getElementById('phFile');
+  if(!drop||!inp) return;
+  phBound=true;
+  inp.onchange=e=>{ const fs=[...e.target.files]; e.target.value=''; phUpload(fs); };
+  ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+  drop.addEventListener('drop',e=>phUpload([...e.dataTransfer.files].filter(f=>/\.pdf$/i.test(f.name))));
+}
+
+// ===================== Project Health · เทียบเดือนต่อเดือน =====================
+// รายงานรายเดือนจาก PMS มีรูปแบบคงที่ จึงแตกด้วยกฎได้แม่นยำ
+// สิ่งที่ PM ต้องเห็นคือ "อะไรเปลี่ยน" ไม่ใช่ตัวเลขนิ่ง ๆ ของเดือนเดียว
+const PH = { months: [] };   // [{label, ym, total, rows:[...]}]
+
+const PH_MON = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+const PH_TH  = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+// ชื่อโครงการที่ยาวเกินความกว้างคอลัมน์จะถูกตัดขึ้นบรรทัดใหม่ใน PDF
+// ทำให้ส่วนหน้าของบล็อกว่าง - ต้องไปหาชื่อจากข้อความถัดจากรหัสแทน
+function phNameFallback(flat, idx, code){
+  // ชื่อยาวถูกตัดขึ้นบรรทัดใหม่ ทำให้ส่วนหน้าของบล็อกว่าง
+  // ส่วนที่เหลือของชื่อจะอยู่หลังตัวเลขความคืบหน้าชุดสุดท้ายของบล็อกนี้
+  const seg = flat.slice(idx+9, idx+420);
+  const cut = seg.search(/[A-Z][a-z]{2,}\s+\d\s+(?:\d{1,2}-[A-Za-z]{3}-\d{2}|[—-])/);
+  const head = cut>0 ? seg.slice(0,cut).trim() : '';
+  if(head.length>3) return head.replace(/\s{2,}/g,' ');
+  // มองหาคำท้ายชื่อที่หลุดไปอยู่หลังตัวเลข เช่น "... 59.00 platform 5 335254762"
+  const m = seg.match(/\d{1,3}\.\d{2}\s+([A-Za-z][A-Za-z \-()]{2,50}?)\s+\d{1,2}\s+\d{9}/);
+  return m ? ('(' + m[1].trim() + ') รหัส ' + code) : ('รหัส ' + code);
+}
+
+
+// แตกรายงาน Project Health หนึ่งเดือนจากข้อความที่อ่านได้จาก PDF
+function phParse(text, fileName){
+  const t = String(text||'').replace(/\u00A0/g,' ');
+  // เดือนของรายงาน - ใช้ชื่อเดือนอังกฤษที่อยู่หลังคำว่า "ประจำ เดือน"
+  // ข้อความจาก PDF อาจมีช่องว่าง/ขึ้นบรรทัดแทรกระหว่าง "ประจำ" กับ "เดือน" และชื่อเดือน
+  // ใช้เฉพาะหัวรายงาน - footer ของ PMS เขียน "May 2026" ตายตัวทุกไฟล์ เชื่อไม่ได้
+  const flatHead = t.replace(/\s+/g,' ');
+  let mm = flatHead.match(/ประจำ\s*เดือน\s*([A-Za-z]{3,})\s*(\d{4})/);
+  // สำรอง: ดึงจากชื่อไฟล์ เช่น Project_Health_Aug-26
+  if(!mm){
+    const fm = String(fileName||'').match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[-_]?(\d{2,4})/i);
+    if(fm) mm = [null, fm[1], String(fm[2].length===2 ? 2000+ +fm[2] : +fm[2])];
+  }
+  let ym = null, label = fileName;
+  if(mm){
+    const m = PH_MON[mm[1].slice(0,3).toLowerCase()];
+    if(m){ ym = +mm[2]*100 + m; label = `${PH_TH[m]} ${String(+mm[2]+543).slice(-2)}`; }
+  }
+  const tv = t.match(/฿\s*([\d,]+\.\d{2})/);
+  const total = tv ? +tv[1].replace(/,/g,'') : null;
+
+  // แถวโครงการ: ลำดับ · รหัส 9 หลัก · ชื่อ · PM · ระดับ · วันเริ่ม · วันจบ · มูลค่า · ความคืบหน้ารายเดือน
+  // ชื่อโครงการอาจตัดบรรทัด จึงรวมข้อความทั้งก้อนก่อนแล้วค่อยแตกด้วยรหัสโครงการ
+  const flat = t.replace(/\n+/g,' ').replace(/\s{2,}/g,' ');
+  const rows = [];
+  // แตกเป็นบล็อกต่อโครงการก่อน (ชื่อยาวอาจขึ้นบรรทัดใหม่ ทำให้ regex เดียวกินข้ามแถว)
+  const marks = [...flat.matchAll(/\b(\d{9})\b/g)];
+  marks.forEach((mk, i) => {
+    const code = mk[1];
+    if(rows.some(r=>r.code===code)) return;
+    const body = flat.slice(mk.index + 9, i+1 < marks.length ? marks[i+1].index : flat.length);
+    // ฟิลด์หลัง PM: ระดับ · วันเริ่ม · วันจบ · มูลค่า · ความคืบหน้ารายเดือน
+    const f = body.match(/\s*(?:(.*?)\s+)?([A-Z][a-z]{2,})\s+(\d)\s+(?:(\d{1,2}-[A-Za-z]{3}-\d{2})\s+(\d{1,2}-[A-Za-z]{3}-\d{2})|[—-]\s+[—-])\s+([\d,]+\.\d{2})((?:\s+\d{1,3}\.\d{2})*)/);
+    if(!f) return;
+    // ความคืบหน้าเขียนทศนิยม 2 ตำแหน่งเสมอ - รับเฉพาะรูปแบบนี้
+    // ไม่งั้นจะเก็บ "ลำดับแถวถัดไป" (เลขจำนวนเต็ม) มาเป็นความคืบหน้า
+    const prog = [...String(f[7]||'').matchAll(/(\d{1,3}\.\d{2})/g)]
+                  .map(x=>+x[1]).filter(n=>n<=100);
+    rows.push({
+      code, name: (String(f[1]||'').trim() ? String(f[1]||'') : phNameFallback(flat, mk.index, code))
+        .replace(/^\s*\d{1,2}\s+/,'')      // ลำดับแถวที่นำหน้าชื่อ
+        .replace(/\s+\d{1,2}\s*$/,'')      // ลำดับแถวถัดไปที่ติดท้ายมา
+        .replace(/\s{2,}/g,' ').trim() || '(อ่านชื่อไม่ได้ - ดูรหัส '+code+')',
+      pm: f[2], lv: +f[3], start: f[4]||null, end: f[5]||null,
+      value: +f[6].replace(/,/g,''),
+      prog, last: prog.length ? prog[prog.length-1] : null
+    });
+  });
+  return {label, ym, total, rows, fileName};
+}
+
+async function phReadPdf(file){
+  await torLoadScript('lib/pdf.min.js');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
+  const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
+  let out = '';
+  for(let i=1;i<=pdf.numPages;i++){
+    const page = await pdf.getPage(i);
+    const tc = await page.getTextContent();
+    // จัดกลุ่มตามพิกัดแนวตั้งเพื่อให้ได้บรรทัดจริง (เหมือนที่ทำกับ TOR)
+    const lm = new Map();
+    tc.items.forEach(it=>{
+      const key = Math.round(((it.transform&&it.transform[5])||0)/3);
+      const x = (it.transform&&it.transform[4])||0;
+      if(!lm.has(key)) lm.set(key, []);
+      lm.get(key).push({x, s:it.str});
+    });
+    out += [...lm.entries()].sort((a,b)=>b[0]-a[0])
+      .map(([,ps])=>ps.sort((a,b)=>a.x-b.x).map(p=>p.s).join('').replace(/\s+/g,' ').trim())
+      .filter(Boolean).join('\n') + '\n';
+  }
+  return out;
+}
+
+async function phUpload(files){
+  const box = document.getElementById('phBox');
+  if(!files || !files.length) return;
+  box.innerHTML = '<div class="ph-loading">กำลังอ่านรายงาน...</div>';
+  try{
+    for(const f of files){
+      const txt = await phReadPdf(f);
+      const parsed = phParse(txt, f.name);
+      if(!parsed.rows.length) throw new Error(`อ่านรายการโครงการจาก ${f.name} ไม่ได้ - ตรวจว่าเป็นไฟล์ Project Health Report จาก PMS`);
+      // เดือนเดียวกันให้ทับของเดิม
+      // เดือนเดียวกันให้ทับของเดิม · ถ้าอ่านเดือนไม่ได้ ใช้ชื่อไฟล์แยกแทน
+      PH.months = PH.months.filter(x=> parsed.ym!=null ? x.ym !== parsed.ym : x.fileName !== parsed.fileName);
+      PH.months.push(parsed);
+    }
+    PH.months.forEach((m,i)=>{ if(m.seq==null) m.seq=i; });
+    PH.months.sort((a,b)=>(a.ym&&b.ym) ? a.ym-b.ym : (a.seq-b.seq));
+    renderProjectHealthCompare();
+  }catch(e){
+    box.innerHTML = `<div class="ph-err">อ่านไฟล์ไม่สำเร็จ: ${String(e.message||e)}</div>`;
+  }
+}
+
+const phFmt = n => n==null ? '-' : Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
+const phM = n => n==null ? '-' : (n/1e6).toFixed(1);
+
+function renderProjectHealthCompare(){
+  const box = document.getElementById('phBox');
+  if(!box) return;
+  if(PH.months.length < 1){ box.innerHTML=''; return; }
+  if(PH.months.length === 1){
+    box.innerHTML = `<div class="ph-hint">อ่าน <b>${PH.months[0].label}</b> แล้ว (${PH.months[0].rows.length} โครงการ) - เพิ่มอีกเดือนเพื่อเทียบการเปลี่ยนแปลง</div>`;
+    return;
+  }
+  const A = PH.months[PH.months.length-2], B = PH.months[PH.months.length-1];
+  const mapA = new Map(A.rows.map(r=>[r.code,r])), mapB = new Map(B.rows.map(r=>[r.code,r]));
+  const added   = B.rows.filter(r=>!mapA.has(r.code));
+  const removed = A.rows.filter(r=>!mapB.has(r.code));
+  const kept    = B.rows.filter(r=>mapA.has(r.code)).map(r=>({b:r, a:mapA.get(r.code)}));
+  const lvUp    = kept.filter(x=>x.b.lv !== x.a.lv);
+  const dTotal  = (B.total!=null && A.total!=null) ? B.total - A.total : null;
+
+  // มูลค่าต่อ PM ทั้งสองเดือน
+  const pmSet = [...new Set([...A.rows.map(r=>r.pm), ...B.rows.map(r=>r.pm)])];
+  const pmVal = pmSet.map(pm=>({
+    pm,
+    a: A.rows.filter(r=>r.pm===pm).reduce((s,r)=>s+r.value,0),
+    b: B.rows.filter(r=>r.pm===pm).reduce((s,r)=>s+r.value,0),
+    na: A.rows.filter(r=>r.pm===pm).length,
+    nb: B.rows.filter(r=>r.pm===pm).length,
+  })).sort((x,y)=>y.b-x.b);
+  const vMax = Math.max(...pmVal.map(x=>Math.max(x.a,x.b)), 1);
+
+  const sign = n => n>0 ? 'up' : (n<0 ? 'down' : 'flat');
+  const arrow = n => n>0 ? '▲' : (n<0 ? '▼' : '–');
+
+  box.innerHTML = `
+    <div class="ph-hero">
+      <div class="ph-span">
+        <span class="ph-mon">${A.label}</span>
+        <span class="ph-to">เทียบกับ</span>
+        <span class="ph-mon now">${B.label}</span>
+      </div>
+      <div class="ph-val">
+        <div class="ph-v"><i>มูลค่าที่ PM รับผิดชอบ</i><b>฿${phM(B.total)}M</b></div>
+        ${dTotal!=null ? `<div class="ph-d ${sign(dTotal)}">${arrow(dTotal)} ${phM(Math.abs(dTotal))}M
+          <u>${A.total?((dTotal/A.total)*100).toFixed(1):'0'}%</u></div>` : ''}
+      </div>
+    </div>
+
+    <div class="ph-strip">
+      <div class="ph-cell"><i>โครงการเดือนนี้</i><b>${B.rows.length}</b><u>${A.rows.length} เมื่อ ${A.label}</u></div>
+      <div class="ph-cell ${added.length?'in':''}"><i>รับงานใหม่</i><b>${added.length}</b><u>${added.length?'฿'+phM(added.reduce((s,r)=>s+r.value,0))+'M':'ไม่มี'}</u></div>
+      <div class="ph-cell ${removed.length?'out':''}"><i>ออกจากรายการ</i><b>${removed.length}</b><u>${removed.length?'ปิดงานหรือส่งมอบแล้ว':'ไม่มี'}</u></div>
+      <div class="ph-cell"><i>เปลี่ยนระดับ</i><b>${lvUp.length}</b><u>${lvUp.length?'ตรวจว่าตรงกับงานจริง':'คงเดิมทั้งหมด'}</u></div>
+    </div>
+
+    ${added.length||removed.length ? `<div class="ph-flow">
+      ${added.map(r=>`<div class="ph-fl in"><span class="ph-tag">เข้าใหม่</span>
+        <b>${r.name}</b><i>${r.pm} · Lv.${r.lv} · ฿${phM(r.value)}M</i></div>`).join('')}
+      ${removed.map(r=>{const a=mapA.get(r.code);return `<div class="ph-fl out"><span class="ph-tag">ออก</span>
+        <b>${r.name}</b><i>${r.pm} · ปิดที่ ${a&&a.last!=null?a.last.toFixed(0)+'%':'-'} · ฿${phM(r.value)}M</i></div>`;}).join('')}
+    </div>` : ''}
+
+    <div class="ph-sec">ความคืบหน้ารายโครงการ</div>
+    <div class="ph-tbl">
+      ${kept.sort((x,y)=>((y.b.last||0)-(y.a.last||0))-((x.b.last||0)-(x.a.last||0))).map(({a,b})=>{
+        const d = (b.last!=null && a.last!=null) ? b.last-a.last : null;
+        const stall = d!=null && d<=0.01;
+        return `<div class="ph-row">
+          <div class="ph-nm"><b>${b.name}</b><i>${b.pm} · Lv.${b.lv}${b.lv!==a.lv?` <em>เดิม ${a.lv}</em>`:''} · ฿${phM(b.value)}M</i></div>
+          <div class="ph-bar">
+            <div class="ph-track">
+              <div class="ph-fill old" style="width:${a.last||0}%"></div>
+              <div class="ph-fill new" style="width:${b.last||0}%"></div>
+            </div>
+            <div class="ph-num">
+              <span>${a.last!=null?a.last.toFixed(1):'-'}</span>
+              <span class="ph-arr">→</span>
+              <span class="ph-now">${b.last!=null?b.last.toFixed(1):'-'}</span>
+              ${d!=null?`<span class="ph-dd ${stall?'stall':'up'}">${stall?'ไม่ขยับ':'+'+d.toFixed(1)}</span>`:''}
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="ph-sec">มูลค่าที่รับผิดชอบรายคน</div>
+    <div class="ph-pm">
+      ${pmVal.map(x=>{
+        const dv = x.b - x.a;
+        return `<div class="ph-pmrow">
+          <div class="ph-pmn">${x.pm}<i>${x.nb} โครงการ${x.nb!==x.na?` (เดิม ${x.na})`:''}</i></div>
+          <div class="ph-pmbars">
+            <div class="ph-pmb"><span class="ph-pl">${A.label}</span><div class="ph-pbar"><div class="ph-pfill old" style="width:${(x.a/vMax*100)}%"></div></div><b>฿${phM(x.a)}M</b></div>
+            <div class="ph-pmb"><span class="ph-pl">${B.label}</span><div class="ph-pbar"><div class="ph-pfill new" style="width:${(x.b/vMax*100)}%"></div></div><b>฿${phM(x.b)}M</b></div>
+          </div>
+          <div class="ph-pmd ${sign(dv)}">${dv?arrow(dv)+' '+phM(Math.abs(dv))+'M':'คงเดิม'}</div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="ph-foot">อ่านจาก ${PH.months.map(m=>m.label).join(' · ')} · เพิ่มไฟล์เดือนถัดไปได้เรื่อย ๆ ระบบจะเทียบสองเดือนล่าสุดเสมอ</div>`;
 }
 
 // ===================== TOR Breakdown =====================
@@ -9031,6 +9360,7 @@ function renderFiltered(){
   renderStalled(listFor('stalledProgress'));
   renderRiskFinder(listFor('riskFinder'));
   renderRevenueRecognition(listFor('rrType'));
+  phBind();
   renderTorBreakdown();
   renderProgressTimeline(listFor('progressTimeline'),
     hasTeamWideScope('progressTimeline') && ROWS_TEAMWIDE.length ? ROWS_TEAMWIDE : HIST);
