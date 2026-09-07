@@ -588,14 +588,16 @@
   .pf-pm{flex:0 0 168px;display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ink-2);}
   .av.sm{width:22px;height:22px;font-size:9px;border-radius:6px;}
   .pf-wk{flex:1;text-align:center;min-width:34px;}
-  .pf-cell{flex:1;min-width:34px;height:24px;display:flex;align-items:center;justify-content:center;
+  .pf-cell{flex:1;min-width:40px;height:24px;display:flex;align-items:center;justify-content:center;
     border-radius:6px;font-size:11px;font-weight:700;cursor:default;}
   .pf-cell.ok{background:var(--success-tint);color:var(--success);}
+  .pf-cell.part{background:var(--warning-tint);color:var(--warning);}
+  .pf-pm span i{display:block;font-style:normal;font-size:9px;color:var(--faint);}
   .pf-cell.late{background:var(--warning-tint);color:var(--warning);}
   .pf-lt{color:var(--warning);}
   .pf-sum u{display:block;text-decoration:none;font-size:8.5px;color:var(--warning);font-weight:600;}
   .pf-cell.miss{background:var(--critical-tint);color:var(--critical);}
-  .pf-sum{flex:0 0 62px;text-align:right;font-size:10px;color:var(--success);font-weight:700;}
+  .pf-sum{flex:0 0 66px;text-align:right;font-size:10px;color:var(--success);font-weight:700;}
   .pf-sum.bad{color:var(--critical);}
   .pf-note{margin-top:8px;font-size:9.5px;color:var(--faint);line-height:1.6;}
 
@@ -4085,75 +4087,113 @@ function computePunctuality(list, histSource){
 }
 
 function renderPunctualityPodium(list, histSource){
-  // ตารางเช็คว่าแต่ละคน "กรอก Update Date ครบตามสัปดาห์หรือไม่" เท่านั้น
-  // ไม่จัดอันดับ ไม่ให้คะแนน - เป็นเรื่องวินัยการกรอกข้อมูล ไม่ใช่การวัดผลงาน
+  // นับ "รายโครงการ" ไม่ใช่แค่ว่า PM อัปเดตอะไรบ้างไหม
+  // คนที่มี 5 โครงการต้องอัปเดตครบ 5 จึงจะถือว่าครบ - ไม่งั้นคนที่มีโครงการเดียวได้เปรียบเสมอ
   const hist = histSource || HIST;
   if(!hist.length) return '';
   const today0 = new Date(); today0.setHours(0,0,0,0);
 
-  // เก็บว่าแต่ละคนกรอกในสัปดาห์ไหนบ้าง (ยึดวันจันทร์ของสัปดาห์นั้นเป็นคีย์)
-  // รอบกำหนดคืออัปเดตทุกวันศุกร์ - ต้องแยก "กรอกตรงวัน" กับ "กรอกแต่ผิดวัน" ออกจากกัน
-  const onTime = {};   // pm -> Set(mondayTs) ที่กรอกวันศุกร์
-  const late   = {};   // pm -> Set(mondayTs) ที่กรอกแต่ไม่ใช่วันศุกร์
+  // สัปดาห์นับแบบเสาร์ถึงศุกร์ ปิดที่ศุกร์ซึ่งเป็นวันครบกำหนด
+  const deadlineFriday = d => {
+    const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    x.setDate(x.getDate() + ((5 - x.getDay() + 7) % 7));
+    return x.getTime();
+  };
+
+  const onTime = {};    // pm -> wk -> Set(projectCode) ที่อัปเดตตรงวันศุกร์
+  const late   = {};    // pm -> wk -> Set(projectCode) ที่อัปเดตแต่ผิดวัน
+  const owned  = {};    // pm -> Set(projectCode) ทั้งหมดที่เคยดูแลในช่วงนี้
   const weekSet = new Set();
   hist.forEach(r=>{
     const d = parseD(r['Update Date']); if(!d) return;
     const pm = pmKey(r['PM Name']) || 'ไม่ระบุ';
-    const wk = mondayOfWeek(d).getTime();
-    (d.getDay()===5 ? (onTime[pm] ||= new Set()) : (late[pm] ||= new Set())).add(wk);
+    const code = String(r['Project Code']||'').trim(); if(!code) return;
+    const wk = deadlineFriday(d);
+    (owned[pm] ||= new Set()).add(code);
+    const bag = d.getDay()===5 ? (onTime[pm] ||= {}) : (late[pm] ||= {});
+    (bag[wk] ||= new Set()).add(code);
     weekSet.add(wk);
   });
-  const allPM = new Set([...Object.keys(onTime), ...Object.keys(late)]);
-  allPM.forEach(pm=>{ onTime[pm] ||= new Set(); late[pm] ||= new Set(); });
+  const pms = Object.keys(owned).sort();
+  if(!pms.length) return '';
+  pms.forEach(pm=>{ onTime[pm] ||= {}; late[pm] ||= {}; });
 
-  const WEEKS = 6;   // OAT นับรอบ 6 สัปดาห์
-  const weeks = [...weekSet].sort((a,b)=>a-b).slice(-WEEKS);
+  // จำนวนโครงการที่ต้องอัปเดตต่อสัปดาห์ = โครงการที่ยังไม่ปิดของ PM คนนั้น
+  const expectOf = {};
+  pms.forEach(pm=>{
+    const open = (list||[]).filter(p=>{
+      if(pmKey(p['PM Name'])!==pm) return false;
+      const st = projectStatus(p);
+      return st!=='Contract Closed' && st!=='Completely Closed';
+    }).length;
+    expectOf[pm] = open || owned[pm].size;   // ถ้าไม่มีข้อมูลโครงการเปิด ใช้ที่เคยอัปเดตแทน
+  });
+
+  const WEEKS = 6;
+  // นับเฉพาะสัปดาห์ที่ทีมเริ่มใช้ระบบพร้อมกันจริง (มีคนอัปเดตอย่างน้อยครึ่งทีม)
+  const majority = Math.ceil(pms.length/2);
+  const activePM = w => pms.filter(pm=>(onTime[pm][w]||late[pm][w])).length;
+  const counted = [...weekSet].filter(w=>activePM(w) >= majority).sort((a,b)=>a-b);
+  let weeks = counted.length ? counted : [...weekSet].sort((a,b)=>a-b);
+  if(weeks.length){
+    const lastFri = new Date(today0);
+    lastFri.setDate(lastFri.getDate() - ((lastFri.getDay() + 2) % 7));
+    for(let w = weeks[weeks.length-1] + 7*86400000; w <= lastFri.getTime(); w += 7*86400000) weeks.push(w);
+  }
+  weeks = weeks.sort((a,b)=>a-b).slice(-WEEKS);
   if(!weeks.length) return '';
-  const pms = [...allPM].sort();
+
+  const ranked = pms.map(pm=>{
+    const exp = expectOf[pm];
+    let hit=0, lateN=0, due=0;
+    weeks.forEach(w=>{
+      const o=(onTime[pm][w]||new Set()).size, l=(late[pm][w]||new Set()).size;
+      hit += o; lateN += l;
+      due += Math.max(exp, o + l);   // สัปดาห์ที่ดูแลมากกว่าปัจจุบัน ให้นับตามจริง
+    });
+    return {pm, exp, hit, lateN, due, rate: due ? hit/due : 0};
+  }).sort((a,b)=> b.rate-a.rate || b.exp-a.exp || a.pm.localeCompare(b.pm));
+  // อัตราเท่ากัน คนที่ดูแลโครงการมากกว่าได้อันดับดีกว่า (ทำได้เท่ากันบนภาระที่หนักกว่า)
+  let place=0, prev=null;
+  ranked.forEach((x,i)=>{ const k=x.rate+'|'+x.exp; if(k!==prev){ place=i+1; prev=k; } x.place=place; });
 
   const head = weeks.map(w=>{
-    const d = new Date(w);
-    return `<div class="pf-wk">${d.getDate()}/${d.getMonth()+1}</div>`;
+    const f=new Date(w), sa=new Date(w); sa.setDate(sa.getDate()-6);
+    return `<div class="pf-wk" title="สัปดาห์ ${sa.getDate()}/${sa.getMonth()+1} - ${f.getDate()}/${f.getMonth()+1} (ครบกำหนดศุกร์)">${f.getDate()}/${f.getMonth()+1}</div>`;
   }).join('');
-
-  // เรียงตามจำนวนสัปดาห์ที่กรอกครบ - คนที่กรอกครบมากสุดขึ้นก่อน
-  // อันดับวัดจาก "กรอกตรงวันศุกร์" เท่านั้น - กรอกช้าไม่นับว่าตรงเวลา
-  const ranked = pms.map(pm=>({
-    pm,
-    hit:  weeks.filter(w=>onTime[pm].has(w)).length,
-    lateN: weeks.filter(w=>!onTime[pm].has(w) && late[pm].has(w)).length
-  })).sort((a,b)=>b.hit-a.hit || a.lateN-b.lateN || a.pm.localeCompare(b.pm));
-  // อันดับเดียวกันถ้ากรอกครบเท่ากัน (ไม่ใช่เรียงลำดับเฉย ๆ)
-  let place = 0, prevHit = null;
-  ranked.forEach((x,i)=>{ if(x.hit!==prevHit){ place = i+1; prevHit = x.hit; } x.place = place; });
 
   const medal = p => p===1?'🥇' : p===2?'🥈' : p===3?'🥉' : `${p}`;
   const rows = ranked.map(x=>{
-    const pm = x.pm;
     const cells = weeks.map(w=>{
-      const ok = onTime[pm].has(w), lt = late[pm].has(w);
-      const cls = ok ? 'ok' : (lt ? 'late' : 'miss');
-      const mark = ok ? '✓' : (lt ? '!' : '–');
-      const txt = ok ? 'กรอกตรงวันศุกร์' : (lt ? 'กรอกแล้วแต่ไม่ใช่วันศุกร์' : 'ไม่ได้กรอก');
-      return `<div class="pf-cell ${cls}" title="${pm} · สัปดาห์ ${new Date(w).toLocaleDateString('th-TH')} · ${txt}">${mark}</div>`;
+      const ok = (onTime[x.pm][w]||new Set()).size;
+      const lt = (late[x.pm][w]||new Set()).size;
+      // จำนวนที่ต้องอัปเดตสัปดาห์นั้น - อย่างน้อยเท่าที่อัปเดตจริง (บางสัปดาห์ดูแลมากกว่าปัจจุบัน)
+      const need = Math.max(x.exp, ok + lt);
+      const cls = ok>=need ? 'ok' : (ok>0 ? 'part' : (lt>0 ? 'late' : 'miss'));
+      const f=new Date(w), sa=new Date(w); sa.setDate(sa.getDate()-6);
+      const txt = ok>=need ? 'อัปเดตครบทุกโครงการตรงวัน'
+                : ok>0 ? `อัปเดตตรงวัน ${ok} จาก ${need} โครงการ`
+                : lt>0 ? `อัปเดต ${lt} โครงการแต่ผิดวัน` : 'ไม่ได้อัปเดตเลย';
+      return `<div class="pf-cell ${cls}" title="${x.pm} · ${sa.getDate()}/${sa.getMonth()+1}-${f.getDate()}/${f.getMonth()+1} · ${txt}">${ok>0?ok+'/'+need:(lt>0?'!':'–')}</div>`;
     }).join('');
-    const missN = weeks.length - x.hit;
     return `<div class="pf-row ${x.place<=3?'pf-top':''}">
       <div class="pf-rank">${medal(x.place)}</div>
-      <div class="pf-pm"><span class="av sm" style="background:${avatarColor(pm)}">${initials(pm)}</span>${pm}</div>
+      <div class="pf-pm"><span class="av sm" style="background:${avatarColor(x.pm)}">${initials(x.pm)}</span>
+        <span>${x.pm}<i>${x.exp} โครงการ</i></span></div>
       ${cells}
-      <div class="pf-sum ${missN?'bad':''}">${x.hit}/${weeks.length}${x.lateN?`<u>ช้า ${x.lateN}</u>`:''}</div>
+      <div class="pf-sum ${x.rate<0.8?'bad':''}">${(x.rate*100).toFixed(0)}%<u>${x.hit}/${x.due}</u></div>
     </div>`;
   }).join('');
 
   return `<div class="pf-wrap">
-    <div class="pf-title">การกรอก Update Date ตรงรอบวันศุกร์ · ${weeks.length} สัปดาห์ล่าสุด</div>
+    <div class="pf-title">การอัปเดต PMS ตรงรอบวันศุกร์ · ${weeks.length} สัปดาห์ล่าสุด
+      <span style="font-weight:400;color:var(--faint);font-size:10px">(นับรายโครงการ · สัปดาห์นับเสาร์ถึงศุกร์)</span></div>
     <div class="pf-grid">
       <div class="pf-row pf-head"><div class="pf-rank"></div><div class="pf-pm"></div>${head}<div class="pf-sum">ตรงเวลา</div></div>
       ${rows}
     </div>
-    <div class="pf-note">✓ = กรอกตรงวันศุกร์ · <b class="pf-lt">!</b> = กรอกแล้วแต่ผิดวัน (ไม่นับว่าตรงเวลา) · – = ไม่ได้กรอก
-      <br>เรียงตามจำนวนสัปดาห์ที่กรอกตรงวัน เท่ากันได้อันดับเดียวกัน · ดูเฉพาะคอลัมน์ Update Date ไม่เกี่ยวกับผลงาน</div>
+    <div class="pf-note">ตัวเลขในช่อง = จำนวนโครงการที่อัปเดตตรงวันศุกร์ / โครงการที่ต้องอัปเดต · <b class="pf-lt">!</b> = อัปเดตแต่ผิดวัน · – = ไม่ได้อัปเดต
+      <br>เขียว = ครบทุกโครงการ · เหลือง = ครบบางส่วน · แดง = ไม่ได้อัปเดต · อัตราเท่ากันคนที่ดูแลโครงการมากกว่าได้อันดับดีกว่า</div>
   </div>`;
 }
 
