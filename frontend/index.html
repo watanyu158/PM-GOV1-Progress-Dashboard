@@ -576,6 +576,29 @@
   .ph-wn.empty{font-size:10.5px;color:var(--warning);font-style:italic;}
   .ph-tip{padding:0 18px 12px;font-size:9.5px;color:var(--faint);line-height:1.6;}
 
+  /* ตารางเช็คการกรอก Update Date รายสัปดาห์ */
+  .pf-wrap{margin-bottom:14px;padding:12px 14px;border-radius:10px;
+    background:var(--surface-2);border:1px solid var(--line-soft);}
+  .pf-title{font-size:11.5px;font-weight:700;color:var(--ink-2);margin-bottom:9px;}
+  .pf-grid{display:flex;flex-direction:column;gap:3px;overflow-x:auto;}
+  .pf-row{display:flex;align-items:center;gap:4px;min-width:500px;padding:1px 0;}
+  .pf-head .pf-wk{font-size:9px;color:var(--faint);font-weight:600;}
+  .pf-rank{flex:0 0 26px;text-align:center;font-size:13px;}
+  .pf-row.pf-top .pf-pm{font-weight:700;color:var(--ink);}
+  .pf-pm{flex:0 0 168px;display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ink-2);}
+  .av.sm{width:22px;height:22px;font-size:9px;border-radius:6px;}
+  .pf-wk{flex:1;text-align:center;min-width:34px;}
+  .pf-cell{flex:1;min-width:34px;height:24px;display:flex;align-items:center;justify-content:center;
+    border-radius:6px;font-size:11px;font-weight:700;cursor:default;}
+  .pf-cell.ok{background:var(--success-tint);color:var(--success);}
+  .pf-cell.late{background:var(--warning-tint);color:var(--warning);}
+  .pf-lt{color:var(--warning);}
+  .pf-sum u{display:block;text-decoration:none;font-size:8.5px;color:var(--warning);font-weight:600;}
+  .pf-cell.miss{background:var(--critical-tint);color:var(--critical);}
+  .pf-sum{flex:0 0 62px;text-align:right;font-size:10px;color:var(--success);font-weight:700;}
+  .pf-sum.bad{color:var(--critical);}
+  .pf-note{margin-top:8px;font-size:9.5px;color:var(--faint);line-height:1.6;}
+
   /* ป้ายสถานะโครงการ - ให้กวาดตาเจอก่อนข้อมูลอื่นในแถว */
   .nd-row .st-tag{margin-left:auto;}
   .st-tag{display:inline-flex;align-items:center;gap:5px;padding:2px 9px 2px 7px;border-radius:11px;
@@ -1233,6 +1256,9 @@
   .sc-winner{padding:14px 18px;background:#EBEDF5;border-bottom:1px solid var(--line-soft);font-size:13px;color:var(--ink);line-height:1.6;}
   .sc-radar-wrap{padding:20px 18px 8px;border-bottom:1px solid var(--line-soft);}
   .sc-radar-svg{max-width:380px;margin:0 auto;}
+  .sc-v.sc-late{color:var(--warning);}
+  .sc-radar-note{margin-top:8px;padding:8px 12px;border-radius:8px;background:var(--warning-tint);
+    border-left:3px solid var(--warning);font-size:10px;color:var(--ink-2);line-height:1.7;}
   .sc-radar-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:12px 18px;margin-top:6px;padding-bottom:6px;}
   .sc-radar-leg-item{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--ink-2);}
   .sc-radar-leg-item i{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none;}
@@ -4059,66 +4085,75 @@ function computePunctuality(list, histSource){
 }
 
 function renderPunctualityPodium(list, histSource){
-  const punctuality = computePunctuality(list, histSource);
-  if(!punctuality.length) return '';
-
-  // สัปดาห์ปฏิทินจริงที่เก็บข้อมูลมาทั้งหมด - นับจาก "จุดที่อย่างน้อยครึ่งทีมเริ่มอัปเดตพร้อมกันจริง" ไม่ใช่แค่แถวแรกสุด
-  // ที่เจอ (กันเคสมีแค่ 1-2 คนทดลองอัปเดตแรกเริ่มก่อนทีมอื่นจะเข้าร่วม ซึ่งจะทำให้ตัวเลขสูงเกินจริงและไม่ตรงกับ
-  // ความรู้สึกของทีมว่า "เริ่มนับจริง ๆ ตอนไหน") โชว์รวมครั้งเดียว ไม่ใช่ต่อคน
-  const today0 = new Date(); today0.setHours(0,0,0,0);
+  // ตารางเช็คว่าแต่ละคน "กรอก Update Date ครบตามสัปดาห์หรือไม่" เท่านั้น
+  // ไม่จัดอันดับ ไม่ให้คะแนน - เป็นเรื่องวินัยการกรอกข้อมูล ไม่ใช่การวัดผลงาน
   const hist = histSource || HIST;
-  const byDatePMs = {}; // key = timestamp ของวันนั้น (0:00น.) -> Set ของ PM ที่มีแถวในวันนั้น
+  if(!hist.length) return '';
+  const today0 = new Date(); today0.setHours(0,0,0,0);
+
+  // เก็บว่าแต่ละคนกรอกในสัปดาห์ไหนบ้าง (ยึดวันจันทร์ของสัปดาห์นั้นเป็นคีย์)
+  // รอบกำหนดคืออัปเดตทุกวันศุกร์ - ต้องแยก "กรอกตรงวัน" กับ "กรอกแต่ผิดวัน" ออกจากกัน
+  const onTime = {};   // pm -> Set(mondayTs) ที่กรอกวันศุกร์
+  const late   = {};   // pm -> Set(mondayTs) ที่กรอกแต่ไม่ใช่วันศุกร์
+  const weekSet = new Set();
   hist.forEach(r=>{
-    const d = parseD(r['Update Date']);
-    if(!d) return;
-    (byDatePMs[d.getTime()] ||= new Set()).add(pmKey(r['PM Name'])||'');
+    const d = parseD(r['Update Date']); if(!d) return;
+    const pm = pmKey(r['PM Name']) || 'ไม่ระบุ';
+    const wk = mondayOfWeek(d).getTime();
+    (d.getDay()===5 ? (onTime[pm] ||= new Set()) : (late[pm] ||= new Set())).add(wk);
+    weekSet.add(wk);
   });
-  const totalPMs = new Set(hist.map(r=>pmKey(r['PM Name'])||'')).size;
-  const majorityThreshold = Math.ceil(totalPMs/2);
-  const sortedTs = Object.keys(byDatePMs).map(Number).sort((a,b)=>a-b);
-  const trackingStartTs = sortedTs.find(ts => byDatePMs[ts].size >= majorityThreshold) ?? sortedTs[0];
-  // นับ "จำนวนรอบที่ sync เข้ามาจริง" (จำนวนวันที่ distinct ที่ >= จุดเริ่มนับ) ไม่ใช่ระยะเวลาที่ผ่านไปหารด้วย 7
-  // เพราะถ้านับแบบระยะเวลา วันนี้อาจยังไม่ครบสัปดาห์ที่ 4 เต็ม ๆ (เช่น รอบ sync ล่าสุดคือศุกร์ที่แล้ว แต่วันนี้ยังไม่ถึง
-  // ศุกร์ถัดไป) ทำให้ตัวเลขดูน้อยกว่าจำนวนรอบที่เกิดขึ้นจริงตามที่ทีมสัมผัสได้เอง
-  const weeksTracked = trackingStartTs!=null ? sortedTs.filter(ts => ts >= trackingStartTs).length : 0;
-  const weeksNoteEl = document.getElementById('freshWeeksNote');
-  if(weeksNoteEl) weeksNoteEl.textContent = weeksTracked ? `· เก็บข้อมูลมาแล้ว ${weeksTracked} สัปดาห์` : '';
+  const allPM = new Set([...Object.keys(onTime), ...Object.keys(late)]);
+  allPM.forEach(pm=>{ onTime[pm] ||= new Set(); late[pm] ||= new Set(); });
 
-  const podiumItem = (entry, rankNum) => {
-    if(!entry) return '<div class="punc-pod-item"></div>';
-    const barCls = rankNum===1?'gold':rankNum===2?'silver':'bronze';
-    const medal = rankNum===1?'🥇':rankNum===2?'🥈':'🥉';
-    return `<div class="punc-pod-item">
-      <div class="punc-pod-av" style="background:${avatarColor(entry.pm)}">${initials(entry.pm)}<span class="punc-pod-medal">${medal}</span></div>
-      <div class="punc-pod-name">${entry.pm}</div>
-      <div class="punc-pod-pct" style="color:${avatarColor(entry.pm)}">${entry.pct.toFixed(0)}%</div>
-      <div class="punc-pod-n">${entry.projectCount} โครงการ</div>
-      <div class="punc-pod-bar ${barCls}"><span class="punc-pod-rank">#${rankNum}</span></div>
+  const WEEKS = 6;   // OAT นับรอบ 6 สัปดาห์
+  const weeks = [...weekSet].sort((a,b)=>a-b).slice(-WEEKS);
+  if(!weeks.length) return '';
+  const pms = [...allPM].sort();
+
+  const head = weeks.map(w=>{
+    const d = new Date(w);
+    return `<div class="pf-wk">${d.getDate()}/${d.getMonth()+1}</div>`;
+  }).join('');
+
+  // เรียงตามจำนวนสัปดาห์ที่กรอกครบ - คนที่กรอกครบมากสุดขึ้นก่อน
+  // อันดับวัดจาก "กรอกตรงวันศุกร์" เท่านั้น - กรอกช้าไม่นับว่าตรงเวลา
+  const ranked = pms.map(pm=>({
+    pm,
+    hit:  weeks.filter(w=>onTime[pm].has(w)).length,
+    lateN: weeks.filter(w=>!onTime[pm].has(w) && late[pm].has(w)).length
+  })).sort((a,b)=>b.hit-a.hit || a.lateN-b.lateN || a.pm.localeCompare(b.pm));
+  // อันดับเดียวกันถ้ากรอกครบเท่ากัน (ไม่ใช่เรียงลำดับเฉย ๆ)
+  let place = 0, prevHit = null;
+  ranked.forEach((x,i)=>{ if(x.hit!==prevHit){ place = i+1; prevHit = x.hit; } x.place = place; });
+
+  const medal = p => p===1?'🥇' : p===2?'🥈' : p===3?'🥉' : `${p}`;
+  const rows = ranked.map(x=>{
+    const pm = x.pm;
+    const cells = weeks.map(w=>{
+      const ok = onTime[pm].has(w), lt = late[pm].has(w);
+      const cls = ok ? 'ok' : (lt ? 'late' : 'miss');
+      const mark = ok ? '✓' : (lt ? '!' : '–');
+      const txt = ok ? 'กรอกตรงวันศุกร์' : (lt ? 'กรอกแล้วแต่ไม่ใช่วันศุกร์' : 'ไม่ได้กรอก');
+      return `<div class="pf-cell ${cls}" title="${pm} · สัปดาห์ ${new Date(w).toLocaleDateString('th-TH')} · ${txt}">${mark}</div>`;
+    }).join('');
+    const missN = weeks.length - x.hit;
+    return `<div class="pf-row ${x.place<=3?'pf-top':''}">
+      <div class="pf-rank">${medal(x.place)}</div>
+      <div class="pf-pm"><span class="av sm" style="background:${avatarColor(pm)}">${initials(pm)}</span>${pm}</div>
+      ${cells}
+      <div class="pf-sum ${missN?'bad':''}">${x.hit}/${weeks.length}${x.lateN?`<u>ช้า ${x.lateN}</u>`:''}</div>
     </div>`;
-  };
+  }).join('');
 
-  const top3 = punctuality.slice(0,3);
-  const rest = punctuality.slice(3);
-  const restHtml = rest.length ? `<div class="punc-rest">${rest.map((r,i)=>`
-    <div class="punc-rest-row">
-      <div class="punc-rest-rank">${i+4}</div>
-      <div class="av" style="width:26px;height:26px;font-size:10px;background:${avatarColor(r.pm)}">${initials(r.pm)}</div>
-      <div class="punc-rest-name">${r.pm}</div>
-      <div class="punc-rest-n">${r.projectCount} โครงการ</div>
-      <div class="punc-rest-pct">${r.pct.toFixed(0)}%</div>
-    </div>`).join('')}</div>` : '';
-
-  return `<div class="punc-wrap">
-    <div class="punc-title">🏆 อัปเดตตรงเวลามากที่สุด</div>
-    <div class="punc-sub">กติกา: ต้องอัปเดต PMS ให้ทันภายในวันศุกร์ทุกสัปดาห์ - นับจากทุกสัปดาห์ปฏิทินที่ผ่านไปจริงตั้งแต่เริ่มโครงการจนถึงวันนี้ ไม่ใช่แค่นับจำนวนครั้งที่มีอัปเดต (คนที่หายไปนาน ๆ แล้วนาน ๆ ทีถึงมาอัปเดตตรงศุกร์ จะถูกนับว่าพลาดทุกสัปดาห์ที่หายไปด้วย)<br>
-    <b>หมายเหตุ:</b> % จะขยับได้ทุกครั้งที่ผ่านวันศุกร์ใหม่หรือมีการ sync ข้อมูล ยิ่งเก็บข้อมูลมานานเท่าไหร่ ตัวเลขก็จะยิ่งนิ่งขึ้นเรื่อย ๆ (ช่วงนี้ยังค่อนข้างใหม่ จึงขยับได้มากต่อรอบ ไม่ใช่ความผิดพลาดของระบบ)<br>
-    ตัวเลขใต้ % ของแต่ละคนคือ "จำนวนโครงการที่ดูแล" - ยิ่งดูแลหลายโครงการ ยิ่งต้องอัปเดตถี่กว่าคนที่มีโครงการเดียว</div>
-    <div class="punc-podium">
-      ${podiumItem(top3[1], 2)}
-      ${podiumItem(top3[0], 1)}
-      ${podiumItem(top3[2], 3)}
+  return `<div class="pf-wrap">
+    <div class="pf-title">การกรอก Update Date ตรงรอบวันศุกร์ · ${weeks.length} สัปดาห์ล่าสุด</div>
+    <div class="pf-grid">
+      <div class="pf-row pf-head"><div class="pf-rank"></div><div class="pf-pm"></div>${head}<div class="pf-sum">ตรงเวลา</div></div>
+      ${rows}
     </div>
-    ${restHtml}
+    <div class="pf-note">✓ = กรอกตรงวันศุกร์ · <b class="pf-lt">!</b> = กรอกแล้วแต่ผิดวัน (ไม่นับว่าตรงเวลา) · – = ไม่ได้กรอก
+      <br>เรียงตามจำนวนสัปดาห์ที่กรอกตรงวัน เท่ากันได้อันดับเดียวกัน · ดูเฉพาะคอลัมน์ Update Date ไม่เกี่ยวกับผลงาน</div>
   </div>`;
 }
 
@@ -9258,12 +9293,11 @@ function buildRadarChart(scored){
   const W = 420, H = 430, cx = W/2, cy = H/2 - 6, R = 100; // R = รัศมีสูงสุดของข้อมูล (100 คะแนน) - เล็กกว่าเดิมเพื่อเผื่อที่ให้ป้ายชื่อรอบนอก
   const LABEL_R = R + 42; // ป้ายชื่อแกนต้องอยู่ "นอก" ระยะข้อมูลเสมอ ไม่งั้นจะทับเส้น/รูปหลายเหลี่ยม (บั๊กเดิม: เคยตั้งไว้แค่ 120 ซึ่งน้อยกว่า R=128 เอง)
   const axes = [
-    {key:'cPunc',   label:'ตรงเวลา'},
-    {key:'cVal',    label:'มูลค่า'},
-    {key:'cHealth', label:'Health'},
-    {key:'cRev',    label:'Rev.Gap'},
-    {key:'cStall',  label:'ค้างขั้นตอน'},
-    {key:'cInv',    label:'วางบิล'},
+    {key:'cVal',    label:'มูลค่า',      raw:x=>compact(x.projValue1y)},
+    {key:'cHealth', label:'Health',     raw:x=>x.healthyPct!=null?x.healthyPct.toFixed(0)+'%':'ไม่มีข้อมูล'},
+    {key:'cRev',    label:'Rev.Gap',    raw:x=>x.revGapWeighted!=null?x.revGapWeighted.toFixed(1)+'pp':'ไม่มีข้อมูล'},
+    {key:'cStall',  label:'ค้างขั้นตอน', raw:x=>x.stalledCount+' โครงการ'},
+    {key:'cInv',    label:'วางบิล',      raw:x=>x.invOnTimePct!=null?x.invOnTimePct.toFixed(0)+'%':'ไม่มีข้อมูล'},
   ];
   const nAxes = axes.length;
   const angleFor = i => (Math.PI*2*i/nAxes) - Math.PI/2; // เริ่มจากด้านบน (12 นาฬิกา) ไล่ตามเข็มนาฬิกา
@@ -9304,7 +9338,12 @@ function buildRadarChart(scored){
     const col = avatarColor(x.pm);
     return axes.map((a,i)=>{
       const [px,py] = pointFor(i, x[a.key]);
-      return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="8" fill="transparent" style="cursor:pointer"><title>${x.pm} - ${a.label}: ${x[a.key].toFixed(0)}</title></circle><circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3" fill="${col}"/>`;
+      // แสดงทั้งคะแนนอันดับและค่าจริง ไม่งั้นเห็น 100 แล้วเข้าใจว่าทำได้เต็ม
+      const raw = a.raw ? a.raw(x) : null;
+      const rank = Math.round((100 - x[a.key]) / (100/Math.max(1,scored.length-1))) + 1;
+      return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="8" fill="transparent" style="cursor:pointer"><title>${x.pm} - ${a.label}
+อันดับ ${rank} จาก ${scored.length} (คะแนน ${x[a.key].toFixed(0)})${raw!=null?`
+ค่าจริง: ${raw}`:''}</title></circle><circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3" fill="${col}"/>`;
     }).join('');
   }).join('');
 
@@ -9334,7 +9373,9 @@ function renderOatScorecard(){
   const sInv  = rankScore(data, 'invScore', true, n);       // วางบิลตรง/เร็วกว่าแผน ยิ่งสูงยิ่งดี
 
   // ปรับน้ำหนักใหม่ เพิ่มมิติ "วาง Invoice" 15% แล้วลดมิติอื่นลงตามสัดส่วน
-  const WEIGHTS = {punc:0.25, val:0.15, health:0.15, rev:0.15, stall:0.15, inv:0.15};
+  // ไม่นับ "ตรงเวลาอัปเดต PMS" เป็นคะแนนแข่งขัน - เป็นแค่วินัยการกรอกข้อมูล ไม่ใช่ผลงาน
+  // กระจายน้ำหนักเดิม 25% ไปยังมิติที่สะท้อนการบริหารโครงการจริง
+  const WEIGHTS = {punc:0, val:0.20, health:0.20, rev:0.20, stall:0.20, inv:0.20};
   const scored = data.map(x=>{
     const cPunc = sPunc[x.pm] ?? 50, cVal = sVal[x.pm] ?? 50, cHealth = sHealth[x.pm] ?? 50, cRev = sRev[x.pm] ?? 50, cStall = sStall[x.pm] ?? 50, cInv = sInv[x.pm] ?? 50;
     const composite = cPunc*WEIGHTS.punc + cVal*WEIGHTS.val + cHealth*WEIGHTS.health + cRev*WEIGHTS.rev + cStall*WEIGHTS.stall + cInv*WEIGHTS.inv;
@@ -9343,7 +9384,6 @@ function renderOatScorecard(){
 
   const top = scored[0];
   const reasons = [];
-  if(top.cPunc>=75) reasons.push(`ตรงเวลาอัปเดต PMS ${top.punctualityPct.toFixed(0)}% (ปี ${new Date().getFullYear()+543})`);
   if(top.cVal>=75) reasons.push(`รับผิดชอบโครงการมูลค่ารวมสูง ${compact(top.projValue1y)} (${top.projCount1y} โครงการใน 1 ปี)`);
   if(top.cHealth>=75 && top.healthyPct!==null) reasons.push(`โครงการที่ดูแลอยู่ ${top.healthyPct.toFixed(0)}% อยู่ในสถานะ Normal`);
   if(top.cRev>=75 && top.revGapWeighted!==null) reasons.push(`Revenue Attainment ${top.revGapWeighted<=0?'ล้ำหน้า':'ใกล้เคียง'}แผน (${top.revGapWeighted>0?'-':'+'}${Math.abs(top.revGapWeighted).toFixed(1)}pp)`);
@@ -9355,7 +9395,7 @@ function renderOatScorecard(){
       <div class="sc-rank">${medal}</div>
       <div class="av" style="background:${avatarColor(x.pm)}">${initials(x.pm)}</div>
       <div class="sc-name">${x.pm}</div>
-      <div class="sc-metric"><div class="sc-l">ตรงเวลา</div><div class="sc-v">${x.punctualityPct!=null?x.punctualityPct.toFixed(0)+'%':'-'}</div></div>
+      <div class="sc-metric"><div class="sc-l">อัปเดต PMS</div><div class="sc-v ${x.punctualityPct!=null&&x.punctualityPct<80?'sc-late':''}" title="สัดส่วนสัปดาห์ที่อัปเดตตรงวันศุกร์ ในปีนี้">${x.punctualityPct!=null?x.punctualityPct.toFixed(0)+'%':'-'}</div></div>
       <div class="sc-metric"><div class="sc-l">มูลค่า 1 ปี</div><div class="sc-v">${compact(x.projValue1y)}</div></div>
       <div class="sc-metric"><div class="sc-l">Health ปกติ</div><div class="sc-v">${x.healthyPct!=null?x.healthyPct.toFixed(0)+'%':'-'}</div></div>
       <div class="sc-metric"><div class="sc-l">Rev.Gap</div><div class="sc-v" style="color:${x.revGapWeighted>0?'var(--critical)':'var(--success)'}">${x.revGapWeighted!=null?(x.revGapWeighted>0?'-':'+')+Math.abs(x.revGapWeighted).toFixed(1)+'pp':'-'}</div></div>
@@ -9373,10 +9413,12 @@ function renderOatScorecard(){
     <div class="sc-radar-wrap">
       <div class="sc-radar-svg">${radarSvg}</div>
       <div class="sc-radar-legend">${radarLegend}</div>
+      <div class="sc-radar-note">แกนในกราฟนี้เป็น <b>คะแนนอันดับ</b> ไม่ใช่ค่าจริง - อันดับ 1 ได้ 100 คะแนนเสมอ แม้ค่าจริงจะไม่ถึง 100%
+        · เอาเมาส์ชี้ที่จุดเพื่อดูค่าจริง · ตัวเลขในตารางด้านล่างคือค่าจริง</div>
     </div>
     <div class="sc-head-row">
       <div class="sc-rank"></div><div class="av" style="visibility:hidden"></div><div class="sc-name">PM</div>
-      <div class="sc-metric"><div class="sc-l">ตรงเวลา</div></div>
+      <div class="sc-metric"><div class="sc-l">อัปเดต PMS</div></div>
       <div class="sc-metric"><div class="sc-l">มูลค่า 1 ปี</div></div>
       <div class="sc-metric"><div class="sc-l">Health ปกติ</div></div>
       <div class="sc-metric"><div class="sc-l">Rev.Gap</div></div>
@@ -9386,10 +9428,11 @@ function renderOatScorecard(){
     </div>
     ${rows}
     <div class="sc-note">
-      <b>วิธีคิด:</b> แปลงแต่ละมิติเป็นอันดับ (ไม่ใช่ตัวเลขดิบ) แล้วถ่วงน้ำหนัก: ตรงเวลา 25% · มูลค่าโครงการ 15% · Health ปกติ 15% · Revenue Gap 15% · ค้างขั้นตอน 15% · <b>วางบิล 15%</b><br>
+      <b>วิธีคิด:</b> แปลงแต่ละมิติเป็นอันดับ (ไม่ใช่ตัวเลขดิบ) แล้วถ่วงน้ำหนัก: มูลค่าโครงการ 20% · Health ปกติ 20% · Revenue Gap 20% · ค้างขั้นตอน 15% · <b>วางบิล 15%</b><br>
       <b>มิติวางบิล</b> = % งวดที่ถึงกำหนดแล้ววางบิลจริง ปรับด้วยความเร็วเทียบเงื่อนไขในสัญญา (เฉพาะงวดที่ระบุ &quot;X วัน&quot;) - ⚡ = เฉลี่ยวางบิลเร็วกว่าสัญญา
       (เน้นมิติที่อยู่ในการควบคุมของ PM เองมากกว่า)<br>
-      <b>ข้อควรระวัง:</b> "ค้างขั้นตอน" และ "Rev.Gap" อาจเกิดจากปัจจัยภายนอก (ผู้ขายส่งของช้า, รอราชการอนุมัติ ฯลฯ) ไม่ใช่ฝีมือ PM เสมอไป
+      <b>อัปเดต PMS</b> ไม่นับเป็นคะแนน - เป็นเพียงข้อมูลบอกว่ากรอกข้อมูลครบตามรอบหรือไม่ ดูรายละเอียดที่การ์ด Data Freshness<br>
+        <b>ข้อควรระวัง:</b> "ค้างขั้นตอน" และ "Rev.Gap" อาจเกิดจากปัจจัยภายนอก (ผู้ขายส่งของช้า, รอราชการอนุมัติ ฯลฯ) ไม่ใช่ฝีมือ PM เสมอไป
       ควรเปิดดู panel "Stalled Progress" และ EVM ประกอบก่อนสรุปด้วยตาตัวเอง ตัวเลขนี้เป็นจุดเริ่มให้ไปสืบต่อ ไม่ใช่คำตัดสินสุดท้าย
     </div>`;
 }
