@@ -400,6 +400,10 @@
   }
   .ov-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:10px;}
   @media(max-width:720px){.ov-stats{grid-template-columns:1fr;}}
+  /* Invoice Timeline มี 4 ช่อง - ต้องเรียงบรรทัดเดียว ไม่งั้นตกลงไปบรรทัดที่สอง */
+  #itBox .ov-stats{grid-template-columns:repeat(4,1fr);gap:12px;}
+  @media(max-width:1100px){#itBox .ov-stats{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:560px){#itBox .ov-stats{grid-template-columns:1fr;}}
   .ov-l{font-size:10.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;}
   .ov-v{font-family:'Plus Jakarta Sans',sans-serif;font-size:21px;font-weight:800;color:var(--ink);line-height:1.1;margin-bottom:5px;}
   .ov-d{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;}
@@ -511,6 +515,9 @@
   .cs-wrap > summary::-webkit-details-marker{display:none;}
   .cs-wrap > summary::before{content:'▸ ';}
   .cs-wrap[open] > summary::before{content:'▾ ';}
+  .pw-warn{margin:8px 0;padding:9px 13px;border-radius:9px;background:var(--warning-tint);
+    border-left:3px solid var(--warning);font-size:11px;color:var(--ink-2);line-height:1.7;}
+  .pw-warn-s{font-size:10px;color:var(--faint);margin-top:3px;}
   .cs-note{font-size:9.5px;color:var(--faint);line-height:1.6;margin:7px 0;}
   .cs-table{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:4px;}
   .cs-table th{
@@ -5040,7 +5047,8 @@ const CONTRACT_SCHEDULE = {
     contractNo: 'APC11-680049',
     note: 'สัญญาแบ่ง AIT 65% / Samart 35% - AIT รับผิดชอบ ทสภ. (ข้อ 6.2) และ ทชม. (ข้อ 6.4) เท่านั้น',
     source: 'ตารางแบ่งงวดตามสัญญา',
-    // pending = ยอดที่ยังไม่ได้ออก tax invoice (ตรงกับ remainder ในไฟล์ PMS)
+    // pending = ส่วนค่าติดตั้งของงวดนั้น (ตรงกับช่อง remainder ในไฟล์ PMS · เป็น 10% ของงวด)
+    // หมายเหตุ: ใบกำกับภาษีออกไปพร้อม Invoice ตลอด ไม่ใช่ยอดที่รอออกใบกำกับภาษี
     rows: [
       {no:'งวดที่ 1',  basis:'5% x ค่าจ้างตามสัญญา',        full:40365000,  pending:0},
       {no:'งวดที่ 3',  basis:'40% x ข้อ 6.2 ทสภ. (Unit test)',   full:305969600, pending:0},
@@ -5080,7 +5088,7 @@ function contractScheduleHtml(code, sellingPrice){
       <td class="cs-basis">${r.basis}</td>
       <td class="cs-amt"><b>${thb(r.full)}</b></td>
       <td class="cs-amt">${thb(issued)}</td>
-      <td class="cs-amt ${r.pending>0?'cs-pend':''}">${r.pending>0?thb(r.pending):'<span class="cs-ok">ครบแล้ว</span>'}</td>
+      <td class="cs-amt ${r.pending>0?'cs-pend':''}">${r.pending>0?thb(r.pending):'<span class="cs-ok">-</span>'}</td>
     </tr>`;
   }).join('');
   const spOk = Math.abs(totFull - num(sellingPrice)) < 1;
@@ -5092,7 +5100,7 @@ function contractScheduleHtml(code, sellingPrice){
     <summary>ดูงวดงานตามสัญญาจริง (${sc.rows.length} งวดของ AIT) - แกะจากใบรวม "เพื่อส่งของ"</summary>
     <div class="cs-note">${sc.note}</div>
     <table class="cs-table">
-      <thead><tr><th>งวด</th><th>ฐานคิด</th><th>มูลค่าเต็ม (billing)</th><th>ออก tax invoice แล้ว</th><th>คงเหลือรอออก</th></tr></thead>
+      <thead><tr><th>งวด</th><th>ฐานคิด</th><th>มูลค่างวดตามสัญญา</th><th>ส่วนค่าของ</th><th>ส่วนค่าติดตั้ง</th></tr></thead>
       <tbody>${body}</tbody>
       <tfoot><tr>
         <td colspan="2">รวม</td>
@@ -5140,6 +5148,21 @@ function allocateCollection(proj){
 
   let pool = num(proj.collected);          // ยอดที่เก็บได้แล้วทั้งโครงการ (เชื่อยอดบนสุด)
   const out = {};
+
+  // ถ้าผลรวมเงินที่ลงในแถวรายงวด ไม่ตรงกับยอดหัวโครงการอย่างมีนัยยะ
+  // แปลว่าแถวรายงวดไม่ได้บันทึกเงินที่ได้รับจริง (เช่น AOT ที่แถวเป็นใบกำกับภาษีตัดของรวมหลายงวด)
+  // กรณีนี้ห้ามเดาว่างวดไหนเก็บเงินได้ - ต้องบอกว่าดูรายงวดไม่ได้
+  const rowsGot = (proj.installments||[]).reduce((a,ii)=>a+num(ii.collected),0);
+  const headGot = num(proj.collected);
+  const unreliable = headGot > 0 && Math.abs(rowsGot - headGot) > Math.max(1000, headGot*0.02);
+  if(unreliable){
+    (proj.installments||[]).forEach((ii,idx)=>{
+      out[idx] = {billed:num(ii.invoiced), collected:0, outstanding:0,
+                  fullyCollected:false, inferred:false, unreliable:true,
+                  notBilledYet:num(ii.invoiced)<=0};
+    });
+    return out;
+  }
   bill.forEach(r=>{
     const amt = r.inv > 0 ? r.inv : 0;     // เก็บเงินได้เฉพาะงวดที่ออกใบแจ้งหนี้แล้ว
     const got = Math.min(pool, amt);
@@ -5148,7 +5171,10 @@ function allocateCollection(proj){
       billed: amt,
       collected: got,
       outstanding: Math.max(0, amt - got),  // ออกบิลแล้วแต่ยังเก็บไม่ได้ = AR
+      // แถวที่ยังไม่ได้วางบิล (invoiced = 0) ห้ามถือว่าเก็บเงินแล้ว
+      // ยอดที่เห็นในช่อง remainder คือใบกำกับภาษีที่รอออก ไม่ใช่เงินที่ได้รับ
       fullyCollected: amt > 0 && got >= amt - 1,
+      notBilledYet: amt <= 0,
       // บัญชีไม่ได้ลงรายละเอียดในแถวนี้ แต่ยอดบนบอกว่าเก็บแล้ว
       inferred: got > 0 && !r.i.collectedDate,
     };
@@ -8362,15 +8388,28 @@ function renderPayment(paywSource, codeSetList){
         //   ship    = ใบกำกับตัดสต็อก/ส่งของ (เส้นประ = คนละเรื่องกับการเรียกเก็บเงินลูกค้า)
         //   waiting = ยังไม่ออก Invoice (จางสุด = ยังไม่เริ่ม)
         // ถือว่าเก็บเงินแล้วเมื่อ: มีวันที่รับเงินในแถว หรือ ยอดรวมบนสุดครอบคลุมงวดนี้แล้ว (FIFO)
-        const paidByAlloc = _al && _al.fullyCollected;
+        // ต้องวางบิลแล้วจริงถึงจะถือว่าเก็บเงินได้ - แถว invoiced=0 คือยังไม่ได้วางบิล
+        const paidByAlloc = _al && _al.fullyCollected && !_al.notBilledYet;
         let state, stateLabel, stateIcon;
-        if(inst.collectedDate || paidByAlloc){ state='paid'; stateLabel='เก็บเงินแล้ว'; stateIcon='✓'; }
+        const noRowLevel = _al && _al.unreliable;
+        if(noRowLevel && !inst.collectedDate){
+          // ไฟล์ชุดนี้ดูรายงวดไม่ได้ - บอกแค่ว่าวางบิลแล้วหรือยัง
+          if(num(inst.invoiced)>0 || inst.invoiceDate){ state='billing'; stateLabel='วางบิลแล้ว'; stateIcon='◕'; }
+          else { state='waiting'; stateLabel='ยังไม่ได้วางบิล'; stateIcon='○'; }
+        }
+        else if(inst.collectedDate || paidByAlloc){ state='paid'; stateLabel='เก็บเงินแล้ว'; stateIcon='✓'; }
         else if(likelyStockInvoice){ state='ship'; stateLabel='ใบกำกับภาษี (ส่งของ)'; stateIcon='📦'; }
         else if(pending){ state='billing'; stateLabel='ออก Invoice แล้ว รอเก็บเงิน'; stateIcon='◕'; }
-        else { state='waiting'; stateLabel='ยังไม่ออก Invoice'; stateIcon='○'; }
+        else { state='waiting'; stateLabel='ยังไม่ได้วางบิล'; stateIcon='○'; }
 
         // บรรทัดรายละเอียดใต้ badge - เขียนให้อ่านจบในบรรทัดเดียว ไม่ต้องเชื่อมโยงกับบรรทัดอื่นเอง
-        const detailTxt = state==='paid'
+        // มูลค่างวดจากตารางสัญญา - ตัวเลขที่ยืนยันได้ ไม่ต้องเดาความหมายของช่องในไฟล์
+        const _sched = CONTRACT_SCHEDULE[x.projectCode];
+        const _gno = String(inst.desc||'').match(/งวดที่\s*(\d+)/);
+        const _schedRow = _sched && _gno ? _sched.rows.find(r=>r.no==='งวดที่ '+_gno[1]) : null;
+        const detailTxt = noRowLevel && state!=='paid'
+            ? `ออก Invoice ${fmtDate(inst.invoiceDate)}${_schedRow?` · มูลค่างวดตามสัญญา ${thb(_schedRow.full)}`:''} · ยังไม่ได้รับเงิน (ดูยอดรวมโครงการเป็นหลัก)`
+          : state==='paid'
             ? (inst.collectedDate
                 ? `ออก Invoice ${fmtDate(inst.invoiceDate)} · เก็บเงินได้ ${fmtDate(inst.collectedDate)}`
                 : `ออก Invoice ${fmtDate(inst.invoiceDate)} · เก็บเงินแล้ว ${thb(_al?_al.collected:0)} (อ้างอิงยอดรวมของโครงการ - แถวนี้ยังไม่ได้ลงวันที่รับเงิน)`)
