@@ -576,6 +576,17 @@
   .ph-wn.empty{font-size:10.5px;color:var(--warning);font-style:italic;}
   .ph-tip{padding:0 18px 12px;font-size:9.5px;color:var(--faint);line-height:1.6;}
 
+  /* แถบความคืบหน้าการวางบิล - ให้เห็นภาพรวมก่อนอ่านตัวเลข */
+  .it-flow{margin-bottom:13px;}
+  .it-flow-bar{height:22px;border-radius:7px;background:var(--surface-2);
+    border:1px solid var(--line-soft);overflow:hidden;}
+  .it-flow-seg.done{height:100%;background:var(--success);border-radius:6px 0 0 6px;}
+  .it-flow-lb{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:7px;font-size:11px;color:var(--ink-2);}
+  .it-flow-lb .dot{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px;}
+  .it-flow-lb .dot.done{background:var(--success);}
+  .it-flow-lb .dot.todo{background:var(--surface-2);border:1px solid var(--line);}
+  .it-flow-tot{margin-left:auto;color:var(--faint);font-size:10.5px;}
+
   /* ตารางเช็คการกรอก Update Date รายสัปดาห์ */
   .pf-wrap{margin-bottom:14px;padding:12px 14px;border-radius:10px;
     background:var(--surface-2);border:1px solid var(--line-soft);}
@@ -8128,19 +8139,35 @@ function renderInvoiceTimeline(paywSource, codeSetList){
 
   el.innerHTML = `
     <div class="wow-overview">
+      ${sumBillingYr>0?`<div class="it-flow">
+        <div class="it-flow-bar">
+          <div class="it-flow-seg done" style="width:${Math.min(100,sumTaxYr/sumBillingYr*100)}%"
+               title="วางบิลแล้ว ${compact(sumTaxYr)}"></div>
+        </div>
+        <div class="it-flow-lb">
+          <span><i class="dot done"></i>วางบิลแล้ว ${compact(sumTaxYr)}</span>
+          <span><i class="dot todo"></i>เหลือ ${compact(Math.max(0,sumBillingYr-sumTaxYr))}</span>
+          <span class="it-flow-tot">แผนทั้งปี ${compact(sumBillingYr)}</span>
+        </div>
+      </div>`:''}
       <div class="ov-stats">
         <div class="ov-stat">
-          <div class="ov-l">Billing ปีนี้ (ตามงวดงาน)</div>
+          <div class="ov-l">แผนวางบิลปีนี้</div>
           <div class="ov-v">${compact(sumBillingYr)}</div>
-          <div class="it-s">${rows.filter(r=>r.yrBilling>0).length} โครงการ</div>
+          <div class="it-s">${rows.filter(r=>r.yrBilling>0).length} โครงการ · ตามงวดงานในสัญญา</div>
         </div>
         <div class="ov-stat">
-          <div class="ov-l">ออกใบกำกับภาษีแล้วปีนี้</div>
-          <div class="ov-v">${compact(sumTaxYr)}</div>
-          <div class="it-s">${sumBillingYr>0?`${(sumTaxYr/sumBillingYr*100).toFixed(1)}% ของ billing ปีนี้`:'-'}${sumPendingAll>1?` · <b class="it-pend">ยังไม่ออก(ทุกโครงการ) ${compact(sumPendingAll)}</b>`:''}</div>
+          <div class="ov-l">วางบิลไปแล้วปีนี้</div>
+          <div class="ov-v" style="color:var(--success)">${compact(sumTaxYr)}</div>
+          <div class="it-s">${sumBillingYr>0?`คิดเป็น ${(sumTaxYr/sumBillingYr*100).toFixed(0)}% ของแผนปีนี้`:'-'}</div>
         </div>
         <div class="ov-stat">
-          <div class="ov-l">รอเก็บเงิน (AR)</div>
+          <div class="ov-l">เหลือต้องวางบิลปีนี้</div>
+          <div class="ov-v" style="color:${(sumBillingYr-sumTaxYr)>0?'var(--warning)':'var(--success)'}">${compact(Math.max(0,sumBillingYr-sumTaxYr))}</div>
+          <div class="it-s">อีก ${(sumBillingYr-sumTaxYr)>0?(100-(sumTaxYr/sumBillingYr*100)).toFixed(0):'0'}% ของแผนปีนี้</div>
+        </div>
+        <div class="ov-stat">
+          <div class="ov-l">วางบิลแล้วแต่ยังไม่ได้เงิน (AR)</div>
           <div class="ov-v" style="color:${arAll>0?'var(--warning)':'var(--success)'}">${compact(arAll)}</div>
           <div class="it-s">${arOld>0?`<b style="color:var(--critical)">ค้างเกิน 90 วัน ${compact(arOld)}</b>`:'ไม่มีรายการค้างนาน'}</div>
         </div>
