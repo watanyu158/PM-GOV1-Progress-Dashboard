@@ -5149,7 +5149,11 @@ function allocateCollection(proj){
   // แถวที่บัญชีลงวันรับเงินไว้แล้ว = ได้เงินแน่นอน ต้องกินโควตาก่อนแถวที่ยังไม่ลง
   const ordered = [...bill.filter(r=>r.i.collectedDate), ...bill.filter(r=>!r.i.collectedDate)];
   ordered.forEach(r=>{
-    const amt = r.inv > 0 ? r.inv : 0;     // เก็บเงินได้เฉพาะงวดที่ออกใบแจ้งหนี้แล้ว
+    // เงินที่ลูกค้าต้องจ่าย = ยอด billing ของงวด ไม่ใช่ยอดใบกำกับภาษี
+    // โครงการที่มีตารางสัญญาใช้มูลค่างวดเต็ม · ที่เหลือใช้ invoiced + remainder
+    const _sf = contractFullOfInstallment(proj.projectCode, r.i.desc);
+    const amt = r.del ? (r.inv > 0 ? r.inv : 0)          // แถวใบกำกับภาษีตัดของ ใช้ยอดที่ออกจริง
+              : (_sf > 0 ? _sf : (r.inv + r.rem));       // งวดปกติ ใช้ยอด billing เต็มงวด
     const got = Math.min(pool, amt);
     pool -= got;
     out[r.idx] = {
@@ -8401,7 +8405,9 @@ function renderPayment(paywSource, codeSetList){
                 if(_rem > 0) parts.push(`วางบิลแล้ว ยอด ${thb(_schedFull > 0 ? _schedFull : _rem)}`);
                 if(_tax > 0) parts.push(`ออก Tax Invoice แล้ว ยอด ${thb(_tax)}`);
                 if(!parts.length) parts.push(`ยอด ${thb(num(inst.collecting))}`);
-                return `${fmtDate(inst.invoiceDate)} · ${parts.join(' · ')} · ยังไม่ได้รับเงิน`;
+                // บอกยอดที่ยังไม่ได้รับให้ชัด ไม่ต้องให้เดาว่าหมายถึงตัวไหน
+                const _owed = _al ? num(_al.outstanding) : 0;
+                return `${fmtDate(inst.invoiceDate)} · ${parts.join(' · ')} · ยังไม่ได้รับเงิน${_owed>0?` ${thb(_owed)}`:''}`;
               })()
             : `กำหนดวางบิล ${fmtDate(inst.invoiceDate)}`;
 
