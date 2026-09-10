@@ -8409,7 +8409,8 @@ function renderPayment(paywSource, codeSetList){
         const _gno = String(inst.desc||'').match(/งวดที่\s*(\d+)/);
         const _schedRow = _sched && _gno ? _sched.rows.find(r=>r.no==='งวดที่ '+_gno[1]) : null;
         const _due = parseD(inst.invoiceDate);
-        const _future = _due && _due > today0;
+        const _todayPC = new Date(); _todayPC.setHours(0,0,0,0);
+        const _future = _due && _due > _todayPC;
         const detailTxt = noRowLevel && state==='billing'
             ? `วางบิลแล้ว ${fmtDate(inst.invoiceDate)} ${thb(inst.invoiced)} · ยังไม่ได้รับเงิน (ไฟล์นี้ดูเงินรายงวดไม่ได้ ให้ดูยอดรวมโครงการ)`
           : noRowLevel && state==='waiting'
