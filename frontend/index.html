@@ -8393,8 +8393,9 @@ function renderPayment(paywSource, codeSetList){
         let state, stateLabel, stateIcon;
         const noRowLevel = _al && _al.unreliable;
         if(noRowLevel && !inst.collectedDate){
-          // ไฟล์ชุดนี้ดูรายงวดไม่ได้ - บอกแค่ว่าวางบิลแล้วหรือยัง
-          if(num(inst.invoiced)>0 || inst.invoiceDate){ state='billing'; stateLabel='วางบิลแล้ว'; stateIcon='◕'; }
+          // ไฟล์ชุดนี้ดูเงินรายงวดไม่ได้ - บอกได้แค่ว่าวางบิลแล้วหรือยัง
+          // ต้องมียอด invoiced จริงเท่านั้น · การมี "วันที่กำหนดจะวางบิล" ไม่ได้แปลว่าวางแล้ว
+          if(num(inst.invoiced)>0){ state='billing'; stateLabel='วางบิลแล้ว'; stateIcon='◕'; }
           else { state='waiting'; stateLabel='ยังไม่ได้วางบิล'; stateIcon='○'; }
         }
         else if(inst.collectedDate || paidByAlloc){ state='paid'; stateLabel='เก็บเงินแล้ว'; stateIcon='✓'; }
@@ -8407,8 +8408,12 @@ function renderPayment(paywSource, codeSetList){
         const _sched = CONTRACT_SCHEDULE[x.projectCode];
         const _gno = String(inst.desc||'').match(/งวดที่\s*(\d+)/);
         const _schedRow = _sched && _gno ? _sched.rows.find(r=>r.no==='งวดที่ '+_gno[1]) : null;
-        const detailTxt = noRowLevel && state!=='paid'
-            ? `ออก Invoice ${fmtDate(inst.invoiceDate)}${_schedRow?` · มูลค่างวดตามสัญญา ${thb(_schedRow.full)}`:''} · ยังไม่ได้รับเงิน (ดูยอดรวมโครงการเป็นหลัก)`
+        const _due = parseD(inst.invoiceDate);
+        const _future = _due && _due > today0;
+        const detailTxt = noRowLevel && state==='billing'
+            ? `วางบิลแล้ว ${fmtDate(inst.invoiceDate)} ${thb(inst.invoiced)} · ยังไม่ได้รับเงิน (ไฟล์นี้ดูเงินรายงวดไม่ได้ ให้ดูยอดรวมโครงการ)`
+          : noRowLevel && state==='waiting'
+            ? `ยังไม่ได้วางบิล${inst.invoiceDate?` · ${_future?'กำหนดวางบิล':'ถึงกำหนดแล้วเมื่อ'} ${fmtDate(inst.invoiceDate)}`:''}${_schedRow?` · มูลค่างวดตามสัญญา ${thb(_schedRow.full)}`:''}`
           : state==='paid'
             ? (inst.collectedDate
                 ? `ออก Invoice ${fmtDate(inst.invoiceDate)} · เก็บเงินได้ ${fmtDate(inst.collectedDate)}`
@@ -8427,14 +8432,13 @@ function renderPayment(paywSource, codeSetList){
         const _ivPC = num(inst.invoiced), _rmPC = num(inst.remainder);
         const billingAmt = _isDel(inst) ? 0
           : (_schedFullPC > 0 ? _schedFullPC : ((_ivPC + _rmPC) > 0 ? _ivPC + _rmPC : descAmt(inst)));
-        const taxAmt = _isDel(inst) ? _ivPC
-          : (_schedFullPC > 0 ? (_ivPC > 0 ? _ivPC : _rmPC) : (_overlapPC ? 0 : _ivPC));
-        const taxIssued = _ivPC > 0;   // ออกใบกำกับภาษีแล้วจริงหรือยัง
+        // ยอดที่วางบิลไปแล้วจริง - ใบกำกับภาษีออกไปพร้อม Invoice เสมอ จึงเป็นตัวเลขเดียวกัน
+        // ไม่แสดงยอดที่ยังไม่ได้วางบิล เพราะจะดูเหมือนวางไปแล้ว
+        const taxAmt = _isDel(inst) ? _ivPC : (_overlapPC && _schedFullPC<=0 ? 0 : _ivPC);
 
-        // แสดงทั้ง 2 ช่องเสมอ (ใช้ "-" เมื่อไม่มีค่า) เพื่อให้คอลัมน์ตรงกันทุกแถว
         const amtCol = `<span class="nd-amts">
-          <span class="nd-a"><i>Billing</i><b>${billingAmt>0?thb(billingAmt):'-'}</b></span>
-          <span class="nd-a nd-a-tax"><i>Tax invoice${(taxAmt>0&&!taxIssued)?' (จะออก)':''}</i><b>${taxAmt>0?thb(taxAmt):'-'}</b></span>
+          <span class="nd-a"><i>มูลค่างวด</i><b>${billingAmt>0?thb(billingAmt):'-'}</b></span>
+          <span class="nd-a nd-a-tax"><i>วางบิลแล้ว</i><b>${taxAmt>0?thb(taxAmt):'-'}</b></span>
         </span>`;
 
         return `<div class="nd nd-${state}">
