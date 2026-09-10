@@ -5136,16 +5136,19 @@ function allocateCollection(proj){
   const isDel = ii => SHIP_ACC.includes((proj.accType||'').trim())
     && SHIP_KW.some(k => String(ii.desc||'').includes(k));
 
-  // งวดที่ใช้เรียกเก็บเงินจริง (ไม่รวมแถวใบกำกับภาษีตัดของ) เรียงตามวันวางบิล
+  // ต้องนับ "ทุกแถวที่ออกบิลแล้ว" รวมแถวใบกำกับภาษีตัดของด้วย
+  // เพราะแถวเหล่านั้นก็รับเงินไปจากยอดรวมโครงการเหมือนกัน
+  // ถ้ากรองออก เงินในกองจะเหลือเกินจริงแล้วไปจ่ายให้งวดหลังที่ยังไม่ได้เงิน
   const bill = (proj.installments||[])
     .map((i,idx)=>({i, idx, del:isDel(i), d:parseD(i.invoiceDate), inv:num(i.invoiced), rem:num(i.remainder)}))
-    .filter(r=>!r.del)
     .sort((a,b)=> (a.d?a.d.getTime():0) - (b.d?b.d.getTime():0));
 
   let pool = num(proj.collected);          // ยอดที่เก็บได้แล้วทั้งโครงการ (เชื่อยอดบนสุด)
   const out = {};
 
-  bill.forEach(r=>{
+  // แถวที่บัญชีลงวันรับเงินไว้แล้ว = ได้เงินแน่นอน ต้องกินโควตาก่อนแถวที่ยังไม่ลง
+  const ordered = [...bill.filter(r=>r.i.collectedDate), ...bill.filter(r=>!r.i.collectedDate)];
+  ordered.forEach(r=>{
     const amt = r.inv > 0 ? r.inv : 0;     // เก็บเงินได้เฉพาะงวดที่ออกใบแจ้งหนี้แล้ว
     const got = Math.min(pool, amt);
     pool -= got;
