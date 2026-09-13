@@ -3885,8 +3885,10 @@ function renderProgressTimeline(list, histSource){
     let carry = priorVal, doneFrom = (priorVal!==undefined && priorVal>=100) ? 0 : -1;
     raw.forEach((v,i)=>{
       if(v!==undefined){
-        carry = v; vals.push(v); kind.push('has');
+        carry = v;
         if(v>=100 && doneFrom<0) doneFrom = i;
+        // ถึง 100% แล้วถือว่าเสร็จ - ไม่ใช่ "ค่าไม่ขยับ" แม้จะอัปเดตซ้ำทุกสัปดาห์
+        vals.push(v); kind.push((doneFrom>=0 && i>doneFrom) ? 'done' : 'has');
       } else if(firstIdx<0 || i<firstIdx){
         vals.push(undefined); kind.push('before');       // ยังไม่เริ่มโครงการ
       } else if((doneFrom>=0 && i>=doneFrom) || (closed && carry!==undefined)){
@@ -3900,7 +3902,9 @@ function renderProgressTimeline(list, histSource){
     // นับ "นิ่ง" เฉพาะโครงการที่ยังทำงานอยู่ - โครงการเสร็จแล้วค่าไม่ขยับเป็นเรื่องปกติ
     let flat = 0;
     if(!(latest!==null && latest>=100) && !closed){
-      for(let i=seen.length-1;i>0;i--){ if(seen[i]===seen[i-1]) flat++; else break; }
+      // ไม่นับโครงการที่เสร็จ 100% แล้วว่า "นิ่ง" เพราะไม่มีอะไรให้ขยับอีก
+      if(!(seen[seen.length-1] >= 100))
+        for(let i=seen.length-1;i>0;i--){ if(seen[i]===seen[i-1]) flat++; else break; }
     }
     // นับ "ขาด" เฉพาะช่วงที่โครงการเริ่มแล้วและยังไม่เสร็จเท่านั้น
     const missing = kind.filter(k=>k==='gap').length;
@@ -5061,6 +5065,7 @@ const CONTRACT_SCHEDULE = {
 function contractFullOfInstallment(code, desc){
   const sc = CONTRACT_SCHEDULE[code];
   if(!sc) return 0;
+  // ใช้งวดแรกที่แถวนั้นอ้างถึง - แถวส่งของอ้างหลายงวดแต่ยอด billing คือของงวดที่กำลังส่ง
   const m = String(desc||'').match(/งวดที่\s*(\d+)/);
   if(!m) return 0;
   const row = sc.rows.find(r => {
@@ -8417,8 +8422,24 @@ function renderPayment(paywSource, codeSetList){
         //   Tax invoice = ยอดใบกำกับภาษีของงวดนั้น (ออกแล้ว หรือที่จะออก)
         const _schedFullPC = contractFullOfInstallment(x.projectCode, inst.desc);
         const _ivPC = num(inst.invoiced), _rmPC = num(inst.remainder);
-        const billingAmt = _isDel(inst) ? 0
-          : (_schedFullPC > 0 ? _schedFullPC : ((_ivPC + _rmPC) > 0 ? _ivPC + _rmPC : descAmt(inst)));
+        // งวดหนึ่งต้องมี Billing ปรากฏครั้งเดียว ไม่งั้นผลรวมเกินมูลค่าสัญญา
+        // (งวด 3 ถูกอ้างถึง 3 แถว ทำให้เกินไป 611 ล้าน) - แถวแรกที่อ้างถึงเป็นเจ้าของ
+        // กฎกันนับซ้ำใช้เฉพาะโครงการที่มีตารางสัญญา (แถวหนึ่งอ้างหลายงวด เช่น AOT)
+        // โครงการทั่วไปแต่ละแถวเป็นยอดของตัวเอง แม้เลขงวดจะซ้ำกัน
+        const _hasSched = !!CONTRACT_SCHEDULE[x.projectCode];
+        const _gNo = (String(inst.desc||'').match(/งวดที่\s*(\d+)/)||[])[1];
+        const _firstOwner = _hasSched && _gNo && (x.installments||[]).find(o =>
+          new RegExp('งวดที่\\s*'+_gNo+'\\b').test(String(o.desc||'')));
+        const _isOwner = !_hasSched || !_gNo || _firstOwner === inst;
+        // แถวส่งของที่ยอดเท่ากับผลรวมของงวดอื่นพอดี = ใบกำกับภาษีตัดของ ไม่ใช่ billing เพิ่ม
+        const _dupDel = _isDel(inst) && !_gNo && (() => {
+          const sp = num(x.sellingPrice);
+          return sp > 0 && Math.abs((_ivPC + _rmPC) - sp) < 1;   // ใบเดียวครอบทั้งสัญญา
+        })();
+        const billingAmt = (!_isOwner || _dupDel) ? 0
+          : (_schedFullPC > 0 ? _schedFullPC
+          : ((_ivPC + _rmPC) > 0 ? _ivPC + _rmPC
+          : (_isDel(inst) ? 0 : descAmt(inst))));
         const taxAmt = _isDel(inst) ? _ivPC
           : (_schedFullPC > 0 ? (_ivPC > 0 ? _ivPC : _rmPC) : (_overlapPC ? 0 : _ivPC));
         const taxIssued = _ivPC > 0;   // ออกใบกำกับภาษีแล้วจริงหรือยัง
