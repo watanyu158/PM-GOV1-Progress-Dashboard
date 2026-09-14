@@ -9376,7 +9376,12 @@ function computeTeamScorecard(){
     // ดัชนีภาระงาน (Workload Index) = ผลรวมของ "ระดับความยาก x ตัวคูณมูลค่า" ทุกโครงการ
     // จำนวนโครงการเข้ามาเองจากการบวกรวม ไม่ต้องคูณซ้ำ
     // ตัวคูณมูลค่าแบ่งเป็นช่วง ไม่ใช่สัดส่วนตรง เพราะ 807M ไม่ได้หนักกว่า 10M แปดสิบเท่า
-    const valueMult = v => v >= 200e6 ? 2.5 : v >= 50e6 ? 2.0 : v >= 10e6 ? 1.5 : 1.0;
+    // ทีมมีโครงการตั้งแต่ 0.09M ถึง 807M ห่างกัน 9,000 เท่า ตัวคูณจึงต้องขยายช่วงบน
+    // ไม่งั้น AOT 807M จะได้ตัวคูณเท่ากับโครงการ 201M ทั้งที่ใหญ่กว่า 4 เท่า
+    const valueMult = v => v >= 500e6 ? 6.0
+                         : v >= 200e6 ? 4.0
+                         : v >=  50e6 ? 2.5
+                         : v >=  10e6 ? 1.5 : 1.0;
     const workloadIndex = activeProjectsLastYear.reduce((sum,p)=>{
       const cx = num(p['Complex Level']) || 1;          // ไม่ระบุความยาก ให้เป็นระดับ 1
       return sum + cx * valueMult(num(p['Selling Price']));
@@ -9451,6 +9456,7 @@ function buildRadarChart(scored){
   const LABEL_R = R + 42; // ป้ายชื่อแกนต้องอยู่ "นอก" ระยะข้อมูลเสมอ ไม่งั้นจะทับเส้น/รูปหลายเหลี่ยม (บั๊กเดิม: เคยตั้งไว้แค่ 120 ซึ่งน้อยกว่า R=128 เอง)
   const axes = [
     {key:'cPunc',   label:'อัปเดต PMS', raw:x=>x.punctualityPct!=null?x.punctualityPct.toFixed(0)+'%':'ไม่มีข้อมูล'},
+    {key:'cWLI',    label:'ภาระงาน',    raw:x=>(x.workloadIndex||0).toFixed(1)+` (${x.projCount1y||0} โครงการ)`},
     {key:'cHealth', label:'Health',     raw:x=>x.healthyPct!=null?x.healthyPct.toFixed(0)+'%':'ไม่มีข้อมูล'},
     {key:'cRev',    label:'Rev.Gap',    raw:x=>x.revGapWeighted!=null?x.revGapWeighted.toFixed(1)+'pp':'ไม่มีข้อมูล'},
     {key:'cInv',    label:'วางบิล',      raw:x=>x.invOnTimePct!=null?x.invOnTimePct.toFixed(0)+'%':'ไม่มีข้อมูล'},
@@ -9527,6 +9533,11 @@ function renderOatScorecard(){
   };
   const n = data.length;
   const sPunc = rankScore(data, 'punctualityPct', true, n);
+  // WLI ใช้ค่าจริงเทียบสัดส่วน ไม่ใช่อันดับ - เพราะ 12.0 กับ 9.0 ต่างกัน 33% จริง
+  // ถ้าแปลงเป็นอันดับจะเหลือห่างแค่ 1 ขั้น ซึ่งบิดความจริง
+  const maxWLI = Math.max(...data.map(x=>x.workloadIndex||0), 0);
+  const sWLI = {};
+  data.forEach(x=>{ sWLI[x.pm] = maxWLI>0 ? Math.round((x.workloadIndex||0)/maxWLI*100) : 50; });
   const sVal  = rankScore(data, 'projValue1y', true, n);
   const sHealth = rankScore(data, 'healthyPct', true, n);
   const sRev  = rankScore(data, 'revGapWeighted', false, n); // gap ยิ่งน้อย (หรือติดลบ=เร็วกว่า) ยิ่งดี
@@ -9538,23 +9549,15 @@ function renderOatScorecard(){
   //      ย้ายน้ำหนักไปให้ "อัปเดต PMS" ซึ่งเป็นวินัยที่ PM คุมได้เต็มที่และสะสมทั้งปีได้
   // มูลค่าไม่ใช่คะแนน - เป็นภาระงานที่มาจากการมอบหมาย ไม่ใช่ฝีมือ
   // แต่ใช้เป็นตัวถ่วงน้ำหนัก: ทำได้เท่ากันบนภาระที่หนักกว่า ควรได้อันดับดีกว่า
-  const WEIGHTS = {punc:0.25, val:0, health:0.25, rev:0.25, stall:0, inv:0.25};
+  const WEIGHTS = {punc:0.15, wli:0.25, val:0, health:0.15, rev:0.20, stall:0, inv:0.25};
 
-  // ค่ากลางดัชนีภาระงานของทีม ใช้เป็นฐานเทียบว่าใครหนักกว่า/เบากว่าเพื่อน
-  const wlis = data.map(x=>x.workloadIndex||0).filter(v=>v>0).sort((a,b)=>a-b);
-  const medianWLI = wlis.length ? wlis[Math.floor(wlis.length/2)] : 0;
 
   const scored = data.map(x=>{
     const cPunc = sPunc[x.pm] ?? 50, cVal = sVal[x.pm] ?? 50, cHealth = sHealth[x.pm] ?? 50, cRev = sRev[x.pm] ?? 50, cStall = sStall[x.pm] ?? 50, cInv = sInv[x.pm] ?? 50;
-    const base = cPunc*WEIGHTS.punc + cHealth*WEIGHTS.health + cRev*WEIGHTS.rev + cInv*WEIGHTS.inv;
-    // ปรับด้วยดัชนีภาระงาน - ทำได้เท่ากันบนภาระหนักกว่า ควรได้คะแนนสูงกว่า
-    // จำกัด ±10 คะแนน ไม่ให้ภาระงานกลบผลงาน (ซึ่งเป็นปัญหาของมิติ "มูลค่า" แบบเดิม)
-    let wliAdj = 0;
-    if(medianWLI > 0 && x.workloadIndex > 0){
-      wliAdj = Math.max(-10, Math.min(10, Math.log2(x.workloadIndex / medianWLI) * 10));
-    }
-    const composite = Math.max(0, Math.min(100, base + wliAdj));
-    return {...x, cPunc, cVal, cHealth, cRev, cStall, cInv, base, wliAdj, composite};
+    const cWLI = sWLI[x.pm] ?? 50;
+    const composite = cPunc*WEIGHTS.punc + cWLI*WEIGHTS.wli + cHealth*WEIGHTS.health
+                    + cRev*WEIGHTS.rev + cInv*WEIGHTS.inv;
+    return {...x, cPunc, cWLI, cVal, cHealth, cRev, cStall, cInv, composite};
   })
   .sort((a,b)=> b.composite-a.composite || (b.workloadIndex||0)-(a.workloadIndex||0));
 
@@ -9571,10 +9574,10 @@ function renderOatScorecard(){
       <div class="av" style="background:${avatarColor(x.pm)}">${initials(x.pm)}</div>
       <div class="sc-name">${x.pm}</div>
       <div class="sc-metric"><div class="sc-l">อัปเดต PMS</div><div class="sc-v ${x.punctualityPct!=null&&x.punctualityPct<80?'sc-late':''}" title="สัดส่วนสัปดาห์ที่อัปเดตตรงวันศุกร์ ในปีนี้">${x.punctualityPct!=null?x.punctualityPct.toFixed(0)+'%':'-'}</div></div>
-      <div class="sc-metric"><div class="sc-l">ดัชนีภาระงาน</div><div class="sc-v" title="WLI = ผลรวม (ระดับความยาก x ตัวคูณมูลค่า) ของทุกโครงการ&#10;มูลค่า ${compact(x.projValue1y)} · ${x.projCount1y||0} โครงการ">${(x.workloadIndex||0).toFixed(1)}${x.wliAdj?`<u class="sc-adj ${x.wliAdj>0?'up':'down'}">${x.wliAdj>0?'+':''}${x.wliAdj.toFixed(1)} คะแนน</u>`:'<u class="sc-adj">ค่ากลาง</u>'}</div></div>
+      <div class="sc-metric"><div class="sc-l">ดัชนีภาระงาน</div><div class="sc-v" title="WLI = ผลรวม (ระดับความยาก x ตัวคูณมูลค่า) ของทุกโครงการ&#10;มูลค่า ${compact(x.projValue1y)} · ${x.projCount1y||0} โครงการ">${(x.workloadIndex||0).toFixed(1)}<u class="sc-adj">${x.projCount1y||0} โครงการ · ${compact(x.projValue1y)}</u></div></div>
       <div class="sc-metric"><div class="sc-l">Health ปกติ</div><div class="sc-v">${x.healthyPct!=null?x.healthyPct.toFixed(0)+'%':'-'}</div></div>
       <div class="sc-metric"><div class="sc-l">Rev.Gap</div><div class="sc-v" style="color:${x.revGapWeighted>0?'var(--critical)':'var(--success)'}">${x.revGapWeighted!=null?(x.revGapWeighted>0?'-':'+')+Math.abs(x.revGapWeighted).toFixed(1)+'pp':'-'}</div></div>
-      <div class="sc-metric"><div class="sc-l">ค้างขั้นตอน</div><div class="sc-v" style="color:${x.stalledCount>0?'var(--warning)':'var(--success)'}">${x.stalledCount}</div></div>
+      
       <div class="sc-metric"><div class="sc-l">วางบิล</div><div class="sc-v" title="ตรงกำหนด ${x.invBilled}/${x.invDue} งวด${x.invEarlyAvg!==null?` · เทียบสัญญาเฉลี่ย ${x.invEarlyAvg>0?'เร็วกว่า':'ช้ากว่า'} ${Math.abs(x.invEarlyAvg).toFixed(0)} วัน (จาก ${x.invSampleN} งวด)`:' · ไม่มีงวดที่ระบุเงื่อนไขวันในสัญญา'}">${x.invOnTimePct===null?'-':x.invOnTimePct.toFixed(0)+'%'}${x.invEarlyAvg!==null&&x.invEarlyAvg>0?'<span style="font-size:8px;color:var(--success)"> ⚡</span>':''}</div></div>
       <div class="sc-composite">${x.composite.toFixed(0)}</div>
     </div>`;
@@ -9597,20 +9600,19 @@ function renderOatScorecard(){
       <div class="sc-metric"><div class="sc-l">ดัชนีภาระงาน</div></div>
       <div class="sc-metric"><div class="sc-l">Health ปกติ</div></div>
       <div class="sc-metric"><div class="sc-l">Rev.Gap</div></div>
-      <div class="sc-metric"><div class="sc-l">ค้างขั้นตอน</div></div>
+      
       <div class="sc-metric"><div class="sc-l">วางบิล</div></div>
       <div class="sc-composite">คะแนนรวม</div>
     </div>
     ${rows}
     <div class="sc-note">
-      <b>วิธีคิด:</b> แปลงแต่ละมิติเป็นอันดับ (ไม่ใช่ตัวเลขดิบ) แล้วถ่วงน้ำหนัก: อัปเดต PMS 20% · มูลค่าโครงการ 20% · Health ปกติ 20% · Revenue Gap 20% · ค้างขั้นตอน 15% · <b>วางบิล 15%</b><br>
+      <b>วิธีคิด:</b> แปลงเป็นอันดับ (ยกเว้นดัชนีภาระงานที่ใช้สัดส่วนจริงเทียบคนที่สูงสุด) แล้วถ่วงน้ำหนัก: อัปเดต PMS 15% · ดัชนีภาระงาน 25% · Health ปกติ 15% · Revenue Gap 20% · วางบิล 25%<br>
       <b>มิติวางบิล</b> = % งวดที่ถึงกำหนดแล้ววางบิลจริง ปรับด้วยความเร็วเทียบเงื่อนไขในสัญญา (เฉพาะงวดที่ระบุ &quot;X วัน&quot;) - ⚡ = เฉลี่ยวางบิลเร็วกว่าสัญญา
       (เน้นมิติที่อยู่ในการควบคุมของ PM เองมากกว่า)<br>
       <b>อัปเดต PMS</b> นับสะสมทั้งปี รายโครงการ - PM ที่ดูแล 5 โครงการต้องกรอกครบทั้ง 5 ทุกสัปดาห์<br>
-        <b>ค้างขั้นตอน</b> ไม่นับเป็นคะแนน - เป็นเพียงข้อมูลประกอบ เพราะบางเคสมาจากปัจจัยภายนอก<br>
-        <b>ดัชนีภาระงาน (Workload Index)</b> = ผลรวมของ <b>ระดับความยาก x ตัวคูณมูลค่า</b> ทุกโครงการ · ตัวคูณมูลค่า: ต่ำกว่า 10M = 1.0 · 10-50M = 1.5 · 50-200M = 2.0 · เกิน 200M = 2.5<br>
-        เทียบกับค่ากลางของทีม แล้วปรับคะแนนได้สูงสุด ±10 - ทำได้เท่ากันบนภาระหนักกว่า ได้คะแนนสูงกว่า<br>
-        <b>ข้อควรระวัง:</b> "ค้างขั้นตอน" และ "Rev.Gap" อาจเกิดจากปัจจัยภายนอก (ผู้ขายส่งของช้า, รอราชการอนุมัติ ฯลฯ) ไม่ใช่ฝีมือ PM เสมอไป
+        <b>ดัชนีภาระงาน (Workload Index)</b> = ผลรวมของ <b>ระดับความยาก x ตัวคูณมูลค่า</b> ทุกโครงการ · ตัวคูณมูลค่า: ต่ำกว่า 10M = 1.0 · 10-50M = 1.5 · 50-200M = 2.5 · 200-500M = 4.0 · เกิน 500M = 6.0<br>
+        นับเป็นมิติคะแนน 25% - เป็นความรับผิดชอบทั้งโครงการ จึงมีน้ำหนักมากกว่าวินัยการกรอกข้อมูล<br>
+        <b>ข้อควรระวัง:</b> "Rev.Gap" อาจเกิดจากปัจจัยภายนอก (ผู้ขายส่งของช้า, รอราชการอนุมัติ ฯลฯ) ไม่ใช่ฝีมือ PM เสมอไป
       ควรเปิดดู panel "Stalled Progress" และ EVM ประกอบก่อนสรุปด้วยตาตัวเอง ตัวเลขนี้เป็นจุดเริ่มให้ไปสืบต่อ ไม่ใช่คำตัดสินสุดท้าย
     </div>`;
 }
