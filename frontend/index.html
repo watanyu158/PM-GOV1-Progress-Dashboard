@@ -313,6 +313,12 @@
   .code-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;color:var(--faint);background:var(--surface-2);border:1px solid var(--line-soft);padding:1px 6px;border-radius:5px;white-space:nowrap;}
 
   /* ---------------- Closure & Transfer Tracking ---------------- */
+  .cls-msgs{display:flex;flex-direction:column;gap:4px;margin-top:2px;}
+  .cls-msgs .cls-msg{padding-left:14px;position:relative;}
+  .cls-b{position:absolute;left:3px;top:7px;width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.55;}
+  .cls-n{font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:9px;
+    background:var(--warning-tint);color:var(--warning);margin-left:4px;}
+
   .cls-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-soft);}
   .cls-row:last-child{border-bottom:none;}
   .cls-name{font-size:12.5px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
@@ -3727,19 +3733,38 @@ function renderClosure(list){
     <div class="ov-stats">
       <div class="ov-stat"><div class="ov-l">Contract Closed</div><div class="ov-v">${contractClosedN}<span class="u" style="font-size:12px"> / ${list.length}</span></div></div>
       <div class="ov-stat"><div class="ov-l">Completely Closed</div><div class="ov-v">${completelyClosedN}<span class="u" style="font-size:12px"> / ${list.length}</span></div></div>
-      <div class="ov-stat"><div class="ov-l">ต้องดำเนินการ (ปิดงาน/โอนงานค้าง)</div><div class="ov-v" style="color:${alerts.length?'var(--critical)':'var(--success)'}">${alerts.length}</div></div>
+      <div class="ov-stat"><div class="ov-l">ต้องดำเนินการ (ปิดงาน/โอนงานค้าง)</div><div class="ov-v" style="color:${alerts.length?'var(--critical)':'var(--success)'}">${new Set(alerts.map(a=>a.p['Project Code'])).size}</div></div>
     </div>
   </div>`;
 
-  const list_html = alerts.length ? alerts.map(a=>{
-    const st = projectStatus(a.p);
+  // โครงการเดียวกันอาจติดหลายเรื่อง - รวมเป็นแถวเดียวแล้วไล่เหตุผลเป็นข้อ ๆ
+  const grouped = [];
+  const seenCode = {};
+  alerts.forEach(a=>{
+    const code = a.p['Project Code'];
+    if(seenCode[code] !== undefined){
+      const g = grouped[seenCode[code]];
+      g.msgs.push({msg:a.msg, sev:a.sev});
+      // ความรุนแรงของแถวใช้ระดับสูงสุดที่พบ
+      if(a.sev==='critical') g.sev='critical';
+      return;
+    }
+    seenCode[code] = grouped.length;
+    grouped.push({p:a.p, sev:a.sev, msgs:[{msg:a.msg, sev:a.sev}]});
+  });
+
+  const list_html = grouped.length ? grouped.map(g=>{
+    const st = projectStatus(g.p);
+    const body = g.msgs.length===1
+      ? `<div class="cls-msg ${g.msgs[0].sev}">${g.msgs[0].msg}</div>`
+      : `<div class="cls-msgs">${g.msgs.map(m=>`<div class="cls-msg ${m.sev}"><span class="cls-b"></span>${m.msg}</div>`).join('')}</div>`;
     return `<div class="cls-row">
-      <div class="av" style="background:${avatarColor(a.p['PM Name'])}">${initials(a.p['PM Name'])}</div>
+      <div class="av" style="background:${avatarColor(g.p['PM Name'])}">${initials(g.p['PM Name'])}</div>
       <div style="min-width:0;flex:1">
-        <div class="cls-name">${a.p['Project Name']||a.p['Project Code']} <span class="code-tag">#${a.p['Project Code']}</span> <span class="chip ${st==='Completely Closed'?'success':'neutral'}">${st}</span></div>
-        <div class="cls-msg ${a.sev}">${a.msg}</div>
+        <div class="cls-name">${g.p['Project Name']||g.p['Project Code']} <span class="code-tag">#${g.p['Project Code']}</span> <span class="chip ${st==='Completely Closed'?'success':'neutral'}">${st}</span>${g.msgs.length>1?`<span class="cls-n">${g.msgs.length} เรื่อง</span>`:''}</div>
+        ${body}
       </div>
-      <div class="cls-pm">${a.p['PM Name']||'-'}</div>
+      <div class="cls-pm">${g.p['PM Name']||'-'}</div>
     </div>`;
   }).join('') : `<div class="empty">ไม่มีโครงการที่ค้างดำเนินการเรื่องปิดงาน/โอนงานตอนนี้</div>`;
 
