@@ -1281,6 +1281,8 @@
   .sc-radar-svg{max-width:380px;margin:0 auto;}
   .sc-adj{display:block;text-decoration:none;font-size:9px;font-weight:700;}
   .sc-adj{color:var(--faint);font-weight:400;}
+  .sc-adj.up{color:var(--success);font-weight:700;}
+  .sc-adj.down{color:var(--warning);font-weight:700;}
   .sc-v.sc-late{color:var(--warning);}
   .sc-radar-note{margin-top:8px;padding:8px 12px;border-radius:8px;background:var(--warning-tint);
     border-left:3px solid var(--warning);font-size:10px;color:var(--ink-2);line-height:1.7;}
@@ -9371,6 +9373,15 @@ function computeTeamScorecard(){
     const projCount1y = activeProjectsLastYear.length;
     const projValue1y = activeProjectsLastYear.reduce((s,p)=>s+num(p['Selling Price']),0);
 
+    // ดัชนีภาระงาน (Workload Index) = ผลรวมของ "ระดับความยาก x ตัวคูณมูลค่า" ทุกโครงการ
+    // จำนวนโครงการเข้ามาเองจากการบวกรวม ไม่ต้องคูณซ้ำ
+    // ตัวคูณมูลค่าแบ่งเป็นช่วง ไม่ใช่สัดส่วนตรง เพราะ 807M ไม่ได้หนักกว่า 10M แปดสิบเท่า
+    const valueMult = v => v >= 200e6 ? 2.5 : v >= 50e6 ? 2.0 : v >= 10e6 ? 1.5 : 1.0;
+    const workloadIndex = activeProjectsLastYear.reduce((sum,p)=>{
+      const cx = num(p['Complex Level']) || 1;          // ไม่ระบุความยาก ให้เป็นระดับ 1
+      return sum + cx * valueMult(num(p['Selling Price']));
+    }, 0);
+
     // 3) สัดส่วนโครงการ Health ปกติ ณ ตอนนี้ (เฉพาะที่ยังไม่ปิดงาน)
     const openProjects = pmProjects.filter(p=>{ const st=projectStatus(p); return st!=='Contract Closed' && st!=='Completely Closed'; });
     const normalN = openProjects.filter(p=>H.cls(p['Project Health'])==='success').length;
@@ -9429,7 +9440,7 @@ function computeTeamScorecard(){
     const invScore = invOnTimePct===null ? null
       : Math.max(0, Math.min(100, invOnTimePct + (invEarlyAvg===null ? 0 : Math.max(-15, Math.min(15, invEarlyAvg/2)))));
 
-    return {pm, punctualityPct, projCount1y, projValue1y, healthyPct, revGapWeighted, stalledCount,
+    return {pm, punctualityPct, projCount1y, projValue1y, workloadIndex, healthyPct, revGapWeighted, stalledCount,
             invScore, invOnTimePct, invEarlyAvg, invDue, invBilled, invSampleN: earlyDays.length};
   });
 }
@@ -9529,16 +9540,23 @@ function renderOatScorecard(){
   // แต่ใช้เป็นตัวถ่วงน้ำหนัก: ทำได้เท่ากันบนภาระที่หนักกว่า ควรได้อันดับดีกว่า
   const WEIGHTS = {punc:0.25, val:0, health:0.25, rev:0.25, stall:0, inv:0.25};
 
+  // ค่ากลางดัชนีภาระงานของทีม ใช้เป็นฐานเทียบว่าใครหนักกว่า/เบากว่าเพื่อน
+  const wlis = data.map(x=>x.workloadIndex||0).filter(v=>v>0).sort((a,b)=>a-b);
+  const medianWLI = wlis.length ? wlis[Math.floor(wlis.length/2)] : 0;
+
   const scored = data.map(x=>{
     const cPunc = sPunc[x.pm] ?? 50, cVal = sVal[x.pm] ?? 50, cHealth = sHealth[x.pm] ?? 50, cRev = sRev[x.pm] ?? 50, cStall = sStall[x.pm] ?? 50, cInv = sInv[x.pm] ?? 50;
-    // คะแนนมาจากผลงานล้วน ๆ ไม่บวกลบด้วยภาระงาน
-    const composite = cPunc*WEIGHTS.punc + cHealth*WEIGHTS.health + cRev*WEIGHTS.rev + cInv*WEIGHTS.inv;
-    return {...x, cPunc, cVal, cHealth, cRev, cStall, cInv, composite};
+    const base = cPunc*WEIGHTS.punc + cHealth*WEIGHTS.health + cRev*WEIGHTS.rev + cInv*WEIGHTS.inv;
+    // ปรับด้วยดัชนีภาระงาน - ทำได้เท่ากันบนภาระหนักกว่า ควรได้คะแนนสูงกว่า
+    // จำกัด ±10 คะแนน ไม่ให้ภาระงานกลบผลงาน (ซึ่งเป็นปัญหาของมิติ "มูลค่า" แบบเดิม)
+    let wliAdj = 0;
+    if(medianWLI > 0 && x.workloadIndex > 0){
+      wliAdj = Math.max(-10, Math.min(10, Math.log2(x.workloadIndex / medianWLI) * 10));
+    }
+    const composite = Math.max(0, Math.min(100, base + wliAdj));
+    return {...x, cPunc, cVal, cHealth, cRev, cStall, cInv, base, wliAdj, composite};
   })
-  // เรียงด้วยผลงานก่อนเสมอ · ภาระงานใช้ตัดสินเฉพาะตอนคะแนนเท่ากัน (ปัดเป็นจำนวนเต็มก่อนเทียบ)
-  .sort((a,b)=> Math.round(b.composite)-Math.round(a.composite)
-              || (b.projValue1y||0)-(a.projValue1y||0)
-              || (b.projCount1y||0)-(a.projCount1y||0));
+  .sort((a,b)=> b.composite-a.composite || (b.workloadIndex||0)-(a.workloadIndex||0));
 
   const top = scored[0];
   const reasons = [];
@@ -9553,7 +9571,7 @@ function renderOatScorecard(){
       <div class="av" style="background:${avatarColor(x.pm)}">${initials(x.pm)}</div>
       <div class="sc-name">${x.pm}</div>
       <div class="sc-metric"><div class="sc-l">อัปเดต PMS</div><div class="sc-v ${x.punctualityPct!=null&&x.punctualityPct<80?'sc-late':''}" title="สัดส่วนสัปดาห์ที่อัปเดตตรงวันศุกร์ ในปีนี้">${x.punctualityPct!=null?x.punctualityPct.toFixed(0)+'%':'-'}</div></div>
-      <div class="sc-metric"><div class="sc-l">ภาระงาน 1 ปี</div><div class="sc-v" title="มูลค่าที่ดูแล - ไม่นับเป็นคะแนน ใช้ปรับอันดับ">${compact(x.projValue1y)}<u class="sc-adj">${x.projCount1y||0} โครงการ</u></div></div>
+      <div class="sc-metric"><div class="sc-l">ดัชนีภาระงาน</div><div class="sc-v" title="WLI = ผลรวม (ระดับความยาก x ตัวคูณมูลค่า) ของทุกโครงการ&#10;มูลค่า ${compact(x.projValue1y)} · ${x.projCount1y||0} โครงการ">${(x.workloadIndex||0).toFixed(1)}${x.wliAdj?`<u class="sc-adj ${x.wliAdj>0?'up':'down'}">${x.wliAdj>0?'+':''}${x.wliAdj.toFixed(1)} คะแนน</u>`:'<u class="sc-adj">ค่ากลาง</u>'}</div></div>
       <div class="sc-metric"><div class="sc-l">Health ปกติ</div><div class="sc-v">${x.healthyPct!=null?x.healthyPct.toFixed(0)+'%':'-'}</div></div>
       <div class="sc-metric"><div class="sc-l">Rev.Gap</div><div class="sc-v" style="color:${x.revGapWeighted>0?'var(--critical)':'var(--success)'}">${x.revGapWeighted!=null?(x.revGapWeighted>0?'-':'+')+Math.abs(x.revGapWeighted).toFixed(1)+'pp':'-'}</div></div>
       <div class="sc-metric"><div class="sc-l">ค้างขั้นตอน</div><div class="sc-v" style="color:${x.stalledCount>0?'var(--warning)':'var(--success)'}">${x.stalledCount}</div></div>
@@ -9576,7 +9594,7 @@ function renderOatScorecard(){
     <div class="sc-head-row">
       <div class="sc-rank"></div><div class="av" style="visibility:hidden"></div><div class="sc-name">PM</div>
       <div class="sc-metric"><div class="sc-l">อัปเดต PMS</div></div>
-      <div class="sc-metric"><div class="sc-l">ภาระงาน 1 ปี</div></div>
+      <div class="sc-metric"><div class="sc-l">ดัชนีภาระงาน</div></div>
       <div class="sc-metric"><div class="sc-l">Health ปกติ</div></div>
       <div class="sc-metric"><div class="sc-l">Rev.Gap</div></div>
       <div class="sc-metric"><div class="sc-l">ค้างขั้นตอน</div></div>
@@ -9590,7 +9608,8 @@ function renderOatScorecard(){
       (เน้นมิติที่อยู่ในการควบคุมของ PM เองมากกว่า)<br>
       <b>อัปเดต PMS</b> นับสะสมทั้งปี รายโครงการ - PM ที่ดูแล 5 โครงการต้องกรอกครบทั้ง 5 ทุกสัปดาห์<br>
         <b>ค้างขั้นตอน</b> ไม่นับเป็นคะแนน - เป็นเพียงข้อมูลประกอบ เพราะบางเคสมาจากปัจจัยภายนอก<br>
-        <b>มูลค่า 1 ปี</b> ไม่นับเป็นคะแนน - เป็นภาระงานจากการมอบหมาย ไม่ใช่ฝีมือ · ใช้ตัดสินเฉพาะตอนคะแนนเท่ากัน - ทำได้เท่ากันบนภาระหนักกว่า ได้อันดับดีกว่า<br>
+        <b>ดัชนีภาระงาน (Workload Index)</b> = ผลรวมของ <b>ระดับความยาก x ตัวคูณมูลค่า</b> ทุกโครงการ · ตัวคูณมูลค่า: ต่ำกว่า 10M = 1.0 · 10-50M = 1.5 · 50-200M = 2.0 · เกิน 200M = 2.5<br>
+        เทียบกับค่ากลางของทีม แล้วปรับคะแนนได้สูงสุด ±10 - ทำได้เท่ากันบนภาระหนักกว่า ได้คะแนนสูงกว่า<br>
         <b>ข้อควรระวัง:</b> "ค้างขั้นตอน" และ "Rev.Gap" อาจเกิดจากปัจจัยภายนอก (ผู้ขายส่งของช้า, รอราชการอนุมัติ ฯลฯ) ไม่ใช่ฝีมือ PM เสมอไป
       ควรเปิดดู panel "Stalled Progress" และ EVM ประกอบก่อนสรุปด้วยตาตัวเอง ตัวเลขนี้เป็นจุดเริ่มให้ไปสืบต่อ ไม่ใช่คำตัดสินสุดท้าย
     </div>`;
