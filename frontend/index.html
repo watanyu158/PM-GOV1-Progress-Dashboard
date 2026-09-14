@@ -9437,10 +9437,10 @@ function buildRadarChart(scored){
   const W = 420, H = 430, cx = W/2, cy = H/2 - 6, R = 100; // R = รัศมีสูงสุดของข้อมูล (100 คะแนน) - เล็กกว่าเดิมเพื่อเผื่อที่ให้ป้ายชื่อรอบนอก
   const LABEL_R = R + 42; // ป้ายชื่อแกนต้องอยู่ "นอก" ระยะข้อมูลเสมอ ไม่งั้นจะทับเส้น/รูปหลายเหลี่ยม (บั๊กเดิม: เคยตั้งไว้แค่ 120 ซึ่งน้อยกว่า R=128 เอง)
   const axes = [
+    {key:'cPunc',   label:'อัปเดต PMS', raw:x=>x.punctualityPct!=null?x.punctualityPct.toFixed(0)+'%':'ไม่มีข้อมูล'},
     {key:'cVal',    label:'มูลค่า',      raw:x=>compact(x.projValue1y)},
     {key:'cHealth', label:'Health',     raw:x=>x.healthyPct!=null?x.healthyPct.toFixed(0)+'%':'ไม่มีข้อมูล'},
     {key:'cRev',    label:'Rev.Gap',    raw:x=>x.revGapWeighted!=null?x.revGapWeighted.toFixed(1)+'pp':'ไม่มีข้อมูล'},
-    {key:'cStall',  label:'ค้างขั้นตอน', raw:x=>x.stalledCount+' โครงการ'},
     {key:'cInv',    label:'วางบิล',      raw:x=>x.invOnTimePct!=null?x.invOnTimePct.toFixed(0)+'%':'ไม่มีข้อมูล'},
   ];
   const nAxes = axes.length;
@@ -9517,9 +9517,9 @@ function renderOatScorecard(){
   const sInv  = rankScore(data, 'invScore', true, n);       // วางบิลตรง/เร็วกว่าแผน ยิ่งสูงยิ่งดี
 
   // ปรับน้ำหนักใหม่ เพิ่มมิติ "วาง Invoice" 15% แล้วลดมิติอื่นลงตามสัดส่วน
-  // ไม่นับ "ตรงเวลาอัปเดต PMS" เป็นคะแนนแข่งขัน - เป็นแค่วินัยการกรอกข้อมูล ไม่ใช่ผลงาน
-  // กระจายน้ำหนักเดิม 25% ไปยังมิติที่สะท้อนการบริหารโครงการจริง
-  const WEIGHTS = {punc:0, val:0.20, health:0.20, rev:0.20, stall:0.20, inv:0.20};
+  // OAT: "ค้างขั้นตอน" ไม่นับเป็นคะแนน เพราะเป็นแค่การอัปเดตซ้ำ ไม่ใช่ผลงาน
+  //      ย้ายน้ำหนักไปให้ "อัปเดต PMS" ซึ่งเป็นวินัยที่ PM คุมได้เต็มที่และสะสมทั้งปีได้
+  const WEIGHTS = {punc:0.20, val:0.20, health:0.20, rev:0.20, stall:0, inv:0.20};
   const scored = data.map(x=>{
     const cPunc = sPunc[x.pm] ?? 50, cVal = sVal[x.pm] ?? 50, cHealth = sHealth[x.pm] ?? 50, cRev = sRev[x.pm] ?? 50, cStall = sStall[x.pm] ?? 50, cInv = sInv[x.pm] ?? 50;
     const composite = cPunc*WEIGHTS.punc + cVal*WEIGHTS.val + cHealth*WEIGHTS.health + cRev*WEIGHTS.rev + cStall*WEIGHTS.stall + cInv*WEIGHTS.inv;
@@ -9572,10 +9572,11 @@ function renderOatScorecard(){
     </div>
     ${rows}
     <div class="sc-note">
-      <b>วิธีคิด:</b> แปลงแต่ละมิติเป็นอันดับ (ไม่ใช่ตัวเลขดิบ) แล้วถ่วงน้ำหนัก: มูลค่าโครงการ 20% · Health ปกติ 20% · Revenue Gap 20% · ค้างขั้นตอน 15% · <b>วางบิล 15%</b><br>
+      <b>วิธีคิด:</b> แปลงแต่ละมิติเป็นอันดับ (ไม่ใช่ตัวเลขดิบ) แล้วถ่วงน้ำหนัก: อัปเดต PMS 20% · มูลค่าโครงการ 20% · Health ปกติ 20% · Revenue Gap 20% · ค้างขั้นตอน 15% · <b>วางบิล 15%</b><br>
       <b>มิติวางบิล</b> = % งวดที่ถึงกำหนดแล้ววางบิลจริง ปรับด้วยความเร็วเทียบเงื่อนไขในสัญญา (เฉพาะงวดที่ระบุ &quot;X วัน&quot;) - ⚡ = เฉลี่ยวางบิลเร็วกว่าสัญญา
       (เน้นมิติที่อยู่ในการควบคุมของ PM เองมากกว่า)<br>
-      <b>อัปเดต PMS</b> ไม่นับเป็นคะแนน - เป็นเพียงข้อมูลบอกว่ากรอกข้อมูลครบตามรอบหรือไม่ ดูรายละเอียดที่การ์ด Data Freshness<br>
+      <b>อัปเดต PMS</b> นับสะสมทั้งปี รายโครงการ - PM ที่ดูแล 5 โครงการต้องกรอกครบทั้ง 5 ทุกสัปดาห์<br>
+        <b>ค้างขั้นตอน</b> ไม่นับเป็นคะแนน - เป็นเพียงข้อมูลประกอบ เพราะบางเคสมาจากปัจจัยภายนอก<br>
         <b>ข้อควรระวัง:</b> "ค้างขั้นตอน" และ "Rev.Gap" อาจเกิดจากปัจจัยภายนอก (ผู้ขายส่งของช้า, รอราชการอนุมัติ ฯลฯ) ไม่ใช่ฝีมือ PM เสมอไป
       ควรเปิดดู panel "Stalled Progress" และ EVM ประกอบก่อนสรุปด้วยตาตัวเอง ตัวเลขนี้เป็นจุดเริ่มให้ไปสืบต่อ ไม่ใช่คำตัดสินสุดท้าย
     </div>`;
