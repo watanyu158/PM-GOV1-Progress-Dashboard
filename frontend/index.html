@@ -1007,10 +1007,19 @@
   .rp-pp tr.rp-now{background:var(--warning-tint);}
   .rp-nowtag{font-size:8.5px;font-weight:700;padding:1px 6px;border-radius:8px;
     background:var(--warning);color:#fff;margin-left:4px;}
-  .rp-pp-old{color:var(--faint);text-decoration:line-through;}
+  .rp-pp-old{color:var(--ink-2);}
+  .rp-cumo{font-family:'IBM Plex Mono',monospace;}
+  .rp-pp-g th{font-size:10px;}
+  .rp-pp th.rp-g-old{background:var(--surface-2);color:var(--faint);}
+  .rp-pp th.rp-g-new{background:var(--brand-tint,#EDE4D8);color:var(--brand);}
+  .rp-pp td.rp-pp-old{background:var(--surface-2);}
+  .rp-pp td.rp-pp-new, .rp-pp td.rp-pp-cum{background:var(--brand-tint,#EDE4D8);}
   .rp-pp-new{font-weight:700;color:var(--brand);}
   .rp-pp-d.up{color:var(--critical);}
   .rp-pp-d.dn{color:#3D6B7A;}
+  .rp-pp-act{font-family:'IBM Plex Mono',monospace;color:var(--brand);font-weight:700;}
+  .rp-pp-stale{display:block;text-decoration:none;font-size:8.5px;color:var(--warning);font-weight:600;}
+  .rp-pp-na{color:var(--line);}
   .rp-pp-cum{color:var(--faint);}
   .rp-pp-baht{font-weight:600;color:var(--ink-2);}
   .rp-pp-note{font-size:9.5px;color:var(--faint);line-height:1.6;margin-top:6px;}
@@ -4353,7 +4362,10 @@ function renderRevenuePlan(list){
     const monthBaht = monthPct.map(v=>selling*v/100);
     const totalPct = bfPct + monthPct.reduce((s,v)=>s+v,0) + beyondPct;
     return {p, r, selling, bfPct, beyondPct, monthPct, monthBaht, totalPct,
-            pmsCur: num(r['PMS Current %']), name: p['Project Name']||p['Project Code'], code: p['Project Code']};
+            // ใช้ %Progress ล่าสุดจาก Progress1 เป็นหลัก - ชีต Revenue ต้องคัดลอกด้วยมือจึงมักค้าง
+            pmsCur: (num(p['%Progress']) > 0 ? num(p['%Progress']) : num(r['PMS Current %'])),
+            pmsRev: num(r['PMS Current %']),
+            name: p['Project Name']||p['Project Code'], code: p['Project Code']};
   });
 
   document.getElementById('rpCount').textContent = `${items.length}/${list.length} โครงการมีแผนรายได้`;
@@ -4620,24 +4632,44 @@ function renderRevenuePlan(list){
           const pTarget = Math.round((100 - x.pmsCur)*100)/100;
           const pRounded = rpRoundToTarget(rows.map(r=>r.newV), pTarget);
           rows.forEach((r,i)=>{ r.newV = pRounded[i]; });
-          let cum = x.pmsCur;   // เริ่มสะสมจากงานที่ทำได้จริงตอนนี้
+          let cum = x.pmsCur;   // สะสมแผนใหม่ - เริ่มจากงานที่ทำได้จริงตอนนี้
+          // สะสมแผนเดิม - เริ่มจากยอดที่วางแผนไว้ถึงเดือนก่อนหน้า จะได้เทียบกันตรง ๆ
+          let cumOld = x.bfPct + x.monthPct.slice(0, remainIdx[0]).reduce((s2,v)=>s2+v,0);
           const body = rows.map((r,ri)=>{
-            cum += r.newV;
+            cum += r.newV; cumOld += r.oldV;
             const dv = r.newV - r.oldV;
             const isNow = remainIdx[ri] === nowM;
             return `<tr class="${isNow?'rp-now':''}">
               <td>${r.label}${isNow?' <span class="rp-nowtag">เดือนนี้</span>':''}</td>
               <td class="rp-pp-old">${r.oldV.toFixed(2)}%</td>
+              <td class="rp-pp-old rp-cumo">${cumOld.toFixed(2)}%</td>
               <td class="rp-pp-new">${r.newV.toFixed(2)}%</td>
-              <td class="rp-pp-d ${dv>0.005?'up':dv<-0.005?'dn':''}">${dv>0.005?'+':''}${Math.abs(dv)<0.005?'-':dv.toFixed(2)+'%'}</td>
               <td class="rp-pp-cum">${cum.toFixed(2)}%</td>
+              <td class="rp-pp-d ${dv>0.005?'up':dv<-0.005?'dn':''}">${dv>0.005?'+':''}${Math.abs(dv)<0.005?'-':dv.toFixed(2)+'%'}</td>
+              <td class="rp-pp-act">${isNow ? x.pmsCur.toFixed(2)+'%'
+                  + (Math.abs(x.pmsCur - x.pmsRev) > 0.01
+                     ? `<u class="rp-pp-stale" title="ชีต Revenue ยังเป็น ${x.pmsRev.toFixed(2)}% - ควรอัปเดตให้ตรง">ชีต Rev. ${x.pmsRev.toFixed(2)}%</u>` : '')
+                : '<span class="rp-pp-na">-</span>'}</td>
               <td class="rp-pp-baht">${thb(x.selling*r.newV/100)}</td>
             </tr>`;
           }).join('');
           proposal = `<details class="rp-prop">
             <summary>ดูแผน % ที่แนะนำให้ปรับใหม่ (${x.st==='behind'?`เลื่อนออก ${Math.abs(shift).toFixed(1)}pp`:`ดึงเข้ามา ${Math.abs(shift).toFixed(1)}pp`})</summary>
             <table class="rp-pp">
-              <thead><tr><th>เดือน</th><th>แผนเดิม</th><th>แนะนำ</th><th>ต่าง</th><th>สะสม</th><th>มูลค่า (บาท)</th></tr></thead>
+              <thead>
+                <tr class="rp-pp-g">
+                  <th rowspan="2">เดือน</th>
+                  <th colspan="2" class="rp-g-old">แผนเดิม</th>
+                  <th colspan="2" class="rp-g-new">แผนที่แนะนำ</th>
+                  <th rowspan="2">ต่าง</th>
+                  <th rowspan="2">งานจริง</th>
+                  <th rowspan="2">มูลค่าตามแผนใหม่</th>
+                </tr>
+                <tr>
+                  <th class="rp-g-old">รายเดือน</th><th class="rp-g-old">สะสม</th>
+                  <th class="rp-g-new">รายเดือน</th><th class="rp-g-new">สะสม</th>
+                </tr>
+              </thead>
               <tbody>${body}</tbody>
             </table>
             <div class="rp-pp-note">คิดจากงานจริง ณ วันนี้ ${x.pmsCur.toFixed(1)}% แล้วเกลี่ยส่วนต่าง ${Math.abs(shift).toFixed(1)}pp ไปเดือนที่เหลือตามสัดส่วนเดิม · ยอดรวมยังเท่ากับ 100% (${thb(x.selling)}) เหมือนเดิม</div>
