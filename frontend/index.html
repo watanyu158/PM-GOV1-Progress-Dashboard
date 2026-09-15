@@ -5180,14 +5180,43 @@ function allocateCollection(proj){
   let pool = num(proj.collected);          // ยอดที่เก็บได้แล้วทั้งโครงการ (เชื่อยอดบนสุด)
   const out = {};
 
-  // แถวที่บัญชีลงวันรับเงินไว้แล้ว = ได้เงินแน่นอน ต้องกินโควตาก่อนแถวที่ยังไม่ลง
-  const ordered = [...bill.filter(r=>r.i.collectedDate), ...bill.filter(r=>!r.i.collectedDate)];
+  // บางโครงการลงวันรับเงินไว้ที่แถวใบกำกับภาษีตัดของ ซึ่งไม่ใช่เงินที่ได้รับจริง
+  // (AOT: ผลรวมรายแถว 557.9M แต่ยอดหัว 370.8M) - กรณีนี้แยกรายงวดไม่ได้ ต้องเชื่อยอดหัว
+  const _rowGot = (proj.installments||[]).filter(i=>i.collectedDate)
+    .reduce((a,i)=>a+num(i.invoiced), 0);
+  const _headGot = num(proj.collected);
+  const rowsUnreliable = _headGot > 0 && Math.abs(_rowGot - _headGot) > Math.max(1000, _headGot*0.05);
+  if(rowsUnreliable){
+    const headAR = num(proj.collecting);
+    (proj.installments||[]).forEach((ii,idx)=>{
+      out[idx] = { billed:num(ii.invoiced), collected:0, outstanding:0,
+                   fullyCollected:false, inferred:false, headOnly:true };
+    });
+    // ใส่ยอดหัวไว้ที่ดัชนีพิเศษ เพื่อให้ผู้เรียกรวมยอดได้ถูกโดยไม่ต้องแยกรายงวด
+    out.__head = { billed:0, collected:_headGot, outstanding:headAR, headOnly:true };
+    return out;
+  }
+
+  // แถวที่บัญชีลง "วันรับเงิน" ไว้ = เก็บเงินได้แล้วแน่นอน ไม่ใช่ลูกหนี้
+  // เชื่อช่องนี้ตรง ๆ ไม่ต้องกระจายเงินเดาเอง (เดิมทำให้ AR เกินจริง 9 จาก 13 โครงการ)
+  bill.filter(r=>r.i.collectedDate).forEach(r=>{
+    const _sf0 = contractFullOfInstallment(proj.projectCode, r.i.desc);
+    const amt0 = r.del ? (r.inv > 0 ? r.inv : 0) : (_sf0 > 0 ? _sf0 : (r.inv + r.rem));
+    pool = Math.max(0, pool - amt0);
+    out[r.idx] = { billed:amt0, collected:amt0, outstanding:0,
+                   fullyCollected:amt0>0, inferred:false };
+  });
+
+  const ordered = bill.filter(r=>!r.i.collectedDate);
   ordered.forEach(r=>{
     // เงินที่ลูกค้าต้องจ่าย = ยอด billing ของงวด ไม่ใช่ยอดใบกำกับภาษี
     // โครงการที่มีตารางสัญญาใช้มูลค่างวดเต็ม · ที่เหลือใช้ invoiced + remainder
     const _sf = contractFullOfInstallment(proj.projectCode, r.i.desc);
-    const amt = r.del ? (r.inv > 0 ? r.inv : 0)          // แถวใบกำกับภาษีตัดของ ใช้ยอดที่ออกจริง
-              : (_sf > 0 ? _sf : (r.inv + r.rem));       // งวดปกติ ใช้ยอด billing เต็มงวด
+    // ต้องวางบิลแล้วจริง (invoiced > 0) ถึงจะเป็นลูกหนี้ - แถวที่ยังไม่วางบิลไม่ใช่ AR
+    const billedYet = r.inv > 0;
+    const amt = !billedYet ? 0
+              : (r.del ? r.inv                            // แถวใบกำกับภาษีตัดของ ใช้ยอดที่ออกจริง
+              : (_sf > 0 ? _sf : (r.inv + r.rem)));       // งวดปกติ ใช้ยอด billing เต็มงวด
     const got = Math.min(pool, amt);
     pool -= got;
     out[r.idx] = {
@@ -8283,8 +8312,15 @@ function renderPayment(paywSource, codeSetList){
       });
     }
     totalCollected += num(x.collected);
-    const alloc = allocateCollection(x);
-    Object.values(alloc).forEach(a=>{ if(a.outstanding>1) totalAR += a.outstanding; });
+    // AR ใช้ยอดหัวโครงการเป็นหลัก - เป็นตัวเลขที่บัญชียืนยันว่าเรียกเก็บอยู่จริง
+    // การกระจาย FIFO จะนับแถวใบกำกับภาษีตัดของและงวดที่ยังไม่ถึงกำหนดเข้าไปด้วย ทำให้เกินจริง
+    const headAR = num(x.collecting);
+    if(headAR > 0){
+      totalAR += headAR;
+    } else {
+      const alloc = allocateCollection(x);
+      Object.values(alloc).forEach(a=>{ if(a.outstanding>1) totalAR += a.outstanding; });
+    }
   });
   const totalNotBilled = Math.max(0, totalBilling - totalCollected - totalAR);
 
@@ -8382,7 +8418,11 @@ function renderPayment(paywSource, codeSetList){
       // ลูกหนี้จริงของโครงการนี้ = ออกใบแจ้งหนี้แล้วแต่ยังเก็บไม่ได้ (ไม่รวมใบกำกับภาษีตัดของ)
       // ต้องประกาศก่อนถูกใช้ในชิปหัวการ์ด แถบสัดส่วน และรายการงวดด้านล่าง
       const allocPay = allocateCollection(x);
-      const projAR = Object.values(allocPay).reduce((a,v)=>a+(v.outstanding>1?v.outstanding:0),0);
+      // ใช้ยอดหัวโครงการเป็นหลักเหมือนยอดสรุปด้านบน - การกระจาย FIFO นับใบกำกับภาษีตัดของ
+      // และงวดที่ยังไม่ถึงกำหนดเข้าไปด้วย ทำให้ AR เกินจริง
+      const _headAR = num(x.collecting);
+      const projAR = _headAR > 0 ? _headAR
+        : Object.values(allocPay).reduce((a,v)=>a+(v.outstanding>1?v.outstanding:0),0);
       const projNotBilled = Math.max(0, (sumBilling || num(x.sellingPrice)) - coll_ed - projAR);
       const btSummary = sumBilling>0 ? `<div class="pw-bt ${billingOk?'':'warn'}">
         <span class="pw-bt-i">Billing ตามงวดงาน <b>${thb(sumBilling)}</b>${billingOk?'<span class="pw-bt-ok">✓ ตรงกับ Selling Price</span>':`<span class="pw-bt-bad">⚠ ไม่ตรงกับ Selling Price ${thb(spNum)}</span>`}</span>
