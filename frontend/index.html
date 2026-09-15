@@ -1018,7 +1018,10 @@
   .rp-pp-d.up{color:var(--critical);}
   .rp-pp-d.dn{color:#3D6B7A;}
   .rp-pp-act{font-family:'IBM Plex Mono',monospace;color:var(--brand);font-weight:700;}
-  .rp-pp-stale{display:block;text-decoration:none;font-size:8.5px;color:var(--warning);font-weight:600;}
+  .rp-pp-gain{font-family:'IBM Plex Mono',monospace;font-size:10.5px;}
+  .rp-pp-gain b{font-weight:700;}
+  .rp-pp-gain b.up{color:var(--success);} .rp-pp-gain b.dn{color:var(--critical);}
+  .rp-pp-gain u{display:block;text-decoration:none;font-size:8.5px;color:var(--faint);}
   .rp-pp-na{color:var(--line);}
   .rp-pp-cum{color:var(--faint);}
   .rp-pp-baht{font-weight:600;color:var(--ink-2);}
@@ -4347,6 +4350,22 @@ const RP_QUARTERS = [
   {name:'Q3', months:[6,7,8]}, {name:'Q4', months:[9,10,11]},
 ];
 
+// ค่า %Progress ล่าสุดที่บันทึกไว้ใน "เดือนก่อนหน้า" - ใช้ดูว่างานขยับขึ้นเท่าไหร่
+// (AOT: 28 ส.ค. = 89.92 · ล่าสุด 11 ก.ย. = 92.92 -> ขึ้นมา 3.00)
+function rpPrevMonthProgress(code){
+  const now = new Date();
+  const pm = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+  const py = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  let best = null, bestD = null;
+  (typeof HIST !== 'undefined' ? HIST : []).forEach(r=>{
+    if(String(r['Project Code']||'').trim() !== String(code||'').trim()) return;
+    const d = parseD(r['Update Date']); if(!d) return;
+    if(d.getMonth() !== pm || d.getFullYear() !== py) return;
+    if(!bestD || d > bestD){ bestD = d; best = num(r['%Progress']); }
+  });
+  return best;
+}
+
 function renderRevenuePlan(list){
   const el = document.getElementById('rpBox');
   if(!el) return;
@@ -4364,6 +4383,7 @@ function renderRevenuePlan(list){
     return {p, r, selling, bfPct, beyondPct, monthPct, monthBaht, totalPct,
             // ใช้ %Progress ล่าสุดจาก Progress1 เป็นหลัก - ชีต Revenue ต้องคัดลอกด้วยมือจึงมักค้าง
             pmsCur: (num(p['%Progress']) > 0 ? num(p['%Progress']) : num(r['PMS Current %'])),
+            pmsPrevM: rpPrevMonthProgress(p['Project Code']),
             pmsRev: num(r['PMS Current %']),
             name: p['Project Name']||p['Project Code'], code: p['Project Code']};
   });
@@ -4646,10 +4666,14 @@ function renderRevenuePlan(list){
               <td class="rp-pp-new">${r.newV.toFixed(2)}%</td>
               <td class="rp-pp-cum">${cum.toFixed(2)}%</td>
               <td class="rp-pp-d ${dv>0.005?'up':dv<-0.005?'dn':''}">${dv>0.005?'+':''}${Math.abs(dv)<0.005?'-':dv.toFixed(2)+'%'}</td>
-              <td class="rp-pp-act">${isNow ? x.pmsCur.toFixed(2)+'%'
-                  + (Math.abs(x.pmsCur - x.pmsRev) > 0.01
-                     ? `<u class="rp-pp-stale" title="ชีต Revenue ยังเป็น ${x.pmsRev.toFixed(2)}% - ควรอัปเดตให้ตรง">ชีต Rev. ${x.pmsRev.toFixed(2)}%</u>` : '')
-                : '<span class="rp-pp-na">-</span>'}</td>
+              <td class="rp-pp-act">${isNow ? x.pmsCur.toFixed(2)+'%' : '<span class="rp-pp-na">-</span>'}</td>
+              <td class="rp-pp-gain">${(()=>{
+                if(!isNow) return '<span class="rp-pp-na">-</span>';
+                if(x.pmsPrevM == null) return '<span class="rp-pp-na">ไม่มีข้อมูล</span>';
+                const g = x.pmsCur - x.pmsPrevM;
+                return `<b class="${g>0.005?'up':g<-0.005?'dn':''}">${g>0.005?'+':''}${g.toFixed(2)}%</b>`
+                     + `<u>จาก ${x.pmsPrevM.toFixed(2)}%</u>`;
+              })()}</td>
               <td class="rp-pp-baht">${thb(x.selling*r.newV/100)}</td>
             </tr>`;
           }).join('');
@@ -4663,6 +4687,7 @@ function renderRevenuePlan(list){
                   <th colspan="2" class="rp-g-new">แผนที่แนะนำ</th>
                   <th rowspan="2">ต่าง</th>
                   <th rowspan="2">งานจริง</th>
+                  <th rowspan="2">ขึ้นจากเดือนก่อน</th>
                   <th rowspan="2">มูลค่าตามแผนใหม่</th>
                 </tr>
                 <tr>
