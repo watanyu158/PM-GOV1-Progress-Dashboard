@@ -8506,9 +8506,9 @@ function renderPayment(paywSource, codeSetList){
           return sp > 0 && Math.abs((_ivPC + _rmPC) - sp) < 1;   // ใบเดียวครอบทั้งสัญญา
         })();
         const billingAmt = (!_isOwner || _dupDel) ? 0
-          : (_schedFullPC > 0 ? _schedFullPC
-          : ((_ivPC + _rmPC) > 0 ? _ivPC + _rmPC
-          : (_isDel(inst) ? 0 : descAmt(inst))));
+          : (_schedFullPC > 0 ? _schedFullPC        // โครงการมีตารางสัญญา ใช้มูลค่างวดเต็ม
+          : (_isDel(inst) ? 0                       // แถวส่งของ = ใบกำกับภาษี ไม่ใช่ยอดวางบิล
+          : ((_ivPC + _rmPC) > 0 ? _ivPC + _rmPC : descAmt(inst))));
         const taxAmt = _isDel(inst) ? _ivPC
           : (_schedFullPC > 0 ? (_ivPC > 0 ? _ivPC : _rmPC) : (_overlapPC ? 0 : _ivPC));
         const taxIssued = _ivPC > 0;   // ออกใบกำกับภาษีแล้วจริงหรือยัง
