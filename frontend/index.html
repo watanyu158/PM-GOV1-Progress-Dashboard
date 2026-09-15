@@ -350,7 +350,7 @@
   .rv-metrics b{font-family:'IBM Plex Mono',monospace;color:var(--ink);font-size:12.5px;}
   .rv-scurve{margin-top:11px;}
 
-  /* ---------------- Complexity Intelligence ---------------- */
+  /* ---------------- Project Difficulty Analysis ---------------- */
   .cx-sec{margin-top:18px;}
   .cx-sec:first-child{margin-top:0;}
   .cx-sec-title{
@@ -1949,7 +1949,7 @@
     <div class="p-head">
       <div class="p-title">
         <svg class="ico" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
-        Complexity Intelligence <span class="sep">-</span> <span class="th">วิเคราะห์ตามระดับความซับซ้อน</span>
+        Project Difficulty Analysis <span class="sep">-</span> <span class="th">วิเคราะห์ความซับซ้อนของโครงการ</span>
       </div>
       <span class="p-count" id="cxCount"></span>
     </div>
@@ -2612,7 +2612,7 @@ const CARD_REGISTRY = [
   {tab:'1', tabLabel:'Project Tracking', id:'pmWorkload', en:'PM Workload', th:'ภาระงานราย PM', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'projectHealth', en:'Project Health', th:'สถานะสุขภาพโครงการ', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'weekOverWeek', en:'Week-over-Week', th:'เทียบความคืบหน้ารายสัปดาห์', scope:true},
-  {tab:'1', tabLabel:'Project Tracking', id:'complexity', en:'Complexity Intelligence', th:'วิเคราะห์ความซับซ้อน', scope:true},
+  {tab:'1', tabLabel:'Project Tracking', id:'complexity', en:'Project Difficulty Analysis', th:'วิเคราะห์ความซับซ้อนของโครงการ', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'closureTransfer', en:'Closure & Transfer Tracking', th:'ปิดงาน / โอนงาน', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'stalledProgress', en:'Stalled Progress', th:'โครงการที่ค้างขั้นตอนเดิม', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'riskFinder', en:'Risk Finder', th:'โครงการเสี่ยง Critical/Warning', scope:true},
@@ -3610,7 +3610,7 @@ function renderComplexity(list){
       <div class="cx-tier-row"><span>Pace เฉลี่ยเทียบแผน</span><b style="color:${tr.avgPace===null?'var(--faint)':tr.avgPace<-5?'var(--critical)':tr.avgPace>5?'var(--success)':'var(--ink-2)'}">${tr.avgPace===null?'-':(tr.avgPace>0?'+':'')+tr.avgPace.toFixed(1)+'pp'}</b></div>
     </div>`).join('');
 
-  // --- 3. Top Risk Score (Health severity × Complex Level) ---
+  // --- 3. โครงการที่ควรเฝ้า (Health severity × Complex Level) ---
   const topRisk = withCx.filter(x=>x.risk>0).sort((a,b)=> b.risk-a.risk || num(b.p['Selling Price'])-num(a.p['Selling Price'])).slice(0,6);
   const riskHtml = topRisk.length ? topRisk.map((x,i)=>`
     <div class="cx-risk-row">
@@ -3675,7 +3675,7 @@ function renderComplexity(list){
     </div>
 
     <div class="cx-sec">
-      <div class="cx-sec-title"><span class="n">3</span>Top Risk Score <span class="cx-sec-sub">(Health severity × Complex Level)</span></div>
+      <div class="cx-sec-title"><span class="n">3</span>โครงการที่ควรเฝ้า <span class="cx-sec-sub">(Health severity × Complex Level)</span></div>
       ${riskHtml}
     </div>
 
