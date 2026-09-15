@@ -1004,6 +1004,9 @@
   .rp-pp th:first-child{text-align:left;}
   .rp-pp td{padding:4px 6px;border-bottom:1px solid var(--line-soft);text-align:right;font-family:'IBM Plex Mono',monospace;}
   .rp-pp td:first-child{text-align:left;font-family:'Inter',sans-serif;color:var(--ink-2);}
+  .rp-pp tr.rp-now{background:var(--warning-tint);}
+  .rp-nowtag{font-size:8.5px;font-weight:700;padding:1px 6px;border-radius:8px;
+    background:var(--warning);color:#fff;margin-left:4px;}
   .rp-pp-old{color:var(--faint);text-decoration:line-through;}
   .rp-pp-new{font-weight:700;color:var(--brand);}
   .rp-pp-d.up{color:var(--critical);}
@@ -4597,8 +4600,9 @@ function renderRevenuePlan(list){
       // ซ่อนไว้ใน <details> ให้กดเปิดเอง จะได้ไม่รกหน้าจอ - เปิดดูเฉพาะตัวที่สนใจจะปรับจริง
       let proposal = '';
       if(x.st !== 'onplan' && x.st !== 'notstarted'){
+        // รวมเดือนปัจจุบันด้วย - ยังปรับแผนเดือนนี้ได้ ไม่ใช่รอเดือนหน้า
         const remainIdx = [];
-        for(let i=nowM+1;i<12;i++) if(x.monthPct[i] > 0) remainIdx.push(i);
+        for(let i=nowM;i<12;i++) if(x.monthPct[i] > 0) remainIdx.push(i);
         const remainSum = remainIdx.reduce((s2,i)=>s2+x.monthPct[i],0) + x.beyondPct;
         if(remainSum > 0){
           const shift = -x.gap;   // ช้ากว่าแผน (gap ลบ) = ต้องเลื่อนออกไป / เร็วกว่า = ดึงเข้ามา
@@ -4611,17 +4615,18 @@ function renderRevenuePlan(list){
             const newB = Math.max(0, x.beyondPct + shift*(x.beyondPct/remainSum));
             rows.push({label:'หลังปี 69', oldV:x.beyondPct, newV:newB});
           }
-          // ยอดที่เหลือต้องรับรู้ = 100 - งานที่ทำได้จริงตอนนี้ (บวกเดือนนี้ที่ยังตั้งไว้เท่าเดิม)
+          // ยอดที่เหลือต้องรับรู้ = 100 - งานที่ทำได้จริงตอนนี้ (รวมเดือนนี้ที่ยังปรับได้)
           // บังคับให้ผลรวมหลังปัดตรงเป้าเป๊ะ ไม่งั้นกรอกจริงแล้วยอดสะสมไม่ครบ 100%
           const pTarget = Math.round((100 - x.pmsCur)*100)/100;
           const pRounded = rpRoundToTarget(rows.map(r=>r.newV), pTarget);
           rows.forEach((r,i)=>{ r.newV = pRounded[i]; });
           let cum = x.pmsCur;   // เริ่มสะสมจากงานที่ทำได้จริงตอนนี้
-          const body = rows.map(r=>{
+          const body = rows.map((r,ri)=>{
             cum += r.newV;
             const dv = r.newV - r.oldV;
-            return `<tr>
-              <td>${r.label}</td>
+            const isNow = remainIdx[ri] === nowM;
+            return `<tr class="${isNow?'rp-now':''}">
+              <td>${r.label}${isNow?' <span class="rp-nowtag">เดือนนี้</span>':''}</td>
               <td class="rp-pp-old">${r.oldV.toFixed(2)}%</td>
               <td class="rp-pp-new">${r.newV.toFixed(2)}%</td>
               <td class="rp-pp-d ${dv>0.005?'up':dv<-0.005?'dn':''}">${dv>0.005?'+':''}${Math.abs(dv)<0.005?'-':dv.toFixed(2)+'%'}</td>
