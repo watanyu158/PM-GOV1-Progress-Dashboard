@@ -8768,10 +8768,10 @@ function renderStock(stockSumSource, codeSetList, stockMovementSource){
   const overview = `<div class="wow-overview">
     <div class="ov-stats">
       <div class="ov-stat"><div class="ov-l">มูลค่าของค้างสต็อกรวม</div><div class="ov-v">${thb(totalValue)}</div></div>
-      <div class="ov-stat"><div class="ov-l">อายุคงค้างเฉลี่ย</div><div class="ov-v">${avgAge.toFixed(0)}<span style="font-size:12px;color:var(--faint)"> วัน</span></div></div>
-      <div class="ov-stat"><div class="ov-l">โครงการของยังไม่ครบ</div><div class="ov-v">${incomplete}<span class="u" style="font-size:12px"> / ${items.length}</span></div></div>
+      <div class="ov-stat"><div class="ov-l">ของค้างคลังเฉลี่ย</div><div class="ov-v">${avgAge.toFixed(0)}<span style="font-size:12px;color:var(--faint)"> วัน</span></div></div>
+      <div class="ov-stat"><div class="ov-l">ผู้ขายยังส่งของไม่ครบ</div><div class="ov-v">${incomplete}<span class="u" style="font-size:12px"> / ${items.length}</span></div></div>
     </div>
-    <div style="margin-top:10px;font-size:11px;color:var(--faint)">"ค้างมาแล้ว X วัน" นับจากวันที่สินค้าชิ้นแรกเข้าคลัง ไม่ใช่วันที่คาดว่าจะได้รับครบ (ไม่มีวันคาดการณ์ส่งมอบแยกไว้)</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--faint)">นับจำนวนวันที่ของกองอยู่ในคลัง เริ่มนับตั้งแต่ของชิ้นแรกเข้ามา · ยิ่งนานยิ่งเป็นต้นทุนจม ควรเร่งส่งมอบ</div>
   </div>`;
 
   const byCode = {};
@@ -8793,7 +8793,7 @@ function renderStock(stockSumSource, codeSetList, stockMovementSource){
         <div style="min-width:0"><div class="wr-n">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span></div><div class="wr-s">${x.pm} · ${x.customer||''}</div></div>
       </div>
       <div class="wr-num">${thb(x.stockValueCurr)}</div>
-      <div><span class="chip ${complete?'success':'warning'}">${x.poStatus||'-'}</span></div>
+      <div><span class="chip ${complete?'neutral':'warning'}" title="${complete?'ผู้ขายส่งของครบตาม PO แล้ว แต่ของยังอยู่ในคลัง ยังไม่ได้ส่งมอบลูกค้า':'ผู้ขายยังส่งของไม่ครบตาม PO'}">${complete?'ของครบ รอส่งมอบ':'รอของจากผู้ขาย'}</span></div>
       <div class="wr-num" style="color:${ageCol}">${age.toFixed(0)} วัน</div>
       <span class="wr-chev">${svg(I.chevron,'')}</span>
     </div>
