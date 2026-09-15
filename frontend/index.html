@@ -5182,10 +5182,18 @@ function allocateCollection(proj){
 
   // บางโครงการลงวันรับเงินไว้ที่แถวใบกำกับภาษีตัดของ ซึ่งไม่ใช่เงินที่ได้รับจริง
   // (AOT: ผลรวมรายแถว 557.9M แต่ยอดหัว 370.8M) - กรณีนี้แยกรายงวดไม่ได้ ต้องเชื่อยอดหัว
-  const _rowGot = (proj.installments||[]).filter(i=>i.collectedDate)
+  // ไฟล์แบบ AOT: ใบกำกับภาษีใบเดียวครอบหลายงวด ทำให้ผลรวม invoiced เกินมูลค่าสัญญามาก
+  // นั่นคืออาการที่แยกรายงวดไม่ได้จริง ๆ · ไม่ใช่แค่ "บัญชีไม่ได้ลงวันรับเงิน"
+  const _sumInv = (proj.installments||[]).reduce((a,i)=>a+num(i.invoiced), 0);
+  const _spRef = num(proj.sellingPrice);
+  // อาการที่ 1: ใบกำกับภาษีใบเดียวครอบหลายงวด ผลรวมเกินมูลค่าสัญญามาก
+  const _invOverflow = _spRef > 0 && _sumInv > _spRef * 1.5;
+  // อาการที่ 2: ลงวันรับเงินไว้ที่แถวใบกำกับภาษี ผลรวมจึงเกินเงินที่เก็บได้จริง
+  const _gotRows = (proj.installments||[]).filter(i=>i.collectedDate)
     .reduce((a,i)=>a+num(i.invoiced), 0);
-  const _headGot = num(proj.collected);
-  const rowsUnreliable = _headGot > 0 && Math.abs(_rowGot - _headGot) > Math.max(1000, _headGot*0.05);
+  const _gotHead = num(proj.collected);
+  const _gotOverflow = _gotHead > 0 && _gotRows > _gotHead * 1.05;
+  const rowsUnreliable = _invOverflow || _gotOverflow;
   if(rowsUnreliable){
     const headAR = num(proj.collecting);
     (proj.installments||[]).forEach((ii,idx)=>{
@@ -5193,12 +5201,14 @@ function allocateCollection(proj){
                    fullyCollected:false, inferred:false, headOnly:true };
     });
     // ใส่ยอดหัวไว้ที่ดัชนีพิเศษ เพื่อให้ผู้เรียกรวมยอดได้ถูกโดยไม่ต้องแยกรายงวด
-    out.__head = { billed:0, collected:_headGot, outstanding:headAR, headOnly:true };
+    out.__head = { billed:0, collected:_gotHead, outstanding:headAR, headOnly:true };
     return out;
   }
 
   // แถวที่บัญชีลง "วันรับเงิน" ไว้ = เก็บเงินได้แล้วแน่นอน ไม่ใช่ลูกหนี้
   // เชื่อช่องนี้ตรง ๆ ไม่ต้องกระจายเงินเดาเอง (เดิมทำให้ AR เกินจริง 9 จาก 13 โครงการ)
+  // แถวที่ลงวันรับเงินไว้ = เก็บได้แน่นอน หักออกจากกองก่อน
+  // ที่เหลือค่อยกระจายตามลำดับวันวางบิล (กรณีบัญชีไม่ได้ลงวันรับเงินรายงวด)
   bill.filter(r=>r.i.collectedDate).forEach(r=>{
     const _sf0 = contractFullOfInstallment(proj.projectCode, r.i.desc);
     const amt0 = r.del ? (r.inv > 0 ? r.inv : 0) : (_sf0 > 0 ? _sf0 : (r.inv + r.rem));
@@ -5213,10 +5223,10 @@ function allocateCollection(proj){
     // โครงการที่มีตารางสัญญาใช้มูลค่างวดเต็ม · ที่เหลือใช้ invoiced + remainder
     const _sf = contractFullOfInstallment(proj.projectCode, r.i.desc);
     // ต้องวางบิลแล้วจริง (invoiced > 0) ถึงจะเป็นลูกหนี้ - แถวที่ยังไม่วางบิลไม่ใช่ AR
-    const billedYet = r.inv > 0;
+    // แถวส่งของเป็นใบกำกับภาษี ลูกค้าไม่ได้จ่ายจากใบนี้ จึงไม่ใช่ลูกหนี้
+    const billedYet = r.inv > 0 && !r.del;
     const amt = !billedYet ? 0
-              : (r.del ? r.inv                            // แถวใบกำกับภาษีตัดของ ใช้ยอดที่ออกจริง
-              : (_sf > 0 ? _sf : (r.inv + r.rem)));       // งวดปกติ ใช้ยอด billing เต็มงวด
+              : (_sf > 0 ? _sf : (r.inv + r.rem));        // งวดปกติ ใช้ยอด billing เต็มงวด
     const got = Math.min(pool, amt);
     pool -= got;
     out[r.idx] = {
@@ -8312,15 +8322,10 @@ function renderPayment(paywSource, codeSetList){
       });
     }
     totalCollected += num(x.collected);
-    // AR ใช้ยอดหัวโครงการเป็นหลัก - เป็นตัวเลขที่บัญชียืนยันว่าเรียกเก็บอยู่จริง
-    // การกระจาย FIFO จะนับแถวใบกำกับภาษีตัดของและงวดที่ยังไม่ถึงกำหนดเข้าไปด้วย ทำให้เกินจริง
-    const headAR = num(x.collecting);
-    if(headAR > 0){
-      totalAR += headAR;
-    } else {
-      const alloc = allocateCollection(x);
-      Object.values(alloc).forEach(a=>{ if(a.outstanding>1) totalAR += a.outstanding; });
-    }
+    // AR = งวดที่วางบิลแล้วแต่ยังเก็บไม่ได้ (ไม่รวมแถวใบกำกับภาษีตัดของ)
+    // ไม่ใช้ยอดหัว collecting เพราะไฟล์รวมแถวส่งของเข้าไปด้วย ทำให้เกินจริง
+    const alloc = allocateCollection(x);
+    Object.values(alloc).forEach(a=>{ if(a.outstanding>1) totalAR += a.outstanding; });
   });
   const totalNotBilled = Math.max(0, totalBilling - totalCollected - totalAR);
 
@@ -8418,11 +8423,7 @@ function renderPayment(paywSource, codeSetList){
       // ลูกหนี้จริงของโครงการนี้ = ออกใบแจ้งหนี้แล้วแต่ยังเก็บไม่ได้ (ไม่รวมใบกำกับภาษีตัดของ)
       // ต้องประกาศก่อนถูกใช้ในชิปหัวการ์ด แถบสัดส่วน และรายการงวดด้านล่าง
       const allocPay = allocateCollection(x);
-      // ใช้ยอดหัวโครงการเป็นหลักเหมือนยอดสรุปด้านบน - การกระจาย FIFO นับใบกำกับภาษีตัดของ
-      // และงวดที่ยังไม่ถึงกำหนดเข้าไปด้วย ทำให้ AR เกินจริง
-      const _headAR = num(x.collecting);
-      const projAR = _headAR > 0 ? _headAR
-        : Object.values(allocPay).reduce((a,v)=>a+(v.outstanding>1?v.outstanding:0),0);
+      const projAR = Object.values(allocPay).reduce((a,v)=>a+(v.outstanding>1?v.outstanding:0),0);
       const projNotBilled = Math.max(0, (sumBilling || num(x.sellingPrice)) - coll_ed - projAR);
       const btSummary = sumBilling>0 ? `<div class="pw-bt ${billingOk?'':'warn'}">
         <span class="pw-bt-i">Billing ตามงวดงาน <b>${thb(sumBilling)}</b>${billingOk?'<span class="pw-bt-ok">✓ ตรงกับ Selling Price</span>':`<span class="pw-bt-bad">⚠ ไม่ตรงกับ Selling Price ${thb(spNum)}</span>`}</span>
@@ -8505,10 +8506,15 @@ function renderPayment(paywSource, codeSetList){
           const sp = num(x.sellingPrice);
           return sp > 0 && Math.abs((_ivPC + _rmPC) - sp) < 1;   // ใบเดียวครอบทั้งสัญญา
         })();
+        // งวดที่ไฟล์ยังไม่ลงยอด แต่คำอธิบายระบุ % ไว้ ให้คำนวณจาก Selling Price
+        // (Log Management งวด 3 = 20% · งวด 4 = 30% ของ 29.89M)
+        const _pctM = String(inst.desc||'').match(/(\d{1,3}(?:\.\d+)?)\s*%/);
+        const _pctAmt = (_pctM && !_isDel(inst)) ? num(x.sellingPrice) * parseFloat(_pctM[1]) / 100 : 0;
         const billingAmt = (!_isOwner || _dupDel) ? 0
           : (_schedFullPC > 0 ? _schedFullPC        // โครงการมีตารางสัญญา ใช้มูลค่างวดเต็ม
           : (_isDel(inst) ? 0                       // แถวส่งของ = ใบกำกับภาษี ไม่ใช่ยอดวางบิล
-          : ((_ivPC + _rmPC) > 0 ? _ivPC + _rmPC : descAmt(inst))));
+          : ((_ivPC + _rmPC) > 0 ? _ivPC + _rmPC
+          : (_pctAmt > 0 ? _pctAmt : descAmt(inst)))));
         const taxAmt = _isDel(inst) ? _ivPC
           : (_schedFullPC > 0 ? (_ivPC > 0 ? _ivPC : _rmPC) : (_overlapPC ? 0 : _ivPC));
         const taxIssued = _ivPC > 0;   // ออกใบกำกับภาษีแล้วจริงหรือยัง
