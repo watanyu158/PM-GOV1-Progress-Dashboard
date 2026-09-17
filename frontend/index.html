@@ -3229,6 +3229,11 @@ function planExpectedProgress(code, asOf){
 
 // ใช้แทน expectedProgress ทุกที่ - ลองแผนก่อน ไม่มีค่อยใช้เวลา
 function paceBaseline(p, ps, pe, asOf){
+  // โครงการที่ปิดสัญญาแล้ว ไม่วัดความคืบหน้า - งานจบแล้ว การบอกว่า "ช้ากว่าแผน" ไม่มีความหมาย
+  if(p){
+    const st = projectStatus(p);
+    if(st === 'Contract Closed' || st === 'Completely Closed') return null;
+  }
   const byPlan = planExpectedProgress(p && p['Project Code'], asOf);
   if(byPlan !== null) return byPlan;
   return expectedProgress(ps, pe, asOf);
