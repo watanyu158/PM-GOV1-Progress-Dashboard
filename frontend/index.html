@@ -597,6 +597,27 @@
   .it-flow-lb .dot.todo{background:var(--surface-2);border:1px solid var(--line);}
   .it-flow-tot{margin-left:auto;color:var(--faint);font-size:10.5px;}
 
+  /* รายชื่อโครงการที่ Health ไม่ปกติ - เติมพื้นที่ว่างข้างโดนัท */
+  .ph-watch{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;
+    padding-left:18px;border-left:1px solid var(--line-soft);align-self:stretch;}
+  .ph-watch-h{font-size:10px;color:var(--faint);text-transform:uppercase;
+    letter-spacing:.06em;margin-bottom:1px;}
+  .phw{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;
+    background:var(--surface-2);}
+  .phw-dot{width:7px;height:7px;border-radius:50%;flex:none;}
+  .phw-dot.crit{background:var(--critical);}
+  .phw-dot.warn{background:var(--warning);}
+  .phw-n{font-size:11px;font-weight:600;color:var(--ink);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;}
+  .phw-c{font-size:9.5px;color:var(--faint);font-family:'IBM Plex Mono',monospace;flex:none;}
+  .phw-pm{font-size:10px;color:var(--ink-2);flex:none;max-width:110px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ph-watch-ok{font-size:11px;color:var(--success);padding:6px 0;}
+  @media(max-width:860px){
+    .ph-watch{padding-left:0;border-left:0;border-top:1px solid var(--line-soft);
+      padding-top:12px;margin-top:4px;flex-basis:100%;}
+  }
+
   /* ตารางเช็คการกรอก Update Date รายสัปดาห์ */
   .pf-wrap{margin-bottom:14px;padding:12px 14px;border-radius:10px;
     background:var(--surface-2);border:1px solid var(--line-soft);}
@@ -1922,6 +1943,7 @@
         <div class="donut-wrap">
           <svg id="donut" width="148" height="148" viewBox="0 0 148 148"></svg>
           <div class="legend" id="legend"></div>
+          <div class="ph-watch" id="phWatchList"></div>
         </div>
         <div class="ph-sep"></div>
         <div class="ph-drop" id="phDrop" onclick="document.getElementById('phFile').click()">
@@ -2972,6 +2994,32 @@ function renderDonut(list){
   const es = Object.values(g).sort((a,b)=>b.n-a.n);
   const total = list.length || 1;
   document.getElementById('healthCount').textContent = `${list.length} โครงการ`;
+
+  // รายชื่อโครงการที่ Health ไม่ปกติ - เติมพื้นที่ว่างข้างโดนัท จะได้รู้ว่าต้องตามใคร
+  const watchEl = document.getElementById('phWatchList');
+  if(watchEl){
+    const bad = list.filter(p=>{
+      const c = H.cls(p['Project Health']);
+      return c==='critical' || c==='warning';
+    }).sort((p,q)=>{
+      const rank = x => H.cls(x['Project Health'])==='critical' ? 0 : 1;
+      return rank(p)-rank(q) || num(p['%Progress'])-num(q['%Progress']);
+    });
+    const nCrit = bad.filter(p=>H.cls(p['Project Health'])==='critical').length;
+    watchEl.innerHTML = bad.length
+      ? `<div class="ph-watch-h">ต้องตาม${nCrit?` · Critical ${nCrit}`:''}${bad.length-nCrit?` · Warning ${bad.length-nCrit}`:''}</div>`
+        + bad.slice(0,6).map(p=>{
+            const c = H.cls(p['Project Health']);
+            return `<div class="phw" title="${p['Project Name']||''} · ${p['PM Name']||''} · ${H.label(p['Project Health'])} · ทำได้ ${num(p['%Progress']).toFixed(0)}%">
+              <span class="phw-dot ${c==='critical'?'crit':'warn'}"></span>
+              <span class="phw-n">${p['Project Name']||p['Project Code']}</span>
+              <span class="phw-c">#${p['Project Code']}</span>
+              <span class="phw-pm">${pmKey(p['PM Name'])||'-'}</span>
+            </div>`;
+          }).join('')
+        + (bad.length>6 ? `<div class="ph-watch-h" style="margin-top:2px">และอีก ${bad.length-6} โครงการ</div>` : '')
+      : `<div class="ph-watch-h">ต้องตาม</div><div class="ph-watch-ok">ไม่มีโครงการที่สถานะ Critical หรือ Warning</div>`;
+  }
 
   const cx=74, cy=74, r=52, w=19;
   let a = -90;
