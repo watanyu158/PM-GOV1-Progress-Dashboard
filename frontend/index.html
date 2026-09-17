@@ -3203,10 +3203,44 @@ function renderFree(list){
 
 const fmtShort = d => d.toLocaleDateString('th-TH',{day:'2-digit',month:'short'});
 // ความคืบหน้าที่ "ควรจะเป็น" ตามแผน ถ้าไล่ตามเวลาเป็นเส้นตรงจาก Plan Start ถึง Plan End
+// เส้นเทียบความคืบหน้า - ใช้ "แผนรับรู้รายได้" เป็นหลัก ถอยไปใช้สัดส่วนเวลาเมื่อไม่มีแผน
+//
+// เหตุผล: การเทียบด้วยเวลาสมมติว่างานเดินสม่ำเสมอทุกวัน ซึ่งไม่จริงกับงาน IT
+// ช่วงแรกเป็นงานออกแบบ/สั่งของ ยังไม่ขยับ % งานจะพุ่งตอนติดตั้ง
+// (Aerothai: เทียบเวลาได้ -16.2pp เหมือนวิกฤต แต่เทียบแผนจริงเร็วกว่าแผน +2.0pp)
+//
+// แผนเก็บเป็น % รายเดือน จึงต้องเฉลี่ยรายวันสำหรับเดือนปัจจุบัน
+// ไม่งั้นวันที่ 1 ของเดือนจะถูกคาดหวังเท่ากับวันสุดท้ายของเดือน
+function planExpectedProgress(code, asOf){
+  if(typeof REV === 'undefined' || !REV.length) return null;
+  const r = REV.find(x => String(x['Project Code']||'').trim() === String(code||'').trim());
+  if(!r) return null;
+  const mi = asOf.getMonth();
+  const bf = num(r['BF']);
+  let prevCum = bf;
+  for(let i=0; i<mi; i++) prevCum += num(r[RP_MONTHS[i]]);
+  const thisM = num(r[RP_MONTHS[mi]]);
+  // ไม่มีแผนเลยทั้งปี = ใช้ไม่ได้ ให้ถอยไปใช้เวลา
+  const yearTotal = RP_MONTHS.reduce((a,m)=>a+num(r[m]),0);
+  if(bf <= 0 && yearTotal <= 0) return null;
+  const dim = new Date(asOf.getFullYear(), mi+1, 0).getDate();
+  return Math.max(0, Math.min(100, prevCum + thisM * (asOf.getDate()/dim)));
+}
+
+// ใช้แทน expectedProgress ทุกที่ - ลองแผนก่อน ไม่มีค่อยใช้เวลา
+function paceBaseline(p, ps, pe, asOf){
+  const byPlan = planExpectedProgress(p && p['Project Code'], asOf);
+  if(byPlan !== null) return byPlan;
+  return expectedProgress(ps, pe, asOf);
+}
+
 function expectedProgress(ps, pe, asOf){
   if(!ps || !pe || pe<=ps) return null;
-  const frac = (asOf-ps)/(pe-ps);
-  return Math.max(0, Math.min(1, frac)) * 100;
+  // นับแบบรวมวันเริ่มและวันจบ (inclusive) - 29 ส.ค. ถึง 26 พ.ย. = 90 วัน ไม่ใช่ 89
+  const DAY_MS = 86400000;
+  const totalDays = Math.round((pe-ps)/DAY_MS) + 1;
+  const elapsed   = Math.round((asOf-ps)/DAY_MS) + 1;
+  return Math.max(0, Math.min(1, elapsed/totalDays)) * 100;
 }
 
 // กราฟเทรนด์ภาพรวม - รับความกว้างเป็นพิกเซลจริงของกล่อง (วัดจาก DOM หลัง render)
@@ -3349,7 +3383,7 @@ function renderWow(list){
     const deltas = projs.map(r=>{
       const ps = parseD(r['Plan Start Date']) || parseD(r['Start Date']);
       const pe = parseD(r['Plan End Date']) || parseD(r['End Date']);
-      const exp = expectedProgress(ps, pe, today);
+      const exp = paceBaseline(r, ps, pe, today);
       return exp===null ? null : num(r['%Progress']) - exp;
     }).filter(v=>v!==null);
     if(!deltas.length) return null;
@@ -3389,7 +3423,7 @@ function renderWow(list){
         const prev2 = arr.length>1 ? arr[arr.length-2] : null;
         const ps = parseD(cur2['Plan Start Date']) || parseD(cur2['Start Date']);
         const pe = parseD(cur2['Plan End Date']) || parseD(cur2['End Date']);
-        const exp = expectedProgress(ps, pe, today);
+        const exp = paceBaseline(cur2, ps, pe, today);
         return {
           name: cur2['Project Name'] || code,
           customer: cur2['Customer'] || '',
@@ -3615,7 +3649,7 @@ function renderComplexity(list){
     const cls = H.cls(p['Project Health']);
     const ps = parseD(p['Plan Start Date']) || parseD(p['Start Date']);
     const pe = parseD(p['Plan End Date']) || parseD(p['End Date']);
-    const exp = expectedProgress(ps, pe, today);
+    const exp = paceBaseline(p, ps, pe, today);
     const paceDev = exp===null ? null : (num(p['%Progress']) - exp);
     // ความรุนแรงจาก "ตัวเลขจริง" (ช้ากว่าแผนกี่ pp) - ใช้คู่กับ Health ที่ PM กรอก แล้วเอาค่าที่แย่กว่า
     // เหตุผล: Health อาจค้างไม่ได้อัปเดต (เจอจริง: RTAF ช้า -23pp แต่ Health ยังเป็น Normal)
@@ -3878,7 +3912,7 @@ function renderRiskFinder(list){
     const prog = p['%Progress']===null || p['%Progress']===undefined || p['%Progress']==='' ? null : num(p['%Progress']);
     const ps = parseD(p['Plan Start Date']) || parseD(p['Start Date']);
     const pe = parseD(p['Plan End Date']) || parseD(p['End Date']);
-    const exp = expectedProgress(ps, pe, today);
+    const exp = paceBaseline(p, ps, pe, today);
     const gap = (exp===null || prog===null) ? null : prog - exp;
     const isHealthRisk = /critical/i.test(health) || /warning/i.test(health);
     const isNumRisk = gap!==null && gap <= -5;
@@ -4090,7 +4124,7 @@ function renderStalled(list){
 
     const planS = parseD(p['Plan Start Date']) || parseD(p['Start Date']);
     const planE = parseD(p['Plan End Date']) || parseD(p['End Date']);
-    const expected = expectedProgress(planS, planE, today);
+    const expected = paceBaseline(p, planS, planE, today);
     const actual = num(p['%Progress']);
     if(expected===null) return; // ไม่มีวันที่แผนพอคำนวณ ข้ามไป ไม่เดา
     const gap = expected - actual;
@@ -9568,7 +9602,7 @@ function computeTeamScorecard(){
       const streak = trailingStreak(h, e=>(e['Progress Update']||'').trim()===curNote);
       const planS = parseD(p['Plan Start Date']) || parseD(p['Start Date']);
       const planE = parseD(p['Plan End Date']) || parseD(p['End Date']);
-      const exp2 = expectedProgress(planS, planE, today0);
+      const exp2 = paceBaseline(p, planS, planE, today0);
       if(exp2===null) return;
       if(streak>=3 && (exp2-num(p['%Progress']))>=15) stalledCount++;
     });
