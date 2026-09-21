@@ -2570,6 +2570,16 @@ function projectStatus(p){
 const isY = v => String(v||'').trim().toUpperCase() === 'Y';
 const isCompleted = v => String(v||'').trim().toLowerCase() === 'completed';
 
+// ==== นิยาม "โอนงานเสร็จ" - ใช้ที่เดียวกันทุกจุด (การ์ด Closure & Transfer, แถบกำลังส่งมอบใน KPI, เงื่อนไขตัดออกจาก dashboard) ====
+// BI/SL/KT = Completed ครบทั้ง 3 ช่อง แปลว่า "เอกสารโอนงานครบทุกฝ่าย" เท่านั้น ยังไม่จบ ต้องรอ CS ยืนยันรับงานก่อน
+// CS ยืนยันแล้วดูจาก Transfer Status = "ยืนยันแล้ว" หรือมี Transfer Accept Date
+// (ประวัติในชีต Project Info: โครงการที่โอนงานจบ 13 โครงการ มีทั้ง "ยืนยันแล้ว" และ Transfer Accept Date ครบทุกโครงการ
+//  ส่วนที่ยังเป็น "รอยืนยัน" ไม่มี Transfer Accept Date เลย แม้บางโครงการ BI/SL/KT จะครบแล้วก็ตาม)
+const hasCellValue = v => { const t = String(v ?? '').trim(); return t !== '' && t !== '-'; };
+const transferDocsDone = p => isCompleted(p['BI']) && isCompleted(p['SL']) && isCompleted(p['KT']);
+const transferAccepted = p => /ยืนยันแล้ว/.test(String(p['Transfer Status']||'')) || hasCellValue(p['Transfer Accept Date']);
+const transferDone = p => transferDocsDone(p) && transferAccepted(p);
+
 // นับ "รอบติดกันล่าสุด" ที่เข้าเงื่อนไข test(entry) เป็นจริง ไล่จากรอบล่าสุดย้อนกลับไป จนกว่าจะเจอรอบที่ไม่เข้าเงื่อนไข
 function trailingStreak(entries, test){
   let n = 0;
@@ -2583,10 +2593,10 @@ function trailingStreak(entries, test){
 // ทุกมุมมองหลัก (KPI, ตาราง PM, Health, Gantt, Availability, การ์ด) ต้องใช้ "แถวล่าสุด" ต่อโครงการเท่านั้น
 // ส่วนกราฟ Week-over-Week จะใช้ประวัติทั้งหมดแยกต่างหาก
 //
-// วงจรชีวิตโครงการที่ปิดงานแล้ว: Contract Closed -> Completely Closed -> Transfer (BI/SL/KT Completed ครบ)
+// วงจรชีวิตโครงการที่ปิดงานแล้ว: Contract Closed -> Completely Closed -> Transfer (BI/SL/KT Completed ครบ -> CS ยืนยันรับงาน)
 // โครงการที่ปิดแล้วยังคง "แสดงอยู่" พร้อมสถานะและคำเตือน (ดู renderClosure) จนกว่าจะโอนงานเสร็จสมบูรณ์จริง ๆ
-// ถึงจะตัดออกจาก dashboard - ไม่ใช่ซ่อนทันทีที่ 100% เพราะจะบังปัญหาที่ควรเห็น (ค้าง Transfer, ค้าง BI/SL/KT)
-// เงื่อนไขตัดออก: Completely Closed + BI/SL/KT = Completed ครบทั้ง 3 ตัว ต่อเนื่องกันมา >= 2 รอบอัปเดต
+// ถึงจะตัดออกจาก dashboard - ไม่ใช่ซ่อนทันทีที่ 100% เพราะจะบังปัญหาที่ควรเห็น (ค้าง Transfer, ค้าง BI/SL/KT, รอ CS ยืนยัน)
+// เงื่อนไขตัดออก: Completely Closed + โอนงานเสร็จ (BI/SL/KT ครบ และ CS ยืนยันรับงานแล้ว) ต่อเนื่องกันมา >= 2 รอบอัปเดต
 function latestPerProject(rows){
   const byCode = {};
   rows.forEach((r, idx)=>{
@@ -2603,7 +2613,7 @@ function latestPerProject(rows){
   const active = [];
   Object.values(byCode).forEach(arr=>{
     const fullyTransferredStreak = trailingStreak(arr, e =>
-      !!e.r['Completely Closed Date'] && isCompleted(e.r['BI']) && isCompleted(e.r['SL']) && isCompleted(e.r['KT'])
+      !!e.r['Completely Closed Date'] && transferDone(e.r)
     );
     if(fullyTransferredStreak >= 2) return; // โอนงานเสร็จสมบูรณ์คงที่มา 2 รอบแล้ว -> ตัดออกจาก dashboard
     active.push(arr[arr.length-1].r);
@@ -2891,6 +2901,8 @@ function renderKPIs(list){
     const st = String(p['Transfer Status']||'').trim();
     const doc = String(p['Transfer Doc']||'').trim();
     if((!st || st==='-') && (!doc || doc==='-')) return;
+    // CS ยืนยันรับงานแล้ว = ส่งมอบเสร็จ ไม่นับเป็น "กำลังส่งมอบ" (นิยามเดียวกับการ์ด Closure & Transfer)
+    if(transferDone(p)) return;
     const code = String(p['Project Code']||'').trim() || String(p['Project Name']||'');
     // แถวล่าสุดของโครงการนั้นเป็นตัวแทน (ไฟล์เรียงตามลำดับการอัปเดต)
     tset.set(code, p);
@@ -3819,16 +3831,24 @@ function renderClosure(list){
       if(streak >= 2) alerts.push({ p, sev:'warning', msg:`Contract Closed มาแล้ว ${streak} รอบติดต่อกัน ยังไม่ทำ Completely Closed` });
     }
     // Rule 4: ปิดงานสมบูรณ์แล้ว มี Warranty แต่ยังไม่เริ่ม Transfer
-    if(completelyClosed && warrantyY && !hasTransferDate){
+    // (ถ้า CS ยืนยันรับงานไปแล้ว แปลว่าโอนงานไปแล้ว แม้ช่อง Transfer Date จะว่าง - ไม่ต้องเตือน)
+    if(completelyClosed && warrantyY && !hasTransferDate && !transferAccepted(p)){
       alerts.push({ p, sev:'critical', msg:'ปิดงานสมบูรณ์แล้ว (Completely Closed) มี Warranty แต่ยังไม่เริ่ม Transfer' });
     }
-    // Rule 5: อยู่ระหว่าง Transfer แล้ว เช็คว่า BI/SL/KT ค้างอยู่จุดไหนไหม
-    if(warrantyY && hasTransferDate){
+    // Rule 5: อยู่ระหว่าง Transfer - ติดตามจนกว่าโอนงานเสร็จจริง (BI/SL/KT ครบ และ CS ยืนยันรับงานแล้ว)
+    // เดิมหยุดติดตามทันทีที่ BI/SL/KT ครบ ทำให้โครงการที่ยัง "รอยืนยัน" หลุดออกจากการ์ดไปก่อนเวลา
+    if(warrantyY && hasTransferDate && !transferDone(p)){
       const stuck = [];
       if(p['BI'] && !isCompleted(p['BI'])) stuck.push(`BI: ${p['BI']}`);
       if(p['SL'] && !isCompleted(p['SL'])) stuck.push(`SL: ${p['SL']}`);
       if(p['KT'] && !isCompleted(p['KT'])) stuck.push(`KT: ${p['KT']}`);
-      if(stuck.length) alerts.push({ p, sev:'warning', msg:`อยู่ระหว่าง Transfer แต่ค้างที่ ${stuck.join(' · ')}` });
+      if(stuck.length){
+        alerts.push({ p, sev:'warning', msg:`อยู่ระหว่าง Transfer แต่ค้างที่ ${stuck.join(' · ')}` });
+      } else if(transferDocsDone(p)){
+        // เอกสารครบทุกฝ่ายแล้ว เหลือขั้นสุดท้ายคือ CS ยืนยันรับงาน - นับว่ารอมากี่รอบแล้ว (แบบเดียวกับกฎ Contract Closed)
+        const waitN = trailingStreak(hist, e => transferDocsDone(e) && !transferAccepted(e));
+        alerts.push({ p, sev:'warning', msg:`BI/SL/KT ครบแล้ว รอ CS ยืนยันรับงาน${waitN >= 2 ? ` มา ${waitN} รอบติดต่อกัน` : ''}` });
+      }
     }
   });
   alerts.sort((a,b)=> (b.sev==='critical')-(a.sev==='critical'));
