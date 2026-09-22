@@ -3275,19 +3275,19 @@ function renderGantt(list){
     return (insCache[code] ||= deliveryInstallments(payByCode[code], planByCode[code], today));
   };
 
-  // ---- งวดที่วันส่งมอบกับวันวางบิลไม่สอดคล้องกัน - ตรวจทุกโครงการในรายการ (รวมที่ปิดสัญญาแล้ว) ไม่ขึ้นกับช่วงเวลาที่เลือก ----
+  // ---- งวดที่วันส่งมอบกับวันวางบิลไม่สอดคล้องกัน ----
+  // ตรวจเฉพาะโครงการที่มีแท่งอยู่ในกราฟตอนนี้ (ตามช่วงเวลาที่เลือก) - OAT: ไม่มีแท่งในกราฟ ไม่ต้องแสดงความเห็น
+  // โครงการที่ Contract Closed / Completely Closed จึงไม่ขึ้นในรายการนี้ เพราะไม่อยู่ในกราฟตั้งแต่แรก
   const issues = [];
-  list.forEach(p => deliveryBillingIssues(installmentsFor(p), today).forEach(it => issues.push({...it, p})));
+  items.forEach(i => deliveryBillingIssues(installmentsFor(i.p), today).forEach(it => issues.push({...it, p:i.p})));
   issues.sort((a,b)=> a.rank - b.rank || String(a.p['Project Name']||'').localeCompare(String(b.p['Project Name']||'')) || a.no - b.no);
   const mmHtml = issues.length ? `<div class="g-mm">
       <div class="g-mm-h">งวดที่วันส่งมอบกับวันวางบิลไม่สอดคล้องกัน <span class="g-mm-n">${issues.length} รายการ</span>
-        <span class="g-mm-s">ตรวจทุกโครงการ ไม่ขึ้นกับช่วงเวลาที่เลือก · ยอมให้คลาดกันได้ 7 วัน</span></div>
+        <span class="g-mm-s">เฉพาะโครงการในกราฟ · ยอมให้คลาดกันได้ 7 วัน</span></div>
       ${issues.map(it=>{
-        const st = projectStatus(it.p);
-        const stChip = (st==='Contract Closed' || st==='Completely Closed') ? ` <span class="chip neutral">${st}</span>` : '';
         return `<div class="g-mm-r r${it.rank}">
           <span class="g-mm-p">p${it.no}</span>
-          <span class="g-mm-b"><b>${it.p['Project Name']||it.p['Project Code']}</b> <span class="code-tag">#${it.p['Project Code']}</span>${stChip}
+          <span class="g-mm-b"><b>${it.p['Project Name']||it.p['Project Code']}</b> <span class="code-tag">#${it.p['Project Code']}</span>
             <span class="g-mm-t">${it.msg}</span></span>
           <span class="g-mm-pm">${pmKey(it.p['PM Name'])||'-'}</span>
         </div>`;
@@ -3295,7 +3295,7 @@ function renderGantt(list){
     </div>` : '';
 
   if(!items.length){
-    el.innerHTML = `<div class="empty">ไม่มีโครงการที่ครบกำหนดในช่วงเวลานี้</div>` + mmHtml;
+    el.innerHTML = `<div class="empty">ไม่มีโครงการที่ครบกำหนดในช่วงเวลานี้</div>`;
     return;
   }
 
