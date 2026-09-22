@@ -498,6 +498,53 @@ function parseSumStockM(wb) {
 // โครงสร้างต่างจาก DATA: header 2 แถวซ้อนกัน (แถว 3 = หมวดหลัก/ไตรมาส, แถว 4 = เดือนย่อยใต้แต่ละไตรมาส)
 // ข้อมูลเริ่มแถว 5 เป็นต้นไป - แปลงเป็น key เดียวโดยรวมบริบทไตรมาสเข้ากับ "Total" ย่อยกันชนกัน
 // (Q1_Total, Q2_Total, ...) ส่วนเดือน (Jan..Dec) ใช้ชื่อเดือนตรง ๆ เพราะไม่ซ้ำกันอยู่แล้ว
+// --- แกะไฟล์ Excel: sheet "Project Plan" (แผนงานรายโครงการที่ export จาก PMS วางต่อกันเป็นบล็อก) ---
+// แต่ละบล็อก: แถว "Project : <รหัส>  <ชื่อ>" แล้วตามด้วยตาราง TaskID | Task Name | Start Date | End Date | ...
+// เก็บแค่รหัสงาน ชื่องาน วันเริ่ม วันจบ เท่านั้น - ไม่อ่านคอลัมน์ Percent เด็ดขาด
+// (OAT ไม่ต้องการให้ทีมต้องมาอัปเดต % ในแผน ความคืบหน้าใช้ %Progress ใน Progress1 เท่านั้น)
+function parseProjectPlanSheet(wb) {
+  const sheetName = wb.SheetNames.find(n => n.trim().toUpperCase() === 'PROJECT PLAN');
+  if (!sheetName) return { rows: [], sheetName: null };
+  const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, raw: true, defval: null });
+  // วันที่ในชีตนี้เป็นข้อความ dd/mm/yyyy อยู่แล้ว - ถ้าวันไหนเป็นเซลล์วันที่จริงให้แปลงเป็นรูปแบบเดียวกัน
+  const pad = v => String(v).padStart(2, '0');
+  const asDate = v => {
+    if (v === null || v === undefined || v === '') return null;
+    if (v instanceof Date) return isNaN(v) ? null : `${pad(v.getDate())}/${pad(v.getMonth() + 1)}/${v.getFullYear()}`;
+    return String(v).trim() || null;
+  };
+  const plans = [];
+  let cur = null, col = null;
+  aoa.forEach(r => {
+    if (!Array.isArray(r)) return;
+    const a = String(r[0] ?? '').trim();
+    if (/^Project\s*:/i.test(a)) {
+      const m = String(r[1] ?? '').trim().match(/^(\d+)\s+(.*)$/);
+      cur = m ? { code: m[1], name: m[2].replace(/\s+/g, ' ').trim(), tasks: [] } : null;
+      if (cur) plans.push(cur);
+      col = null;
+      return;
+    }
+    if (!cur) return;
+    if (/^TaskID$/i.test(a)) {
+      // หาตำแหน่งคอลัมน์จากหัวตาราง ไม่ fix ตำแหน่งไว้ เผื่อมีการสลับคอลัมน์ในอนาคต
+      const h = r.map(v => String(v ?? '').trim().toLowerCase());
+      col = { name: h.indexOf('task name'), start: h.indexOf('start date'), end: h.indexOf('end date') };
+      if (col.name < 0 || col.end < 0) col = null;
+      return;
+    }
+    if (col && a !== '' && r[col.name]) {
+      cur.tasks.push({
+        id: a,
+        name: String(r[col.name]).replace(/\s+/g, ' ').trim(),
+        start: col.start >= 0 ? asDate(r[col.start]) : null,
+        end: asDate(r[col.end]),
+      });
+    }
+  });
+  return { rows: plans.filter(p => p.tasks.length), sheetName };
+}
+
 function parseRevenueSheet(wb) {
   const sheetName = wb.SheetNames.find(n => n.trim().toUpperCase() === 'REVENUE');
   if (!sheetName) return { rows: [], sheetName: null };
@@ -569,6 +616,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const { rows: stock, sheetName: stockSheetName } = safeParse('Stock Movement', () => parseStockMovement(wb), { rows: [], sheetName: null });
       const { rows: stockSummary, sheetName: stockSummarySheetName } = safeParse('SumStockM', () => parseSumStockM(wb), { rows: [], sheetName: null });
       const { rows: projectInfo, sheetName: projectInfoSheetName } = safeParse('Project Info', () => parseProjectInfoSheet(wb), { rows: [], sheetName: null });
+      const { rows: projectPlanAll, sheetName: projectPlanSheetName } = safeParse('Project Plan', () => parseProjectPlanSheet(wb), { rows: [], sheetName: null });
 
       // Progress1 คือแกนหลัก ถ้าอ่านไม่ได้เลยแปลว่าไฟล์ผิดรูปแบบจริง ๆ - ไม่ควรเขียนทับข้อมูลเดิมที่ยังดีอยู่
       if (!rows.length) {
@@ -603,8 +651,10 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       // ให้ parseEvmSheets เจอเฉพาะ sheet ที่ตรงกับโครงการทีมเราเท่านั้น ไม่มีทางหลุดข้ามทีมได้
       const knownProjectCodes = new Set(rows.map(r => String(r['Project Code'] || '').trim()).filter(Boolean));
       const evm = parseEvmSheets(wb, knownProjectCodes);
+      // แผนงาน: เก็บเฉพาะโครงการของทีมที่อยู่ใน Progress1 (whitelist เดียวกับ EVM)
+      const projectPlan = projectPlanAll.filter(pl => knownProjectCodes.has(String(pl.code).trim()));
 
-      latestData = { rows, revenue, paymentW: paymentWTeam, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeam, projectInfoAll: projectInfo, evm, updatedAt: new Date().toISOString() };
+      latestData = { rows, revenue, paymentW: paymentWTeam, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeam, projectInfoAll: projectInfo, evm, projectPlan, updatedAt: new Date().toISOString() };
       lastRaw = {
         receivedAt: latestData.updatedAt,
         contentType: req.headers['content-type'] || null,
@@ -619,6 +669,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       console.log(`  + PaymentW ${paymentW.length}→${paymentWTeam.length} (team) from "${paymentWSheetName || '(not found)'}", PO ${po.length}→${poTeam.length} (team) from "${poSheetName || '(not found)'}", Stock ${stock.length}→${stockTeam.length} (team) from "${stockSheetName || '(not found)'}", StockSummary ${stockSummary.length}→${stockSummaryTeam.length} (team) from "${stockSummarySheetName || '(not found)'}" (${req.file.buffer.length} bytes)`);
       console.log(`  + Project Info ${projectInfo.length}→${projectInfoTeam.length} (team) from "${projectInfoSheetName || '(not found)'}"`);
       console.log(`  + EVM sheets found: ${Object.keys(evm).length} (${Object.keys(evm).join(', ') || 'none'})`);
+      console.log(`  + Project Plan ${projectPlanAll.length}→${projectPlan.length} (team) from "${projectPlanSheetName || '(not found)'}"`);
 
       // เตือนถ้ามีชื่อ PM ในไฟล์ที่ยังไม่มีบัญชีผูกไว้ (พิมพ์ชื่อผิด หรือมี PM ใหม่เข้าทีม)
       const linked = new Set(USERS.filter(u => u.pmName).map(u => normName(u.pmName)));
@@ -632,7 +683,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       }
 
       if (failed.length) console.error(`⚠ sync สำเร็จบางส่วน - sheet ที่อ่านไม่ได้: ${failed.join(', ')}`);
-      return res.json({ ok: true, mode: 'file', sheet: sheetName, count: rows.length, revenueSheet: revenueSheetName, revenueCount: revenue.length, paymentWCount: paymentWTeam.length, poCount: poTeam.length, stockCount: stockTeam.length, stockSummaryCount: stockSummaryTeam.length, projectInfoCount: projectInfoTeam.length, failedSheets: failed, updatedAt: latestData.updatedAt });
+      return res.json({ ok: true, mode: 'file', sheet: sheetName, count: rows.length, revenueSheet: revenueSheetName, revenueCount: revenue.length, paymentWCount: paymentWTeam.length, poCount: poTeam.length, stockCount: stockTeam.length, stockSummaryCount: stockSummaryTeam.length, projectInfoCount: projectInfoTeam.length, projectPlanCount: projectPlan.length, failedSheets: failed, updatedAt: latestData.updatedAt });
     }
 
     // ทางสำรอง: body เป็น JSON array ของแถวข้อมูลตรง ๆ
@@ -1001,6 +1052,7 @@ app.get('/api/projects', requireAuth, (req, res) => {
   // paymentWTeamWide/poTeamWide/stockTeamWide/stockSummaryTeamWide เป็นคู่เดียวกัน สำหรับ card ฝั่ง Tab 2 (Finance & Stock)
   if (role === 'admin' || !pmName) return res.json({
     ...latestData,
+    projectPlanTeamWide: latestData.projectPlan || [],
     rowsTeamWide: latestData.rows,
     paymentWTeamWide: latestData.paymentW,
     poTeamWide: latestData.po,
@@ -1017,6 +1069,9 @@ app.get('/api/projects', requireAuth, (req, res) => {
   const po = (latestData.po || []).filter(r => normName(r.pm) === target);
   const stock = (latestData.stock || []).filter(r => normName(r.pmName) === target);
   const stockSummary = (latestData.stockSummary || []).filter(r => normName(r.pm) === target);
+  // แผนงานกรองตามรหัสโครงการที่ PM คนนี้ดูแล (ใน Progress1) - ชีตแผนไม่มีคอลัมน์ PM ที่เชื่อถือได้
+  const ownCodes = new Set(rows.map(r => String(r['Project Code'] || '').trim()).filter(Boolean));
+  const projectPlan = (latestData.projectPlan || []).filter(pl => ownCodes.has(String(pl.code).trim()));
   // projectInfo ไม่กรองรายบุคคล - เป็น tab ภาพรวมทีม (leaderboard/ประวัติ site) ที่ทุกคนในทีมควรเห็นเหมือนกันหมด
   // (ยังล็อกไว้แค่ทีม PM-GOV1 ตั้งแต่ตอนอ่านไฟล์แล้ว ไม่มีข้อมูลทีมอื่นหลุดออกมาแน่นอน)
   const projectInfo = latestData.projectInfo || [];
@@ -1032,7 +1087,8 @@ app.get('/api/projects', requireAuth, (req, res) => {
 
   res.json({
     ...latestData,
-    rows, revenue, paymentW, po, stock, stockSummary, projectInfo,
+    rows, revenue, paymentW, po, stock, stockSummary, projectInfo, projectPlan,
+    projectPlanTeamWide: latestData.projectPlan || [],
     rowsTeamWide: latestData.rows,
     paymentWTeamWide: latestData.paymentW,
     poTeamWide: latestData.po,

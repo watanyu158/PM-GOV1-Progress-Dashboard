@@ -325,6 +325,7 @@
   .cls-msg{font-size:12px;margin-top:5px;padding:7px 10px;border-radius:7px;line-height:1.5;}
   .cls-msg.warning{background:var(--warning-tint);color:var(--warning);}
   .cls-msg.critical{background:var(--critical-tint);color:var(--critical);}
+  .cls-msg.success{background:var(--success-tint);color:var(--success);}
   .cls-pm{font-size:11px;color:var(--faint);white-space:nowrap;flex:none;padding-top:2px;}
   .pw-stack{display:flex;height:12px;border-radius:6px;overflow:hidden;margin-top:6px;background:var(--line);}
   .pw-seg{height:100%;min-width:0;}
@@ -1218,6 +1219,52 @@
   .g-legend .li{display:flex;align-items:center;gap:6px;}
   .g-legend .bx{width:22px;height:9px;border-radius:3px;}
   .g-legend .dash{width:16px;border-top:2px dashed #A8482F;opacity:.6;}
+
+  /* ขีดงวดส่งมอบ p1 p2 ... บนแท่งโครงการ */
+  .g-tick{position:absolute;top:0;height:23px;width:0;z-index:2;}
+  .g-tick i{position:absolute;top:1px;bottom:1px;left:-1px;width:2px;border-radius:1px;background:var(--tc);}
+  .g-tick span{
+    position:absolute;top:50%;left:0;transform:translate(-50%,-50%);
+    font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;line-height:12px;
+    padding:0 4px;border-radius:6px;background:var(--tc);color:#fff;white-space:nowrap;
+    box-shadow:0 0 0 2px #fff, 0 1px 3px rgba(42,37,32,.35);cursor:default;
+  }
+  .g-tick.alt span{transform:translate(-50%,-50%) translateY(-7px);}
+  .g-tick.paid{--tc:#4F7A4A;}
+  .g-tick.billed{--tc:#3F6E8C;}
+  .g-tick.overdue{--tc:#A8482F;}
+  .g-tick.future{--tc:#A39A8E;}
+  .g-tick.future span{background:#fff;color:#7E7468;box-shadow:0 0 0 1.5px #A39A8E, 0 1px 3px rgba(42,37,32,.25);}
+  .g-date.e.tk{padding-left:17px;}
+  .g-date.s.tk{padding-right:17px;}
+  .g-legend-tk{margin-top:8px;padding-top:0;border-top:none;}
+  .g-lg-tk{
+    font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;line-height:12px;
+    padding:0 4px;border-radius:6px;color:#fff;
+  }
+  .g-lg-tk.paid{background:#4F7A4A;}
+  .g-lg-tk.billed{background:#3F6E8C;}
+  .g-lg-tk.overdue{background:#A8482F;}
+  .g-lg-tk.future{background:#fff;color:#7E7468;box-shadow:0 0 0 1.5px #A39A8E;}
+  .g-lg-note{color:var(--faint);}
+
+  /* รายการงวดที่วันส่งมอบกับวันวางบิลไม่สอดคล้องกัน */
+  .g-mm{margin-top:16px;padding-top:12px;border-top:1px solid var(--line-soft);}
+  .g-mm-h{font-size:12px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
+  .g-mm-n{font-size:10px;font-weight:700;padding:1px 8px;border-radius:9px;background:var(--warning-tint);color:var(--warning);}
+  .g-mm-s{font-size:10.5px;font-weight:500;color:var(--faint);}
+  .g-mm-r{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:start;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:11.5px;}
+  .g-mm-r:last-child{border-bottom:none;}
+  .g-mm-p{
+    justify-self:start;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:700;line-height:14px;
+    padding:0 5px;border-radius:6px;color:#fff;background:#B07A28;margin-top:1px;
+  }
+  .g-mm-r.r0 .g-mm-p{background:#A8482F;}
+  .g-mm-b{min-width:0;color:var(--ink-2);}
+  .g-mm-b b{color:var(--ink);font-weight:600;}
+  .g-mm-t{display:block;margin-top:2px;color:var(--muted);}
+  .g-mm-r.r0 .g-mm-t{color:#A8482F;}
+  .g-mm-pm{font-size:10.5px;color:var(--faint);white-space:nowrap;}
 
   .risks{display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;}
   .chip{
@@ -2631,6 +2678,7 @@ let STOCK = [];
 let STOCKSUM = [];
 let PROJINFO = [];
 let PROJINFO_ALL = []; // ไม่ล็อกทีม - ใช้เฉพาะ card "ค้นหาทั้งบริษัท"
+let PLAN = [], PLAN_TEAMWIDE = []; // แผนงานจาก tab "Project Plan" - มีแค่ชื่องาน วันเริ่ม วันจบ (ไม่มี % ในแผนเด็ดขาด)
 let ROWS_TEAMWIDE = []; // Progress1 เต็มทั้งทีมเสมอ ไม่ว่าใคร login (ไม่ผ่านการกรองรายบุคคล) - ใช้กับการ์ดที่ตั้งเป็น team-wide
 let PAYW_TEAMWIDE = [], PO_TEAMWIDE = [], STOCK_TEAMWIDE = [], STOCKSUM_TEAMWIDE = []; // คู่ team-wide ของ Tab 2
 let CARD_DATA_SCOPE = {}; // ดึงจาก backend ทุกครั้งที่ loadData - key=cardId, value='team-wide' หรือไม่มี entry (=เฉพาะของตัวเอง)
@@ -2715,6 +2763,8 @@ async function loadData(auto){
       STOCKSUM = j.stockSummary || [];
       PROJINFO = (j.projectInfo || []).map(normRow);
       PROJINFO_ALL = (j.projectInfoAll || []).map(normRow);
+      PLAN = j.projectPlan || [];
+      PLAN_TEAMWIDE = j.projectPlanTeamWide || [];
       EVM = j.evm || {};
       ROWS_TEAMWIDE = (j.rowsTeamWide || []).map(normRow);
       PAYW_TEAMWIDE = j.paymentWTeamWide || [];
@@ -2744,6 +2794,7 @@ async function loadData(auto){
     ALL = latestPerProject(HIST);
     REV = SEED_REVENUE.map(normRow);
     PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = []; PROJINFO_ALL = []; EVM = {}; ROWS_TEAMWIDE = [];
+    PLAN = []; PLAN_TEAMWIDE = [];
     PAYW_TEAMWIDE = []; PO_TEAMWIDE = []; STOCK_TEAMWIDE = []; STOCKSUM_TEAMWIDE = [];
     setSource(false, null);
     render();
@@ -3058,6 +3109,136 @@ function renderDonut(list){
     </div>`).join('') || `<div class="lg">ไม่มีข้อมูล</div>`;
 }
 
+// ===================== งวดส่งมอบบน Delivery Timeline (p1 p2 ...) =====================
+// จำนวนงวด: ยึด Invoice Timeline (PaymentW) เพราะชื่องานในแผนแต่ละคนเขียนไม่เหมือนกัน นับจากแผนตรง ๆ ไม่ได้
+//   ไม่นับแถวใบกำกับภาษีตัดของ (ส่งของ/ส่งสินค้า...) และเงินล่วงหน้า · โครงการที่มีตารางงวดตามสัญญา (AOT) ใช้ตารางนั้น
+// วันส่งมอบ: จาก Project Plan = วันจบของงานที่ชื่อขึ้นต้นด้วย "งวดที่ N" · ถ้าแผนไม่ได้เขียนเลขงวด แต่จำนวนงานย่อย
+//   ในขั้น Implementation เท่ากับจำนวนงวดพอดี ให้จับคู่ตามลำดับ · ถ้าจับคู่ไม่ได้ ใช้วันวางบิลใน Invoice Timeline แทน
+// สถานะงวด: กฎเดียวกับการ์ด Payment Collection (เก็บเงินแล้ว / วางบิลแล้ว รอเก็บ / ยังไม่วางบิล)
+// ใช้แค่ชื่องาน วันเริ่ม วันจบ ของแผนเท่านั้น - ไม่ใช้ % ในแผนเด็ดขาด (OAT ไม่ต้องการให้ทีมต้องมาอัปเดต %)
+const _instNoOf = s => { const m = String(s||'').match(/งวดที่\s*(\d+)/); return m ? parseInt(m[1],10) : null; };
+function planInstallmentNo(taskName){
+  // ตัดข้อความในวงเล็บออก - เช่น "(สามารถเบิกจ่ายได้เมื่อเบิกจ่ายงวดที่ 1 แล้วเท่านั้น)" เป็นเงื่อนไข ไม่ใช่ชื่องวดของงานนี้
+  // และดูแค่ช่วงต้นชื่อ เพราะชื่องานแบบคัดลอกจาก TOR ยาว ๆ อาจเอ่ยถึงงวดอื่นกลางประโยค
+  const head = String(taskName||'').replace(/\([^)]*\)/g,' ').slice(0, 40);
+  const n = _instNoOf(head);
+  if(n === null && /งวดสุดท้าย/.test(head)) return 'last';
+  return n;
+}
+function deliveryInstallments(x, plan, today){
+  if(!x) return [];
+  const insts = x.installments || [];
+  const isDel = i => SHIP_ACC_TYPES.includes((x.accType||'').trim()) && SHIP_KEYWORDS.some(k => String(i.desc||'').includes(k));
+  const isAdvance = i => /เงินล่วงหน้า|advance/i.test(String(i.desc||''));
+  const alloc = allocateCollection(x);
+  const idxOf = new Map(insts.map((i,ix)=>[i,ix]));
+  // สถานะรายแถว - กฎเดียวกับการ์ด Payment Collection
+  const rowState = i => {
+    const al = alloc[idxOf.get(i)];
+    if(i.collectedDate || (al && al.fullyCollected)) return 'paid';
+    if(num(i.collecting) > 0) return 'billed';
+    return 'waiting';
+  };
+  // ยอดงวด - กฎเดียวกับ billing ในการ์ด Payment Collection (invoiced+remainder → % ในคำอธิบาย → "= ยอด" ในคำอธิบาย)
+  const sp = num(x.sellingPrice);
+  const rowAmt = i => {
+    const s = num(i.invoiced) + num(i.remainder);
+    if(s > 0) return s;
+    const pm = String(i.desc||'').match(/(\d{1,3}(?:\.\d+)?)\s*%/);
+    if(pm && sp > 0) return sp * parseFloat(pm[1]) / 100;
+    const dm = String(i.desc||'').match(/=\s*([\d,]+\.?\d*)/);
+    return dm ? num(dm[1]) : 0;
+  };
+
+  // 1) งวดตาม Invoice Timeline
+  const groups = [];
+  const sched = CONTRACT_SCHEDULE[x.projectCode];
+  if(sched){
+    // หาแถวของแต่ละงวด: แถวของงวดนั้นเองก่อน ถ้าไม่มีใช้ใบรวมที่อ้างถึงงวดนั้น เช่น "เพื่อส่งของ (งวดที่ 5, 11, 14)"
+    // ใบรวมต้องเป็นรายการเลขงวดต่อจากคำว่า "งวดที่" จริง ๆ - กันไม่ให้ "งวดที่ 1 ร้อยละ 5" ถูกนับเป็นงวด 5
+    const refersTo = (desc, no) => [...String(desc||'').matchAll(/งวดที่\s*((?:\d+\s*,\s*)*\d+)/g)]
+      .some(m => m[1].split(/\s*,\s*/).map(Number).includes(no));
+    sched.rows.forEach(r=>{
+      const no = parseInt((String(r.no).match(/(\d+)/)||[])[1], 10);
+      if(!no) return;
+      const reDedicated = new RegExp('^\\s*งวดที่\\s*' + no + '(?!\\d)');
+      const src = insts.find(i => !isDel(i) && reDedicated.test(String(i.desc||'')))
+               || insts.find(i => refersTo(i.desc, no));
+      if(src) groups.push({no, rows:[src], amount:r.full});
+    });
+  } else {
+    const valid = insts.filter(i => !isDel(i) && !isAdvance(i));
+    const numbered = valid.filter(i => _instNoOf(i.desc) !== null);
+    if(numbered.length){
+      const byNo = {};
+      numbered.forEach(i => { (byNo[_instNoOf(i.desc)] ||= []).push(i); });
+      const maxNo = Math.max(...Object.keys(byNo).map(Number));
+      // "งวดสุดท้าย" ที่ไม่ได้เขียนเลข = งวดถัดจากเลขสูงสุด (Sectoral: งวดที่ 1-3 + งวดสุดท้าย = งวด 4)
+      valid.filter(i => _instNoOf(i.desc) === null && /งวดสุดท้าย/.test(String(i.desc||'')))
+           .forEach(i => { (byNo[maxNo+1] ||= []).push(i); });
+      Object.keys(byNo).map(Number).sort((a,b)=>a-b).forEach(no => {
+        groups.push({no, rows:byNo[no], amount: byNo[no].reduce((a,i)=>a+rowAmt(i),0)});
+      });
+    } else {
+      // ไม่ได้เขียนเลขงวดไว้เลย (เช่น RTAF, Aerothai มีแถวเดียว) - นับแถวที่มียอดเงินเรียงตามวันวางบิลเป็นงวด 1, 2, ...
+      valid.filter(i => rowAmt(i) > 0)
+        .sort((a,b)=> (parseD(a.invoiceDate)||0) - (parseD(b.invoiceDate)||0))
+        .forEach((i,k) => groups.push({no:k+1, rows:[i], amount:rowAmt(i)}));
+    }
+  }
+  if(!groups.length) return [];
+
+  // 2) วันส่งมอบจากแผน (ดูเฉพาะงานย่อยใต้ขั้น Implementation: 5.1, 5.2, ...)
+  const subs = ((plan && plan.tasks) || []).filter(t => /^5\./.test(String(t.id)));
+  const lastNo = Math.max(...groups.map(g=>g.no));
+  const planByNo = {};
+  subs.forEach(t => {
+    let n = planInstallmentNo(t.name);
+    if(n === 'last') n = lastNo;
+    if(n === null) return;
+    const d = parseD(t.end);
+    // งวดเดียวแบ่งหลายช่วง (Wifi งวดที่ 1 ระยะที่ 1-2) ใช้วันจบของช่วงสุดท้าย
+    if(d && (!planByNo[n] || d > planByNo[n])) planByNo[n] = d;
+  });
+  let byOrder = false;
+  if(!Object.keys(planByNo).length && subs.length && subs.length === groups.length){
+    const ends = subs.map(t => parseD(t.end)).filter(Boolean).sort((a,b)=>a-b);
+    if(ends.length === groups.length){ groups.forEach((g,k)=>{ planByNo[g.no] = ends[k]; }); byOrder = true; }
+  }
+
+  // 3) รวมเป็นขีด
+  return groups.map(g => {
+    const states = g.rows.map(rowState);
+    const state = states.every(s=>s==='paid') ? 'paid' : states.every(s=>s==='waiting') ? 'waiting' : 'billed';
+    const invD = g.rows.map(i=>parseD(i.invoiceDate)).filter(Boolean).sort((a,b)=>a-b)[0] || null;
+    const planD = planByNo[g.no] || null;
+    const date = planD || invD;
+    if(!date) return null;
+    // สีขีด: ยังไม่วางบิล + เลยวันวางบิลตามแผนแล้ว = แดง
+    const tickState = state === 'waiting' ? ((invD && invD < today) ? 'overdue' : 'future') : state;
+    return {no:g.no, state, tickState, planD, invD, date, amount:g.amount, byOrder: byOrder && !!planD};
+  }).filter(Boolean);
+}
+
+// เทียบวันส่งมอบในแผนกับวันวางบิล - เฉพาะงวดที่จับคู่กับแผนได้ · ยอมให้คลาดกันได้ 7 วัน
+function deliveryBillingIssues(ins, today){
+  const TOL = 7*DAY;
+  const out = [];
+  ins.forEach(t => {
+    if(!t.planD) return;
+    const notBilled = t.state === 'waiting';
+    if(notBilled && t.planD.getTime() + TOL < today.getTime()){
+      const late = Math.round((today - t.planD)/DAY);
+      out.push({rank:0, no:t.no, msg:`ถึงวันส่งมอบตามแผน ${fmtDObj(t.planD)} แล้ว (เลยมา ${late} วัน) ยังไม่วางบิล${t.invD?` · แผนวางบิล ${fmtDObj(t.invD)}`:''}`});
+    } else if(!notBilled && t.invD && t.planD > today && t.invD.getTime() < t.planD.getTime() - TOL){
+      out.push({rank:1, no:t.no, msg:`วางบิลไปแล้ว ${fmtDObj(t.invD)} แต่แผนส่งมอบ ${fmtDObj(t.planD)}`});
+    } else if(notBilled && t.invD && t.invD.getTime() < t.planD.getTime() - TOL){
+      out.push({rank:2, no:t.no, msg:`แผนวางบิล ${fmtDObj(t.invD)} ก่อนวันส่งมอบตามแผน ${fmtDObj(t.planD)}`});
+    }
+  });
+  return out;
+}
+
 function renderGantt(list){
   const el = document.getElementById('gantt');
   const win = parseInt(document.getElementById('winSel').value, 10);
@@ -3082,14 +3263,46 @@ function renderGantt(list){
 
   document.getElementById('gCount').textContent = `${items.length} โครงการ`;
 
+  // ---- งวดส่งมอบ: จับคู่ Invoice Timeline กับ Project Plan ตามรหัสโครงการ ----
+  // ใช้ชุดข้อมูลทีมเต็มเป็นตัวค้นหา (รายการโครงการถูกกรองตามสิทธิ์ของการ์ดมาแล้ว)
+  const payByCode = {};
+  [...(PAYW_TEAMWIDE||[]), ...(PAYW||[])].forEach(x=>{ payByCode[String(x.projectCode||'').trim()] = x; });
+  const planByCode = {};
+  [...(PLAN_TEAMWIDE||[]), ...(PLAN||[])].forEach(pl=>{ planByCode[String(pl.code||'').trim()] = pl; });
+  const insCache = {};
+  const installmentsFor = p => {
+    const code = String(p['Project Code']||'').trim();
+    return (insCache[code] ||= deliveryInstallments(payByCode[code], planByCode[code], today));
+  };
+
+  // ---- งวดที่วันส่งมอบกับวันวางบิลไม่สอดคล้องกัน - ตรวจทุกโครงการในรายการ (รวมที่ปิดสัญญาแล้ว) ไม่ขึ้นกับช่วงเวลาที่เลือก ----
+  const issues = [];
+  list.forEach(p => deliveryBillingIssues(installmentsFor(p), today).forEach(it => issues.push({...it, p})));
+  issues.sort((a,b)=> a.rank - b.rank || String(a.p['Project Name']||'').localeCompare(String(b.p['Project Name']||'')) || a.no - b.no);
+  const mmHtml = issues.length ? `<div class="g-mm">
+      <div class="g-mm-h">งวดที่วันส่งมอบกับวันวางบิลไม่สอดคล้องกัน <span class="g-mm-n">${issues.length} รายการ</span>
+        <span class="g-mm-s">ตรวจทุกโครงการ ไม่ขึ้นกับช่วงเวลาที่เลือก · ยอมให้คลาดกันได้ 7 วัน</span></div>
+      ${issues.map(it=>{
+        const st = projectStatus(it.p);
+        const stChip = (st==='Contract Closed' || st==='Completely Closed') ? ` <span class="chip neutral">${st}</span>` : '';
+        return `<div class="g-mm-r r${it.rank}">
+          <span class="g-mm-p">p${it.no}</span>
+          <span class="g-mm-b"><b>${it.p['Project Name']||it.p['Project Code']}</b> <span class="code-tag">#${it.p['Project Code']}</span>${stChip}
+            <span class="g-mm-t">${it.msg}</span></span>
+          <span class="g-mm-pm">${pmKey(it.p['PM Name'])||'-'}</span>
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
   if(!items.length){
-    el.innerHTML = `<div class="empty">ไม่มีโครงการที่ครบกำหนดในช่วงเวลานี้</div>`;
+    el.innerHTML = `<div class="empty">ไม่มีโครงการที่ครบกำหนดในช่วงเวลานี้</div>` + mmHtml;
     return;
   }
 
-  // ขอบเขตแกนเวลา: ครอบคลุมทุกแท่ง + วันนี้ เผื่อขอบเล็กน้อย
-  let t0 = Math.min(today, ...items.map(i=>i.s));
-  let t1 = Math.max(today, ...items.map(i=>i.e));
+  // ขอบเขตแกนเวลา: ครอบคลุมทุกแท่ง + ขีดงวดทุกขีด + วันนี้ เผื่อขอบเล็กน้อย
+  const tickDates = items.flatMap(i => installmentsFor(i.p).map(t => t.date));
+  let t0 = Math.min(today, ...items.map(i=>i.s), ...tickDates);
+  let t1 = Math.max(today, ...items.map(i=>i.e), ...tickDates);
   // เผื่อขอบซ้าย-ขวาให้กว้างพอสำหรับป้ายวันที่หัว-ท้ายแท่ง
   const pad = Math.max((t1-t0) * 0.10, 12*DAY);
   t0 -= pad; t1 += pad;
@@ -3131,13 +3344,31 @@ function renderGantt(list){
       const dl = overdue
         ? `<span style="color:#A8482F;font-weight:700">เลย ${Math.abs(i.left)} วัน</span>`
         : `<span style="color:${i.left<=30?'#B07A28':'var(--faint)'}">อีก ${i.left} วัน</span>`;
+      // ขีดงวดส่งมอบ p1 p2 ... - ถ้าขีดอยู่ติดกันมากให้สลับขึ้น-ลงกันป้ายทับกัน
+      const TICK_LABEL = {paid:'เก็บเงินแล้ว', billed:'วางบิลแล้ว รอเก็บ', overdue:'ถึงวันวางบิลตามแผนแล้ว ยังไม่วางบิล', future:'ยังไม่ถึงกำหนดวางบิล'};
+      let prevX = -99, alt = false;
+      const tks = installmentsFor(i.p).slice().sort((a,b)=>a.date-b.date);
+      const tickHtml = tks.map(t=>{
+        const x = pos(t.date);
+        alt = (x - prevX < 3.2) ? !alt : false;
+        prevX = x;
+        const tip = [`p${t.no} · ${TICK_LABEL[t.tickState]}`,
+          t.planD ? `ส่งมอบตามแผน ${fmtDObj(t.planD)}${t.byOrder?' (จับคู่กับแผนตามลำดับงวด)':''}` : 'ไม่พบงวดนี้ในแผน - วางตามวันวางบิล',
+          t.invD ? `${t.state==='waiting'?'แผนวางบิล':'วางบิล'} ${fmtDObj(t.invD)}` : '',
+          t.amount > 0 ? `ยอดงวด ${thb(t.amount)} บาท` : ''].filter(Boolean).join('&#10;');
+        return `<div class="g-tick ${t.tickState}${alt?' alt':''}" style="left:${x.toFixed(2)}%" title="${tip}"><i></i><span>p${t.no}</span></div>`;
+      }).join('');
+      // ป้ายวันที่หัว-ท้ายแท่งขยับออกเล็กน้อยถ้ามีขีดงวดอยู่ตรงหัวหรือท้ายแท่ง
+      const tkAtS = tks.some(t => Math.abs(pos(t.date) - L) < 1.6);
+      const tkAtE = tks.some(t => Math.abs(pos(t.date) - (L+W)) < 1.6);
       return `<div class="g-row" style="--bc:${col}" title="${i.p['Project Name']||''} | ${fmtDObj(i.s)} - ${fmtDObj(i.e)} | ${i.pr.toFixed(1)}%">
         <div class="g-lab">${i.p['Project Name']||'-'}</div>
         <div class="g-track">
-          <span class="g-date s" style="right:${(100-L).toFixed(2)}%">${fmtDObj(i.s)}</span>
+          <span class="g-date s${tkAtS?' tk':''}" style="right:${(100-L).toFixed(2)}%">${fmtDObj(i.s)}</span>
           <div class="g-bar ${overdue?'over':''}" style="left:${L}%;width:${W}%"></div>
           <div class="g-fill" style="left:${L}%;width:${(W*i.pr/100).toFixed(2)}%"></div>
-          <span class="g-date e" style="left:${(L+W).toFixed(2)}%">${fmtDObj(i.e)}</span>
+          ${tickHtml}
+          <span class="g-date e${tkAtE?' tk':''}" style="left:${(L+W).toFixed(2)}%">${fmtDObj(i.e)}</span>
         </div>
         <div class="g-stat"><b>${i.pr.toFixed(0)}%</b> · ${dl}</div>
       </div>`;
@@ -3148,7 +3379,7 @@ function renderGantt(list){
       </div>${rows}`;
   }).join('');
 
-  el.innerHTML = axis + `<div class="g-body">${grid}${body}</div>` + `
+  el.innerHTML = axis + `<div class="g-body">${grid}${body}</div>` + mmHtml + `
     <div class="g-legend">
       <span class="li"><span class="bx" style="background:#4F7A4A"></span>ตามแผน</span>
       <span class="li"><span class="bx" style="background:#B07A28"></span>Warning</span>
@@ -3156,6 +3387,13 @@ function renderGantt(list){
       <span class="li"><span class="bx" style="background:#7A5C3E;opacity:.28"></span>ระยะเวลาโครงการ</span>
       <span class="li"><span class="bx" style="background:#7A5C3E"></span>ความคืบหน้าจริง</span>
       <span class="li"><span class="dash"></span>วันนี้</span>
+    </div>
+    <div class="g-legend g-legend-tk">
+      <span class="li"><span class="g-lg-tk paid">p1</span>เก็บเงินแล้ว</span>
+      <span class="li"><span class="g-lg-tk billed">p2</span>วางบิลแล้ว รอเก็บ</span>
+      <span class="li"><span class="g-lg-tk overdue">p3</span>ถึงวันวางบิลแล้ว ยังไม่วางบิล</span>
+      <span class="li"><span class="g-lg-tk future">p4</span>ยังไม่ถึงกำหนด</span>
+      <span class="li g-lg-note">p = งวด · ชี้ที่ขีดเพื่อดูวันที่และยอด</span>
     </div>`;
 }
 
@@ -3850,16 +4088,29 @@ function renderClosure(list){
         alerts.push({ p, sev:'warning', msg:`BI/SL/KT ครบแล้ว รอ CS ยืนยันรับงาน${waitN >= 2 ? ` มา ${waitN} รอบติดต่อกัน` : ''}` });
       }
     }
+    // โอนงานเสร็จแล้ว (BI/SL/KT ครบ + CS ยืนยันรับงาน) - แสดงสีเขียวให้เห็นว่าจบแล้ว ไม่ใช่รายการต้องดำเนินการ
+    // แสดงแค่ 2 รอบอัปเดตแรกหลังยืนยัน (ช่วงเดียวกับเงื่อนไขตัดโครงการออกจาก dashboard ตามข้อ 9) แล้วค่อยหายไป
+    if(transferDone(p)){
+      const doneN = trailingStreak(hist, e => transferDone(e));
+      if(doneN <= 2){
+        const accD = parseD(p['Transfer Accept Date']);
+        alerts.push({ p, sev:'success', msg:`โอนงานเสร็จแล้ว · CS ยืนยันรับงาน${accD ? `วันที่ ${fmtDate(accD)}` : 'แล้ว'}` });
+      }
+    }
   });
-  alerts.sort((a,b)=> (b.sev==='critical')-(a.sev==='critical'));
+  // เรียงความรุนแรง: critical > warning > success (สีเขียวไว้ท้ายสุดเสมอ)
+  const SEV_RANK = {critical:0, warning:1, success:2};
+  const sevRank = s => SEV_RANK[s] ?? 1;
+  alerts.sort((a,b)=> sevRank(a.sev) - sevRank(b.sev));
+  const actionAlerts = alerts.filter(a => a.sev !== 'success');
 
-  document.getElementById('clsCount').textContent = `${alerts.length} รายการต้องดำเนินการ`;
+  document.getElementById('clsCount').textContent = `${actionAlerts.length} รายการต้องดำเนินการ`;
 
   const overview = `<div class="wow-overview">
     <div class="ov-stats">
       <div class="ov-stat"><div class="ov-l">Contract Closed</div><div class="ov-v">${contractClosedN}<span class="u" style="font-size:12px"> / ${list.length}</span></div></div>
       <div class="ov-stat"><div class="ov-l">Completely Closed</div><div class="ov-v">${completelyClosedN}<span class="u" style="font-size:12px"> / ${list.length}</span></div></div>
-      <div class="ov-stat"><div class="ov-l">ต้องดำเนินการ (ปิดงาน/โอนงานค้าง)</div><div class="ov-v" style="color:${alerts.length?'var(--critical)':'var(--success)'}">${new Set(alerts.map(a=>a.p['Project Code'])).size}</div></div>
+      <div class="ov-stat"><div class="ov-l">ต้องดำเนินการ (ปิดงาน/โอนงานค้าง)</div><div class="ov-v" style="color:${actionAlerts.length?'var(--critical)':'var(--success)'}">${new Set(actionAlerts.map(a=>a.p['Project Code'])).size}</div></div>
     </div>
   </div>`;
 
@@ -3872,22 +4123,26 @@ function renderClosure(list){
       const g = grouped[seenCode[code]];
       g.msgs.push({msg:a.msg, sev:a.sev});
       // ความรุนแรงของแถวใช้ระดับสูงสุดที่พบ
-      if(a.sev==='critical') g.sev='critical';
+      if(sevRank(a.sev) < sevRank(g.sev)) g.sev = a.sev;
       return;
     }
     seenCode[code] = grouped.length;
     grouped.push({p:a.p, sev:a.sev, msgs:[{msg:a.msg, sev:a.sev}]});
   });
+  // แถวที่มีเรื่องต้องทำขึ้นก่อน แถวที่มีแต่สีเขียว (โอนงานเสร็จแล้ว) ไว้ท้ายสุด
+  grouped.sort((a,b)=> sevRank(a.sev) - sevRank(b.sev));
 
   const list_html = grouped.length ? grouped.map(g=>{
     const st = projectStatus(g.p);
+    // ป้าย "N เรื่อง" นับเฉพาะเรื่องที่ต้องดำเนินการ ไม่นับบรรทัดสีเขียว
+    const nAction = g.msgs.filter(m=>m.sev!=='success').length;
     const body = g.msgs.length===1
       ? `<div class="cls-msg ${g.msgs[0].sev}">${g.msgs[0].msg}</div>`
       : `<div class="cls-msgs">${g.msgs.map(m=>`<div class="cls-msg ${m.sev}"><span class="cls-b"></span>${m.msg}</div>`).join('')}</div>`;
     return `<div class="cls-row">
       <div class="av" style="background:${avatarColor(g.p['PM Name'])}">${initials(g.p['PM Name'])}</div>
       <div style="min-width:0;flex:1">
-        <div class="cls-name">${g.p['Project Name']||g.p['Project Code']} <span class="code-tag">#${g.p['Project Code']}</span> <span class="chip ${st==='Completely Closed'?'success':'neutral'}">${st}</span>${g.msgs.length>1?`<span class="cls-n">${g.msgs.length} เรื่อง</span>`:''}</div>
+        <div class="cls-name">${g.p['Project Name']||g.p['Project Code']} <span class="code-tag">#${g.p['Project Code']}</span> <span class="chip ${st==='Completely Closed'?'success':'neutral'}">${st}</span>${nAction>1?`<span class="cls-n">${nAction} เรื่อง</span>`:''}</div>
         ${body}
       </div>
       <div class="cls-pm">${g.p['PM Name']||'-'}</div>
