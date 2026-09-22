@@ -3133,9 +3133,12 @@ function deliveryInstallments(x, plan, today){
   const alloc = allocateCollection(x);
   const idxOf = new Map(insts.map((i,ix)=>[i,ix]));
   // สถานะรายแถว - กฎเดียวกับการ์ด Payment Collection
+  // แถวงวดสุดท้ายที่ออกใบกำกับภาษีตอนส่งของไปก่อนโครงการเสร็จ = งวดนั้นยังไม่วางบิล (ดู finalTaxOnlyInfo)
+  const isTaxOnly = i => { const al = alloc[idxOf.get(i)]; return !!(al && al.taxOnly); };
   const rowState = i => {
     const al = alloc[idxOf.get(i)];
     if(i.collectedDate || (al && al.fullyCollected)) return 'paid';
+    if(isTaxOnly(i)) return 'waiting';
     if(num(i.collecting) > 0) return 'billed';
     return 'waiting';
   };
@@ -3210,13 +3213,15 @@ function deliveryInstallments(x, plan, today){
   return groups.map(g => {
     const states = g.rows.map(rowState);
     const state = states.every(s=>s==='paid') ? 'paid' : states.every(s=>s==='waiting') ? 'waiting' : 'billed';
-    const invD = g.rows.map(i=>parseD(i.invoiceDate)).filter(Boolean).sort((a,b)=>a-b)[0] || null;
+    // วันที่ของแถวใบกำกับภาษีตอนส่งของไม่ใช่วันวางบิล - ไม่ใช้เป็นแผนวางบิล (กันขึ้นแดงว่าเลยกำหนด และกันรายการเทียบวันผิด)
+    const invD = g.rows.filter(i => !isTaxOnly(i)).map(i=>parseD(i.invoiceDate)).filter(Boolean).sort((a,b)=>a-b)[0] || null;
+    const taxD = g.rows.filter(isTaxOnly).map(i=>parseD(i.invoiceDate)).filter(Boolean).sort((a,b)=>a-b)[0] || null;
     const planD = planByNo[g.no] || null;
-    const date = planD || invD;
+    const date = planD || invD || taxD;
     if(!date) return null;
     // สีขีด: ยังไม่วางบิล + เลยวันวางบิลตามแผนแล้ว = แดง
     const tickState = state === 'waiting' ? ((invD && invD < today) ? 'overdue' : 'future') : state;
-    return {no:g.no, state, tickState, planD, invD, date, amount:g.amount, byOrder: byOrder && !!planD};
+    return {no:g.no, state, tickState, planD, invD, taxD, date, amount:g.amount, byOrder: byOrder && !!planD};
   }).filter(Boolean);
 }
 
@@ -3353,8 +3358,9 @@ function renderGantt(list){
         alt = (x - prevX < 3.2) ? !alt : false;
         prevX = x;
         const tip = [`p${t.no} · ${TICK_LABEL[t.tickState]}`,
-          t.planD ? `ส่งมอบตามแผน ${fmtDObj(t.planD)}${t.byOrder?' (จับคู่กับแผนตามลำดับงวด)':''}` : 'ไม่พบงวดนี้ในแผน - วางตามวันวางบิล',
+          t.planD ? `ส่งมอบตามแผน ${fmtDObj(t.planD)}${t.byOrder?' (จับคู่กับแผนตามลำดับงวด)':''}` : `ไม่พบงวดนี้ในแผน - วางตามวัน${t.invD?'วางบิล':'ออกใบกำกับภาษี'}`,
           t.invD ? `${t.state==='waiting'?'แผนวางบิล':'วางบิล'} ${fmtDObj(t.invD)}` : '',
+          t.taxD ? `ออกใบกำกับภาษีตอนส่งของ ${fmtDObj(t.taxD)} (งวดนี้ยังไม่วางบิล)` : '',
           t.amount > 0 ? `ยอดงวด ${thb(t.amount)} บาท` : ''].filter(Boolean).join('&#10;');
         return `<div class="g-tick ${t.tickState}${alt?' alt':''}" style="left:${x.toFixed(2)}%" title="${tip}"><i></i><span>p${t.no}</span></div>`;
       }).join('');
@@ -5528,21 +5534,37 @@ function contractFullOfInstallment(code, desc){
   return row ? row.full : 0;
 }
 
+// ยอดที่ยังไม่ได้ออก tax invoice ของแต่ละงวดในตารางสัญญา - อ่านจากไฟล์ล่าสุด (ช่อง Remainder ของแถวงวดนั้นเอง)
+// เดิมใช้ตัวเลข pending ที่พิมพ์ไว้ในตาราง ซึ่งไม่ขยับตามเมื่อบัญชีออก tax invoice เพิ่ม
+// (AOT งวด 11 ออก tax invoice แล้ว 26/08/69 แต่ตารางยังค้าง 2,444,720 ทำให้ยอดออกแล้วต่ำกว่าไฟล์)
+// งวดที่ไม่มีแถวของตัวเอง (ออกผ่านใบรวม "เพื่อส่งของ" ไปแล้ว) ใช้ค่าในตารางตามเดิม
+function schedulePending(code, r, proj){
+  const x = proj || [...(PAYW_TEAMWIDE||[]), ...(PAYW||[])].find(p => String(p.projectCode||'').trim() === String(code||'').trim());
+  const no = (String(r.no).match(/(\d+)/)||[])[1];
+  if(!x || !no) return r.pending || 0;
+  const re = new RegExp('^\\s*งวดที่\\s*' + no + '(?!\\d)');
+  const isDel = i => SHIP_ACC_TYPES.includes((x.accType||'').trim()) && SHIP_KEYWORDS.some(k => String(i.desc||'').includes(k));
+  const row = (x.installments||[]).find(i => !isDel(i) && re.test(String(i.desc||'')));
+  return row ? num(row.remainder) : (r.pending || 0);
+}
+
 function contractScheduleHtml(code, sellingPrice){
   const sc = CONTRACT_SCHEDULE[code];
   if(!sc) return '';
+  const pend = r => schedulePending(code, r);
   const totFull = sc.rows.reduce((a,r)=>a+r.full,0);
-  const totPend = sc.rows.reduce((a,r)=>a+r.pending,0);
+  const totPend = sc.rows.reduce((a,r)=>a+pend(r),0);
   const totIssued = totFull - totPend;
   const body = sc.rows.map(r=>{
-    const issued = r.full - r.pending;
-    const done = r.pending <= 0;
+    const p = pend(r);
+    const issued = r.full - p;
+    const done = p <= 0;
     return `<tr class="${done?'cs-done':''}">
       <td class="cs-no">${r.no}</td>
       <td class="cs-basis">${r.basis}</td>
       <td class="cs-amt"><b>${thb(r.full)}</b></td>
       <td class="cs-amt">${thb(issued)}</td>
-      <td class="cs-amt ${r.pending>0?'cs-pend':''}">${r.pending>0?thb(r.pending):'<span class="cs-ok">ครบแล้ว</span>'}</td>
+      <td class="cs-amt ${p>0?'cs-pend':''}">${p>0?thb(p):'<span class="cs-ok">ครบแล้ว</span>'}</td>
     </tr>`;
   }).join('');
   const spOk = Math.abs(totFull - num(sellingPrice)) < 1;
@@ -5583,6 +5605,59 @@ function contractScheduleHtml(code, sellingPrice){
   </details>`;
 }
 
+// ===================== งวดสุดท้ายที่ออกใบกำกับภาษีไปก่อนโครงการเสร็จ =====================
+// งวดสุดท้ายวางบิลได้ต่อเมื่อส่งมอบงานครบแล้วเท่านั้น ถ้าแถวงวดสุดท้ายของโครงการขาย/ส่งของมี invoice แล้ว
+// ทั้งที่โครงการยัง Inprogress และไม่ถึง 100% แปลว่าบัญชีออกใบกำกับภาษีตอนส่งของไว้ในแถวงวดนั้นเลย
+// (ไม่ได้แยกแถว "ส่งสินค้า" ออกมาแบบ Log Management) จึงยังไม่ใช่ลูกหนี้ และงวดนั้นยังไม่ได้วางบิล
+// เคสจริง: DGA_Offsite งวด 2 (90%) ออก invoice 11/08/69 ขณะโครงการ 73.75% · ล่าสุด 75.63% รอลูกค้าทดสอบ Backup
+// ห้ามใช้แค่ "ยอดหัว Collected ไม่รวมแถวนี้" เป็นเกณฑ์ เพราะใบวางบิลจริงที่ยังไม่ได้เงินก็เป็นแบบนั้นเหมือนกัน
+// (Log Management งวด 2 = ลูกหนี้จริงที่ OAT ยืนยันแล้ว · IT Asset งวด 2 วางบิลวันเดียวกับที่ส่งมอบงานครบ 100%)
+let _progIdx = null, _progSrc = [];
+function latestProgressRow(code){
+  if(!_progIdx || _progSrc[0] !== ROWS_TEAMWIDE || _progSrc[1] !== HIST){
+    _progIdx = {}; _progSrc = [ROWS_TEAMWIDE, HIST];
+    [...(ROWS_TEAMWIDE||[]), ...(HIST||[])].forEach(r=>{
+      const c = String(r['Project Code']||'').trim();
+      if(!c) return;
+      const d = parseD(r['Update Date']);
+      const cur = _progIdx[c];
+      // แถวล่าสุดตามวันอัปเดต วันเท่ากันเอาแถวหลัง (เหมือน latestPerProject แต่ไม่ตัดโครงการที่โอนงานจบแล้วออก)
+      if(!cur || !cur.d || (d && d >= cur.d)) _progIdx[c] = {r, d};
+    });
+  }
+  const e = _progIdx[String(code||'').trim()];
+  return e ? e.r : null;
+}
+function finalTaxOnlyInfo(proj){
+  const res = { idx: new Set(), pct: null };
+  if(!proj || CONTRACT_SCHEDULE[proj.projectCode]) return res;          // AOT ใช้ตารางงวดตามสัญญาแยกต่างหาก
+  if(!SHIP_ACC_TYPES.includes((proj.accType||'').trim())) return res;   // เฉพาะโครงการที่มีการส่งของ
+  const pr = latestProgressRow(proj.projectCode);
+  if(!pr) return res;                                                   // ไม่รู้สถานะโครงการ ไม่ตัดสิน
+  const pct = num(pr['%Progress']);
+  if(!/^in\s*progress$/i.test(String(projectStatus(pr)).trim()) || pct >= 100) return res;
+  const insts = proj.installments || [];
+  const isDelRow = i => SHIP_KEYWORDS.some(k => String(i.desc||'').includes(k));
+  const isAdv = i => /เงินล่วงหน้า|advance/i.test(String(i.desc||''));
+  const cand = insts.map((i,idx)=>({i, idx}))
+    .filter(o => String(o.i.desc||'').trim() && !isDelRow(o.i) && !isAdv(o.i));
+  const nos = cand.map(o => /งวดสุดท้าย/.test(String(o.i.desc||'')) ? Infinity : _instNoOf(o.i.desc));
+  if(!cand.length || nos.some(n => n === null)) return res;            // มีแถวที่ไม่รู้ลำดับงวด ไม่ตัดสิน
+  const mx = Math.max(...nos);
+  const finals = new Set(cand.filter((o,k) => nos[k] === mx).map(o => o.idx));
+  // เงินที่เก็บได้แล้ว (ยอดหัว) ต้องอธิบายได้ด้วยงวดอื่นทั้งหมด - ถ้ามีเงินเกินมา อาจเป็นเงินของงวดสุดท้ายนี้ ไม่ตัดสิน
+  const amtOf = i => num(i.invoiced) + num(i.remainder);
+  const explained = insts.reduce((a,i,idx)=>{
+    if(finals.has(idx)) return a;
+    if(i.collectedDate) return a + (isDelRow(i) ? num(i.invoiced) : amtOf(i));
+    return a + ((!isDelRow(i) && num(i.invoiced) > 0) ? amtOf(i) : 0);
+  }, 0);
+  if(num(proj.collected) > explained + 1) return res;
+  finals.forEach(idx => { const i = insts[idx]; if(num(i.invoiced) > 0 && !i.collectedDate) res.idx.add(idx); });
+  res.pct = pct;
+  return res;
+}
+
 // ===================== กระจายยอดเก็บเงินลงรายงวด (FIFO) =====================
 // เหตุผล: บางโครงการบัญชีกรอกแค่ยอดรวมบนสุด ไม่ได้ลงรายละเอียดว่างวดไหนเก็บวันไหน
 // (เจอจริง 4 โครงการ เช่น Log Management ยอดบน 2,989,000 แต่ทุกแถวงวดเป็น 0)
@@ -5603,6 +5678,39 @@ function allocateCollection(proj){
 
   let pool = num(proj.collected);          // ยอดที่เก็บได้แล้วทั้งโครงการ (เชื่อยอดบนสุด)
   const out = {};
+
+  // ===== โครงการที่มีตารางงวดตามสัญญา (AOT) - คิดเงินเป็นรายงวดตาม billing ไม่ใช่ตามใบกำกับภาษี =====
+  // เดิมโครงการนี้ใช้ยอดหัว Collecting เป็น "รอเก็บ" ซึ่งเป็นยอดใบกำกับภาษีที่ยังไม่ได้เงิน ไม่ใช่ยอดวางบิล
+  // (OAT ตรวจเจอ: รอเก็บ 393,215,420 / ยังไม่วางบิล 43,302,780 ออกมาเป็นเลขใบกำกับภาษี)
+  // วิธีที่ถูก: billing = มูลค่าเต็มของงวดตามตาราง · งวดวางบิลแล้ว = แถวเจ้าของงวดออก invoice แล้ว
+  //   แถวเจ้าของงวด = แถวแรกที่ขึ้นต้นเลขงวดนั้น (กฎเดียวกับคอลัมน์ Billing ในการ์ด Payment Collection)
+  //   แล้วกระจายยอดเก็บเงินหัวลงงวดที่วางบิลแล้วตามลำดับวันที่ (FIFO) ที่เหลือคือรอเก็บ
+  // ตรวจกับข้อมูลจริง: ยอดเก็บหัว 370,781,800 = งวด 1 + 3 + 5 พอดี · งวด 11 วางบิล 26/08/69 ยังไม่ได้เงิน 24,447,200
+  const sched = CONTRACT_SCHEDULE[proj.projectCode];
+  if(sched){
+    const insts = proj.installments || [];
+    insts.forEach((ii,idx)=>{ out[idx] = { billed:0, collected:0, outstanding:0, fullyCollected:false, inferred:false }; });
+    const billedInst = [];
+    sched.rows.forEach(r=>{
+      const no = (String(r.no).match(/(\d+)/)||[])[1];
+      if(!no) return;
+      const re = new RegExp('งวดที่\\s*' + no + '\\b');
+      const idx = insts.findIndex(o => re.test(String(o.desc||'')));
+      if(idx < 0) return;
+      const own = insts[idx];
+      const billedYet = num(own.invoiced) > 0 || num(own.collecting) > 0 || !!own.collectedDate;
+      if(billedYet) billedInst.push({idx, full:r.full, d:parseD(own.invoiceDate), own});
+    });
+    billedInst.sort((a,b)=> (a.d?a.d.getTime():0) - (b.d?b.d.getTime():0));
+    billedInst.forEach(b=>{
+      const got = Math.min(pool, b.full);
+      pool -= got;
+      // sched:true = ยอดนี้เป็นยอดวางบิลของงวดจริง แม้แถวเจ้าของงวดจะเป็นใบรวม "เพื่อส่งของ" ก็ตาม
+      out[b.idx] = { billed:b.full, collected:got, outstanding:Math.max(0, b.full - got),
+                     fullyCollected: got >= b.full - 1, inferred: got > 0 && !b.own.collectedDate, sched:true };
+    });
+    return out;
+  }
 
   // บางโครงการลงวันรับเงินไว้ที่แถวใบกำกับภาษีตัดของ ซึ่งไม่ใช่เงินที่ได้รับจริง
   // (AOT: ผลรวมรายแถว 557.9M แต่ยอดหัว 370.8M) - กรณีนี้แยกรายงวดไม่ได้ ต้องเชื่อยอดหัว
@@ -5642,13 +5750,16 @@ function allocateCollection(proj){
   });
 
   const ordered = bill.filter(r=>!r.i.collectedDate);
+  // แถวงวดสุดท้ายที่ออกใบกำกับภาษีตอนส่งของไปก่อนโครงการเสร็จ (ดู finalTaxOnlyInfo) - ยังไม่ได้วางบิล
+  const _fto = finalTaxOnlyInfo(proj);
   ordered.forEach(r=>{
     // เงินที่ลูกค้าต้องจ่าย = ยอด billing ของงวด ไม่ใช่ยอดใบกำกับภาษี
     // โครงการที่มีตารางสัญญาใช้มูลค่างวดเต็ม · ที่เหลือใช้ invoiced + remainder
     const _sf = contractFullOfInstallment(proj.projectCode, r.i.desc);
     // ต้องวางบิลแล้วจริง (invoiced > 0) ถึงจะเป็นลูกหนี้ - แถวที่ยังไม่วางบิลไม่ใช่ AR
     // แถวส่งของเป็นใบกำกับภาษี ลูกค้าไม่ได้จ่ายจากใบนี้ จึงไม่ใช่ลูกหนี้
-    const billedYet = r.inv > 0 && !r.del;
+    const taxOnly = _fto.idx.has(r.idx);
+    const billedYet = r.inv > 0 && !r.del && !taxOnly;
     const amt = !billedYet ? 0
               : (_sf > 0 ? _sf : (r.inv + r.rem));        // งวดปกติ ใช้ยอด billing เต็มงวด
     const got = Math.min(pool, amt);
@@ -5662,6 +5773,8 @@ function allocateCollection(proj){
       fullyCollected: amt > 0 && got >= amt - 1,
       // บัญชีไม่ได้ลงรายละเอียดในแถวนี้ แต่ยอดบนบอกว่าเก็บแล้ว
       inferred: got > 0 && !r.i.collectedDate,
+      // ใบกำกับภาษีตอนส่งของในแถวงวดสุดท้าย (งวดนี้ยังไม่วางบิล) + % ความคืบหน้าล่าสุดไว้บอกเหตุผลในการ์ด
+      taxOnly, taxOnlyPct: taxOnly ? _fto.pct : null,
     };
   });
   return out;
@@ -8541,17 +8654,18 @@ function renderInvoiceTimeline(paywSource, codeSetList){
         // AR (รอเก็บเงิน) = ยอดที่ออกใบแจ้งหนี้แล้วแต่ยังเก็บไม่ได้ คำนวณจากการกระจาย FIFO
         // ไม่ใช้ช่อง collecting ของแถวตรง ๆ เพราะบางแถวบัญชีไม่ได้อัปเดตหลังเก็บเงินแล้ว
         const alloc = allocMap[idx];
-        if(!del && alloc && alloc.outstanding > 1) mAR[m] += alloc.outstanding;
+        // โครงการมีตารางสัญญา: ยอดค้างอยู่ที่แถวเจ้าของงวด ซึ่งอาจเป็นใบรวม "เพื่อส่งของ" ได้ จึงนับด้วย
+        if(alloc && alloc.outstanding > 1 && (!del || alloc.sched)) mAR[m] += alloc.outstanding;
       }
     });
     const yrBilling = mBilling.reduce((a,b)=>a+b,0);
     const yrTax = mTax.reduce((a,b)=>a+b,0);
     // ยอด tax invoice ที่ยังไม่ได้ออก:
-    //  - โครงการมีตารางสัญญา = ผลรวม pending ในตาราง (ยอดที่ยังต้องออกจริง ๆ ทั้งโครงการ)
+    //  - โครงการมีตารางสัญญา = ผลรวมยอดที่ยังไม่ออกของแต่ละงวด อ่านจากไฟล์ล่าสุด (ดู schedulePending)
     //  - โครงการทั่วไป = billing ที่ยังไม่มีใบกำกับภาษีรองรับ
     // ห้ามใช้ (billing ปีนี้ - tax ปีนี้) เพราะบางงวดออกใบกำกับภาษีไปแล้วตั้งแต่ปีก่อน จะได้ตัวเลขเกินจริง
     const taxPending = hasSched
-      ? sched.rows.reduce((a,r)=>a+(r.pending||0),0)
+      ? sched.rows.reduce((a,r)=>a+schedulePending(x.projectCode, r, x),0)
       : Math.max(0, (bfBilling + yrBilling + afBilling) - (bfTax + yrTax + afTax));
     // สำหรับโครงการมีตารางสัญญา ยอดรายเดือนของปีนี้เป็น "ยอดที่จะออก" (จาก remainder) ไม่ใช่ออกแล้ว
     // จึงต้องคิดยอดออกแล้ว = มูลค่าสัญญาทั้งหมด - ยอดที่ยังไม่ออก แทนการบวกรายเดือน (ไม่งั้นนับซ้ำ)
@@ -8712,8 +8826,8 @@ function renderPayment(paywSource, codeSetList){
   document.getElementById('pwCount').textContent = `${items.length} โครงการ`;
   if(!items.length){ el.innerHTML = `<div class="empty">ไม่มีข้อมูลการเก็บเงินตรงกับตัวกรองนี้</div>`; return; }
 
-  // โมเดล 3 ส่วนที่ตรวจสอบแล้วว่าถูกต้องเป๊ะจากข้อมูลจริง:
-  // Selling Price = Remainder (ยังไม่ออกบิล) + Collecting (ออกบิลแล้ว รอเก็บ) + Collected (เก็บได้จริงแล้ว)
+  // โมเดล 3 ส่วน: Billing ตามงวดงาน = ยังไม่วางบิล + วางบิลแล้ว รอเก็บ (AR) + เก็บเงินได้แล้ว
+  // (ไม่ใช้ยอดหัว Remainder / Collecting ของชีต เพราะเป็นยอดใบกำกับภาษี รวมใบส่งของที่ลูกค้าไม่ได้จ่ายจากใบนั้น)
   const totalSelling = items.reduce((s,x)=>s+num(x.sellingPrice),0);
   // ใช้กฎเดียวกับการ์ด Invoice Timeline ไม่งั้น 2 การ์ดจะบอกตัวเลขขัดกัน
   //   billing     = ยอดตามงวดงาน (แถวงวด ไม่รวมใบกำกับภาษีตัดของ)
@@ -8734,7 +8848,7 @@ function renderPayment(paywSource, codeSetList){
 
     if(sc){
       totalBilling += sc.rows.reduce((a,r)=>a+r.full,0);
-      totalTaxInv  += Math.max(0, sc.rows.reduce((a,r)=>a+r.full,0) - sc.rows.reduce((a,r)=>a+(r.pending||0),0));
+      totalTaxInv  += Math.max(0, sc.rows.reduce((a,r)=>a+r.full,0) - sc.rows.reduce((a,r)=>a+schedulePending(x.projectCode, r, x),0));
     } else {
       (x.installments||[]).forEach(ii=>{
         const iv=num(ii.invoiced), rm=num(ii.remainder);
@@ -8753,13 +8867,33 @@ function renderPayment(paywSource, codeSetList){
   });
   const totalNotBilled = Math.max(0, totalBilling - totalCollected - totalAR);
 
-  const stackBar = (remainder, collecting, collected, total) => {
+  // ตัวเลข 3 ส่วนของแต่ละโครงการ (เก็บแล้ว · วางบิลแล้ว รอเก็บ · ยังไม่วางบิล) คิดจาก billing ตามงวดงาน
+  // ใช้ชุดเดียวกันทั้งแถวสรุปของ PM และการ์ดโครงการ - ห้ามใช้ยอดหัว Collecting / Remainder ของชีต
+  // เพราะ 2 ช่องนั้นเป็นยอดใบกำกับภาษี (รวมใบส่งของ) ไม่ใช่ยอดวางบิล (OAT ตรวจเจอที่ AOT)
+  const payFig = x => {
+    const isDel = ii => _SHIP_ACC.includes((x.accType||'').trim()) && _SHIP_KW.some(k=>String(ii.desc||'').includes(k));
+    const sc = CONTRACT_SCHEDULE[x.projectCode];
+    let billing = 0;
+    if(sc) billing = sc.rows.reduce((a,r)=>a+r.full,0);
+    else (x.installments||[]).forEach(ii=>{
+      if(isDel(ii)) return;
+      const iv = num(ii.invoiced), rm = num(ii.remainder);
+      billing += (iv+rm)>0 ? iv+rm : _descAmt(ii);
+    });
+    const collected = num(x.collected);
+    const ar = Object.values(allocateCollection(x)).reduce((a,v)=>a+(v.outstanding>1?v.outstanding:0),0);
+    const base = billing || num(x.sellingPrice);
+    return { billing, base, collected, ar, notBilled: Math.max(0, base - collected - ar) };
+  };
+  const figOf = new Map(items.map(x=>[x, payFig(x)]));
+
+  const stackBar = (notBilled, ar, collected, total) => {
     if(!total) return '';
-    const pR = remainder/total*100, pC = collecting/total*100, pD = collected/total*100;
+    const pR = notBilled/total*100, pC = ar/total*100, pD = collected/total*100;
     return `<div class="pw-stack">
-      <div class="pw-seg" style="width:${pD}%;background:#4F7A4A" title="Collected ${thb(collected)}"></div>
-      <div class="pw-seg" style="width:${pC}%;background:#B07A28" title="Collecting ${thb(collecting)}"></div>
-      <div class="pw-seg" style="width:${pR}%;background:var(--line)" title="Remainder ${thb(remainder)}"></div>
+      <div class="pw-seg" style="width:${pD}%;background:#4F7A4A" title="เก็บเงินได้แล้ว ${thb(collected)}"></div>
+      <div class="pw-seg" style="width:${pC}%;background:#B07A28" title="วางบิลแล้ว รอเก็บ ${thb(ar)}"></div>
+      <div class="pw-seg" style="width:${pR}%;background:var(--line)" title="ยังไม่วางบิล ${thb(notBilled)}"></div>
     </div>`;
   };
 
@@ -8779,23 +8913,27 @@ function renderPayment(paywSource, codeSetList){
     <div class="pw-note3">แถบสัดส่วนคิดจาก Billing ตามงวดงาน · AR นับเฉพาะใบแจ้งหนี้ที่เรียกเก็บเงินลูกค้า ไม่รวมใบกำกับภาษีที่ออกเพื่อตัดของ</div>
   </div>`;
 
+  // แถวสรุปของ PM = ผลรวมตัวเลขของการ์ดโครงการข้างใน (billing ตามงวดงาน) - เดิมใช้ยอดหัว Collecting/Remainder
+  // ซึ่งเป็นยอดใบกำกับภาษี ทำให้ AR ค้างเก็บของ PM เกินจริง (AOT นับใบส่งของ 393M เป็นรอเก็บ)
   const byPM = {};
   items.forEach(x=>{
     const pm = pmKey(x.pm) || 'ไม่ระบุ';
-    (byPM[pm] ||= {pm, items:[], selling:0, collected:0, collecting:0, remainder:0});
+    const f = figOf.get(x);
+    (byPM[pm] ||= {pm, items:[], selling:0, base:0, collected:0, ar:0, notBilled:0});
     byPM[pm].items.push(x);
     byPM[pm].selling += num(x.sellingPrice);
-    byPM[pm].collected += num(x.collected);
-    byPM[pm].collecting += num(x.collecting);
-    byPM[pm].remainder += num(x.remainder);
+    byPM[pm].base += f.base;
+    byPM[pm].collected += f.collected;
+    byPM[pm].ar += f.ar;
+    byPM[pm].notBilled += f.notBilled;
   });
-  const pmRows = Object.values(byPM).sort((a,b)=> b.collecting - a.collecting);
+  const pmRows = Object.values(byPM).sort((a,b)=> b.ar - a.ar);
 
   const head = `<div class="rv-row head-row"><span>PM</span><span style="text-align:right">Σ Selling Price</span><span>ยังไม่วางบิล · รอเก็บ · เก็บแล้ว</span><span style="text-align:right">AR ค้างเก็บ</span><span></span></div>`;
 
   const body = pmRows.map(g=>{
-    const col = g.collecting > g.selling*0.1 ? '#A8482F' : g.collecting>1 ? '#B07A28' : '#4F7A4A';
-    const cards = g.items.slice().sort((a,b)=>num(b.collecting)-num(a.collecting)).map(x=>{
+    const col = g.ar > g.selling*0.1 ? '#A8482F' : g.ar>1 ? '#B07A28' : '#4F7A4A';
+    const cards = g.items.slice().sort((a,b)=>figOf.get(b).ar - figOf.get(a).ar).map(x=>{
       const rem = num(x.remainder), coll_ing = num(x.collecting), coll_ed = num(x.collected);
       // ยอดคงเหลือต่องวด - อ่านตรงจากคอลัมน์ "Remainder" ที่มีอยู่แล้วในชีต PaymentW ต่อแถวงวดย่อยโดยตรง
       // (เพิ่งแก้ backend ให้ดึงคอลัมน์นี้ต่องวดด้วย แต่เดิมดึงแค่ระดับโครงการรวม) ไม่ต้องเดา/คำนวณย้อนกลับอีกต่อไป
@@ -8830,7 +8968,7 @@ function renderPayment(paywSource, codeSetList){
       let sumBilling = 0, sumTaxInv = 0;
       if(_scPC){
         sumBilling = _scPC.rows.reduce((a,r)=>a+r.full,0);
-        sumTaxInv  = Math.max(0, sumBilling - _scPC.rows.reduce((a,r)=>a+(r.pending||0),0));
+        sumTaxInv  = Math.max(0, sumBilling - _scPC.rows.reduce((a,r)=>a+schedulePending(x.projectCode, r, x),0));
       } else {
         (x.installments||[]).forEach(ii=>{
           const iv = num(ii.invoiced), rm = num(ii.remainder);
@@ -8847,13 +8985,18 @@ function renderPayment(paywSource, codeSetList){
       // ลูกหนี้จริงของโครงการนี้ = ออกใบแจ้งหนี้แล้วแต่ยังเก็บไม่ได้ (ไม่รวมใบกำกับภาษีตัดของ)
       // ต้องประกาศก่อนถูกใช้ในชิปหัวการ์ด แถบสัดส่วน และรายการงวดด้านล่าง
       const allocPay = allocateCollection(x);
-      const projAR = Object.values(allocPay).reduce((a,v)=>a+(v.outstanding>1?v.outstanding:0),0);
-      const projNotBilled = Math.max(0, (sumBilling || num(x.sellingPrice)) - coll_ed - projAR);
+      // ใช้ตัวเลขชุดเดียวกับแถวสรุปของ PM (payFig) - ผลรวมการ์ดจะเท่ากับแถว PM เสมอ
+      const projAR = figOf.get(x).ar;
+      const projNotBilled = figOf.get(x).notBilled;
       const btSummary = sumBilling>0 ? `<div class="pw-bt ${billingOk?'':'warn'}">
         <span class="pw-bt-i">Billing ตามงวดงาน <b>${thb(sumBilling)}</b>${billingOk?'<span class="pw-bt-ok">✓ ตรงกับ Selling Price</span>':`<span class="pw-bt-bad">⚠ ไม่ตรงกับ Selling Price ${thb(spNum)}</span>`}</span>
         <span class="pw-bt-i">ออกใบกำกับภาษีแล้ว <b>${thb(sumTaxInv)}</b>${pendTax>1?`<span class="pw-bt-pend">ยังไม่ออก ${thb(pendTax)}</span>`:'<span class="pw-bt-ok">✓ ครบแล้ว</span>'}</span>
       </div>` : '';
-      const insts = (x.installments||[]).filter(i=>i.desc || i.collected!=null || i.invoiced!=null);
+      // ไม่แสดงแถวว่าง (ไม่มีคำอธิบาย และทุกช่องเป็น 0) - เป็นแถวเปล่าในชีต ไม่ใช่งวดจริง
+      // (Sectoral มีแถวแบบนี้ 1 แถว เดิมขึ้นเป็น "ยังไม่ออก Invoice" โดยไม่มียอดเงิน) · ไม่กระทบยอดรวมเพราะทุกช่องเป็น 0
+      const isBlankRow = i => !String(i.desc||'').trim() && !num(i.invoiced) && !num(i.remainder)
+        && !num(i.collecting) && !num(i.collected) && !i.collectedDate;
+      const insts = (x.installments||[]).filter(i => !isBlankRow(i) && (i.desc || i.collected!=null || i.invoiced!=null));
       // AccType เป็นการขาย/ติดตั้ง + คำอธิบายงวดพูดถึงการส่งของ -> Collecting อาจเป็นใบกำกับภาษีตัดสต็อก
       // ไม่ใช่การวางบิลเรียกเก็บลูกค้าจริง ๆ (ต่างจาก "ค้างเก็บเงิน" ทั่วไปที่ควรตามลูกค้า)
       const SHIP_ACC_TYPES = ['Sale','Sale & Install','Sale & MA'];
@@ -8876,9 +9019,12 @@ function renderPayment(paywSource, codeSetList){
         //   waiting = ยังไม่ออก Invoice (จางสุด = ยังไม่เริ่ม)
         // ถือว่าเก็บเงินแล้วเมื่อ: มีวันที่รับเงินในแถว หรือ ยอดรวมบนสุดครอบคลุมงวดนี้แล้ว (FIFO)
         const paidByAlloc = _al && _al.fullyCollected;
+        // แถวงวดสุดท้ายที่ออกใบกำกับภาษีตอนส่งของไปก่อนโครงการเสร็จ - ยังไม่ได้วางบิล (ดู finalTaxOnlyInfo)
+        const taxOnlyRow = !!(_al && _al.taxOnly);
         let state, stateLabel, stateIcon;
         if(inst.collectedDate || paidByAlloc){ state='paid'; stateLabel='เก็บเงินแล้ว'; stateIcon='✓'; }
         else if(likelyStockInvoice){ state='ship'; stateLabel='ใบกำกับภาษี (ส่งของ)'; stateIcon='📦'; }
+        else if(taxOnlyRow){ state='ship'; stateLabel='ใบกำกับภาษี (ส่งของ) · ยังไม่วางบิล'; stateIcon='📦'; }
         else if(pending){ state='billing'; stateLabel='ออก Invoice แล้ว รอเก็บเงิน'; stateIcon='◕'; }
         else { state='waiting'; stateLabel='ยังไม่ออก Invoice'; stateIcon='○'; }
 
@@ -8890,7 +9036,9 @@ function renderPayment(paywSource, codeSetList){
                 ? `ออก Invoice ${fmtDate(inst.invoiceDate)} · เก็บเงินได้ ${fmtDate(inst.collectedDate)}`
                 : `ออก Invoice ${fmtDate(inst.invoiceDate)} · เก็บเงินแล้ว ${thb(_al?_al.collected:0)} (อ้างอิงยอดรวมของโครงการ - แถวนี้ยังไม่ได้ลงวันที่รับเงิน)`)
           : state==='ship'
-            ? `ออกใบกำกับภาษีตอนส่งของ ${fmtDate(inst.invoiceDate)} · ${thb(inst.collecting)} - ไม่นับรวมใน billing ตามงวด`
+            ? (taxOnlyRow
+                ? `ออกใบกำกับภาษีตอนส่งของ ${fmtDate(inst.invoiceDate)} · ${thb(inst.invoiced)} · เป็นงวดสุดท้าย แต่โครงการยังไม่เสร็จ (${num(_al.taxOnlyPct).toLocaleString('en-US',{maximumFractionDigits:2})}%) จึงยังวางบิลงวดนี้ไม่ได้ - นับเป็นยังไม่วางบิล`
+                : `ออกใบกำกับภาษีตอนส่งของ ${fmtDate(inst.invoiceDate)} · ${thb(inst.collecting)} - ไม่นับรวมใน billing ตามงวด`)
           : state==='billing'
             ? (() => {
                 // บอกตามช่องที่มีค่าจริงเท่านั้น - ลงช่องไหนบอกช่องนั้น ไม่เดาแทนกัน
@@ -8901,7 +9049,10 @@ function renderPayment(paywSource, codeSetList){
                 const _rem  = num(inst.remainder);
                 const parts = [];
                 // ช่อง remainder = ยอดวางบิล · ถ้าโครงการมีตารางสัญญาให้ใช้มูลค่างวดเต็มแทน
-                if(_rem > 0) parts.push(`วางบิลแล้ว ยอด ${thb(_schedFull > 0 ? _schedFull : _rem)}`);
+                // โครงการมีตารางสัญญา: ยอดวางบิล = มูลค่าเต็มของงวด (แถวเจ้าของงวด) แม้ช่อง remainder จะเป็น 0 แล้ว
+                // (AOT งวด 11: วางบิล 24,447,200 แต่ออก tax invoice แค่ 2,444,720 - ต้องบอกทั้ง 2 ยอด ไม่งั้นอ่านแล้วงง)
+                if(CONTRACT_SCHEDULE[x.projectCode] && _al && _al.billed > 0) parts.push(`วางบิลแล้ว ยอด ${thb(_al.billed)}`);
+                else if(_rem > 0) parts.push(`วางบิลแล้ว ยอด ${thb(_schedFull > 0 ? _schedFull : _rem)}`);
                 if(_tax > 0) parts.push(`ออก Tax Invoice แล้ว ยอด ${thb(_tax)}`);
                 if(!parts.length) parts.push(`ยอด ${thb(num(inst.collecting))}`);
                 // บอกยอดที่ยังไม่ได้รับให้ชัด ไม่ต้องให้เดาว่าหมายถึงตัวไหน
@@ -8958,7 +9109,14 @@ function renderPayment(paywSource, codeSetList){
       return `<div class="rv-card">
         <div class="rv-card-top">
           <div><div class="rv-card-name">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span></div><div class="rv-card-cust">${x.customer||''}</div></div>
-          <span class="chip ${projAR>num(x.sellingPrice)*0.1?'critical':projAR>1?'warning':'success'}">${projAR>1?`รอเก็บ ${thb(projAR)}`:'เก็บครบแล้ว'}</span>
+          ${(() => {
+            // "เก็บครบแล้ว" ต้องเก็บเงินได้ครบมูลค่างวดงานจริง ๆ - ถ้าแค่ไม่มียอดรอเก็บ (ยังมีงวดที่ยังไม่วางบิล) ให้บอกตามนั้น
+            // (เดิมขึ้น "เก็บครบแล้ว" ทุกโครงการที่ไม่มี AR เช่น RTAF ที่ยังเก็บเงินไม่ได้เลย)
+            const _allIn = coll_ed >= (sumBilling || num(x.sellingPrice)) - 1;
+            const _cls = projAR>num(x.sellingPrice)*0.1 ? 'critical' : projAR>1 ? 'warning' : _allIn ? 'success' : 'neutral';
+            const _txt = projAR>1 ? `รอเก็บ ${thb(projAR)}` : _allIn ? 'เก็บครบแล้ว' : 'ไม่มียอดรอเก็บ';
+            return `<span class="chip ${_cls}">${_txt}</span>`;
+          })()}
         </div>
         ${stackBar(projNotBilled, projAR, coll_ed, sumBilling || num(x.sellingPrice))}
         <div class="pw-legend3">
@@ -8993,8 +9151,8 @@ function renderPayment(paywSource, codeSetList){
         <div style="min-width:0"><div class="wr-n">${g.pm}</div><div class="wr-s">${g.items.length} โครงการ</div></div>
       </div>
       <div class="wr-num">${thb(g.selling)}</div>
-      <div>${stackBar(g.remainder, g.collecting, g.collected, g.selling)}</div>
-      <div class="wr-num" style="color:${g.collecting>1?'var(--warning)':'var(--success)'}">${thb(g.collecting)}</div>
+      <div>${stackBar(g.notBilled, g.ar, g.collected, g.base)}</div>
+      <div class="wr-num" style="color:${g.ar>1?'var(--warning)':'var(--success)'}">${thb(g.ar)}</div>
       <span class="wr-chev">${svg(I.chevron,'')}</span>
     </div>
     <div class="rv-detail">${cards}</div>`;
