@@ -8635,7 +8635,9 @@ function renderInvoiceTimeline(paywSource, codeSetList){
       // โครงการที่มีตารางสัญญา: คิด billing จากตารางแยกต่างหาก (ด้านล่าง) ไม่คิดจากแถวนี้
       // เพราะบางงวดถูกวางบิลผ่าน "ใบรวม" ที่เป็นแถวใบกำกับภาษี ถ้าคิดจากแถวจะตกหล่น
       const schedFull = 0;
-      const billing = hasSched ? 0 : (del ? 0 : ((inv + rem) > 0 ? inv + rem : descAmt(i)));
+      // แถวที่ออกแต่ใบกำกับภาษีตอนส่งของ ยังไม่มีการวางบิล และยังไม่รู้ว่าจะวางบิลเดือนไหน จึงไม่ลงเป็น billing ของเดือนนั้น
+      const taxOnlyRow = !!(allocMap[idx] && allocMap[idx].taxOnly);
+      const billing = (hasSched || del || taxOnlyRow) ? 0 : ((inv + rem) > 0 ? inv + rem : descAmt(i));
       // tax invoice ของเดือนนั้น:
       //  - แถวส่งของ = ใบกำกับภาษีที่ออกไปแล้ว (ใช้ invoiced)
       //  - แถวงวดของโครงการที่มีตารางสัญญา = ยอดที่จะออกใบกำกับภาษีของงวดนั้น (เก็บไว้ในช่อง remainder)
@@ -8988,6 +8990,11 @@ function renderPayment(paywSource, codeSetList){
       // ใช้ตัวเลขชุดเดียวกับแถวสรุปของ PM (payFig) - ผลรวมการ์ดจะเท่ากับแถว PM เสมอ
       const projAR = figOf.get(x).ar;
       const projNotBilled = figOf.get(x).notBilled;
+      // ยอดงวดที่ออกแต่ใบกำกับภาษีตอนส่งของ ยังไม่ได้วางบิล - ช่อง Billing ของแถวนั้นจะว่าง จึงต้องบอกไว้ที่แถวรวม
+      const taxOnlyBilling = (x.installments||[]).reduce((a,ii,ix)=>{
+        const al = allocPay[ix];
+        return a + ((al && al.taxOnly) ? (num(ii.invoiced) + num(ii.remainder)) : 0);
+      }, 0);
       const btSummary = sumBilling>0 ? `<div class="pw-bt ${billingOk?'':'warn'}">
         <span class="pw-bt-i">Billing ตามงวดงาน <b>${thb(sumBilling)}</b>${billingOk?'<span class="pw-bt-ok">✓ ตรงกับ Selling Price</span>':`<span class="pw-bt-bad">⚠ ไม่ตรงกับ Selling Price ${thb(spNum)}</span>`}</span>
         <span class="pw-bt-i">ออกใบกำกับภาษีแล้ว <b>${thb(sumTaxInv)}</b>${pendTax>1?`<span class="pw-bt-pend">ยังไม่ออก ${thb(pendTax)}</span>`:'<span class="pw-bt-ok">✓ ครบแล้ว</span>'}</span>
@@ -9037,7 +9044,7 @@ function renderPayment(paywSource, codeSetList){
                 : `ออก Invoice ${fmtDate(inst.invoiceDate)} · เก็บเงินแล้ว ${thb(_al?_al.collected:0)} (อ้างอิงยอดรวมของโครงการ - แถวนี้ยังไม่ได้ลงวันที่รับเงิน)`)
           : state==='ship'
             ? (taxOnlyRow
-                ? `ออกใบกำกับภาษีตอนส่งของ ${fmtDate(inst.invoiceDate)} · ${thb(inst.invoiced)} · เป็นงวดสุดท้าย แต่โครงการยังไม่เสร็จ (${num(_al.taxOnlyPct).toLocaleString('en-US',{maximumFractionDigits:2})}%) จึงยังวางบิลงวดนี้ไม่ได้ - นับเป็นยังไม่วางบิล`
+                ? `ออกใบกำกับภาษีตอนส่งของ ${fmtDate(inst.invoiceDate)} · ${thb(inst.invoiced)} · ยังไม่ได้วางบิล (งวดสุดท้าย ต้องส่งมอบงานครบก่อน ตอนนี้ ${num(_al.taxOnlyPct).toLocaleString('en-US',{maximumFractionDigits:2})}%) - ยอดงวดนี้อยู่ในช่อง "ยังไม่วางบิล" ด้านบน`
                 : `ออกใบกำกับภาษีตอนส่งของ ${fmtDate(inst.invoiceDate)} · ${thb(inst.collecting)} - ไม่นับรวมใน billing ตามงวด`)
           : state==='billing'
             ? (() => {
@@ -9085,7 +9092,8 @@ function renderPayment(paywSource, codeSetList){
         // (Log Management งวด 3 = 20% · งวด 4 = 30% ของ 29.89M)
         const _pctM = String(inst.desc||'').match(/(\d{1,3}(?:\.\d+)?)\s*%/);
         const _pctAmt = (_pctM && !_isDel(inst)) ? num(x.sellingPrice) * parseFloat(_pctM[1]) / 100 : 0;
-        const billingAmt = (!_isOwner || _dupDel) ? 0
+        // แถวที่เป็นใบกำกับภาษีตอนส่งของ ยังไม่มีการวางบิล ช่อง Billing ต้องว่าง (ยอดงวดไปอยู่ใน "ยังไม่วางบิล" ด้านบน)
+        const billingAmt = (!_isOwner || _dupDel || taxOnlyRow) ? 0
           : (_schedFullPC > 0 ? _schedFullPC        // โครงการมีตารางสัญญา ใช้มูลค่างวดเต็ม
           : (_isDel(inst) ? 0                       // แถวส่งของ = ใบกำกับภาษี ไม่ใช่ยอดวางบิล
           : ((_ivPC + _rmPC) > 0 ? _ivPC + _rmPC
@@ -9141,7 +9149,10 @@ function renderPayment(paywSource, codeSetList){
           <div class="nd-detail">${
             Math.abs(sumBilling - num(x.sellingPrice)) < 2
               ? `✓ Billing ตรงกับ Selling Price` : `⚠ Billing ไม่ตรงกับ Selling Price ${thb(x.sellingPrice)}`
-          }${(sumBilling - sumTaxInv) > 1 ? ` · ยังไม่ออกใบกำกับภาษีอีก ${thb(sumBilling - sumTaxInv)}` : ' · ออกใบกำกับภาษีครบแล้ว'}</div>
+          }${(sumBilling - sumTaxInv) > 1 ? ` · ยังไม่ออกใบกำกับภาษีอีก ${thb(sumBilling - sumTaxInv)}` : ' · ออกใบกำกับภาษีครบแล้ว'}${
+            // บอกว่ายอดที่หายไปจากช่อง Billing รายแถวไปอยู่ไหน (แถวที่ออกแต่ใบกำกับภาษีตอนส่งของ)
+            taxOnlyBilling > 1 ? ` · ในนี้มีงวดที่ออกแต่ใบกำกับภาษีตอนส่งของ ยังไม่ได้วางบิล ${thb(taxOnlyBilling)}` : ''
+          }</div>
         </div>` : ''}
       </div>`;
     }).join('');
