@@ -783,6 +783,16 @@
   .rr-actions{padding:0 18px 14px;}
   .rr-list{display:none;padding:0 18px 16px;max-height:460px;overflow:auto;}
   .rr-list.open{display:block;}
+  /* คอลัมน์ RR Type (รับรู้รายได้ตามอะไร) + แถวโครงการที่ไม่เข้าข่ายตาราง */
+  .rr-rt{font-size:10px;padding:1px 6px;border-radius:5px;background:var(--surface-2);border:1px solid var(--line-soft);color:var(--muted);white-space:nowrap;}
+  .rr-rt.prog{background:var(--success-tint);border-color:#C9E3D2;color:var(--success);}
+  .rr-rt.none{border-style:dashed;color:var(--faint);}
+  .rr-row-na td{color:var(--muted);background:var(--surface-2);}
+  .rr-why{font-size:10.5px;}
+  /* แถบบอกขอบเขตของการ์ด Revenue Plan (แสดงเฉพาะโครงการที่รับรู้แบบ By Progress) */
+  .rp-scope{margin:0 18px 12px;padding:9px 13px;border-radius:9px;background:var(--surface-2);border:1px solid var(--line-soft);font-size:10.5px;color:var(--muted);line-height:1.75;}
+  .rp-scope .code-tag{margin-left:2px;}
+  .rp-scope-warn{margin-top:6px;padding-top:6px;border-top:1px dashed var(--line);color:var(--warning);}
 
   /* ---------------- TOR Breakdown ---------------- */
   .tor-drop{margin:14px 18px;padding:30px 20px;border:2px dashed var(--line);border-radius:12px;text-align:center;cursor:pointer;background:var(--surface-2);transition:.15s;}
@@ -4781,7 +4791,23 @@ function renderRevenuePlan(list){
   const revByCode = {};
   REV.forEach(r=>{ if(r['Project Code']) revByCode[r['Project Code']] = r; });
 
-  const items = list.filter(p=>revByCode[p['Project Code']]).map(p=>{
+  // ขอบเขตการ์ดนี้ตามกฎบัญชีของ OAT: มีแผนรับรู้รายได้รายเดือนเฉพาะโครงการที่รับรู้แบบ By Progress
+  // โครงการที่รับรู้แบบอื่น (By Invoice · MA/Rent · By TFRS 15) ไม่มีแผนรายเดือน จึงไม่ใช่ "ขาดแผน"
+  const byProg = list.filter(isByProgress);
+  const otherRR = list.filter(p => !isByProgress(p));
+  const noPlan = byProg.filter(p => !revByCode[p['Project Code']]);
+  const planNotByProg = list.filter(p => revByCode[p['Project Code']] && !isByProgress(p));
+
+  // แถบบอกขอบเขต: ใครอยู่ในการ์ดนี้ ใครไม่อยู่ และเพราะอะไร - กันเข้าใจผิดว่าโครงการที่ไม่โผล่คือ "ลืมทำแผน"
+  const rpNameTag = p => `${p['Project Name']||p['Project Code']} <span class="code-tag">#${p['Project Code']}</span>`;
+  const rpScopeNote = `<div class="rp-scope">
+    การ์ดนี้แสดงเฉพาะโครงการที่รับรู้รายได้แบบ <b>By Progress</b> (${byProg.length} จาก ${list.length} โครงการที่กรองอยู่)${
+      otherRR.length ? ` · อีก ${otherRR.length} โครงการรับรู้แบบอื่นจึงไม่มีแผนรายเดือน: ${otherRR.map(p=>`${rpNameTag(p)} <span class="rr-rt">${rrTypeOf(p)||'ไม่ระบุ RR Type'}</span>`).join(' · ')}` : ''}
+    ${noPlan.length ? `<div class="rp-scope-warn">⚠ ${noPlan.length} โครงการ By Progress ที่ยังไม่มีแผนในชีต Revenue: ${noPlan.map(p=>`${rpNameTag(p)} (${projectStatus(p)})`).join(' · ')}</div>` : ''}
+    ${planNotByProg.length ? `<div class="rp-scope-warn">⚠ ${planNotByProg.length} โครงการมีแผนในชีต Revenue แต่ RR Type ไม่ใช่ By Progress จึงไม่ถูกนับ: ${planNotByProg.map(p=>`${rpNameTag(p)} <span class="rr-rt">${rrTypeOf(p)||'ไม่ระบุ'}</span>`).join(' · ')}</div>` : ''}
+  </div>`;
+
+  const items = list.filter(p=>revByCode[p['Project Code']] && isByProgress(p)).map(p=>{
     const r = revByCode[p['Project Code']];
     const selling = num(r['Selling Price']);
     const bfPct = num(r['BF']);                       // รับรู้ไปแล้วก่อนปีนี้
@@ -4797,8 +4823,8 @@ function renderRevenuePlan(list){
             name: p['Project Name']||p['Project Code'], code: p['Project Code']};
   });
 
-  document.getElementById('rpCount').textContent = `${items.length}/${list.length} โครงการมีแผนรายได้`;
-  if(!items.length){ el.innerHTML = `<div class="empty">ไม่มีโครงการที่กรองอยู่ที่มีแผนรายได้</div>`; return; }
+  document.getElementById('rpCount').textContent = `${items.length}/${byProg.length} โครงการ By Progress มีแผนรายได้`;
+  if(!items.length){ el.innerHTML = rpScopeNote + `<div class="empty">ไม่มีโครงการที่รับรู้รายได้แบบ By Progress ในตัวกรองนี้</div>`; return; }
 
   // รวมทั้งทีมรายเดือน + รายไตรมาส
   const teamMonth = RP_MONTHS.map((_,i)=>items.reduce((s,x)=>s+x.monthBaht[i],0));
@@ -5127,6 +5153,7 @@ function renderRevenuePlan(list){
   </div>` : '';
 
   el.innerHTML = `
+    ${rpScopeNote}
     <div class="wow-overview">
       <div class="ov-stats">
         <div class="ov-stat">
@@ -5875,6 +5902,17 @@ function rrClassify(p){
   return {n:null, why:'ระบุชนิดไม่ได้ - ไม่มี Service Type', kind:'miss'};
 }
 
+// ===== RR Type = "รับรู้รายได้ตามอะไร" อ่านตรงจากคอลัมน์ RR Type ในไฟล์ (ไม่เดาเอง) =====
+// ค่าที่พบในไฟล์: By Progress · By Invoice · MA/Rent · By TFRS 15 (S/T/SI) และแบบผสมคั่นด้วยจุลภาค
+// กฎของ OAT: มีแผนรายได้รายเดือน (การ์ด Revenue Plan) เฉพาะโครงการที่รับรู้แบบ By Progress เท่านั้น
+const rrTypeOf = p => String((p && p['RR Type']) || '').replace(/\s+/g, ' ').trim();
+const isByProgress = p => /by\s*progress/i.test(rrTypeOf(p));
+function rrTypeCell(p){
+  const v = rrTypeOf(p);
+  if(!v) return '<span class="rr-rt none">ไม่ระบุ</span>';
+  return `<span class="rr-rt${isByProgress(p)?' prog':''}" title="${isByProgress(p)?'รับรู้ตามความคืบหน้างาน - มีแผนรายเดือนในการ์ด Revenue Plan':'ไม่ได้รับรู้ตามความคืบหน้า จึงไม่มีแผนรายเดือนในการ์ด Revenue Plan'}">${v}</span>`;
+}
+
 function renderRevenueRecognition(list){
   const el=document.getElementById('rrBox'); if(!el) return;
   const src = (list && list.length) ? list : (PROJINFO||[]);
@@ -5913,13 +5951,20 @@ function renderRevenueRecognition(list){
       <button class="tor-btn" onclick="document.getElementById('rrList').classList.toggle('open')">ดูรายโครงการ</button>
     </div>
     <div id="rrList" class="rr-list">
-      <table class="tor-table"><thead><tr><th>Project Code</th><th>ชื่อโครงการ</th><th>ชนิด</th><th>ระยะเวลา</th><th>อบรม</th><th>มุมบัญชี</th><th>มุม PM</th></tr></thead><tbody>
+      <div class="rr-note" style="padding:8px 2px 10px">คอลัมน์ <b>RR Type</b> อ่านตรงจากไฟล์ (ชีต Progress1 / Project Info) บอกว่าโครงการนั้นรับรู้รายได้ตามอะไร
+        · เฉพาะ <b>By Progress</b> เท่านั้นที่มีแผนรายได้รายเดือนในการ์ด Revenue Plan
+        · โครงการ MA/เช่า ไม่เข้าข่ายตารางชนิดโครงการ แต่ยังแสดงไว้ในรายการนี้พร้อม RR Type ของตัวเอง</div>
+      <table class="tor-table"><thead><tr><th>Project Code</th><th>ชื่อโครงการ</th><th>ชนิด</th><th>RR Type (รับรู้รายได้ตาม)</th><th>ระยะเวลา</th><th>อบรม</th><th>มุมบัญชี</th><th>มุม PM</th></tr></thead><tbody>
       ${nums.flatMap(n=>byType[n].slice(0,40).map(({p,r})=>{
         const t=RR_TABLE[n];
         return `<tr><td>${p['Project Code']||'-'}</td><td>${String(p['Project Name']||'-').slice(0,50)}</td>
-          <td>${n}. ${t.name}</td><td>${r.days!=null?r.days+' วัน':'-'}</td>
+          <td>${n}. ${t.name}</td><td>${rrTypeCell(p)}</td><td>${r.days!=null?r.days+' วัน':'-'}</td>
           <td>${r.training?'มี':'-'}</td><td>${t.acc}</td><td>${t.pm}</td></tr>`;
       })).join('')}
+      ${[...na, ...miss].map(({p,why})=>`<tr class="rr-row-na"><td>${p['Project Code']||'-'}</td><td>${String(p['Project Name']||'-').slice(0,50)}</td>
+        <td class="rr-why">${why}</td><td>${rrTypeCell(p)}</td>
+        <td>${(()=>{const d=rrDays(p);return d!=null?d+' วัน':'-';})()}</td>
+        <td>${String(p['Training']||'').trim().toUpperCase()==='YES'?'มี':'-'}</td><td>-</td><td>-</td></tr>`).join('')}
       </tbody></table>
     </div>`;
 }
