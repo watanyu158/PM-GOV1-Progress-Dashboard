@@ -2350,9 +2350,8 @@
       </div>
       <div class="p-body">
         <div style="padding:13px 18px;border-bottom:1px solid var(--line-soft);font-size:11.5px;color:var(--faint);line-height:1.7">
-          ชีต PaymentW ในไฟล์ต้นทางเป็นภาพนิ่ง ณ วันที่ sync - บัญชีลบบล็อกของโครงการที่ปิดจบแล้วออกจากชีต ระบบจึงเก็บข้อมูลล่าสุดของทุกโครงการไว้ในคลังนี้
-          โครงการที่หายไปจากไฟล์จะถูกดึงจากคลังมาแสดงต่อ พร้อมป้าย "🗄 ข้อมูลจากคลัง ณ วันที่ ..." เพื่อไม่ให้เข้าใจผิดว่าเป็นข้อมูลสด<br>
-          ⚠️ คลังเก็บเป็นไฟล์บน server เหมือนค่าสิทธิ์การ์ด - ถ้า redeploy แล้วหาย ให้กู้คืนด้วยปุ่ม "อัปโหลดคลัง" (ดาวน์โหลดเก็บไว้เป็นระยะ)
+          โครงการที่หายไปจากไฟล์ล่าสุดจะถูกดึงจากคลังมาแสดงต่อ พร้อมป้ายบอกวันที่ของข้อมูล<br>
+          ⚠️ ถ้า redeploy แล้วคลังหาย ให้กู้คืนด้วยปุ่ม "อัปโหลดคลัง" (ดาวน์โหลดเก็บไว้เป็นระยะ)
         </div>
         <div class="arch-actions">
           <button id="archDownload" type="button" class="admin-update-btn">⬇ ดาวน์โหลดคลัง (JSON)</button>
@@ -4800,12 +4799,11 @@ function renderRevenuePlan(list){
 
   // แถบบอกขอบเขต: ใครอยู่ในการ์ดนี้ ใครไม่อยู่ และเพราะอะไร - กันเข้าใจผิดว่าโครงการที่ไม่โผล่คือ "ลืมทำแผน"
   const rpNameTag = p => `${p['Project Name']||p['Project Code']} <span class="code-tag">#${p['Project Code']}</span>`;
-  const rpScopeNote = `<div class="rp-scope">
-    การ์ดนี้แสดงเฉพาะโครงการที่รับรู้รายได้แบบ <b>By Progress</b> (${byProg.length} จาก ${list.length} โครงการที่กรองอยู่)${
-      otherRR.length ? ` · อีก ${otherRR.length} โครงการรับรู้แบบอื่นจึงไม่มีแผนรายเดือน: ${otherRR.map(p=>`${rpNameTag(p)} <span class="rr-rt">${rrTypeOf(p)||'ไม่ระบุ RR Type'}</span>`).join(' · ')}` : ''}
-    ${noPlan.length ? `<div class="rp-scope-warn">⚠ ${noPlan.length} โครงการ By Progress ที่ยังไม่มีแผนในชีต Revenue: ${noPlan.map(p=>`${rpNameTag(p)} (${projectStatus(p)})`).join(' · ')}</div>` : ''}
-    ${planNotByProg.length ? `<div class="rp-scope-warn">⚠ ${planNotByProg.length} โครงการมีแผนในชีต Revenue แต่ RR Type ไม่ใช่ By Progress จึงไม่ถูกนับ: ${planNotByProg.map(p=>`${rpNameTag(p)} <span class="rr-rt">${rrTypeOf(p)||'ไม่ระบุ'}</span>`).join(' · ')}</div>` : ''}
-  </div>`;
+  const rpScopeNote = (otherRR.length || noPlan.length || planNotByProg.length) ? `<div class="rp-scope">
+    ${otherRR.length ? `ไม่อยู่ในแผน ${otherRR.length} โครงการ: ${otherRR.map(p=>`${rpNameTag(p)} <span class="rr-rt">${rrTypeOf(p)||'ไม่ระบุ RR Type'}</span>`).join(' · ')}` : ''}
+    ${noPlan.length ? `<div class="rp-scope-warn">⚠ ${noPlan.length} โครงการ By Progress ยังไม่มีแผนรายได้: ${noPlan.map(p=>`${rpNameTag(p)} (${projectStatus(p)})`).join(' · ')}</div>` : ''}
+    ${planNotByProg.length ? `<div class="rp-scope-warn">⚠ ${planNotByProg.length} โครงการมีแผนรายได้ แต่ RR Type ไม่ใช่ By Progress จึงไม่ถูกนับ: ${planNotByProg.map(p=>`${rpNameTag(p)} <span class="rr-rt">${rrTypeOf(p)||'ไม่ระบุ'}</span>`).join(' · ')}</div>` : ''}
+  </div>` : '';
 
   const items = list.filter(p=>revByCode[p['Project Code']] && isByProgress(p)).map(p=>{
     const r = revByCode[p['Project Code']];
@@ -5951,9 +5949,6 @@ function renderRevenueRecognition(list){
       <button class="tor-btn" onclick="document.getElementById('rrList').classList.toggle('open')">ดูรายโครงการ</button>
     </div>
     <div id="rrList" class="rr-list">
-      <div class="rr-note" style="padding:8px 2px 10px">คอลัมน์ <b>RR Type</b> อ่านตรงจากไฟล์ (ชีต Progress1 / Project Info) บอกว่าโครงการนั้นรับรู้รายได้ตามอะไร
-        · เฉพาะ <b>By Progress</b> เท่านั้นที่มีแผนรายได้รายเดือนในการ์ด Revenue Plan
-        · โครงการ MA/เช่า ไม่เข้าข่ายตารางชนิดโครงการ แต่ยังแสดงไว้ในรายการนี้พร้อม RR Type ของตัวเอง</div>
       <table class="tor-table"><thead><tr><th>Project Code</th><th>ชื่อโครงการ</th><th>ชนิด</th><th>RR Type (รับรู้รายได้ตาม)</th><th>ระยะเวลา</th><th>อบรม</th><th>มุมบัญชี</th><th>มุม PM</th></tr></thead><tbody>
       ${nums.flatMap(n=>byType[n].slice(0,40).map(({p,r})=>{
         const t=RR_TABLE[n];
@@ -8914,7 +8909,7 @@ const archAsOf = x => (x && x.archivedLastSeenAt) ? fmtDate(String(x.archivedLas
 function archTag(x){
   if(!x || !x.archived) return '';
   const d = archAsOf(x);
-  return ` <span class="arch-tag" title="ไม่มีโครงการนี้ในชีต PaymentW ของไฟล์ล่าสุดแล้ว (บัญชีลบออกเมื่อโครงการจบ) - แสดงข้อมูลล่าสุดที่เก็บไว้ในคลังสะสม">🗄 ข้อมูลจากคลัง${d?` ณ ${d}`:''}</span>`;
+  return ` <span class="arch-tag" title="ไม่มีโครงการนี้ในไฟล์ล่าสุดแล้ว - แสดงข้อมูลล่าสุดที่เก็บไว้ในคลังสะสม">🗄 ข้อมูลจากคลัง${d?` ณ ${d}`:''}</span>`;
 }
 
 function renderPayment(paywSource, codeSetList){
@@ -8991,7 +8986,7 @@ function renderPayment(paywSource, codeSetList){
   const _missing = [...activeCodes].map(c => String(c).trim()).filter(c => c && !_payCodes.has(c))
     .map(c => { const r = latestProgressRow(c); return { code:c, name: (r && r['Project Name']) || c, pm: (r && r['PM Name']) || '' }; })
     .filter(m => !filters.pm || pmKey(m.pm) === pmKey(filters.pm));
-  const missingHtml = _missing.length ? `<div class="pw-missing">⚠ มี ${_missing.length} โครงการในแดชบอร์ดที่ยังไม่มีข้อมูลในชีต PaymentW จึงยังไม่ถูกนับในตัวเลขข้างบน:
+  const missingHtml = _missing.length ? `<div class="pw-missing">⚠ มี ${_missing.length} โครงการที่ยังไม่มีข้อมูลการเงิน จึงยังไม่ถูกนับในตัวเลขข้างบน:
     ${_missing.map(m => `${m.name} <span class="code-tag">#${m.code}</span>`).join(' · ')}</div>` : '';
 
   const stackBar = (notBilled, ar, collected, total) => {
