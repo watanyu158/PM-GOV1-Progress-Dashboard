@@ -332,6 +332,22 @@
   .pw-notbill{color:var(--brand);}
   .pw-legend-note{font-size:9.5px;color:var(--faint);line-height:1.6;margin-top:5px;}
   .pw-note3{font-size:9.5px;color:var(--faint);padding:0 18px 11px;line-height:1.6;}
+  /* ป้าย "ข้อมูลจากคลังสะสม" + แถวเตือนโครงการที่ยังไม่มีข้อมูลในชีต PaymentW */
+  .arch-tag{font-size:9.5px;color:var(--muted);background:var(--surface-2);border:1px dashed var(--line);padding:1px 6px;border-radius:5px;white-space:nowrap;margin-left:2px;}
+  .arch-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line-soft);}
+  .arch-file{cursor:pointer;}
+  .arch-date-lb{font-size:10.5px;color:var(--faint);display:flex;align-items:center;gap:6px;}
+  .arch-date{font-family:inherit;font-size:10.5px;padding:4px 7px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);}
+  .arch-msg{font-size:10.5px;color:var(--muted);}
+  .arch-msg.bad{color:var(--critical);}
+  .arch-msg.good{color:var(--success);}
+  .arch-row{display:grid;grid-template-columns:110px 1fr 150px 130px 130px;gap:10px;align-items:center;padding:9px 18px;border-bottom:1px solid var(--line-soft);font-size:11px;}
+  .arch-row.head{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;background:var(--surface-2);}
+  .arch-row .st{font-size:9.5px;font-style:normal;padding:2px 7px;border-radius:5px;white-space:nowrap;display:inline-block;width:auto;height:auto;}
+  .arch-row .st.live{background:var(--success-tint);color:var(--success);}
+  .arch-row .st.arch{background:var(--surface-2);color:var(--muted);border:1px dashed var(--line);}
+  .pw-missing{margin:0 18px 12px;padding:8px 11px;border:1px solid #E8D4A8;background:var(--warning-tint);border-radius:8px;font-size:10.5px;color:var(--warning);line-height:1.7;}
+  .pw-missing .code-tag{color:var(--warning);border-color:#E8D4A8;background:transparent;}
   .pw-legend3{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:7px;flex-wrap:wrap;}
   .pw-legend3 span{display:flex;align-items:center;gap:5px;}
   .pw-legend3 i{width:9px;height:9px;border-radius:3px;flex:none;}
@@ -2311,6 +2327,31 @@
           ⚠️ การตั้งค่านี้เก็บใน memory ของ server - ถ้า redeploy backend จะรีเซ็ตกลับเป็นค่าเริ่มต้นทั้งหมด
         </div>
         <div id="adminCardList"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11h14V8"/><path d="M10 12h4"/></svg>
+          Finance Data Archive <span class="sep">-</span> <span class="th">คลังข้อมูลการเงินสะสม (PaymentW)</span>
+        </div>
+        <span class="p-count" id="archCount"></span>
+      </div>
+      <div class="p-body">
+        <div style="padding:13px 18px;border-bottom:1px solid var(--line-soft);font-size:11.5px;color:var(--faint);line-height:1.7">
+          ชีต PaymentW ในไฟล์ต้นทางเป็นภาพนิ่ง ณ วันที่ sync - บัญชีลบบล็อกของโครงการที่ปิดจบแล้วออกจากชีต ระบบจึงเก็บข้อมูลล่าสุดของทุกโครงการไว้ในคลังนี้
+          โครงการที่หายไปจากไฟล์จะถูกดึงจากคลังมาแสดงต่อ พร้อมป้าย "🗄 ข้อมูลจากคลัง ณ วันที่ ..." เพื่อไม่ให้เข้าใจผิดว่าเป็นข้อมูลสด<br>
+          ⚠️ คลังเก็บเป็นไฟล์บน server เหมือนค่าสิทธิ์การ์ด - ถ้า redeploy แล้วหาย ให้กู้คืนด้วยปุ่ม "อัปโหลดคลัง" (ดาวน์โหลดเก็บไว้เป็นระยะ)
+        </div>
+        <div class="arch-actions">
+          <button id="archDownload" type="button" class="admin-update-btn">⬇ ดาวน์โหลดคลัง (JSON)</button>
+          <label class="admin-update-btn arch-file">⬆ อัปโหลดคลัง (JSON)<input type="file" id="archUpload" accept="application/json,.json" hidden></label>
+          <label class="admin-update-btn arch-file">📗 เติมจากไฟล์ Excel เก่า<input type="file" id="archExcel" accept=".xlsx,.xls,.xlsm" hidden></label>
+          <label class="arch-date-lb">วันที่ของไฟล์เก่า <input type="date" id="archAsOf" class="arch-date"></label>
+          <span id="archMsg" class="arch-msg"></span>
+        </div>
+        <div id="archList"></div>
       </div>
     </div>
   </div><!-- /tab4Panels -->
@@ -8675,7 +8716,7 @@ function renderInvoiceTimeline(paywSource, codeSetList){
       ? Math.max(0, sched.rows.reduce((a,r)=>a+r.full,0) - taxPending)
       : (bfTax + yrTax + afTax);
     return {x, mBilling, mTax, mAR, bfBilling, bfTax, afBilling, afTax, yrBilling, yrTax,
-            taxPending, taxIssued, hasSched,
+            taxPending, taxIssued, hasSched, archived: !!x.archived,
             name:x.projectName||x.projectCode, code:x.projectCode, pm:x.pm||''};
   }).filter(r => r.yrBilling>0 || r.bfBilling>0 || r.afBilling>0)
     .sort((a,b)=> b.yrBilling - a.yrBilling);
@@ -8743,7 +8784,7 @@ function renderInvoiceTimeline(paywSource, codeSetList){
   const body = rows.map(r=>{
     return `<tr>
       <td class="it-name">
-        <div class="it-n">${r.name} <span class="code-tag">#${r.code}</span></div>
+        <div class="it-n">${r.name} <span class="code-tag">#${r.code}</span>${archTag(r.x)}</div>
         <div class="it-sub">${r.pm} · billing ปีนี้ ${compact(r.yrBilling)} · ออกใบกำกับภาษีแล้ว(ทั้งโครงการ) ${compact(r.taxIssued)}${r.taxPending>1?` · <b class="it-pend">ยังไม่ออกใบกำกับภาษี ${compact(r.taxPending)}</b>`:''}</div>
       </td>
       ${edgeCell(r.bfBilling, r.bfTax)}
@@ -8821,6 +8862,16 @@ function renderInvoiceTimeline(paywSource, codeSetList){
     </div>`;
 }
 
+// ===================== ป้าย "ข้อมูลจากคลังสะสม" =====================
+// ชีต PaymentW เป็นภาพนิ่ง บัญชีลบบล็อกของโครงการที่ปิดจบแล้วออก backend จึงเก็บตัวล่าสุดไว้ในคลัง
+// แล้วส่งกลับมาพร้อมธง archived - ต้องบอกผู้ใช้ให้ชัดว่าเป็นข้อมูล ณ วันไหน ไม่ใช่ข้อมูลสดจากไฟล์ล่าสุด
+const archAsOf = x => (x && x.archivedLastSeenAt) ? fmtDate(String(x.archivedLastSeenAt).slice(0,10)) : null;
+function archTag(x){
+  if(!x || !x.archived) return '';
+  const d = archAsOf(x);
+  return ` <span class="arch-tag" title="ไม่มีโครงการนี้ในชีต PaymentW ของไฟล์ล่าสุดแล้ว (บัญชีลบออกเมื่อโครงการจบ) - แสดงข้อมูลล่าสุดที่เก็บไว้ในคลังสะสม">🗄 ข้อมูลจากคลัง${d?` ณ ${d}`:''}</span>`;
+}
+
 function renderPayment(paywSource, codeSetList){
   const el = document.getElementById('pw');
   const activeCodes = activeCodeSet(codeSetList);
@@ -8889,6 +8940,15 @@ function renderPayment(paywSource, codeSetList){
   };
   const figOf = new Map(items.map(x=>[x, payFig(x)]));
 
+  // โครงการที่อยู่ในแดชบอร์ด (ผ่านตัวกรองแล้ว) แต่ไม่มีข้อมูลในชีต PaymentW เลย - ยอดของโครงการเหล่านี้จะไม่ถูกนับ
+  // ต้องบอกให้เห็น ไม่งั้นหายเงียบแบบ Cloud Conference ที่บัญชีลบออกจากชีตตอนปิดโครงการ
+  const _payCodes = new Set((paywSource||PAYW).map(p => String(p.projectCode||'').trim()));
+  const _missing = [...activeCodes].map(c => String(c).trim()).filter(c => c && !_payCodes.has(c))
+    .map(c => { const r = latestProgressRow(c); return { code:c, name: (r && r['Project Name']) || c, pm: (r && r['PM Name']) || '' }; })
+    .filter(m => !filters.pm || pmKey(m.pm) === pmKey(filters.pm));
+  const missingHtml = _missing.length ? `<div class="pw-missing">⚠ มี ${_missing.length} โครงการในแดชบอร์ดที่ยังไม่มีข้อมูลในชีต PaymentW จึงยังไม่ถูกนับในตัวเลขข้างบน:
+    ${_missing.map(m => `${m.name} <span class="code-tag">#${m.code}</span>`).join(' · ')}</div>` : '';
+
   const stackBar = (notBilled, ar, collected, total) => {
     if(!total) return '';
     const pR = notBilled/total*100, pC = ar/total*100, pD = collected/total*100;
@@ -8913,6 +8973,7 @@ function renderPayment(paywSource, codeSetList){
       <span><i style="background:var(--line)"></i>ยังไม่วางบิล <b>${thb(totalNotBilled)}</b></span>
     </div>
     <div class="pw-note3">แถบสัดส่วนคิดจาก Billing ตามงวดงาน · AR นับเฉพาะใบแจ้งหนี้ที่เรียกเก็บเงินลูกค้า ไม่รวมใบกำกับภาษีที่ออกเพื่อตัดของ</div>
+    ${missingHtml}
   </div>`;
 
   // แถวสรุปของ PM = ผลรวมตัวเลขของการ์ดโครงการข้างใน (billing ตามงวดงาน) - เดิมใช้ยอดหัว Collecting/Remainder
@@ -9116,7 +9177,7 @@ function renderPayment(paywSource, codeSetList){
       }).join('');
       return `<div class="rv-card">
         <div class="rv-card-top">
-          <div><div class="rv-card-name">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span></div><div class="rv-card-cust">${x.customer||''}</div></div>
+          <div><div class="rv-card-name">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span>${archTag(x)}</div><div class="rv-card-cust">${x.customer||''}</div></div>
           ${(() => {
             // "เก็บครบแล้ว" ต้องเก็บเงินได้ครบมูลค่างวดงานจริง ๆ - ถ้าแค่ไม่มียอดรอเก็บ (ยังมีงวดที่ยังไม่วางบิล) ให้บอกตามนั้น
             // (เดิมขึ้น "เก็บครบแล้ว" ทุกโครงการที่ไม่มี AR เช่น RTAF ที่ยังเก็บเงินไม่ได้เลย)
@@ -10391,6 +10452,106 @@ async function renderAdminTab(){
   });
 }
 
+// ===================== Admin: คลังข้อมูลการเงินสะสม =====================
+// งาน 3 อย่าง: ดูว่าในคลังมีโครงการอะไร (และตัวไหนหายจากไฟล์ล่าสุดแล้ว) · ดาวน์โหลด/อัปโหลดคลังเป็นไฟล์สำรอง
+// · เติมคลังจากไฟล์ Excel เก่า สำหรับโครงการที่ถูกลบออกจากชีตไปก่อนระบบคลังจะเริ่มทำงาน
+async function renderPaymentArchiveAdmin(){
+  const listEl = document.getElementById('archList');
+  const cntEl = document.getElementById('archCount');
+  const msgEl = document.getElementById('archMsg');
+  if(!listEl) return;
+  const say = (txt, cls='') => { msgEl.className = 'arch-msg ' + cls; msgEl.textContent = txt; };
+  const authHdr = () => ({ Authorization:`Bearer ${getToken()}` });
+
+  async function load(){
+    try{
+      const res = await fetch(`${API_BASE}/api/admin/payment-archive`, { headers: authHdr() });
+      const j = await res.json();
+      if(!res.ok || !j.ok) throw new Error(j.error || 'ดึงข้อมูลคลังไม่สำเร็จ');
+      const arch = j.projects.filter(p => !p.inLatestFile);
+      cntEl.textContent = `${j.count} โครงการ · มาจากคลัง ${arch.length}`;
+      const fmtIso = s => s ? fmtDate(String(s).slice(0,10)) : 'ไม่ระบุวันที่';
+      listEl.innerHTML = `<div class="arch-row head"><span>รหัส</span><span>โครงการ</span><span>PM</span><span>เห็นครั้งสุดท้าย</span><span>สถานะ</span></div>`
+        + (j.projects.length ? j.projects.map(p => `<div class="arch-row">
+            <span class="code-tag">#${p.code}</span>
+            <span>${p.name || '-'}</span>
+            <span style="color:var(--muted)">${p.pm || '-'}</span>
+            <span style="color:var(--muted)">${fmtIso(p.lastSeenAt)}${p.fromOldFile?' (ไฟล์เก่า)':''}</span>
+            <span>${p.inLatestFile ? '<span class="st live">อยู่ในไฟล์ล่าสุด</span>' : '<span class="st arch">🗄 มาจากคลัง</span>'}</span>
+          </div>`).join('')
+          : `<div class="arch-row"><span></span><span style="color:var(--faint)">ยังไม่มีข้อมูลในคลัง - จะเริ่มสะสมตอน sync ครั้งถัดไป</span><span></span><span></span><span></span></div>`);
+      return j;
+    }catch(e){ say(e.message, 'bad'); return null; }
+  }
+  const data = await load();
+
+  const dl = document.getElementById('archDownload');
+  if(dl && !dl.dataset.wired){
+    dl.dataset.wired = '1';
+    dl.addEventListener('click', async ()=>{
+      say('กำลังเตรียมไฟล์...');
+      try{
+        const res = await fetch(`${API_BASE}/api/admin/payment-archive`, { headers: authHdr() });
+        const j = await res.json();
+        if(!res.ok || !j.ok) throw new Error(j.error || 'ดาวน์โหลดไม่สำเร็จ');
+        const blob = new Blob([JSON.stringify(j.archive, null, 2)], { type:'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `pm-gov1-payment-archive-${new Date().toISOString().slice(0,10)}.json`;
+        a.click(); URL.revokeObjectURL(a.href);
+        say(`ดาวน์โหลดแล้ว (${j.count} โครงการ)`, 'good');
+      }catch(e){ say(e.message, 'bad'); }
+    });
+  }
+
+  const up = document.getElementById('archUpload');
+  if(up && !up.dataset.wired){
+    up.dataset.wired = '1';
+    up.addEventListener('change', async ()=>{
+      const f = up.files && up.files[0];
+      if(!f) return;
+      say('กำลังอัปโหลดคลัง...');
+      try{
+        const archive = JSON.parse(await f.text());
+        const res = await fetch(`${API_BASE}/api/admin/payment-archive`, {
+          method:'POST', headers:{ 'Content-Type':'application/json', ...authHdr() },
+          body: JSON.stringify({ archive, mode:'merge' }),   // เติมเฉพาะที่ยังไม่มี ไม่ทับของใหม่กว่า
+        });
+        const j = await res.json();
+        if(!res.ok || !j.ok) throw new Error(j.error || 'อัปโหลดไม่สำเร็จ');
+        say(`กู้คืนคลังแล้ว ${j.before} → ${j.after} โครงการ${j.persisted?'':' (เขียนไฟล์ไม่สำเร็จ - จะหายถ้า server restart)'}`, 'good');
+        await load(); loadData();
+      }catch(e){ say(e.message, 'bad'); }
+      finally{ up.value = ''; }
+    });
+  }
+
+  const ex = document.getElementById('archExcel');
+  if(ex && !ex.dataset.wired){
+    ex.dataset.wired = '1';
+    ex.addEventListener('change', async ()=>{
+      const f = ex.files && ex.files[0];
+      if(!f) return;
+      say('กำลังอ่านไฟล์ Excel เก่า...');
+      try{
+        const fd = new FormData();
+        fd.append('file', f);
+        const asOf = (document.getElementById('archAsOf')||{}).value;
+        if(asOf) fd.append('asOf', asOf);
+        const res = await fetch(`${API_BASE}/api/admin/payment-archive/import-excel`, { method:'POST', headers: authHdr(), body: fd });
+        const j = await res.json();
+        if(!res.ok || !j.ok) throw new Error(j.error || 'อ่านไฟล์ไม่สำเร็จ');
+        say(j.added.length
+          ? `เติมเข้าคลัง ${j.added.length} โครงการ: ${j.added.map(a=>a.name||a.code).join(', ')} (ข้ามที่มีอยู่แล้ว ${j.skippedCount})`
+          : `ไม่มีโครงการใหม่ให้เติม - ทุกโครงการในไฟล์นี้มีอยู่ในคลังแล้ว (${j.skippedCount} โครงการ)`, 'good');
+        await load(); loadData();
+      }catch(e){ say(e.message, 'bad'); }
+      finally{ ex.value = ''; }
+    });
+  }
+  return data;
+}
+
 function render(){
   buildFilters();
   document.getElementById('hProjects').textContent = ALL.length;
@@ -10411,7 +10572,7 @@ function render(){
   // ที่ OAT แก้เองได้ ป้องกันการล็อกตัวเองออกจากหน้าจัดการสิทธิ์โดยไม่ตั้งใจ)
   const isOat = currentUsername() === 'oat';
   document.getElementById('tabBtn4').style.display = isOat ? '' : 'none';
-  if(isOat) renderAdminTab();
+  if(isOat){ renderAdminTab(); renderPaymentArchiveAdmin(); }
 }
 function renderFiltered(){
   const f = applyFilters(ALL);

@@ -218,6 +218,59 @@ function saveCardDataScope(data) {
 let CARD_DATA_SCOPE = loadCardDataScope();
 if (!fs.existsSync(CARD_DATA_SCOPE_FILE)) saveCardDataScope(CARD_DATA_SCOPE);
 
+// ==================== คลังสะสมข้อมูลการเงินรายโครงการ (PaymentW) ====================
+// ปัญหาที่แก้: ชีต PaymentW ในไฟล์ต้นทางเป็น "ภาพนิ่ง ณ วันนั้น" บัญชีจะลบบล็อกของโครงการที่ปิดจบแล้วออกจากชีต
+// พอ sync ไฟล์ใหม่ทับทั้งก้อน ข้อมูลการเงินของโครงการนั้นหายจากแดชบอร์ดทันที (เจอจริง: Cloud Conference Phase 2
+// หายไปทั้งที่วางบิลครบ 29.9 ล้านในปีนี้ ทำให้ "แผนวางบิลทั้งปี" ขาดไปทั้งก้อนโดยไม่มีใครรู้)
+// วิธีแก้: เปลี่ยนจาก "ทับทั้งก้อน" เป็น "ทับรายโครงการ"
+//   - โครงการที่มีในไฟล์ใหม่ -> ข้อมูลไฟล์ใหม่ชนะเสมอ (เขียนทับในคลังด้วย)
+//   - โครงการที่เคยมีแต่หายจากไฟล์ใหม่ -> ใช้ตัวล่าสุดจากคลัง ติดธง archived + วันที่เห็นครั้งสุดท้าย
+//     ให้หน้าเว็บแสดงว่า "ข้อมูล ณ วันที่ ..." ไม่ใช่ข้อมูลสด จะได้ไม่เข้าใจผิดว่ายังอัปเดตอยู่
+// ความถาวร: เขียนลงไฟล์เหมือนไฟล์ตั้งค่าการ์ดด้านบน (ดูหมายเหตุ Persistent Disk) - ถ้า redeploy แล้วหาย
+// ให้กู้คืนด้วยปุ่มอัปโหลดคลังใน Admin (ดาวน์โหลดเก็บไว้ได้ตลอด) หรือ import จากไฟล์ Excel เก่า
+const PAYMENT_ARCHIVE_FILE = path.join(__dirname, 'payment-archive-store.json');
+function loadPaymentArchive() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(PAYMENT_ARCHIVE_FILE, 'utf8'));
+    const out = { version: 1, updatedAt: null, ...parsed };
+    // กันไฟล์ที่ projects หาย/เป็น null (แก้ไฟล์เองผิด หรือไฟล์รุ่นเก่า) ไม่งั้นทุกจุดที่อ่าน .projects จะพัง
+    if (!out.projects || typeof out.projects !== 'object' || Array.isArray(out.projects)) out.projects = {};
+    console.log(`✓ โหลดคลังข้อมูลการเงินสะสม ${Object.keys(out.projects).length} โครงการ จากไฟล์ ${PAYMENT_ARCHIVE_FILE}`);
+    return out;
+  } catch (e) {
+    console.log(`ℹ ยังไม่มีคลังข้อมูลการเงินสะสม (${e.code === 'ENOENT' ? 'ไฟล์ยังไม่เคยถูกสร้าง' : e.message}) - จะเริ่มสะสมจากไฟล์ที่ sync เข้ามาครั้งต่อไป`);
+    return { version: 1, projects: {}, updatedAt: null };
+  }
+}
+function savePaymentArchive(data) {
+  try { fs.writeFileSync(PAYMENT_ARCHIVE_FILE, JSON.stringify(data, null, 2), 'utf8'); return true; }
+  catch (e) { console.log(`⚠ เขียนคลังข้อมูลการเงินสะสมไม่สำเร็จ: ${e.message} (ยังใช้ได้ในรอบรันนี้ แต่จะหายถ้า server restart)`); return false; }
+}
+let PAYMENT_ARCHIVE = loadPaymentArchive();
+
+// รวมข้อมูล PaymentW ของไฟล์ใหม่เข้าคลัง แล้วคืน "โครงการที่หายไปจากไฟล์" (ดึงจากคลัง พร้อมธงบอกที่มา)
+function mergePaymentArchive(paymentWTeam, syncedAt) {
+  const projects = PAYMENT_ARCHIVE.projects || (PAYMENT_ARCHIVE.projects = {});
+  const inFile = new Set();
+  paymentWTeam.forEach(p => {
+    const code = String(p.projectCode || '').trim();
+    if (!code) return;
+    inFile.add(code);
+    projects[code] = {
+      code,
+      firstSeenAt: (projects[code] && projects[code].firstSeenAt) || syncedAt,
+      lastSeenAt: syncedAt,
+      paymentW: p,
+    };
+  });
+  PAYMENT_ARCHIVE.updatedAt = syncedAt;
+  savePaymentArchive(PAYMENT_ARCHIVE);
+  return Object.values(projects)
+    .filter(e => e && e.code && !inFile.has(e.code) && e.paymentW)
+    // ธง 2 ตัวนี้ส่งต่อไปถึงหน้าเว็บ ใช้บอกผู้ใช้ว่าเป็นข้อมูลจากคลัง ไม่ใช่ข้อมูลในไฟล์ล่าสุด
+    .map(e => ({ ...e.paymentW, archived: true, archivedLastSeenAt: e.lastSeenAt }));
+}
+
 // เก็บข้อมูล debug ล่าสุดไว้เสมอ ดูผ่าน GET /api/debug/last-payload
 let lastRaw = {
   receivedAt: null,
@@ -654,7 +707,13 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       // แผนงาน: เก็บเฉพาะโครงการของทีมที่อยู่ใน Progress1 (whitelist เดียวกับ EVM)
       const projectPlan = projectPlanAll.filter(pl => knownProjectCodes.has(String(pl.code).trim()));
 
-      latestData = { rows, revenue, paymentW: paymentWTeam, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeam, projectInfoAll: projectInfo, evm, projectPlan, updatedAt: new Date().toISOString() };
+      // เก็บ PaymentW เข้าคลังสะสม แล้วต่อท้ายด้วยโครงการที่หายจากไฟล์นี้ (บัญชีลบออกเมื่อโครงการจบ)
+      // ทำหลังกรองทีมแล้ว เพื่อให้คลังมีแต่โครงการของทีมนี้เท่านั้น เหมือนข้อมูลชุดอื่น
+      const syncedAt = new Date().toISOString();
+      const paymentWFromArchive = mergePaymentArchive(paymentWTeam, syncedAt);
+      const paymentWAll = [...paymentWTeam, ...paymentWFromArchive];
+
+      latestData = { rows, revenue, paymentW: paymentWAll, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeam, projectInfoAll: projectInfo, evm, projectPlan, updatedAt: syncedAt };
       lastRaw = {
         receivedAt: latestData.updatedAt,
         contentType: req.headers['content-type'] || null,
@@ -670,6 +729,10 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       console.log(`  + Project Info ${projectInfo.length}→${projectInfoTeam.length} (team) from "${projectInfoSheetName || '(not found)'}"`);
       console.log(`  + EVM sheets found: ${Object.keys(evm).length} (${Object.keys(evm).join(', ') || 'none'})`);
       console.log(`  + Project Plan ${projectPlanAll.length}→${projectPlan.length} (team) from "${projectPlanSheetName || '(not found)'}"`);
+      if (paymentWFromArchive.length) {
+        const names = paymentWFromArchive.map(p => `${p.projectName || p.projectCode} (เห็นครั้งสุดท้าย ${String(p.archivedLastSeenAt).slice(0, 10)})`);
+        console.log(`  + PaymentW: ไฟล์นี้ไม่มี ${paymentWFromArchive.length} โครงการที่เคยมี - ดึงจากคลังสะสมมาต่อท้ายให้: ${names.join(', ')}`);
+      }
 
       // เตือนถ้ามีชื่อ PM ในไฟล์ที่ยังไม่มีบัญชีผูกไว้ (พิมพ์ชื่อผิด หรือมี PM ใหม่เข้าทีม)
       const linked = new Set(USERS.filter(u => u.pmName).map(u => normName(u.pmName)));
@@ -683,7 +746,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       }
 
       if (failed.length) console.error(`⚠ sync สำเร็จบางส่วน - sheet ที่อ่านไม่ได้: ${failed.join(', ')}`);
-      return res.json({ ok: true, mode: 'file', sheet: sheetName, count: rows.length, revenueSheet: revenueSheetName, revenueCount: revenue.length, paymentWCount: paymentWTeam.length, poCount: poTeam.length, stockCount: stockTeam.length, stockSummaryCount: stockSummaryTeam.length, projectInfoCount: projectInfoTeam.length, projectPlanCount: projectPlan.length, failedSheets: failed, updatedAt: latestData.updatedAt });
+      return res.json({ ok: true, mode: 'file', sheet: sheetName, count: rows.length, revenueSheet: revenueSheetName, revenueCount: revenue.length, paymentWCount: paymentWTeam.length, paymentWFromArchiveCount: paymentWFromArchive.length, poCount: poTeam.length, stockCount: stockTeam.length, stockSummaryCount: stockSummaryTeam.length, projectInfoCount: projectInfoTeam.length, projectPlanCount: projectPlan.length, failedSheets: failed, updatedAt: latestData.updatedAt });
     }
 
     // ทางสำรอง: body เป็น JSON array ของแถวข้อมูลตรง ๆ
@@ -764,6 +827,93 @@ app.post('/api/admin/card-data-scope', requireAuth, (req, res) => {
   const persisted = saveCardDataScope(CARD_DATA_SCOPE);
   console.log(`✓ Admin (${req.user.username}) แก้ขอบเขตข้อมูลการ์ด "${cardId}" -> ${teamWide ? 'ทีมเต็ม' : 'เฉพาะของตัวเอง'} (เขียนไฟล์${persisted?'สำเร็จ':'ไม่สำเร็จ'})`);
   res.json({ ok: true, dataScope: CARD_DATA_SCOPE, persisted });
+});
+
+// ==== Admin: คลังข้อมูลการเงินสะสม (PaymentW Archive) ====
+// 3 งาน: ดูว่าในคลังมีอะไรบ้าง · ดาวน์โหลดเก็บเป็นไฟล์สำรอง/อัปโหลดกลับหลัง redeploy · เติมจากไฟล์ Excel เก่า
+// ที่ยังมีบล็อกของโครงการที่ถูกลบออกจากชีตไปแล้ว (กรณี Cloud Conference ที่หายไปก่อนระบบคลังจะเริ่มทำงาน)
+
+// เอาโครงการในคลังที่ไม่มีในไฟล์ล่าสุด มาต่อท้ายข้อมูลปัจจุบันทันที ไม่ต้องรอ sync รอบถัดไป
+function refreshArchivedInLatest() {
+  const live = (latestData.paymentW || []).filter(p => !p.archived);
+  if (!live.length) return 0;
+  const fromArchive = mergePaymentArchive(live, latestData.updatedAt || new Date().toISOString());
+  latestData.paymentW = [...live, ...fromArchive];
+  return fromArchive.length;
+}
+
+app.get('/api/admin/payment-archive', requireAuth, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ ok: false, error: 'ต้องเป็น admin เท่านั้น' });
+  const live = new Set((latestData.paymentW || []).filter(p => !p.archived).map(p => String(p.projectCode || '').trim()));
+  const projects = Object.values(PAYMENT_ARCHIVE.projects || {}).map(e => ({
+    code: e.code,
+    name: (e.paymentW && e.paymentW.projectName) || '',
+    pm: (e.paymentW && e.paymentW.pm) || '',
+    sellingPrice: (e.paymentW && e.paymentW.sellingPrice) || null,
+    firstSeenAt: e.firstSeenAt || null,
+    lastSeenAt: e.lastSeenAt || null,
+    fromOldFile: !!e.importedFromOldFile,
+    inLatestFile: live.has(e.code),            // false = บัญชีลบออกจากชีตแล้ว ข้อมูลมาจากคลัง
+  })).sort((a, b) => String(a.code).localeCompare(String(b.code)));
+  res.json({ ok: true, updatedAt: PAYMENT_ARCHIVE.updatedAt, count: projects.length, projects, archive: PAYMENT_ARCHIVE });
+});
+
+// อัปโหลดคลังกลับ (ไฟล์ JSON ที่เคยดาวน์โหลดไว้) - ค่าเริ่มต้นคือ "เติมเฉพาะโครงการที่ยังไม่มีในคลัง"
+// จะได้ไม่มีทางเอาข้อมูลเก่าไปทับข้อมูลใหม่กว่าโดยไม่ตั้งใจ · ถ้าต้องการล้างของเดิมทิ้งให้ส่ง mode='replace'
+app.post('/api/admin/payment-archive', requireAuth, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ ok: false, error: 'ต้องเป็น admin เท่านั้น' });
+  const { archive, mode } = req.body || {};
+  const incoming = archive && typeof archive === 'object' ? (archive.projects || archive) : null;
+  if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) {
+    return res.status(400).json({ ok: false, error: 'ไฟล์คลังไม่ถูกรูปแบบ - ต้องเป็น JSON ที่มี projects อยู่ข้างใน' });
+  }
+  const clean = {};
+  Object.entries(incoming).forEach(([code, e]) => {
+    const c = String((e && e.code) || code || '').trim();
+    if (!c || !e || !e.paymentW || !e.paymentW.projectCode) return;
+    clean[c] = { code: c, firstSeenAt: e.firstSeenAt || null, lastSeenAt: e.lastSeenAt || null, paymentW: e.paymentW, importedFromOldFile: !!e.importedFromOldFile };
+  });
+  const before = Object.keys(PAYMENT_ARCHIVE.projects || {}).length;
+  if (mode === 'replace') {
+    PAYMENT_ARCHIVE.projects = clean;
+  } else {
+    Object.entries(clean).forEach(([c, e]) => { if (!PAYMENT_ARCHIVE.projects[c]) PAYMENT_ARCHIVE.projects[c] = e; });
+  }
+  const persisted = savePaymentArchive(PAYMENT_ARCHIVE);
+  const attached = refreshArchivedInLatest();
+  const after = Object.keys(PAYMENT_ARCHIVE.projects || {}).length;
+  console.log(`✓ Admin (${req.user.username}) อัปโหลดคลังข้อมูลการเงิน (${mode === 'replace' ? 'แทนที่ทั้งหมด' : 'เติมเฉพาะที่ยังไม่มี'}) ${before} -> ${after} โครงการ (เขียนไฟล์${persisted ? 'สำเร็จ' : 'ไม่สำเร็จ'})`);
+  res.json({ ok: true, mode: mode === 'replace' ? 'replace' : 'merge', before, after, attached, persisted });
+});
+
+// เติมคลังจากไฟล์ Excel เก่า - อ่านเฉพาะชีต PaymentW และเติมเฉพาะโครงการที่ยังไม่มีในคลัง
+// ไม่แตะข้อมูลปัจจุบัน (latestData) เด็ดขาด กันไฟล์เก่าย้อนแดชบอร์ดทั้งระบบ
+app.post('/api/admin/payment-archive/import-excel', requireAuth, upload.single('file'), (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ ok: false, error: 'ต้องเป็น admin เท่านั้น' });
+  if (!req.file) return res.status(400).json({ ok: false, error: 'ไม่มีไฟล์แนบมา' });
+  try {
+    const wb = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
+    const { rows: paymentW, sheetName } = parsePaymentW(wb);
+    if (!sheetName) return res.status(400).json({ ok: false, error: 'ไฟล์นี้ไม่มีชีต PaymentW' });
+    const team = paymentW.filter(p => inTeam(p.pm));
+    // วันที่ของข้อมูลในไฟล์เก่า - ผู้ใช้กรอกมาได้ ถ้าไม่กรอกจะแสดงว่า "ไม่ระบุวันที่" แทนการเดาว่าเป็นข้อมูลวันนี้
+    const asOf = (req.body && typeof req.body.asOf === 'string' && req.body.asOf.trim()) ? req.body.asOf.trim() : null;
+    const added = [], skipped = [];
+    team.forEach(p => {
+      const code = String(p.projectCode || '').trim();
+      if (!code) return;
+      if (PAYMENT_ARCHIVE.projects[code]) { skipped.push(code); return; }   // มีอยู่แล้ว = ข้อมูลใหม่กว่า ห้ามทับ
+      PAYMENT_ARCHIVE.projects[code] = { code, firstSeenAt: asOf, lastSeenAt: asOf, paymentW: p, importedFromOldFile: true };
+      added.push({ code, name: p.projectName || '', pm: p.pm || '' });
+    });
+    const persisted = savePaymentArchive(PAYMENT_ARCHIVE);
+    const attached = refreshArchivedInLatest();
+    console.log(`✓ Admin (${req.user.username}) เติมคลังจากไฟล์ Excel เก่า: เพิ่มใหม่ ${added.length} โครงการ (${added.map(a => a.name || a.code).join(', ') || '-'}) · ข้ามที่มีอยู่แล้ว ${skipped.length} (เขียนไฟล์${persisted ? 'สำเร็จ' : 'ไม่สำเร็จ'})`);
+    res.json({ ok: true, added, skippedCount: skipped.length, asOf, attached, persisted, total: Object.keys(PAYMENT_ARCHIVE.projects).length });
+  } catch (e) {
+    console.error(`⚠ เติมคลังจากไฟล์ Excel ไม่สำเร็จ: ${e.message}`);
+    res.status(400).json({ ok: false, error: `อ่านไฟล์ไม่สำเร็จ: ${e.message}` });
+  }
 });
 
 
