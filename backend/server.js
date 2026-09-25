@@ -250,7 +250,6 @@ const PAYMENT_ARCHIVE_FILE = path.join(DATA_DIR, 'payment-archive-store.json');
 // วิธีใช้: กด "ดาวน์โหลดคลัง" ใน Admin แล้วเอาไฟล์ JSON นั้นมาวางเป็น backend/payment-archive-seed.json
 // ตอน deploy ครั้งถัดไป ถ้า disk ถูกล้าง server จะโหลดคลังจากไฟล์นี้ให้เองโดยไม่ต้องอัปโหลดใหม่
 const PAYMENT_ARCHIVE_SEED = path.join(__dirname, 'payment-archive-seed.json');
-let PAYMENT_ARCHIVE_FROM_SEED = false;
 function readArchiveFile(file) {
   const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
   const out = { version: 1, updatedAt: null, ...parsed };
@@ -267,7 +266,6 @@ function loadPaymentArchive() {
     const why = e.code === 'ENOENT' ? 'ไฟล์ยังไม่เคยถูกสร้าง' : e.message;
     try {
       const seed = readArchiveFile(PAYMENT_ARCHIVE_SEED);
-      PAYMENT_ARCHIVE_FROM_SEED = true;
       console.log(`✓ ไม่มีไฟล์คลัง (${why}) - กู้คืนจากไฟล์สำรองที่มากับโค้ด ${PAYMENT_ARCHIVE_SEED}: ${Object.keys(seed.projects).length} โครงการ`);
       return seed;
     } catch (e2) {
@@ -973,16 +971,7 @@ app.get('/api/admin/payment-archive', requireAuth, (req, res) => {
       missing: work.filter(x => x.src === 'none').map(x => x.k),
     };
   }).sort((a, b) => String(a.code).localeCompare(String(b.code)));
-  // บอกหน้า Admin ว่าคลังนี้เก็บอยู่ที่ไหน และจะรอดจากการ redeploy หรือไม่
-  // (เคยเจอจริง: import ข้อมูลการเงินเข้าคลังแล้ว พอ deploy รอบถัดไป disk ถูกล้าง ข้อมูลที่ import หายหมด)
-  const storage = {
-    dir: DATA_DIR,
-    persistent: DATA_DIR_PERSISTENT,
-    fileExists: fs.existsSync(PAYMENT_ARCHIVE_FILE),
-    fromSeed: PAYMENT_ARCHIVE_FROM_SEED,
-    seedExists: fs.existsSync(PAYMENT_ARCHIVE_SEED),
-  };
-  res.json({ ok: true, updatedAt: PAYMENT_ARCHIVE.updatedAt, count: projects.length, projects, storage, archive: PAYMENT_ARCHIVE });
+  res.json({ ok: true, updatedAt: PAYMENT_ARCHIVE.updatedAt, count: projects.length, projects, archive: PAYMENT_ARCHIVE });
 });
 
 // อัปโหลดคลังกลับ (ไฟล์ JSON ที่เคยดาวน์โหลดไว้) - ค่าเริ่มต้นคือ "เติมเฉพาะโครงการที่ยังไม่มีในคลัง"
