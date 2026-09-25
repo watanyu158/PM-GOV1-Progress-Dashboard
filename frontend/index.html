@@ -4784,18 +4784,39 @@ function rpPrevMonthProgress(code){
   return best;
 }
 
+// ===================== โครงการที่ปิดไปแล้วแต่ยังต้องอยู่ในตัวเลขรายได้ของปีนี้ =====================
+// รายชื่อโครงการบนแดชบอร์ดจะตัดโครงการที่ปิดงาน+โอนงานจบออก (และบางโครงการหายจากไฟล์ไปเลยเมื่อจบ)
+// แต่รายได้ที่รับรู้ไปแล้วระหว่างปีไม่ได้หายไปด้วย ถ้าไม่เติมกลับ ยอดทั้งปีจะหดลงทุกครั้งที่มีโครงการปิด
+// จึงเติมโครงการที่มีแผนรายได้ของปีนี้กลับเข้ามา แล้วกรองด้วยตัวกรองชุดเดียวกับการ์ดอื่น
+function withClosedRevenueProjects(list){
+  const shown = new Set(list.map(p => String(p['Project Code']||'').trim()));
+  const extra = [];
+  REV.forEach(r => {
+    const c = String(r['Project Code']||'').trim();
+    if(!c || shown.has(c)) return;
+    const row = latestProgressRow(c);
+    // ไม่มีแถวความคืบหน้าในไฟล์แล้ว - ใช้ข้อมูลเท่าที่มีในแผนรายได้เองเป็นตัวแทน (ชื่อ · PM · สถานะ · %)
+    extra.push(row || { 'Project Code':c, 'Project Name':r['Project Name'], 'PM Name':r['PM Name'],
+                        'Status':r['Project Status'], '%Progress':r['PMS Current %'], 'RR Type':'By Progress' });
+  });
+  return { list: [...list, ...applyFilters(extra)], shown };
+}
+
 function renderRevenuePlan(list){
   const el = document.getElementById('rpBox');
   if(!el) return;
   const revByCode = {};
   REV.forEach(r=>{ if(r['Project Code']) revByCode[r['Project Code']] = r; });
 
+  // เติมโครงการที่ปิดไปแล้วระหว่างปีกลับเข้ามา (ดู withClosedRevenueProjects)
+  const { list: planList, shown: shownCodes } = withClosedRevenueProjects(list);
+
   // ขอบเขตการ์ดนี้ตามกฎบัญชีของ OAT: มีแผนรับรู้รายได้รายเดือนเฉพาะโครงการที่รับรู้แบบ By Progress
   // โครงการที่รับรู้แบบอื่น (By Invoice · MA/Rent · By TFRS 15) ไม่มีแผนรายเดือน จึงไม่ใช่ "ขาดแผน"
-  const byProg = list.filter(isByProgress);
-  const otherRR = list.filter(p => !isByProgress(p));
+  const byProg = planList.filter(isByProgress);
+  const otherRR = planList.filter(p => !isByProgress(p));
   const noPlan = byProg.filter(p => !revByCode[p['Project Code']]);
-  const planNotByProg = list.filter(p => revByCode[p['Project Code']] && !isByProgress(p));
+  const planNotByProg = planList.filter(p => revByCode[p['Project Code']] && !isByProgress(p));
 
   // แถบบอกขอบเขต: ใครอยู่ในการ์ดนี้ ใครไม่อยู่ และเพราะอะไร - กันเข้าใจผิดว่าโครงการที่ไม่โผล่คือ "ลืมทำแผน"
   const rpNameTag = p => `${p['Project Name']||p['Project Code']} <span class="code-tag">#${p['Project Code']}</span>`;
@@ -4805,7 +4826,7 @@ function renderRevenuePlan(list){
     ${planNotByProg.length ? `<div class="rp-scope-warn">⚠ ${planNotByProg.length} โครงการมีแผนรายได้ แต่ RR Type ไม่ใช่ By Progress จึงไม่ถูกนับ: ${planNotByProg.map(p=>`${rpNameTag(p)} <span class="rr-rt">${rrTypeOf(p)||'ไม่ระบุ'}</span>`).join(' · ')}</div>` : ''}
   </div>` : '';
 
-  const items = list.filter(p=>revByCode[p['Project Code']] && isByProgress(p)).map(p=>{
+  const items = planList.filter(p=>revByCode[p['Project Code']] && isByProgress(p)).map(p=>{
     const r = revByCode[p['Project Code']];
     const selling = num(r['Selling Price']);
     const bfPct = num(r['BF']);                       // รับรู้ไปแล้วก่อนปีนี้
@@ -4818,6 +4839,8 @@ function renderRevenuePlan(list){
             pmsCur: (num(p['%Progress']) > 0 ? num(p['%Progress']) : num(r['PMS Current %'])),
             pmsPrevM: rpPrevMonthProgress(p['Project Code']),
             pmsRev: num(r['PMS Current %']),
+            // โครงการที่ไม่อยู่ในรายชื่อแดชบอร์ดแล้ว = ปิดงานไปแล้วระหว่างปี ยังนับในแผนแต่ติดป้ายบอกไว้
+            closedTag: shownCodes.has(String(p['Project Code']||'').trim()) ? '' : projectStatus(p),
             name: p['Project Name']||p['Project Code'], code: p['Project Code']};
   });
 
@@ -4932,7 +4955,7 @@ function renderRevenuePlan(list){
       }</td>`;
     }).join('');
     return `<tr>
-      <td class="rp-name">${x.name} <span class="code-tag">#${x.code}</span>
+      <td class="rp-name">${x.name} <span class="code-tag">#${x.code}</span>${x.closedTag?` <span class="rr-rt">${x.closedTag}</span>`:''}
         <div class="rp-name-sub">Selling ${compact(x.selling)} · แผนสะสมถึงเดือนนี้ ${planCum.toFixed(1)}% · ทำจริง ${x.pmsCur.toFixed(1)}% <span class="ov-d ${gapCls}" style="font-size:9.5px;padding:1px 6px">${gap>0?'+':''}${gap.toFixed(1)}pp</span></div>
       </td>
       ${x.bfPct>0?`<td class="rp-cell bf" title="รับรู้ก่อนปี 2026 · ${x.bfPct.toFixed(2)}%"><div class="rp-baht">${compact(x.selling*x.bfPct/100)}</div><div class="rp-pct">${x.bfPct.toFixed(0)}%</div></td>`:'<td class="rp-cell bf"><span class="rp-dash">-</span></td>'}
@@ -5226,8 +5249,9 @@ function renderRevenue(list){
   const revByCode = {};
   REV.forEach(r=>{ if(r['Project Code']) revByCode[r['Project Code']] = r; });
 
-  const codes = new Set(list.map(p=>p['Project Code']));
-  const items = list
+  // เติมโครงการที่ปิดไปแล้วระหว่างปี เพื่อให้ยอดสะสมไม่หดตอนโครงการทยอยปิด (ชุดเดียวกับการ์ด Revenue Plan)
+  const { list: revList, shown: revShown } = withClosedRevenueProjects(list);
+  const items = revList
     .filter(p=>revByCode[p['Project Code']])
     .map(p=>{
       const r = revByCode[p['Project Code']];
@@ -5249,13 +5273,13 @@ function renderRevenue(list){
       return {p, r, acc, cur, plan, planToday, diffPct, diffPctOfficial, diffBaht, selling, curvePts, months, monIdx, dayFrac, sendUpdate: r['Send Update']};
     });
 
-  const missingN = list.length - items.length;
+  const missingN = revList.length - items.length;
   // ชื่อโครงการที่ยังไม่มีข้อมูลใน sheet Revenue - โชว์ให้เห็นเลยว่าตัวไหน จะได้ตามแก้ที่ต้นทางได้ถูก
-  const missingNames = list
+  const missingNames = revList
     .filter(p=>!revByCode[p['Project Code']])
     .map(p=>`${p['Project Name']||p['Project Code']} (#${p['Project Code']})`)
     .join(', ');
-  document.getElementById('revCount').textContent = `${items.length}/${list.length} โครงการมีข้อมูลรายได้`;
+  document.getElementById('revCount').textContent = `${items.length}/${revList.length} โครงการมีข้อมูลรายได้`;
 
   if(!items.length){
     el.innerHTML = `<div class="empty">ไม่มีโครงการที่กรองอยู่ตรงกับข้อมูลแผนรายได้</div>`;
@@ -5353,7 +5377,7 @@ function renderRevenue(list){
       const scurve = sCurveSVG(x.curvePts, x.months, x.plan, x.planToday, x.cur, x.monIdx, x.dayFrac);
       return `<div class="rv-card">
         <div class="rv-card-top">
-          <div><div class="rv-card-name">${x.p['Project Name']||'-'}</div><div class="rv-card-cust">${x.p['Customer']||''}</div></div>
+          <div><div class="rv-card-name">${x.p['Project Name']||'-'}${revShown.has(String(x.p['Project Code']||'').trim())?'':` <span class="rr-rt">${projectStatus(x.p)}</span>`}</div><div class="rv-card-cust">${x.p['Customer']||''}</div></div>
           <span class="chip ${x.diffPct>0.5?'critical':x.diffPct<-0.5?'success':'neutral'}">${x.diffPct>0?'ช้ากว่า':x.diffPct<0?'เร็วกว่า':'ตรง'} ${Math.abs(x.diffPct).toFixed(1)}pp <span style="opacity:.75;font-weight:400">(เป้าวันนี้)</span></span>
         </div>
         <div class="rv-track">
