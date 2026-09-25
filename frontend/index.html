@@ -353,6 +353,8 @@
   .arch-row .st{font-size:9.5px;font-style:normal;padding:2px 7px;border-radius:5px;white-space:nowrap;display:inline-block;width:auto;height:auto;}
   .arch-row .st.live{background:var(--success-tint);color:var(--success);}
   .arch-row .st.arch{background:var(--surface-2);color:var(--muted);border:1px dashed var(--line);}
+  .arch-row .st.part{background:var(--warning-tint);color:var(--warning);}
+  .arch-row .st-sub{margin-top:3px;font-size:9px;color:var(--faint);line-height:1.5;}
   .pw-missing{margin:0 18px 12px;padding:8px 11px;border:1px solid #E8D4A8;background:var(--warning-tint);border-radius:8px;font-size:10.5px;color:var(--warning);line-height:1.7;}
   .pw-missing .code-tag{color:var(--warning);border-color:#E8D4A8;background:transparent;}
   .pw-legend3{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:7px;flex-wrap:wrap;}
@@ -10584,7 +10586,9 @@ async function renderPaymentArchiveAdmin(){
             <span class="arch-parts">${(p.parts||[]).map(partTag).join('')}</span>
             <span style="color:var(--muted)">${fmtIso(p.lastSeenAt)}${p.fromOldFile?' (ไฟล์เก่า)':''}</span>
             <span>${p.inLatestFile
-              ? `<span class="st live">อยู่ในไฟล์ล่าสุด</span>${(p.fromArchive||[]).length?`<div class="st arch" style="margin-top:3px">🗄 ${p.fromArchive.join(' · ')} มาจากคลัง</div>`:''}`
+              ? (p.partial
+                  ? `<span class="st part">อยู่ในไฟล์บางส่วน</span><div class="st-sub">${[...(p.fromArchive||[]).map(k=>`🗄 ${k} มาจากคลัง`), ...(p.missing||[]).map(k=>`ไม่มี${k.replace(/\s+\d+\s*แถว$/,'')}`)].join(' · ')}</div>`
+                  : `<span class="st live">อยู่ในไฟล์ล่าสุด</span>`)
               : `<span class="st arch">🗄 มาจากคลังทั้งหมด</span> <button type="button" class="arch-del" title="ลบโครงการนี้ออกจากคลัง">ลบ</button>`}</span>
           </div>`).join('')
           : `<div class="arch-row"><span></span><span style="color:var(--faint)">ยังไม่มีข้อมูลในคลัง - จะเริ่มสะสมตอน sync ครั้งถัดไป</span><span></span><span></span><span></span></div>`);

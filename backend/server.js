@@ -898,6 +898,10 @@ app.get('/api/admin/payment-archive', requireAuth, (req, res) => {
       { k: 'แผนรายได้', src: sourceOf(latestData.revenue, e.code) },
       { k: 'ประวัติโครงการ', src: sourceOf(latestData.projectInfo, e.code) },
     ];
+    // ตัดสินสถานะจาก "ชีตที่อัปเดตทุกสัปดาห์" เท่านั้น (การเงิน · ความคืบหน้า · แผนรายได้)
+    // ไม่นับประวัติโครงการ เพราะเป็นชีตประวัติย้อนหลัง โครงการที่ปิดไปแล้วก็ยังอยู่ในนั้นเสมอ
+    // ถ้านับด้วย ทุกโครงการจะขึ้นว่า "อยู่ในไฟล์ล่าสุด" ตลอด ทั้งที่ของจริงถูกลบออกจากชีตที่ใช้งานไปแล้ว
+    const work = parts.slice(0, 3);
     return {
       code: e.code, name, pm,
       sellingPrice: (e.paymentW && e.paymentW.sellingPrice) || (lastRow && lastRow['Selling Price']) || null,
@@ -905,9 +909,10 @@ app.get('/api/admin/payment-archive', requireAuth, (req, res) => {
       lastSeenAt: e.lastSeenAt || null,
       fromOldFile: !!e.importedFromOldFile,
       parts,
-      inLatestFile: parts.some(x => x.src === 'file'),      // false = ไม่เหลืออยู่ในไฟล์เลย ทุกชุดมาจากคลัง
-      fromArchive: parts.filter(x => x.src === 'archive').map(x => x.k),
-      missing: parts.filter(x => x.src === 'none').map(x => x.k),
+      inLatestFile: work.some(x => x.src === 'file'),       // false = ไม่เหลือในชีตที่ใช้งานแล้ว
+      partial: work.some(x => x.src === 'file') && work.some(x => x.src !== 'file'),
+      fromArchive: work.filter(x => x.src === 'archive').map(x => x.k),
+      missing: work.filter(x => x.src === 'none').map(x => x.k),
     };
   }).sort((a, b) => String(a.code).localeCompare(String(b.code)));
   res.json({ ok: true, updatedAt: PAYMENT_ARCHIVE.updatedAt, count: projects.length, projects, archive: PAYMENT_ARCHIVE });
