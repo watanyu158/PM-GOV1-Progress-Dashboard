@@ -341,7 +341,9 @@
   .arch-msg{font-size:10.5px;color:var(--muted);}
   .arch-msg.bad{color:var(--critical);}
   .arch-msg.good{color:var(--success);}
-  .arch-row{display:grid;grid-template-columns:110px 1fr 150px 130px 130px;gap:10px;align-items:center;padding:9px 18px;border-bottom:1px solid var(--line-soft);font-size:11px;}
+  .arch-row{display:grid;grid-template-columns:110px 1fr 190px 130px 150px;gap:10px;align-items:center;padding:9px 18px;border-bottom:1px solid var(--line-soft);font-size:11px;}
+  .arch-del{font-size:9.5px;padding:2px 8px;border-radius:5px;border:1px solid var(--line);background:var(--surface);color:var(--critical);cursor:pointer;}
+  .arch-del:hover{background:var(--critical-tint);}
   .arch-row.head{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;background:var(--surface-2);}
   .arch-row .st{font-size:9.5px;font-style:normal;padding:2px 7px;border-radius:5px;white-space:nowrap;display:inline-block;width:auto;height:auto;}
   .arch-row .st.live{background:var(--success-tint);color:var(--success);}
@@ -2716,6 +2718,34 @@ function latestPerProject(rows){
     active.push(arr[arr.length-1].r);
   });
   return active;
+}
+
+// เหมือน latestPerProject แต่ไม่ตัดโครงการที่ปิดจบ/โอนงานจบออก - ใช้กับการ์ดที่รวมยอดสะสมทั้งปี
+// (เงินที่วางบิล/เก็บได้/รับรู้ไปแล้วระหว่างปี ไม่ได้หายไปพร้อมกับการปิดโครงการ)
+function latestPerProjectAll(rows){
+  const byCode = {};
+  (rows||[]).forEach((r, idx)=>{
+    const code = r['Project Code'] || `__row${idx}`;
+    (byCode[code] ||= []).push({ r, d: parseD(r['Update Date']), idx });
+  });
+  return Object.values(byCode).map(arr=>{
+    arr.sort((a,b)=>{
+      if(a.d && b.d) return a.d - b.d;
+      if(a.d) return 1;
+      if(b.d) return -1;
+      return a.idx - b.idx;
+    });
+    return arr[arr.length-1].r;
+  });
+}
+
+// รหัสโครงการที่ยังอยู่ในรายชื่อหลักของแดชบอร์ด - ใช้ติดป้ายบอกว่าแถวไหนเป็นโครงการที่ปิดไปแล้ว
+let ACTIVE_CODES = new Set();
+function closedTagByCode(code){
+  const c = String(code||'').trim();
+  if(!c || ACTIVE_CODES.has(c)) return '';
+  const r = latestProgressRow(c);
+  return ` <span class="rr-rt">${r ? projectStatus(r) : 'ปิดโครงการแล้ว'}</span>`;
 }
 
 /* ---------- state ---------- */
@@ -8848,7 +8878,7 @@ function renderInvoiceTimeline(paywSource, codeSetList){
   const body = rows.map(r=>{
     return `<tr>
       <td class="it-name">
-        <div class="it-n">${r.name} <span class="code-tag">#${r.code}</span>${archTag(r.x)}</div>
+        <div class="it-n">${r.name} <span class="code-tag">#${r.code}</span>${closedTagByCode(r.code)}${archTag(r.x)}</div>
         <div class="it-sub">${r.pm} · billing ปีนี้ ${compact(r.yrBilling)} · ออกใบกำกับภาษีแล้ว(ทั้งโครงการ) ${compact(r.taxIssued)}${r.taxPending>1?` · <b class="it-pend">ยังไม่ออกใบกำกับภาษี ${compact(r.taxPending)}</b>`:''}</div>
       </td>
       ${edgeCell(r.bfBilling, r.bfTax)}
@@ -9241,7 +9271,7 @@ function renderPayment(paywSource, codeSetList){
       }).join('');
       return `<div class="rv-card">
         <div class="rv-card-top">
-          <div><div class="rv-card-name">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span>${archTag(x)}</div><div class="rv-card-cust">${x.customer||''}</div></div>
+          <div><div class="rv-card-name">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span>${closedTagByCode(x.projectCode)}${archTag(x)}</div><div class="rv-card-cust">${x.customer||''}</div></div>
           ${(() => {
             // "เก็บครบแล้ว" ต้องเก็บเงินได้ครบมูลค่างวดงานจริง ๆ - ถ้าแค่ไม่มียอดรอเก็บ (ยังมีงวดที่ยังไม่วางบิล) ให้บอกตามนั้น
             // (เดิมขึ้น "เก็บครบแล้ว" ทุกโครงการที่ไม่มี AR เช่น RTAF ที่ยังเก็บเงินไม่ได้เลย)
@@ -10091,10 +10121,12 @@ function computeTeamScorecard(){
   const yearStart = new Date(today0.getFullYear(), 0, 1);
   const yearEnd = new Date(today0.getFullYear(), 11, 31, 23, 59, 59);
   const oneYearAgo = yearStart; // ใช้ชื่อเดิมต่อเพื่อไม่ต้องแก้จุดอ้างอิงด้านล่างทั้งหมด - ค่าตอนนี้คือ "ต้นปีปฏิทิน" แล้ว
-  const pmNames = [...new Set(ALL.map(p=>pmKey(p['PM Name'])).filter(Boolean))];
+  // ผลงานทั้งปีต้องนับโครงการที่ปิดจบไปแล้วระหว่างปีด้วย ไม่งั้น PM ที่ปิดงานได้จะเสียผลงานที่ทำไปแล้ว
+  const scProjects = latestPerProjectAll(HIST);
+  const pmNames = [...new Set(scProjects.map(p=>pmKey(p['PM Name'])).filter(Boolean))];
 
   return pmNames.map(pm=>{
-    const pmProjects = ALL.filter(p=>pmKey(p['PM Name'])===pm);
+    const pmProjects = scProjects.filter(p=>pmKey(p['PM Name'])===pm);
     const codes = new Set(pmProjects.map(p=>p['Project Code']));
 
     // 1) ความตรงเวลาอัปเดต PMS - จำกัดแค่ 1 ปีย้อนหลัง (ไม่นับสัปดาห์ก่อนหน้านั้น)
@@ -10535,15 +10567,32 @@ async function renderPaymentArchiveAdmin(){
       const arch = j.projects.filter(p => !p.inLatestFile);
       cntEl.textContent = `${j.count} โครงการ · มาจากคลัง ${arch.length}`;
       const fmtIso = s => s ? fmtDate(String(s).slice(0,10)) : 'ไม่ระบุวันที่';
-      listEl.innerHTML = `<div class="arch-row head"><span>รหัส</span><span>โครงการ</span><span>PM</span><span>เห็นครั้งสุดท้าย</span><span>สถานะ</span></div>`
-        + (j.projects.length ? j.projects.map(p => `<div class="arch-row">
+      listEl.innerHTML = `<div class="arch-row head"><span>รหัส</span><span>โครงการ</span><span>ข้อมูลที่เก็บไว้</span><span>เห็นครั้งสุดท้าย</span><span>สถานะ</span></div>`
+        + (j.projects.length ? j.projects.map(p => `<div class="arch-row" data-code="${p.code}">
             <span class="code-tag">#${p.code}</span>
-            <span>${p.name || '-'}</span>
-            <span style="color:var(--muted)">${p.pm || '-'}</span>
+            <span>${p.name || '-'}<div style="color:var(--faint);font-size:9.5px">${p.pm || ''}</div></span>
+            <span style="color:var(--muted);font-size:10px">${(p.has||[]).join(' · ') || '-'}</span>
             <span style="color:var(--muted)">${fmtIso(p.lastSeenAt)}${p.fromOldFile?' (ไฟล์เก่า)':''}</span>
-            <span>${p.inLatestFile ? '<span class="st live">อยู่ในไฟล์ล่าสุด</span>' : '<span class="st arch">🗄 มาจากคลัง</span>'}</span>
+            <span>${p.inLatestFile ? '<span class="st live">อยู่ในไฟล์ล่าสุด</span>'
+              : `<span class="st arch">🗄 มาจากคลัง</span> <button type="button" class="arch-del" title="ลบโครงการนี้ออกจากคลัง">ลบ</button>`}</span>
           </div>`).join('')
           : `<div class="arch-row"><span></span><span style="color:var(--faint)">ยังไม่มีข้อมูลในคลัง - จะเริ่มสะสมตอน sync ครั้งถัดไป</span><span></span><span></span><span></span></div>`);
+
+      listEl.querySelectorAll('.arch-del').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          const code = btn.closest('.arch-row').dataset.code;
+          if(!confirm(`ลบโครงการ ${code} ออกจากคลัง?\nข้อมูลในไฟล์ล่าสุดไม่ได้รับผลกระทบ แต่โครงการนี้จะหายไปจากการ์ดทั้งหมด`)) return;
+          btn.disabled = true;
+          try{
+            const res = await fetch(`${API_BASE}/api/admin/payment-archive`, {
+              method:'DELETE', headers:{ 'Content-Type':'application/json', ...authHdr() }, body: JSON.stringify({ code }) });
+            const jj = await res.json();
+            if(!res.ok || !jj.ok) throw new Error(jj.error || 'ลบไม่สำเร็จ');
+            say(`ลบ ${jj.name} ออกจากคลังแล้ว (เหลือ ${jj.total} โครงการ)`, 'good');
+            await load(); loadData();
+          }catch(e){ say(e.message, 'bad'); btn.disabled = false; }
+        });
+      });
       return j;
     }catch(e){ say(e.message, 'bad'); return null; }
   }
@@ -10618,6 +10667,8 @@ async function renderPaymentArchiveAdmin(){
 
 function render(){
   buildFilters();
+  ACTIVE_CODES = new Set([...ALL, ...(ROWS_TEAMWIDE.length ? getTeamWideProjects() : [])]
+    .map(p => String(p['Project Code']||'').trim()).filter(Boolean));
   document.getElementById('hProjects').textContent = ALL.length;
   document.getElementById('hPMs').textContent = uniq(ALL.map(p=>pmKey(p['PM Name']))).length;
   renderFiltered();
@@ -10671,9 +10722,12 @@ function renderFiltered(){
     (hasTeamWideScope(cardId) && teamWideArr && teamWideArr.length) ? teamWideArr : normalArr;
   const pickList = (cardId, teamWideArr) =>
     (hasTeamWideScope(cardId) && teamWideArr && teamWideArr.length) ? getTeamWideProjects() : ALL;
+  // การ์ดการเงิน 2 ใบนี้รวมยอดทั้งปี จึงต้องรวมโครงการที่ปิดจบไปแล้วระหว่างปีด้วย (ดู latestPerProjectAll)
+  const pickFinanceList = (cardId, teamWideArr) =>
+    latestPerProjectAll((hasTeamWideScope(cardId) && teamWideArr && teamWideArr.length) ? ROWS_TEAMWIDE : HIST);
 
-  renderPayment(pickSrc('paymentCollection', PAYW_TEAMWIDE, PAYW), pickList('paymentCollection', PAYW_TEAMWIDE));
-  renderInvoiceTimeline(pickSrc('invoiceTimeline', PAYW_TEAMWIDE, PAYW), pickList('invoiceTimeline', PAYW_TEAMWIDE));
+  renderPayment(pickSrc('paymentCollection', PAYW_TEAMWIDE, PAYW), pickFinanceList('paymentCollection', PAYW_TEAMWIDE));
+  renderInvoiceTimeline(pickSrc('invoiceTimeline', PAYW_TEAMWIDE, PAYW), pickFinanceList('invoiceTimeline', PAYW_TEAMWIDE));
   renderPOPanel(pickSrc('purchaseOrders', PO_TEAMWIDE, PO), pickList('purchaseOrders', PO_TEAMWIDE));
   renderStock(
     pickSrc('stockOutstanding', STOCKSUM_TEAMWIDE, STOCKSUM),
