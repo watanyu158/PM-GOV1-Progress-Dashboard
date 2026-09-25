@@ -338,6 +338,11 @@
   .arch-file{cursor:pointer;}
   .arch-date-lb{font-size:10.5px;color:var(--faint);display:flex;align-items:center;gap:6px;}
   .arch-date{font-family:inherit;font-size:10.5px;padding:4px 7px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);}
+  .arch-store{margin-top:9px;padding:8px 11px;border-radius:7px;font-size:10.5px;line-height:1.75;border:1px solid var(--line-soft);}
+  .arch-store:empty{display:none;}
+  .arch-store code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;padding:1px 4px;border-radius:4px;background:var(--surface-2,rgba(128,128,128,.13));}
+  .arch-store.ok{color:var(--success);border-color:color-mix(in srgb,var(--success) 35%,transparent);}
+  .arch-store.warn{color:var(--warning,#b45309);border-color:color-mix(in srgb,var(--warning,#b45309) 35%,transparent);}
   .arch-msg{font-size:10.5px;color:var(--muted);}
   .arch-msg.bad{color:var(--critical);}
   .arch-msg.good{color:var(--success);}
@@ -2361,8 +2366,8 @@
       </div>
       <div class="p-body">
         <div style="padding:13px 18px;border-bottom:1px solid var(--line-soft);font-size:11.5px;color:var(--faint);line-height:1.7">
-          โครงการที่หายไปจากไฟล์ล่าสุดจะถูกดึงจากคลังมาแสดงต่อ พร้อมป้ายบอกวันที่ของข้อมูล<br>
-          ⚠️ ถ้า redeploy แล้วคลังหาย ให้กู้คืนด้วยปุ่ม "อัปโหลดคลัง" (ดาวน์โหลดเก็บไว้เป็นระยะ)
+          โครงการที่หายไปจากไฟล์ล่าสุดจะถูกดึงจากคลังมาแสดงต่อ พร้อมป้ายบอกวันที่ของข้อมูล
+          <div id="archStore" class="arch-store"></div>
         </div>
         <div class="arch-actions">
           <button id="archDownload" type="button" class="admin-update-btn">⬇ ดาวน์โหลดคลัง (JSON)</button>
@@ -10580,6 +10585,18 @@ async function renderPaymentArchiveAdmin(){
       if(!res.ok || !j.ok) throw new Error(j.error || 'ดึงข้อมูลคลังไม่สำเร็จ');
       const arch = j.projects.filter(p => !p.inLatestFile);
       cntEl.textContent = `${j.count} โครงการ · มาจากคลัง ${arch.length}`;
+      // บอกให้ชัดว่าคลังนี้รอด redeploy หรือไม่ - เคยเจอจริงว่าข้อมูลที่ import เข้าไปหายหลัง deploy รอบถัดไป
+      const stEl = document.getElementById('archStore');
+      if(stEl && j.storage){
+        const s = j.storage;
+        stEl.className = 'arch-store ' + (s.persistent ? 'ok' : 'warn');
+        stEl.innerHTML = s.persistent
+          ? `✓ เก็บถาวรที่ <code>${s.dir}</code> - ข้อมูลในคลังจะไม่หายเวลา redeploy`
+          : `⚠️ คลังนี้เก็บอยู่บนดิสก์ชั่วคราว (<code>${s.dir}</code>) <b>ข้อมูลจะหายทุกครั้งที่ redeploy</b>`
+            + `<br>ทางแก้ถาวร: เปิด Persistent Disk บน Render แล้วตั้ง env <code>DATA_DIR</code> ให้ตรงกับ mount path`
+            + `<br>ทางแก้ชั่วคราว: กด "ดาวน์โหลดคลัง" เก็บไว้ แล้วอัปโหลดกลับหลัง deploy (หรือวางไฟล์นั้นเป็น <code>backend/payment-archive-seed.json</code> ให้ระบบกู้คืนเองอัตโนมัติ)`
+            + (s.fromSeed ? `<br>ตอนนี้กำลังใช้ข้อมูลจากไฟล์สำรอง payment-archive-seed.json` : '');
+      }
       const fmtIso = s => s ? fmtDate(String(s).slice(0,10)) : 'ไม่ระบุวันที่';
       // ป้ายรายชุดข้อมูล: อยู่ในไฟล์ล่าสุด (ปกติ) · มาจากคลัง (เส้นประ) · ไม่มีเลย (ขีดฆ่า สีเตือน)
       const partTag = q => q.src==='file' ? `<span class="pt">${q.k}</span>`

@@ -164,7 +164,24 @@ let latestData = {
 // disk แบบ ephemeral หายทุกครั้งที่ redeploy) ค่าจะยังคงอยู่ระหว่างที่ server รันต่อเนื่อง/restart ปกติ
 // แต่จะรีเซ็ตกลับเป็นค่าเริ่มต้นเมื่อ redeploy โค้ดใหม่เหมือนเดิม - ถ้าอยากถาวรจริงข้ามทุกการ redeploy
 // ต้องไปเปิด Persistent Disk บน Render แล้วตั้ง mount path ให้ตรงกับโฟลเดอร์ของไฟล์นี้
-const CARD_VISIBILITY_FILE = path.join(__dirname, 'card-visibility-store.json');
+// โฟลเดอร์เก็บไฟล์ตั้งค่า/คลังข้อมูลทั้งหมด
+// ค่าเริ่มต้น = โฟลเดอร์โค้ด ซึ่งบน Render เป็น disk ชั่วคราว "หายทุกครั้งที่ redeploy"
+// วิธีทำให้ถาวรจริง: เปิด Persistent Disk บน Render (เช่น mount path /var/data) แล้วตั้ง env DATA_DIR=/var/data
+// จากนั้นไฟล์ทั้ง 3 (สิทธิ์การ์ด · ขอบเขตข้อมูลการ์ด · คลังข้อมูลการเงินสะสม) จะอยู่บน disk นั้น ไม่หายตอน deploy
+const DATA_DIR = (process.env.DATA_DIR || '').trim() || __dirname;
+const DATA_DIR_PERSISTENT = DATA_DIR !== __dirname;
+if (DATA_DIR_PERSISTENT) {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    console.log(`✓ เก็บไฟล์ตั้งค่า/คลังข้อมูลไว้ที่ ${DATA_DIR} (DATA_DIR) - ข้อมูลจะอยู่ถาวรข้าม redeploy`);
+  } catch (e) {
+    console.log(`⚠ สร้างโฟลเดอร์ DATA_DIR (${DATA_DIR}) ไม่สำเร็จ: ${e.message} - จะเขียนลงโฟลเดอร์โค้ดแทน`);
+  }
+} else {
+  console.log('⚠ ยังไม่ได้ตั้ง DATA_DIR - ไฟล์ตั้งค่าและคลังข้อมูลการเงินสะสมจะหายทุกครั้งที่ redeploy (ดูวิธีแก้ในหมายเหตุด้านบนโค้ด)');
+}
+
+const CARD_VISIBILITY_FILE = path.join(DATA_DIR, 'card-visibility-store.json');
 const DEFAULT_CARD_VISIBILITY = {
   teamScorecard: ['oat'], // ค่าเริ่มต้น: การ์ดนี้เคย hardcode ไว้ให้ oat เห็นคนเดียว - seed ไว้แบบเดิมก่อน OAT จะมาปรับเองทีหลังได้
 };
@@ -197,7 +214,7 @@ if (!fs.existsSync(CARD_VISIBILITY_FILE)) saveCardVisibility(CARD_VISIBILITY); /
 // การตั้งค่าที่สอง แยกจาก CARD_VISIBILITY ข้างบน (คนละคำถามกัน): "การ์ดที่เห็นอยู่แล้ว ให้เห็นข้อมูลแค่ไหน"
 // key = cardId, value = 'team-wide' (ทุกคนที่เห็นการ์ดนี้ได้ เห็นข้อมูลทีมเต็ม ไม่ผ่านการกรองรายบุคคล) หรือไม่มี entry
 // = ค่า default (แต่ละคนเห็นแค่โครงการของตัวเอง ตามปกติ) เก็บไฟล์แยกต่างหาก ถาวรแบบเดียวกับ CARD_VISIBILITY
-const CARD_DATA_SCOPE_FILE = path.join(__dirname, 'card-data-scope-store.json');
+const CARD_DATA_SCOPE_FILE = path.join(DATA_DIR, 'card-data-scope-store.json');
 const DEFAULT_CARD_DATA_SCOPE = {
   dataFreshness: 'team-wide', // ค่าเริ่มต้น: Update PMS เคย hardcode ไว้เป็นทีมเต็มเสมอ - seed ไว้แบบเดิมก่อน OAT จะมาปรับเองทีหลังได้
 };
@@ -228,18 +245,35 @@ if (!fs.existsSync(CARD_DATA_SCOPE_FILE)) saveCardDataScope(CARD_DATA_SCOPE);
 //     ให้หน้าเว็บแสดงว่า "ข้อมูล ณ วันที่ ..." ไม่ใช่ข้อมูลสด จะได้ไม่เข้าใจผิดว่ายังอัปเดตอยู่
 // ความถาวร: เขียนลงไฟล์เหมือนไฟล์ตั้งค่าการ์ดด้านบน (ดูหมายเหตุ Persistent Disk) - ถ้า redeploy แล้วหาย
 // ให้กู้คืนด้วยปุ่มอัปโหลดคลังใน Admin (ดาวน์โหลดเก็บไว้ได้ตลอด) หรือ import จากไฟล์ Excel เก่า
-const PAYMENT_ARCHIVE_FILE = path.join(__dirname, 'payment-archive-store.json');
+const PAYMENT_ARCHIVE_FILE = path.join(DATA_DIR, 'payment-archive-store.json');
+// ไฟล์สำรองที่แถมมากับโค้ด (อยู่ในโฟลเดอร์โค้ดเสมอ ไม่ใช่ DATA_DIR) - ใช้กู้คืนอัตโนมัติเมื่อไฟล์คลังหาย
+// วิธีใช้: กด "ดาวน์โหลดคลัง" ใน Admin แล้วเอาไฟล์ JSON นั้นมาวางเป็น backend/payment-archive-seed.json
+// ตอน deploy ครั้งถัดไป ถ้า disk ถูกล้าง server จะโหลดคลังจากไฟล์นี้ให้เองโดยไม่ต้องอัปโหลดใหม่
+const PAYMENT_ARCHIVE_SEED = path.join(__dirname, 'payment-archive-seed.json');
+let PAYMENT_ARCHIVE_FROM_SEED = false;
+function readArchiveFile(file) {
+  const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const out = { version: 1, updatedAt: null, ...parsed };
+  // กันไฟล์ที่ projects หาย/เป็น null (แก้ไฟล์เองผิด หรือไฟล์รุ่นเก่า) ไม่งั้นทุกจุดที่อ่าน .projects จะพัง
+  if (!out.projects || typeof out.projects !== 'object' || Array.isArray(out.projects)) out.projects = {};
+  return out;
+}
 function loadPaymentArchive() {
   try {
-    const parsed = JSON.parse(fs.readFileSync(PAYMENT_ARCHIVE_FILE, 'utf8'));
-    const out = { version: 1, updatedAt: null, ...parsed };
-    // กันไฟล์ที่ projects หาย/เป็น null (แก้ไฟล์เองผิด หรือไฟล์รุ่นเก่า) ไม่งั้นทุกจุดที่อ่าน .projects จะพัง
-    if (!out.projects || typeof out.projects !== 'object' || Array.isArray(out.projects)) out.projects = {};
+    const out = readArchiveFile(PAYMENT_ARCHIVE_FILE);
     console.log(`✓ โหลดคลังข้อมูลการเงินสะสม ${Object.keys(out.projects).length} โครงการ จากไฟล์ ${PAYMENT_ARCHIVE_FILE}`);
     return out;
   } catch (e) {
-    console.log(`ℹ ยังไม่มีคลังข้อมูลการเงินสะสม (${e.code === 'ENOENT' ? 'ไฟล์ยังไม่เคยถูกสร้าง' : e.message}) - จะเริ่มสะสมจากไฟล์ที่ sync เข้ามาครั้งต่อไป`);
-    return { version: 1, projects: {}, updatedAt: null };
+    const why = e.code === 'ENOENT' ? 'ไฟล์ยังไม่เคยถูกสร้าง' : e.message;
+    try {
+      const seed = readArchiveFile(PAYMENT_ARCHIVE_SEED);
+      PAYMENT_ARCHIVE_FROM_SEED = true;
+      console.log(`✓ ไม่มีไฟล์คลัง (${why}) - กู้คืนจากไฟล์สำรองที่มากับโค้ด ${PAYMENT_ARCHIVE_SEED}: ${Object.keys(seed.projects).length} โครงการ`);
+      return seed;
+    } catch (e2) {
+      console.log(`ℹ ยังไม่มีคลังข้อมูลการเงินสะสม (${why}) - จะเริ่มสะสมจากไฟล์ที่ sync เข้ามาครั้งต่อไป`);
+      return { version: 1, projects: {}, updatedAt: null };
+    }
   }
 }
 function savePaymentArchive(data) {
@@ -939,7 +973,16 @@ app.get('/api/admin/payment-archive', requireAuth, (req, res) => {
       missing: work.filter(x => x.src === 'none').map(x => x.k),
     };
   }).sort((a, b) => String(a.code).localeCompare(String(b.code)));
-  res.json({ ok: true, updatedAt: PAYMENT_ARCHIVE.updatedAt, count: projects.length, projects, archive: PAYMENT_ARCHIVE });
+  // บอกหน้า Admin ว่าคลังนี้เก็บอยู่ที่ไหน และจะรอดจากการ redeploy หรือไม่
+  // (เคยเจอจริง: import ข้อมูลการเงินเข้าคลังแล้ว พอ deploy รอบถัดไป disk ถูกล้าง ข้อมูลที่ import หายหมด)
+  const storage = {
+    dir: DATA_DIR,
+    persistent: DATA_DIR_PERSISTENT,
+    fileExists: fs.existsSync(PAYMENT_ARCHIVE_FILE),
+    fromSeed: PAYMENT_ARCHIVE_FROM_SEED,
+    seedExists: fs.existsSync(PAYMENT_ARCHIVE_SEED),
+  };
+  res.json({ ok: true, updatedAt: PAYMENT_ARCHIVE.updatedAt, count: projects.length, projects, storage, archive: PAYMENT_ARCHIVE });
 });
 
 // อัปโหลดคลังกลับ (ไฟล์ JSON ที่เคยดาวน์โหลดไว้) - ค่าเริ่มต้นคือ "เติมเฉพาะโครงการที่ยังไม่มีในคลัง"
