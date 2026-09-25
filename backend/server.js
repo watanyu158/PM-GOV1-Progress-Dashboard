@@ -266,8 +266,16 @@ function mergeProjectArchive({ rows, paymentW, revenue, projectInfo }, syncedAt)
   const payByCode = {};
   (paymentW || []).forEach(p => { const c = codeOf(p); if (c) payByCode[c] = p; });
 
-  const inFile = new Set([...Object.keys(rowsByCode), ...Object.keys(payByCode), ...Object.keys(revByCode)]);
-  inFile.forEach(code => {
+  // ชีต Project Info เป็น "ประวัติโครงการของบริษัท" ย้อนหลังหลายปี มีโครงการเก่าที่ไม่ได้ติดตามแล้วอยู่หลายร้อยรายการ
+  // ถ้าเก็บเข้าคลังทุกรหัส คลังจะบวมด้วยโครงการเก่าที่ไม่เกี่ยว และถูกนับเป็น "โครงการที่หายจากไฟล์" ทั้งที่ไม่เคยติดตามเลย
+  // จึงเก็บ Project Info เฉพาะรหัสที่เป็นโครงการที่เราติดตามจริง = มี Progress1 / PaymentW / Revenue อยู่ด้วย (ในไฟล์นี้หรือในคลัง)
+  const isTracked = code => !!(rowsByCode[code] || payByCode[code] || revByCode[code]
+    || (store[code] && (store[code].rows || store[code].paymentW || store[code].revenue)));
+
+  // เก็บเข้าคลังทีละชุด: ชุดไหนมีในไฟล์ให้ทับของเดิม ชุดไหนไม่มีก็คงของเดิมไว้
+  const seen = new Set([...Object.keys(rowsByCode), ...Object.keys(payByCode), ...Object.keys(revByCode), ...Object.keys(infoByCode)]);
+  seen.forEach(code => {
+    if (!isTracked(code)) return;   // มีแค่ในประวัติโครงการ ไม่ใช่โครงการที่ติดตามอยู่ - ไม่ต้องเก็บ
     const cur = store[code] || { code, firstSeenAt: syncedAt };
     cur.code = code;
     cur.lastSeenAt = syncedAt;
@@ -277,19 +285,32 @@ function mergeProjectArchive({ rows, paymentW, revenue, projectInfo }, syncedAt)
     if (infoByCode[code]) cur.projectInfo = infoByCode[code];
     store[code] = cur;
   });
+  // ล้างรายการเก่าที่เคยเก็บไว้ตอนยังไม่มีเงื่อนไขข้างบน (มีแต่ประวัติโครงการ ไม่มีข้อมูลที่ใช้ติดตามงานเลย)
+  Object.keys(store).forEach(code => {
+    const e = store[code];
+    if (e && !e.rows && !e.paymentW && !e.revenue) delete store[code];
+  });
   PAYMENT_ARCHIVE.updatedAt = syncedAt;
   savePaymentArchive(PAYMENT_ARCHIVE);
 
-  const missing = Object.values(store).filter(e => e && e.code && !inFile.has(e.code));
+  // เติมกลับ "รายชุด": โครงการที่ชุดนั้นหายไปจากไฟล์ แต่เคยเก็บไว้ในคลัง ให้ดึงของเดิมมาต่อท้าย
+  // (บางทีโครงการหายแค่บางชีต เช่น ลบออกจากชีตความคืบหน้าแล้ว แต่ข้อมูลการเงินยังอยู่)
+  const all = Object.values(store).filter(e => e && e.code);
+  const missOf = (key, inFileMap) => all.filter(e => e[key] && !inFileMap[e.code]);
   // ธงเหล่านี้ส่งต่อไปถึงหน้าเว็บ ใช้บอกผู้ใช้ว่าเป็นข้อมูลจากคลัง ไม่ใช่ข้อมูลในไฟล์ล่าสุด
   const tagRow = (r, e, asOf) => ({ ...r, __archived: true, __archivedLastSeenAt: asOf || e.lastSeenAt });
+  const missRows = all.filter(e => (e.rows && e.rows.length) && !rowsByCode[e.code]);
+  const missPay = missOf('paymentW', payByCode);
+  const missRev = missOf('revenue', revByCode);
+  const missInfo = all.filter(e => (e.projectInfo && e.projectInfo.length) && !infoByCode[e.code]);
+  const gone = all.filter(e => !rowsByCode[e.code] && !payByCode[e.code] && !revByCode[e.code]);
   return {
-    codes: missing.map(e => e.code),
-    names: missing.map(e => ((e.paymentW && e.paymentW.projectName) || (e.rows && e.rows.length && e.rows[e.rows.length - 1]['Project Name']) || e.code)),
-    rows: missing.flatMap(e => (e.rows || []).map(r => tagRow(r, e, e.rowsAsOf))),
-    paymentW: missing.filter(e => e.paymentW).map(e => ({ ...e.paymentW, archived: true, archivedLastSeenAt: e.paymentWAsOf || e.lastSeenAt })),
-    revenue: missing.filter(e => e.revenue).map(e => tagRow(e.revenue, e)),
-    projectInfo: missing.flatMap(e => (e.projectInfo || []).map(r => tagRow(r, e))),
+    codes: gone.map(e => e.code),
+    names: gone.map(e => ((e.paymentW && e.paymentW.projectName) || (e.rows && e.rows.length && e.rows[e.rows.length - 1]['Project Name']) || e.code)),
+    rows: missRows.flatMap(e => e.rows.map(r => tagRow(r, e, e.rowsAsOf))),
+    paymentW: missPay.map(e => ({ ...e.paymentW, archived: true, archivedLastSeenAt: e.paymentWAsOf || e.lastSeenAt })),
+    revenue: missRev.map(e => tagRow(e.revenue, e)),
+    projectInfo: missInfo.flatMap(e => e.projectInfo.map(r => tagRow(r, e))),
   };
 }
 
@@ -761,9 +782,10 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       console.log(`  + Project Info ${projectInfo.length}→${projectInfoTeam.length} (team) from "${projectInfoSheetName || '(not found)'}"`);
       console.log(`  + EVM sheets found: ${Object.keys(evm).length} (${Object.keys(evm).join(', ') || 'none'})`);
       console.log(`  + Project Plan ${projectPlanAll.length}→${projectPlan.length} (team) from "${projectPlanSheetName || '(not found)'}"`);
-      if (fromArchive.codes.length) {
-        console.log(`  + ไฟล์นี้ไม่มี ${fromArchive.codes.length} โครงการที่เคยมี - ดึงจากคลังสะสมมาต่อท้ายให้: ${fromArchive.names.join(', ')}`);
-        console.log(`    (Progress1 ${fromArchive.rows.length} แถว · PaymentW ${fromArchive.paymentW.length} · Revenue ${fromArchive.revenue.length} · Project Info ${fromArchive.projectInfo.length})`);
+      const nBack = fromArchive.rows.length + fromArchive.paymentW.length + fromArchive.revenue.length + fromArchive.projectInfo.length;
+      if (nBack) {
+        console.log(`  + ดึงจากคลังสะสมมาต่อท้าย: Progress1 ${fromArchive.rows.length} แถว · PaymentW ${fromArchive.paymentW.length} · Revenue ${fromArchive.revenue.length} · Project Info ${fromArchive.projectInfo.length}`);
+        if (fromArchive.codes.length) console.log(`    โครงการที่ไม่มีในไฟล์นี้แล้วทั้งโครงการ: ${fromArchive.names.join(', ')}`);
       }
 
       // เตือนถ้ามีชื่อ PM ในไฟล์ที่ยังไม่มีบัญชีผูกไว้ (พิมพ์ชื่อผิด หรือมี PM ใหม่เข้าทีม)

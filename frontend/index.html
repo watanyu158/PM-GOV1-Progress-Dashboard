@@ -2720,11 +2720,16 @@ function latestPerProject(rows){
 
   const active = [];
   Object.values(byCode).forEach(arr=>{
+    const last = arr[arr.length-1].r;
+    // แถวที่ดึงมาจากคลังสะสม = โครงการนี้ไม่มีในไฟล์ล่าสุดแล้ว (ปิดจบและถูกลบออก) จะไม่มีการอัปเดตอีก
+    // จึงไม่ต้องอยู่ในรายชื่อที่ใช้ติดตามงาน (KPI · PO · Stock · ปิดงาน ฯลฯ)
+    // ส่วนการ์ดที่รวมยอดทั้งปียังเห็นอยู่ เพราะใช้ latestPerProjectAll ซึ่งไม่ตัดออก
+    if(last && last.__archived) return;
     const fullyTransferredStreak = trailingStreak(arr, e =>
       !!e.r['Completely Closed Date'] && transferDone(e.r)
     );
     if(fullyTransferredStreak >= 2) return; // โอนงานเสร็จสมบูรณ์คงที่มา 2 รอบแล้ว -> ตัดออกจาก dashboard
-    active.push(arr[arr.length-1].r);
+    active.push(last);
   });
   return active;
 }
@@ -8887,7 +8892,7 @@ function renderInvoiceTimeline(paywSource, codeSetList){
   const body = rows.map(r=>{
     return `<tr>
       <td class="it-name">
-        <div class="it-n">${r.name} <span class="code-tag">#${r.code}</span>${closedTagByCode(r.code)}${archTag(r.x)}</div>
+        <div class="it-n">${r.name} <span class="code-tag">#${r.code}</span>${r.x && r.x.archived ? archTag(r.x) : closedTagByCode(r.code)}</div>
         <div class="it-sub">${r.pm} · billing ปีนี้ ${compact(r.yrBilling)} · ออกใบกำกับภาษีแล้ว(ทั้งโครงการ) ${compact(r.taxIssued)}${r.taxPending>1?` · <b class="it-pend">ยังไม่ออกใบกำกับภาษี ${compact(r.taxPending)}</b>`:''}</div>
       </td>
       ${edgeCell(r.bfBilling, r.bfTax)}
@@ -9280,7 +9285,7 @@ function renderPayment(paywSource, codeSetList){
       }).join('');
       return `<div class="rv-card">
         <div class="rv-card-top">
-          <div><div class="rv-card-name">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span>${closedTagByCode(x.projectCode)}${archTag(x)}</div><div class="rv-card-cust">${x.customer||''}</div></div>
+          <div><div class="rv-card-name">${x.projectName||x.projectCode} <span class="code-tag">#${x.projectCode}</span>${x.archived?archTag(x):closedTagByCode(x.projectCode)}</div><div class="rv-card-cust">${x.customer||''}</div></div>
           ${(() => {
             // "เก็บครบแล้ว" ต้องเก็บเงินได้ครบมูลค่างวดงานจริง ๆ - ถ้าแค่ไม่มียอดรอเก็บ (ยังมีงวดที่ยังไม่วางบิล) ให้บอกตามนั้น
             // (เดิมขึ้น "เก็บครบแล้ว" ทุกโครงการที่ไม่มี AR เช่น RTAF ที่ยังเก็บเงินไม่ได้เลย)
