@@ -271,8 +271,8 @@ function mergeProjectArchive({ rows, paymentW, revenue, projectInfo }, syncedAt)
     const cur = store[code] || { code, firstSeenAt: syncedAt };
     cur.code = code;
     cur.lastSeenAt = syncedAt;
-    if (rowsByCode[code]) cur.rows = rowsByCode[code].slice(-PROGRESS_ROWS_KEEP);
-    if (payByCode[code]) cur.paymentW = payByCode[code];
+    if (rowsByCode[code]) { cur.rows = rowsByCode[code].slice(-PROGRESS_ROWS_KEEP); cur.rowsAsOf = null; }
+    if (payByCode[code]) { cur.paymentW = payByCode[code]; cur.paymentWAsOf = null; }
     if (revByCode[code]) cur.revenue = revByCode[code][revByCode[code].length - 1];
     if (infoByCode[code]) cur.projectInfo = infoByCode[code];
     store[code] = cur;
@@ -282,12 +282,12 @@ function mergeProjectArchive({ rows, paymentW, revenue, projectInfo }, syncedAt)
 
   const missing = Object.values(store).filter(e => e && e.code && !inFile.has(e.code));
   // ธงเหล่านี้ส่งต่อไปถึงหน้าเว็บ ใช้บอกผู้ใช้ว่าเป็นข้อมูลจากคลัง ไม่ใช่ข้อมูลในไฟล์ล่าสุด
-  const tagRow = (r, e) => ({ ...r, __archived: true, __archivedLastSeenAt: e.lastSeenAt });
+  const tagRow = (r, e, asOf) => ({ ...r, __archived: true, __archivedLastSeenAt: asOf || e.lastSeenAt });
   return {
     codes: missing.map(e => e.code),
     names: missing.map(e => ((e.paymentW && e.paymentW.projectName) || (e.rows && e.rows.length && e.rows[e.rows.length - 1]['Project Name']) || e.code)),
-    rows: missing.flatMap(e => (e.rows || []).map(r => tagRow(r, e))),
-    paymentW: missing.filter(e => e.paymentW).map(e => ({ ...e.paymentW, archived: true, archivedLastSeenAt: e.lastSeenAt })),
+    rows: missing.flatMap(e => (e.rows || []).map(r => tagRow(r, e, e.rowsAsOf))),
+    paymentW: missing.filter(e => e.paymentW).map(e => ({ ...e.paymentW, archived: true, archivedLastSeenAt: e.paymentWAsOf || e.lastSeenAt })),
     revenue: missing.filter(e => e.revenue).map(e => tagRow(e.revenue, e)),
     projectInfo: missing.flatMap(e => (e.projectInfo || []).map(r => tagRow(r, e))),
   };
@@ -297,6 +297,7 @@ function mergeProjectArchive({ rows, paymentW, revenue, projectInfo }, syncedAt)
 function mergePaymentArchive(paymentWTeam, syncedAt) {
   return mergeProjectArchive({ paymentW: paymentWTeam }, syncedAt).paymentW;
 }
+
 
 // เก็บข้อมูล debug ล่าสุดไว้เสมอ ดูผ่าน GET /api/debug/last-payload
 let lastRaw = {
@@ -908,6 +909,7 @@ app.get('/api/admin/payment-archive', requireAuth, (req, res) => {
       firstSeenAt: e.firstSeenAt || null,
       lastSeenAt: e.lastSeenAt || null,
       fromOldFile: !!e.importedFromOldFile,
+      financeAsOf: e.paymentWAsOf || null,
       parts,
       inLatestFile: work.some(x => x.src === 'file'),       // false = ไม่เหลือในชีตที่ใช้งานแล้ว
       partial: work.some(x => x.src === 'file') && work.some(x => x.src !== 'file'),
@@ -966,22 +968,43 @@ app.post('/api/admin/payment-archive/import-excel', requireAuth, upload.single('
   if (!req.file) return res.status(400).json({ ok: false, error: 'ไม่มีไฟล์แนบมา' });
   try {
     const wb = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
-    const { rows: paymentW, sheetName } = parsePaymentW(wb);
-    if (!sheetName) return res.status(400).json({ ok: false, error: 'ไฟล์นี้ไม่มีชีต PaymentW' });
-    const team = paymentW.filter(p => inTeam(p.pm));
+    const safe = (fn, fallback) => { try { return fn(); } catch (e) { return fallback; } };
+    const { rows: paymentW, sheetName: payName } = safe(() => parsePaymentW(wb), { rows: [], sheetName: null });
+    const { rows: progress } = safe(() => parseProgressSheet(wb), { rows: [] });
+    const { rows: revenue } = safe(() => parseRevenueSheet(wb), { rows: [] });
+    const { rows: projectInfo } = safe(() => parseProjectInfoSheet(wb), { rows: [] });
+    if (!payName && !progress.length) return res.status(400).json({ ok: false, error: 'ไฟล์นี้อ่านชีต PaymentW / Progress1 ไม่ได้' });
+
+    const codeOf = r => String((r && (r['Project Code'] ?? r.projectCode)) || '').trim();
+    const byCode = arr => { const m = {}; (arr || []).forEach(x => { const c = codeOf(x); if (c) (m[c] ||= []).push(x); }); return m; };
+    const payTeam = {};
+    paymentW.filter(p => inTeam(p.pm)).forEach(p => { const c = codeOf(p); if (c) payTeam[c] = p; });
+    const progTeam = byCode(progress);
+    const revTeam = byCode(revenue);
+    const infoTeam = byCode(projectInfo.filter(p => inTeam(p['PM Name'])));
+
     // วันที่ของข้อมูลในไฟล์เก่า - ผู้ใช้กรอกมาได้ ถ้าไม่กรอกจะแสดงว่า "ไม่ระบุวันที่" แทนการเดาว่าเป็นข้อมูลวันนี้
     const asOf = (req.body && typeof req.body.asOf === 'string' && req.body.asOf.trim()) ? req.body.asOf.trim() : null;
     const added = [], skipped = [];
-    team.forEach(p => {
-      const code = String(p.projectCode || '').trim();
-      if (!code) return;
-      if (PAYMENT_ARCHIVE.projects[code]) { skipped.push(code); return; }   // มีอยู่แล้ว = ข้อมูลใหม่กว่า ห้ามทับ
-      PAYMENT_ARCHIVE.projects[code] = { code, firstSeenAt: asOf, lastSeenAt: asOf, paymentW: p, importedFromOldFile: true };
-      added.push({ code, name: p.projectName || '', pm: p.pm || '' });
+    const codes = new Set([...Object.keys(payTeam), ...Object.keys(progTeam), ...Object.keys(revTeam)]);
+    codes.forEach(code => {
+      const cur = PAYMENT_ARCHIVE.projects[code] || { code, firstSeenAt: asOf, lastSeenAt: asOf, importedFromOldFile: true };
+      // เติมเฉพาะชุดที่ "ยังไม่มีในคลัง" - ของที่มีอยู่แล้วถือว่าใหม่กว่า ห้ามทับเด็ดขาด
+      const parts = [];
+      if (!cur.paymentW && payTeam[code]) { cur.paymentW = payTeam[code]; cur.paymentWAsOf = asOf; parts.push('การเงิน'); }
+      if ((!cur.rows || !cur.rows.length) && progTeam[code]) { cur.rows = progTeam[code].slice(-PROGRESS_ROWS_KEEP); cur.rowsAsOf = asOf; parts.push('ความคืบหน้า'); }
+      if (!cur.revenue && revTeam[code]) { cur.revenue = revTeam[code][revTeam[code].length - 1]; parts.push('แผนรายได้'); }
+      if ((!cur.projectInfo || !cur.projectInfo.length) && infoTeam[code]) { cur.projectInfo = infoTeam[code]; parts.push('ประวัติโครงการ'); }
+      if (!parts.length) { skipped.push(code); return; }
+      if (!PAYMENT_ARCHIVE.projects[code]) PAYMENT_ARCHIVE.projects[code] = cur;
+      const name = (cur.paymentW && cur.paymentW.projectName)
+        || (cur.rows && cur.rows.length && cur.rows[cur.rows.length - 1]['Project Name'])
+        || (cur.revenue && cur.revenue['Project Name']) || code;
+      added.push({ code, name, pm: (cur.paymentW && cur.paymentW.pm) || '', parts });
     });
     const persisted = savePaymentArchive(PAYMENT_ARCHIVE);
     const attached = refreshArchivedInLatest();
-    console.log(`✓ Admin (${req.user.username}) เติมคลังจากไฟล์ Excel เก่า: เพิ่มใหม่ ${added.length} โครงการ (${added.map(a => a.name || a.code).join(', ') || '-'}) · ข้ามที่มีอยู่แล้ว ${skipped.length} (เขียนไฟล์${persisted ? 'สำเร็จ' : 'ไม่สำเร็จ'})`);
+    console.log(`✓ Admin (${req.user.username}) เติมคลังจากไฟล์เก่า: ${added.length} โครงการ (${added.map(a => `${a.name}: ${a.parts.join('+')}`).join(', ') || '-'}) · ไม่มีอะไรต้องเติม ${skipped.length} (เขียนไฟล์${persisted ? 'สำเร็จ' : 'ไม่สำเร็จ'})`);
     res.json({ ok: true, added, skippedCount: skipped.length, asOf, attached, persisted, total: Object.keys(PAYMENT_ARCHIVE.projects).length });
   } catch (e) {
     console.error(`⚠ เติมคลังจากไฟล์ Excel ไม่สำเร็จ: ${e.message}`);

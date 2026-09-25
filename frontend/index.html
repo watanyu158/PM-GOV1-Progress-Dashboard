@@ -347,7 +347,7 @@
   .arch-parts .pt.arch{border-style:dashed;}
   .arch-parts .pt.none{border-style:dashed;color:var(--faint);}
   .arch-parts .pt.none.warn{background:var(--warning-tint);border:1px solid #E8D4A8;color:var(--warning);}
-  .arch-del{font-size:9.5px;padding:2px 8px;border-radius:5px;border:1px solid var(--line);background:var(--surface);color:var(--critical);cursor:pointer;}
+  .arch-del{margin-left:5px;font-size:9.5px;padding:2px 8px;border-radius:5px;border:1px solid var(--line);background:var(--surface);color:var(--critical);cursor:pointer;}
   .arch-del:hover{background:var(--critical-tint);}
   .arch-row.head{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;background:var(--surface-2);}
   .arch-row .st{font-size:9.5px;font-style:normal;padding:2px 7px;border-radius:5px;white-space:nowrap;display:inline-block;width:auto;height:auto;}
@@ -10589,7 +10589,8 @@ async function renderPaymentArchiveAdmin(){
               ? (p.partial
                   ? `<span class="st part">อยู่ในไฟล์บางส่วน</span><div class="st-sub">${[...(p.fromArchive||[]).map(k=>`🗄 ${k} มาจากคลัง`), ...(p.missing||[]).map(k=>`ไม่มี${k.replace(/\s+\d+\s*แถว$/,'')}`)].join(' · ')}</div>`
                   : `<span class="st live">อยู่ในไฟล์ล่าสุด</span>`)
-              : `<span class="st arch">🗄 มาจากคลังทั้งหมด</span> <button type="button" class="arch-del" title="ลบโครงการนี้ออกจากคลัง">ลบ</button>`}</span>
+              : `<span class="st arch">🗄 มาจากคลังทั้งหมด</span>`}
+              <button type="button" class="arch-del" title="ลบโครงการนี้ออกจากคลัง - ข้อมูลในไฟล์ล่าสุดไม่กระทบ และถ้ายังอยู่ในไฟล์ ระบบจะเก็บเข้าคลังใหม่ตอน sync ครั้งถัดไป">ลบ</button></span>
           </div>`).join('')
           : `<div class="arch-row"><span></span><span style="color:var(--faint)">ยังไม่มีข้อมูลในคลัง - จะเริ่มสะสมตอน sync ครั้งถัดไป</span><span></span><span></span><span></span></div>`);
 
@@ -10670,8 +10671,8 @@ async function renderPaymentArchiveAdmin(){
         const j = await res.json();
         if(!res.ok || !j.ok) throw new Error(j.error || 'อ่านไฟล์ไม่สำเร็จ');
         say(j.added.length
-          ? `เติมเข้าคลัง ${j.added.length} โครงการ: ${j.added.map(a=>a.name||a.code).join(', ')} (ข้ามที่มีอยู่แล้ว ${j.skippedCount})`
-          : `ไม่มีโครงการใหม่ให้เติม - ทุกโครงการในไฟล์นี้มีอยู่ในคลังแล้ว (${j.skippedCount} โครงการ)`, 'good');
+          ? `เติมเข้าคลังแล้ว: ${j.added.map(a=>`${a.name||a.code} (${(a.parts||[]).join(' + ')})`).join(' · ')}${j.skippedCount?` · อีก ${j.skippedCount} โครงการมีข้อมูลครบอยู่แล้ว`:''}`
+          : `ไม่มีอะไรต้องเติม - ทุกโครงการในไฟล์นี้มีข้อมูลครบในคลังแล้ว (${j.skippedCount} โครงการ)`, 'good');
         await load(); loadData();
       }catch(e){ say(e.message, 'bad'); }
       finally{ ex.value = ''; }
