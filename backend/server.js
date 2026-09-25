@@ -983,23 +983,51 @@ app.post('/api/admin/payment-archive', requireAuth, (req, res) => {
   if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) {
     return res.status(400).json({ ok: false, error: 'ไฟล์คลังไม่ถูกรูปแบบ - ต้องเป็น JSON ที่มี projects อยู่ข้างใน' });
   }
+  // รับทุกชุดข้อมูลที่คลังเก็บ ไม่ใช่แค่ PaymentW (ของเดิมโยน rows/revenue/projectInfo ทิ้งหมด
+  // เพราะเขียนไว้ตั้งแต่ตอนคลังยังเก็บแค่ PaymentW) - โครงการที่มีชุดไหนก็ได้ ถือว่าใช้ได้
   const clean = {};
   Object.entries(incoming).forEach(([code, e]) => {
     const c = String((e && e.code) || code || '').trim();
-    if (!c || !e || !e.paymentW || !e.paymentW.projectCode) return;
-    clean[c] = { code: c, firstSeenAt: e.firstSeenAt || null, lastSeenAt: e.lastSeenAt || null, paymentW: e.paymentW, importedFromOldFile: !!e.importedFromOldFile };
+    if (!c || !e) return;
+    const hasPay = !!(e.paymentW && e.paymentW.projectCode);
+    const hasRows = Array.isArray(e.rows) && e.rows.length > 0;
+    const hasInfo = Array.isArray(e.projectInfo) && e.projectInfo.length > 0;
+    if (!hasPay && !hasRows && !e.revenue && !hasInfo) return;
+    const out = { code: c, firstSeenAt: e.firstSeenAt || null, lastSeenAt: e.lastSeenAt || null, importedFromOldFile: !!e.importedFromOldFile };
+    if (hasPay) { out.paymentW = e.paymentW; out.paymentWAsOf = e.paymentWAsOf || null; }
+    if (hasRows) { out.rows = e.rows.slice(-PROGRESS_ROWS_KEEP); out.rowsAsOf = e.rowsAsOf || null; }
+    if (e.revenue) out.revenue = e.revenue;
+    if (hasInfo) out.projectInfo = e.projectInfo;
+    clean[c] = out;
   });
+  const nameOf = e => (e.paymentW && e.paymentW.projectName)
+    || (e.rows && e.rows.length && e.rows[e.rows.length - 1]['Project Name'])
+    || (e.revenue && e.revenue['Project Name']) || e.code;
   const before = Object.keys(PAYMENT_ARCHIVE.projects || {}).length;
+  const added = [], skipped = [];
   if (mode === 'replace') {
     PAYMENT_ARCHIVE.projects = clean;
+    Object.values(clean).forEach(e => added.push({ code: e.code, name: nameOf(e), parts: ['ทั้งโครงการ'] }));
   } else {
-    Object.entries(clean).forEach(([c, e]) => { if (!PAYMENT_ARCHIVE.projects[c]) PAYMENT_ARCHIVE.projects[c] = e; });
+    // เติม "รายชุดข้อมูล" ไม่ใช่รายโครงการ - ของเดิมข้ามทั้งโครงการถ้ารหัสนั้นมีในคลังอยู่แล้ว
+    // ทำให้เคสจริงพัง: Cloud Conference มี ความคืบหน้า/แผนรายได้ อยู่ในคลังแล้ว (สร้างใหม่จากไฟล์ล่าสุด)
+    // พออัปโหลดไฟล์คลังที่มีข้อมูลการเงินของมัน ระบบข้ามทิ้งทั้งก้อน ข้อมูลการเงินจึงไม่เคยเข้าเลย
+    Object.entries(clean).forEach(([c, e]) => {
+      const cur = PAYMENT_ARCHIVE.projects[c];
+      if (!cur) { PAYMENT_ARCHIVE.projects[c] = e; added.push({ code: c, name: nameOf(e), parts: ['ทั้งโครงการ'] }); return; }
+      const parts = [];   // เติมเฉพาะชุดที่คลังยังไม่มี - ของที่มีอยู่แล้วถือว่าใหม่กว่า ห้ามทับ
+      if (!cur.paymentW && e.paymentW) { cur.paymentW = e.paymentW; cur.paymentWAsOf = e.paymentWAsOf || null; parts.push('การเงิน'); }
+      if ((!cur.rows || !cur.rows.length) && e.rows) { cur.rows = e.rows; cur.rowsAsOf = e.rowsAsOf || null; parts.push('ความคืบหน้า'); }
+      if (!cur.revenue && e.revenue) { cur.revenue = e.revenue; parts.push('แผนรายได้'); }
+      if ((!cur.projectInfo || !cur.projectInfo.length) && e.projectInfo) { cur.projectInfo = e.projectInfo; parts.push('ประวัติโครงการ'); }
+      if (parts.length) added.push({ code: c, name: nameOf(cur), parts }); else skipped.push(c);
+    });
   }
   const persisted = savePaymentArchive(PAYMENT_ARCHIVE);
   const attached = refreshArchivedInLatest();
   const after = Object.keys(PAYMENT_ARCHIVE.projects || {}).length;
-  console.log(`✓ Admin (${req.user.username}) อัปโหลดคลังข้อมูลการเงิน (${mode === 'replace' ? 'แทนที่ทั้งหมด' : 'เติมเฉพาะที่ยังไม่มี'}) ${before} -> ${after} โครงการ (เขียนไฟล์${persisted ? 'สำเร็จ' : 'ไม่สำเร็จ'})`);
-  res.json({ ok: true, mode: mode === 'replace' ? 'replace' : 'merge', before, after, attached, persisted });
+  console.log(`✓ Admin (${req.user.username}) อัปโหลดคลังข้อมูลการเงิน (${mode === 'replace' ? 'แทนที่ทั้งหมด' : 'เติมเฉพาะที่ยังไม่มี'}) ${before} -> ${after} โครงการ · เติมข้อมูล ${added.length} (${added.map(a => `${a.name}: ${a.parts.join('+')}`).join(', ') || '-'}) · ไม่มีอะไรต้องเติม ${skipped.length} (เขียนไฟล์${persisted ? 'สำเร็จ' : 'ไม่สำเร็จ'})`);
+  res.json({ ok: true, mode: mode === 'replace' ? 'replace' : 'merge', before, after, added, skippedCount: skipped.length, attached, persisted });
 });
 
 // ลบโครงการออกจากคลัง - ใช้เมื่อโครงการนั้นไม่ควรอยู่ในคลังแล้ว (ย้ายทีม/ใส่ผิด) ข้อมูลในไฟล์ล่าสุดไม่ได้รับผลกระทบ

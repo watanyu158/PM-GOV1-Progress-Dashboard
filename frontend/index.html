@@ -10654,7 +10654,12 @@ async function renderPaymentArchiveAdmin(){
         });
         const j = await res.json();
         if(!res.ok || !j.ok) throw new Error(j.error || 'อัปโหลดไม่สำเร็จ');
-        say(`กู้คืนคลังแล้ว ${j.before} → ${j.after} โครงการ${j.persisted?'':' (เขียนไฟล์ไม่สำเร็จ - จะหายถ้า server restart)'}`, 'good');
+        // บอกว่าเติมอะไรเข้าไปบ้างจริง ๆ - นับจำนวนโครงการอย่างเดียวไม่พอ เพราะการเติมข้อมูลให้โครงการ
+        // ที่มีในคลังอยู่แล้ว จำนวนจะเท่าเดิม ทำให้ดูเหมือนอัปโหลดแล้วไม่มีอะไรเกิดขึ้น
+        const detail = (j.added||[]).length
+          ? `เติมข้อมูลให้ ${j.added.length} โครงการ: ${j.added.map(a=>`${a.name} (${a.parts.join('+')})`).join(' · ')}`
+          : 'ไม่มีอะไรต้องเติม - ข้อมูลในคลังครบกว่าหรือเท่าไฟล์ที่อัปโหลดแล้ว';
+        say(`${detail} · รวมในคลัง ${j.after} โครงการ${j.persisted?'':' (เขียนไฟล์ไม่สำเร็จ - จะหายถ้า server restart)'}`, 'good');
         await load(); loadData();
       }catch(e){ say(e.message, 'bad'); }
       finally{ up.value = ''; }
