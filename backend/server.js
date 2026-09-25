@@ -875,22 +875,41 @@ function refreshArchivedInLatest() {
 
 app.get('/api/admin/payment-archive', requireAuth, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ ok: false, error: 'ต้องเป็น admin เท่านั้น' });
-  const live = new Set([
-    ...(latestData.paymentW || []).filter(p => !p.archived).map(p => String(p.projectCode || '').trim()),
-    ...(latestData.rows || []).filter(r => !r.__archived).map(r => String(r['Project Code'] || '').trim()),
-  ].filter(Boolean));
-  const projects = Object.values(PAYMENT_ARCHIVE.projects || {}).map(e => ({
-    code: e.code,
-    name: (e.paymentW && e.paymentW.projectName) || '',
-    pm: (e.paymentW && e.paymentW.pm) || '',
-    sellingPrice: (e.paymentW && e.paymentW.sellingPrice) || null,
-    firstSeenAt: e.firstSeenAt || null,
-    lastSeenAt: e.lastSeenAt || null,
-    fromOldFile: !!e.importedFromOldFile,
-    inLatestFile: live.has(e.code),            // false = ถูกลบออกจากไฟล์แล้ว ข้อมูลมาจากคลัง
-    has: [e.paymentW ? 'การเงิน' : null, (e.rows && e.rows.length) ? `ความคืบหน้า ${e.rows.length} แถว` : null,
-          e.revenue ? 'แผนรายได้' : null, (e.projectInfo && e.projectInfo.length) ? 'ประวัติโครงการ' : null].filter(Boolean),
-  })).sort((a, b) => String(a.code).localeCompare(String(b.code)));
+  const codeOfRow = r => String((r && (r['Project Code'] ?? r.projectCode)) || '').trim();
+  // แต่ละชุดข้อมูลมาจากไหน: 'file' = อยู่ในไฟล์ล่าสุด · 'archive' = ดึงจากคลังมาต่อท้าย · 'none' = ไม่มีเลย
+  const sourceOf = (arr, code) => {
+    let file = false, arch = false;
+    (arr || []).forEach(x => {
+      if (codeOfRow(x) !== code) return;
+      if (x.__archived || x.archived) arch = true; else file = true;
+    });
+    return file ? 'file' : (arch ? 'archive' : 'none');
+  };
+  const projects = Object.values(PAYMENT_ARCHIVE.projects || {}).map(e => {
+    const lastRow = (e.rows && e.rows.length) ? e.rows[e.rows.length - 1] : null;
+    // ชื่อ/PM: โครงการที่ไม่มีข้อมูลการเงินก็ต้องมีชื่อ - ไล่หาจากชุดข้อมูลที่มีจริงตามลำดับ
+    const name = (e.paymentW && e.paymentW.projectName) || (lastRow && lastRow['Project Name'])
+      || (e.revenue && e.revenue['Project Name']) || (e.projectInfo && e.projectInfo.length && e.projectInfo[0]['Project Name']) || '';
+    const pm = (e.paymentW && e.paymentW.pm) || (lastRow && lastRow['PM Name'])
+      || (e.revenue && e.revenue['PM Name']) || (e.projectInfo && e.projectInfo.length && e.projectInfo[0]['PM Name']) || '';
+    const parts = [
+      { k: 'การเงิน', src: sourceOf(latestData.paymentW, e.code) },
+      { k: `ความคืบหน้า${(e.rows && e.rows.length) ? ` ${e.rows.length} แถว` : ''}`, src: sourceOf(latestData.rows, e.code) },
+      { k: 'แผนรายได้', src: sourceOf(latestData.revenue, e.code) },
+      { k: 'ประวัติโครงการ', src: sourceOf(latestData.projectInfo, e.code) },
+    ];
+    return {
+      code: e.code, name, pm,
+      sellingPrice: (e.paymentW && e.paymentW.sellingPrice) || (lastRow && lastRow['Selling Price']) || null,
+      firstSeenAt: e.firstSeenAt || null,
+      lastSeenAt: e.lastSeenAt || null,
+      fromOldFile: !!e.importedFromOldFile,
+      parts,
+      inLatestFile: parts.some(x => x.src === 'file'),      // false = ไม่เหลืออยู่ในไฟล์เลย ทุกชุดมาจากคลัง
+      fromArchive: parts.filter(x => x.src === 'archive').map(x => x.k),
+      missing: parts.filter(x => x.src === 'none').map(x => x.k),
+    };
+  }).sort((a, b) => String(a.code).localeCompare(String(b.code)));
   res.json({ ok: true, updatedAt: PAYMENT_ARCHIVE.updatedAt, count: projects.length, projects, archive: PAYMENT_ARCHIVE });
 });
 

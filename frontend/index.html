@@ -342,6 +342,11 @@
   .arch-msg.bad{color:var(--critical);}
   .arch-msg.good{color:var(--success);}
   .arch-row{display:grid;grid-template-columns:110px 1fr 190px 130px 150px;gap:10px;align-items:center;padding:9px 18px;border-bottom:1px solid var(--line-soft);font-size:11px;}
+  .arch-parts{display:flex;flex-wrap:wrap;gap:4px;}
+  .arch-parts .pt{font-size:9.5px;padding:1px 6px;border-radius:5px;background:var(--surface-2);border:1px solid var(--line-soft);color:var(--muted);white-space:nowrap;}
+  .arch-parts .pt.arch{border-style:dashed;}
+  .arch-parts .pt.none{border-style:dashed;color:var(--faint);}
+  .arch-parts .pt.none.warn{background:var(--warning-tint);border:1px solid #E8D4A8;color:var(--warning);}
   .arch-del{font-size:9.5px;padding:2px 8px;border-radius:5px;border:1px solid var(--line);background:var(--surface);color:var(--critical);cursor:pointer;}
   .arch-del:hover{background:var(--critical-tint);}
   .arch-row.head{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;background:var(--surface-2);}
@@ -10567,14 +10572,20 @@ async function renderPaymentArchiveAdmin(){
       const arch = j.projects.filter(p => !p.inLatestFile);
       cntEl.textContent = `${j.count} โครงการ · มาจากคลัง ${arch.length}`;
       const fmtIso = s => s ? fmtDate(String(s).slice(0,10)) : 'ไม่ระบุวันที่';
-      listEl.innerHTML = `<div class="arch-row head"><span>รหัส</span><span>โครงการ</span><span>ข้อมูลที่เก็บไว้</span><span>เห็นครั้งสุดท้าย</span><span>สถานะ</span></div>`
+      // ป้ายรายชุดข้อมูล: อยู่ในไฟล์ล่าสุด (ปกติ) · มาจากคลัง (เส้นประ) · ไม่มีเลย (ขีดฆ่า สีเตือน)
+      const partTag = q => q.src==='file' ? `<span class="pt">${q.k}</span>`
+        : q.src==='archive' ? `<span class="pt arch">🗄 ${q.k}</span>`
+        // ไม่มี "แผนรายได้" เป็นเรื่องปกติของโครงการที่ไม่ได้รับรู้แบบ By Progress - ไม่ต้องทำให้ดูเป็นปัญหา
+        : `<span class="pt none${/การเงิน|ความคืบหน้า/.test(q.k)?' warn':''}">ไม่มี${q.k.replace(/\s+\d+\s*แถว$/,'')}</span>`;
+      listEl.innerHTML = `<div class="arch-row head"><span>รหัส</span><span>โครงการ</span><span>ข้อมูลที่มี</span><span>เห็นครั้งสุดท้าย</span><span>สถานะ</span></div>`
         + (j.projects.length ? j.projects.map(p => `<div class="arch-row" data-code="${p.code}">
             <span class="code-tag">#${p.code}</span>
-            <span>${p.name || '-'}<div style="color:var(--faint);font-size:9.5px">${p.pm || ''}</div></span>
-            <span style="color:var(--muted);font-size:10px">${(p.has||[]).join(' · ') || '-'}</span>
+            <span>${p.name || '(ไม่มีชื่อในข้อมูล)'}<div style="color:var(--faint);font-size:9.5px">${p.pm || ''}</div></span>
+            <span class="arch-parts">${(p.parts||[]).map(partTag).join('')}</span>
             <span style="color:var(--muted)">${fmtIso(p.lastSeenAt)}${p.fromOldFile?' (ไฟล์เก่า)':''}</span>
-            <span>${p.inLatestFile ? '<span class="st live">อยู่ในไฟล์ล่าสุด</span>'
-              : `<span class="st arch">🗄 มาจากคลัง</span> <button type="button" class="arch-del" title="ลบโครงการนี้ออกจากคลัง">ลบ</button>`}</span>
+            <span>${p.inLatestFile
+              ? `<span class="st live">อยู่ในไฟล์ล่าสุด</span>${(p.fromArchive||[]).length?`<div class="st arch" style="margin-top:3px">🗄 ${p.fromArchive.join(' · ')} มาจากคลัง</div>`:''}`
+              : `<span class="st arch">🗄 มาจากคลังทั้งหมด</span> <button type="button" class="arch-del" title="ลบโครงการนี้ออกจากคลัง">ลบ</button>`}</span>
           </div>`).join('')
           : `<div class="arch-row"><span></span><span style="color:var(--faint)">ยังไม่มีข้อมูลในคลัง - จะเริ่มสะสมตอน sync ครั้งถัดไป</span><span></span><span></span><span></span></div>`);
 
