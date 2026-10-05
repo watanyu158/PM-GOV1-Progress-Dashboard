@@ -884,7 +884,9 @@ app.post('/api/admin/card-visibility', requireAuth, (req, res) => {
   if (!cardId || typeof cardId !== 'string') return res.status(400).json({ ok: false, error: 'ไม่มี cardId' });
 
   if (mode === 'all') {
-    delete CARD_VISIBILITY[cardId]; // ค่า default = ทุกคนเห็น ไม่ต้องเก็บ entry ไว้ก็ได้ ชัดเจนกว่าว่าเป็นค่าปกติ
+    // เก็บเป็น 'all' ชัด ๆ แทนการลบ entry - การ์ดบางใบมีค่าเริ่มต้นเป็น "เฉพาะบางคน" (defaultVis ในหน้าเว็บ)
+    // ถ้าลบ entry ทิ้ง การ์ดนั้นจะเด้งกลับไปค่าเริ่มต้นที่จำกัดสิทธิ์ แทนที่จะเป็น "ทุกคนเห็น" ตามที่เลือก
+    CARD_VISIBILITY[cardId] = 'all';
   } else if (mode === 'custom') {
     CARD_VISIBILITY[cardId] = Array.isArray(users) ? users.filter(u => typeof u === 'string') : [];
   } else {

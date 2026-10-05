@@ -339,6 +339,40 @@
   .arch-date-lb{font-size:10.5px;color:var(--faint);display:flex;align-items:center;gap:6px;}
   .arch-date{font-family:inherit;font-size:10.5px;padding:4px 7px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);}
   .arch-msg{font-size:10.5px;color:var(--muted);}
+  /* Certification Eligibility (CAPM / PMP) */
+  .ce-block{padding:14px 18px 6px;}
+  .ce-block + .ce-block{border-top:1px solid var(--line-soft);}
+  .ce-title{font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:8px;letter-spacing:.02em;}
+  .ce-scroll{overflow-x:auto;padding-bottom:8px;}
+  .ce-table{min-width:1040px;}
+  .ce-row{display:grid;grid-template-columns:210px 92px 112px 112px 128px 178px 168px 128px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-soft);}
+  .ce-row:last-child{border-bottom:none;}
+  .ce-row.ce-head{font-size:10.5px;color:var(--muted);font-weight:600;align-items:end;padding-top:0;}
+  .ce-row.ce-head small{display:block;font-weight:400;color:var(--faint);font-size:9.5px;margin-top:2px;}
+  .ce-pm{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--ink);min-width:0;}
+  .ce-pm span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* จอแคบ: ตารางเลื่อนแนวนอนได้ ให้ชื่อ PM ค้างอยู่ทางซ้ายตอนเลื่อน จะได้รู้ว่าแถวไหนของใคร */
+  .ce-row > :first-child{position:sticky;left:0;z-index:1;background:var(--surface);}
+  @media (max-width:600px){
+    .ce-block{padding:12px 12px 4px;}
+    .ce-table{min-width:930px;}
+    .ce-row{grid-template-columns:100px 92px 112px 112px 128px 178px 168px 128px;}
+    .ce-pm{gap:6px;font-size:11px;}
+    .ce-pm .av{display:none;}
+  }
+  .ce-cell{display:flex;align-items:flex-start;gap:6px;font-size:11.5px;color:var(--ink);}
+  .ce-cell[title]{cursor:help;}
+  .ce-v{display:flex;flex-direction:column;line-height:1.3;}
+  .ce-v b{font-weight:600;}
+  .ce-v small{font-size:9.5px;color:var(--faint);}
+  .ce-ic{font-style:normal;flex:none;width:17px;height:17px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;margin-top:1px;}
+  .ce-ic.ok{background:color-mix(in srgb,var(--success) 16%,transparent);color:var(--success);}
+  .ce-ic.no{background:color-mix(in srgb,var(--critical) 14%,transparent);color:var(--critical);}
+  .ce-ic.wait{background:color-mix(in srgb,var(--warning) 16%,transparent);color:var(--warning);font-size:9px;}
+  .ce-cell.no .ce-v b{color:var(--critical);}
+  .ce-res{display:inline-block;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+  .ce-res.wait{background:color-mix(in srgb,var(--warning) 15%,transparent);color:var(--warning);}
+  .ce-res.no{background:color-mix(in srgb,var(--critical) 11%,transparent);color:var(--critical);}
   .arch-msg.bad{color:var(--critical);}
   .arch-msg.good{color:var(--success);}
   .arch-row{display:grid;grid-template-columns:108px 1fr 175px 105px 195px;gap:10px;align-items:center;padding:9px 18px;border-bottom:1px solid var(--line-soft);font-size:11px;}
@@ -2276,6 +2310,17 @@
       <div class="p-body"><div id="piYearChart"></div></div>
     </div>
 
+    <div class="panel" id="panel-certEligibility">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M8.5 12.5 7 22l5-3 5 3-1.5-9.5"/></svg>
+          Certification Eligibility <span class="sep">-</span> <span class="th">ผู้มีสิทธิ์เสนอชื่อสอบ CAPM / PMP</span>
+        </div>
+        <span class="p-count" id="certCount"></span>
+      </div>
+      <div class="p-body"><div id="certBox"></div></div>
+    </div>
+
     <div class="panel" id="panel-siteHistory">
       <div class="p-head">
         <div class="p-title">
@@ -2801,6 +2846,9 @@ const CARD_REGISTRY = [
   {tab:'2', tabLabel:'Finance & Stock', id:'stockOutstanding', en:'Stock Outstanding', th:'ของค้างสต็อก', scope:true},
   {tab:'3', tabLabel:'Project Information', id:'teamLeaderboard', en:'Team Leaderboard', th:'อันดับทีมย้อนหลัง'},
   {tab:'3', tabLabel:'Project Information', id:'projectsByYear', en:'Projects by Year', th:'จำนวน/มูลค่าโครงการรายปี'},
+  // ผลประเมินสิทธิ์สอบรายคน = ข้อมูลประเมินบุคคล ค่าเริ่มต้นให้ OAT เห็นคนเดียว (เปิดให้คนอื่นได้ที่ Admin)
+  // ต้องตั้งเป็นค่าในโค้ด เพราะไฟล์ตั้งค่าสิทธิ์บน server ถูกล้างทุกครั้งที่ redeploy
+  {tab:'3', tabLabel:'Project Information', id:'certEligibility', en:'Certification Eligibility', th:'ผู้มีสิทธิ์เสนอชื่อสอบ CAPM / PMP', defaultVis:['oat']},
   {tab:'3', tabLabel:'Project Information', id:'siteHistory', en:'Site History', th:'ใครเคยดูแลลูกค้ารายนี้บ้าง'},
   {tab:'3', tabLabel:'Project Information', id:'pmProfile', en:'PM Profile', th:'ประวัติการทำงานราย PM'},
   {tab:'3', tabLabel:'Project Information', id:'torBreakdown', en:'TOR Breakdown', th:'แตกเอกสาร TOR เป็น Scope of Work', scope:false},
@@ -2810,8 +2858,9 @@ let CARD_VISIBILITY = {}; // ดึงจาก backend ทุกครั้ง
 function currentUsername(){ return (localStorage.getItem(USERNAME_KEY) || sessionStorage.getItem(USERNAME_KEY) || '').trim().toLowerCase(); }
 function canSeeCard(cardId){
   if(currentUsername()==='oat') return true; // OAT (admin) เห็นทุกการ์ดเสมอไม่ว่าตั้งสิทธิ์ไว้ยังไง กันล็อกตัวเองออกโดยไม่ตั้งใจ
-  const rule = CARD_VISIBILITY[cardId];
-  if(!rule || rule==='all') return true; // ไม่มี entry = ค่า default ทุกคนเห็น
+  // ไม่มี entry = ใช้ค่าเริ่มต้นของการ์ด (defaultVis ใน CARD_REGISTRY) ถ้าไม่ได้กำหนดไว้ = ทุกคนเห็น
+  const rule = CARD_VISIBILITY[cardId] ?? (CARD_REGISTRY.find(c=>c.id===cardId) || {}).defaultVis;
+  if(!rule || rule==='all') return true;
   if(!Array.isArray(rule)) return true;
   return rule.map(u=>String(u).toLowerCase()).includes(currentUsername());
 }
@@ -9530,6 +9579,7 @@ function renderProjectInfo(){
   renderPiOverview();
   renderPiLeaderboard();
   renderPiYearChart();
+  renderCertEligibility();
   renderPiSites();
   renderPiProfiles();
   const companySearchEl = document.getElementById('piCompanySearch');
@@ -9713,6 +9763,96 @@ function renderPiYearChart(){
   document.getElementById('piYearModeBar').querySelectorAll('.pi-win-btn').forEach(b=>{
     b.addEventListener('click', ()=>{ piYearMode = b.dataset.mode; renderPiYearChart(); });
   });
+}
+
+// ==== Certification Eligibility: ผู้มีสิทธิ์ถูกเสนอชื่อเข้าสอบ CAPM / PMP ====
+// ข้อ 1-3 (คัดเลือก · ประสบการณ์ PM · พนักงานประจำ): OAT ยืนยันแล้วว่าผ่านทุกคน
+// ข้อ 4 SMARTGOAL: ไม่มีในไฟล์ - รอข้อมูล
+// ข้อ 5 จำนวนโครงการ: นับทุกโครงการใน Project Info ตาม Project Level (ไม่นับ Cancel)
+// ข้อ 6 Project Score: กฎของ OAT - เฉลี่ยเฉพาะโครงการ Completely Closed ที่ Register ตั้งแต่ 1 ม.ค. 2568 (ทุก Level)
+const CERT_SCORE_FROM = new Date(2025, 0, 1);
+const CERT_RULES = {
+  capm: { label:'CAPM', expYears:2, minScore:85, projHead:'Level 2+ ≥ 10 โครงการ', projOk: s => s.l2.length >= 10 },
+  pmp:  { label:'PMP',  expYears:5, minScore:90, projHead:'Level 3+ ≥ 6 หรือ Level 4 ≥ 3', projOk: s => s.l3.length >= 6 || s.l4.length >= 3 },
+};
+function certStatsByPM(){
+  const byCode = {};   // กันรหัสซ้ำ (ข้อมูลจากคลังสะสมต่อท้าย) - ใช้แถวสุดท้ายของแต่ละรหัส
+  PROJINFO.forEach(p=>{ const c = String(p['Project Code']||'').trim(); if(c) byCode[c] = p; });
+  const by = {};
+  Object.values(byCode).forEach(p=>{
+    const pm = pmKey(p['PM Name']); if(!pm) return;
+    const st = String(p['Status']||'').trim().toLowerCase();
+    const s = (by[pm] ||= { pm, l2:[], l3:[], l4:[], scored:[], noScore:[] });
+    if(st !== 'cancel'){
+      const lv = num(p['Project Level']);
+      if(lv >= 2) s.l2.push(p);
+      if(lv >= 3) s.l3.push(p);
+      if(lv >= 4) s.l4.push(p);
+    }
+    const reg = parseD(p['Project Register Date']);
+    if(st === 'completely closed' && reg && reg >= CERT_SCORE_FROM){
+      (num(p['Project Score']) > 0 ? s.scored : s.noScore).push(p);
+    }
+  });
+  return Object.values(by).map(s => ({ ...s,
+    avg: s.scored.length ? s.scored.reduce((t,p)=>t+num(p['Project Score']),0) / s.scored.length : null }))
+    .sort((a,b)=>a.pm.localeCompare(b.pm));
+}
+function renderCertEligibility(){
+  const el = document.getElementById('certBox');
+  const cnt = document.getElementById('certCount');
+  if(!el) return;
+  if(!PROJINFO.length){ el.innerHTML = `<div class="empty">ยังไม่มีข้อมูลประวัติโครงการ - sync ข้อมูลแล้วลองใหม่</div>`; if(cnt) cnt.textContent = ''; return; }
+  const stats = certStatsByPM();
+  const attr = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  const isDone = p => String(p['Status']||'').trim().toLowerCase() === 'completely closed';
+  const icon = k => `<i class="ce-ic ${k}">${k==='ok'?'✓':k==='no'?'✗':'⏳'}</i>`;
+  const cell = (k, main, sub, tip) => `<div class="ce-cell ${k}"${tip?` title="${attr(tip)}"`:''}>${icon(k)}<span class="ce-v"><b>${main}</b>${sub?`<small>${sub}</small>`:''}</span></div>`;
+
+  const table = key => {
+    const R = CERT_RULES[key];
+    let nPass = 0;
+    const rows = stats.map(s=>{
+      const projPass = R.projOk(s);
+      const scorePass = s.avg != null && s.avg >= R.minScore;
+      if(projPass && scorePass) nPass++;
+      const projList = key==='capm' ? s.l2 : s.l3;
+      const projTip = projList.map(p=>`L${num(p['Project Level'])} · ${p['Project Name']} (${p['Status']})`).join('\n');
+      const projCell = key==='capm'
+        ? cell(projPass?'ok':'no', `${s.l2.length} โครงการ`, `ปิดสมบูรณ์ ${s.l2.filter(isDone).length}`, projTip)
+        : cell(projPass?'ok':'no', `L3+ ${s.l3.length} · L4 ${s.l4.length}`, `ปิดสมบูรณ์ ${s.l3.filter(isDone).length} · ${s.l4.filter(isDone).length}`, projTip);
+      const scoreTip = s.scored.map(p=>`${num(p['Project Score']).toFixed(2)} · ${p['Project Name']} (Register ${p['Project Register Date']})`).join('\n')
+        + (s.noScore.length ? `\nไม่มีคะแนน ${s.noScore.length} โครงการ` : '');
+      const scoreCell = s.avg == null
+        ? cell('no', '—', 'ไม่มีโครงการเข้าเกณฑ์', scoreTip)
+        : cell(scorePass?'ok':'no', s.avg.toFixed(2), `จาก ${s.scored.length} โครงการ`, scoreTip);
+      const fails = [!projPass && '5', !scorePass && '6'].filter(Boolean);
+      const result = fails.length
+        ? `<span class="ce-res no">ไม่ผ่านข้อ ${fails.join(', ')}</span>`
+        : `<span class="ce-res wait">รอ SMARTGOAL</span>`;
+      return `<div class="ce-row">
+        <div class="ce-pm"><div class="av" style="width:26px;height:26px;font-size:10px;background:${avatarColor(s.pm)}">${initials(s.pm)}</div><span>${s.pm}</span></div>
+        ${cell('ok','ผ่าน')}${cell('ok','ผ่าน')}${cell('ok','ผ่าน')}
+        ${cell('wait','รอข้อมูล')}
+        ${projCell}${scoreCell}
+        <div class="ce-cell">${result}</div>
+      </div>`;
+    }).join('');
+    const head = `<div class="ce-row ce-head">
+      <div>PM</div>
+      <div>1. คัดเลือก</div>
+      <div>2. ประสบการณ์ PM<small>≥ ${R.expYears} ปี</small></div>
+      <div>3. พนักงานประจำ<small>≥ 2 ปี</small></div>
+      <div>4. SMARTGOAL<small>90+ 2 ปีติดต่อกัน</small></div>
+      <div>5. Project<small>${R.projHead}</small></div>
+      <div>6. Project Score<small>≥ ${R.minScore} · Register ตั้งแต่ 1 ม.ค. 68</small></div>
+      <div>ผล</div>
+    </div>`;
+    return { nPass, html: `<div class="ce-block"><div class="ce-title">${R.label}</div><div class="ce-scroll"><div class="ce-table">${head}${rows}</div></div></div>` };
+  };
+  const capm = table('capm'), pmp = table('pmp');
+  if(cnt) cnt.textContent = `CAPM ${capm.nPass} · PMP ${pmp.nPass} คน · รอ SMARTGOAL`;
+  el.innerHTML = capm.html + pmp.html;
 }
 
 // กราฟเส้น YoY แยกเส้นตามคน - จุดประสงค์คือให้เห็นว่าแต่ละคน "จำนวน/มูลค่าโครงการต่างกันปีต่อปีเท่าไหร่"
@@ -10457,7 +10597,7 @@ async function renderAdminTab(){
 
   el.innerHTML = Object.entries(groups).map(([tabLabel, cards])=>{
     const rows = cards.map(c=>{
-      const rule = visibility[c.id];
+      const rule = visibility[c.id] ?? c.defaultVis;
       const isAll = !rule || rule==='all';
       const allowedSet = new Set(isAll ? [] : (Array.isArray(rule)?rule:[]).map(u=>u.toLowerCase()));
       const statusTxt = isAll ? 'ทุกคนเห็น' : (allowedSet.size ? `เฉพาะ ${[...allowedSet].map(u=>TEAM_USERS.find(t=>t.username===u)?.name||u).join(', ')}` : 'ไม่มีใครเห็นเลย');
