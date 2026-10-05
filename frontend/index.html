@@ -9795,6 +9795,7 @@ function certStatsByPM(){
     }
   });
   return Object.values(by).map(s => ({ ...s,
+    sum: s.scored.reduce((t,p)=>t+num(p['Project Score']),0),
     avg: s.scored.length ? s.scored.reduce((t,p)=>t+num(p['Project Score']),0) / s.scored.length : null }))
     .sort((a,b)=>a.pm.localeCompare(b.pm));
 }
@@ -9814,7 +9815,10 @@ function renderCertEligibility(){
     let nPass = 0;
     const rows = stats.map(s=>{
       const projPass = R.projOk(s);
-      const scorePass = s.avg != null && s.avg >= R.minScore;
+      // ผ่านเมื่อค่าเฉลี่ยจริง ≥ เกณฑ์เท่านั้น ไม่ปัดเศษ (89.99 = ไม่ผ่าน 90)
+      // เทียบผลรวมกับ เกณฑ์ × จำนวนโครงการ แทนการหาร กันเลขทศนิยม float คลาดจนค่า 90.00 พอดีกลายเป็น 89.9999 แล้วตกเกณฑ์
+      // (1e-9 รับเฉพาะความคลาดของ float เท่านั้น เล็กกว่าความต่างจริงของคะแนนทศนิยม 2 ตำแหน่งหลายล้านเท่า)
+      const scorePass = s.avg != null && s.sum >= R.minScore * s.scored.length - 1e-9;
       if(projPass && scorePass) nPass++;
       const projList = key==='capm' ? s.l2 : s.l3;
       const projTip = projList.map(p=>`L${num(p['Project Level'])} · ${p['Project Name']} (${p['Status']})`).join('\n');
@@ -9825,7 +9829,9 @@ function renderCertEligibility(){
         + (s.noScore.length ? `\nไม่มีคะแนน ${s.noScore.length} โครงการ` : '');
       const scoreCell = s.avg == null
         ? cell('no', '—', 'ไม่มีโครงการเข้าเกณฑ์', scoreTip)
-        : cell(scorePass?'ok':'no', s.avg.toFixed(2), `จาก ${s.scored.length} โครงการ`, scoreTip);
+        // ห้ามปัดขึ้น: ตัดทศนิยมเหลือ 2 ตำแหน่ง (89.996 แสดง 89.99 ไม่ใช่ 90.00) ให้ตัวเลขที่เห็นตรงกับผลผ่าน/ไม่ผ่าน
+        // การตัดสินใช้ค่าเฉลี่ยเต็มไม่ปัดเสมอ (scorePass ด้านบน) · +1e-6 กันเลขทศนิยม float เช่น 89.11*100 = 8910.9999
+        : cell(scorePass?'ok':'no', (Math.floor(s.avg*100 + 1e-6)/100).toFixed(2), `จาก ${s.scored.length} โครงการ`, scoreTip);
       const fails = [!projPass && '5', !scorePass && '6'].filter(Boolean);
       const result = fails.length
         ? `<span class="ce-res no">ไม่ผ่านข้อ ${fails.join(', ')}</span>`
