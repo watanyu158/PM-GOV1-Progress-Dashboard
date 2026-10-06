@@ -9774,11 +9774,11 @@ function renderPiYearChart(){
 //   ทุกรอบต้อง ≥ 90 ไม่ปัดเศษ · รอบไหนว่าง = ไม่ผ่าน · ถ้าไฟล์ยังไม่มีชีตนี้ = รอข้อมูล
 // ข้อ 5 จำนวนโครงการ: นับทุกโครงการใน Project Info ตาม Project Level (ไม่นับ Cancel)
 // ข้อ 6 Project Score: กฎของ OAT - เฉลี่ยเฉพาะโครงการ Completely Closed ที่ Register ตั้งแต่ 1 ม.ค. 2568
-//   CAPM ใช้ทุก Level · PMP ใช้เฉพาะ Level 3 ขึ้นไป (CERT_RULES.scoreLevelMin)
+//   CAPM ใช้เฉพาะ Level 2 ขึ้นไป · PMP ใช้เฉพาะ Level 3 ขึ้นไป (CERT_RULES.scoreLevelMin)
 const CERT_SCORE_FROM = new Date(2025, 0, 1);
 const CERT_RULES = {
-  capm: { label:'CAPM', expYears:2, minScore:85, projHead:'Level 2+ ≥ 10 โครงการ', projOk: s => s.l2.length >= 10 },
-  // scoreLevelMin: PMP เฉลี่ย Project Score เฉพาะโครงการ Level 3 ขึ้นไป (กฎของ OAT) · CAPM ไม่กรอง Level
+  capm: { label:'CAPM', expYears:2, minScore:85, scoreLevelMin:2, projHead:'Level 2+ ≥ 10 โครงการ', projOk: s => s.l2.length >= 10 },
+  // scoreLevelMin: Project Score เฉลี่ยเฉพาะโครงการ Level ตามเกณฑ์ข้อ 5 ของแต่ละ cert (กฎของ OAT) - CAPM Level 2+ · PMP Level 3+
   pmp:  { label:'PMP',  expYears:5, minScore:90, scoreLevelMin:3, projHead:'Level 3+ ≥ 6 หรือ Level 4 ≥ 3', projOk: s => s.l3.length >= 6 || s.l4.length >= 3 },
 };
 const CERT_SG_MIN = 90, CERT_SG_ROUNDS = 4;   // 2 ปี × ปีละ 2 รอบ
@@ -9848,7 +9848,7 @@ function renderCertEligibility(){
       // ผ่านเมื่อค่าเฉลี่ยจริง ≥ เกณฑ์เท่านั้น ไม่ปัดเศษ (89.99 = ไม่ผ่าน 90)
       // เทียบผลรวมกับ เกณฑ์ × จำนวนโครงการ แทนการหาร กันเลขทศนิยม float คลาดจนค่า 90.00 พอดีกลายเป็น 89.9999 แล้วตกเกณฑ์
       // (1e-9 รับเฉพาะความคลาดของ float เท่านั้น เล็กกว่าความต่างจริงของคะแนนทศนิยม 2 ตำแหน่งหลายล้านเท่า)
-      // โครงการที่ใช้เฉลี่ยของตารางนี้ (PMP = เฉพาะ Level 3+ · CAPM = ทุก Level) - ยังอยู่ในช่วงปิดสมบูรณ์ + Register ตั้งแต่ 1 ม.ค. 68
+      // โครงการที่ใช้เฉลี่ยของตารางนี้ (CAPM = เฉพาะ Level 2+ · PMP = เฉพาะ Level 3+) - ยังอยู่ในช่วงปิดสมบูรณ์ + Register ตั้งแต่ 1 ม.ค. 68
       const lvOk = p => num(p['Project Level']) >= (R.scoreLevelMin || 0);
       const scored = s.scored.filter(lvOk), noScore = s.noScore.filter(lvOk);
       const sum = scored.reduce((t,p)=>t+num(p['Project Score']),0);
