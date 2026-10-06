@@ -9773,11 +9773,13 @@ function renderPiYearChart(){
 // ข้อ 4 SMARTGOAL (ชีต Smart Goal ปีละ 2 รอบ): กฎของ OAT - นับจากรอบล่าสุดที่มีคะแนน ย้อนหลัง 2 ปี = 4 รอบติดกัน
 //   ทุกรอบต้อง ≥ 90 ไม่ปัดเศษ · รอบไหนว่าง = ไม่ผ่าน · ถ้าไฟล์ยังไม่มีชีตนี้ = รอข้อมูล
 // ข้อ 5 จำนวนโครงการ: นับทุกโครงการใน Project Info ตาม Project Level (ไม่นับ Cancel)
-// ข้อ 6 Project Score: กฎของ OAT - เฉลี่ยเฉพาะโครงการ Completely Closed ที่ Register ตั้งแต่ 1 ม.ค. 2568 (ทุก Level)
+// ข้อ 6 Project Score: กฎของ OAT - เฉลี่ยเฉพาะโครงการ Completely Closed ที่ Register ตั้งแต่ 1 ม.ค. 2568
+//   CAPM ใช้ทุก Level · PMP ใช้เฉพาะ Level 3 ขึ้นไป (CERT_RULES.scoreLevelMin)
 const CERT_SCORE_FROM = new Date(2025, 0, 1);
 const CERT_RULES = {
   capm: { label:'CAPM', expYears:2, minScore:85, projHead:'Level 2+ ≥ 10 โครงการ', projOk: s => s.l2.length >= 10 },
-  pmp:  { label:'PMP',  expYears:5, minScore:90, projHead:'Level 3+ ≥ 6 หรือ Level 4 ≥ 3', projOk: s => s.l3.length >= 6 || s.l4.length >= 3 },
+  // scoreLevelMin: PMP เฉลี่ย Project Score เฉพาะโครงการ Level 3 ขึ้นไป (กฎของ OAT) · CAPM ไม่กรอง Level
+  pmp:  { label:'PMP',  expYears:5, minScore:90, scoreLevelMin:3, projHead:'Level 3+ ≥ 6 หรือ Level 4 ≥ 3', projOk: s => s.l3.length >= 6 || s.l4.length >= 3 },
 };
 const CERT_SG_MIN = 90, CERT_SG_ROUNDS = 4;   // 2 ปี × ปีละ 2 รอบ
 // ประเมิน SMARTGOAL ทั้งทีมพร้อมกัน: หา "รอบล่าสุดที่มีคะแนน" จากทั้งชีต (ไม่ใช่รายคน) แล้วตัดหน้าต่าง 4 รอบย้อนหลัง
@@ -9846,19 +9848,24 @@ function renderCertEligibility(){
       // ผ่านเมื่อค่าเฉลี่ยจริง ≥ เกณฑ์เท่านั้น ไม่ปัดเศษ (89.99 = ไม่ผ่าน 90)
       // เทียบผลรวมกับ เกณฑ์ × จำนวนโครงการ แทนการหาร กันเลขทศนิยม float คลาดจนค่า 90.00 พอดีกลายเป็น 89.9999 แล้วตกเกณฑ์
       // (1e-9 รับเฉพาะความคลาดของ float เท่านั้น เล็กกว่าความต่างจริงของคะแนนทศนิยม 2 ตำแหน่งหลายล้านเท่า)
-      const scorePass = s.avg != null && s.sum >= R.minScore * s.scored.length - 1e-9;
+      // โครงการที่ใช้เฉลี่ยของตารางนี้ (PMP = เฉพาะ Level 3+ · CAPM = ทุก Level) - ยังอยู่ในช่วงปิดสมบูรณ์ + Register ตั้งแต่ 1 ม.ค. 68
+      const lvOk = p => num(p['Project Level']) >= (R.scoreLevelMin || 0);
+      const scored = s.scored.filter(lvOk), noScore = s.noScore.filter(lvOk);
+      const sum = scored.reduce((t,p)=>t+num(p['Project Score']),0);
+      const avg = scored.length ? sum / scored.length : null;
+      const scorePass = avg != null && sum >= R.minScore * scored.length - 1e-9;
       const projList = key==='capm' ? s.l2 : s.l3;
       const projTip = projList.map(p=>`L${num(p['Project Level'])} · ${p['Project Name']} (${p['Status']})`).join('\n');
       const projCell = key==='capm'
         ? cell(projPass?'ok':'no', `${s.l2.length} โครงการ`, `ปิดสมบูรณ์ ${s.l2.filter(isDone).length}`, projTip)
         : cell(projPass?'ok':'no', `L3+ ${s.l3.length} · L4 ${s.l4.length}`, `ปิดสมบูรณ์ ${s.l3.filter(isDone).length} · ${s.l4.filter(isDone).length}`, projTip);
-      const scoreTip = s.scored.map(p=>`${num(p['Project Score']).toFixed(2)} · ${p['Project Name']} (Register ${p['Project Register Date']})`).join('\n')
-        + (s.noScore.length ? `\nไม่มีคะแนน ${s.noScore.length} โครงการ` : '');
-      const scoreCell = s.avg == null
+      const scoreTip = scored.map(p=>`${num(p['Project Score']).toFixed(2)} · L${num(p['Project Level'])} · ${p['Project Name']} (Register ${p['Project Register Date']})`).join('\n')
+        + (noScore.length ? `\nไม่มีคะแนน ${noScore.length} โครงการ` : '');
+      const scoreCell = avg == null
         ? cell('no', '—', 'ไม่มีโครงการเข้าเกณฑ์', scoreTip)
         // ห้ามปัดขึ้น: ตัดทศนิยมเหลือ 2 ตำแหน่ง (89.996 แสดง 89.99 ไม่ใช่ 90.00) ให้ตัวเลขที่เห็นตรงกับผลผ่าน/ไม่ผ่าน
         // การตัดสินใช้ค่าเฉลี่ยเต็มไม่ปัดเสมอ (scorePass ด้านบน) · +1e-6 กันเลขทศนิยม float เช่น 89.11*100 = 8910.9999
-        : cell(scorePass?'ok':'no', (Math.floor(s.avg*100 + 1e-6)/100).toFixed(2), `จาก ${s.scored.length} โครงการ`, scoreTip);
+        : cell(scorePass?'ok':'no', (Math.floor(avg*100 + 1e-6)/100).toFixed(2), `จาก ${scored.length} โครงการ`, scoreTip);
       // ข้อ 4 SMARTGOAL
       let sgPass = null, sgCell;
       if(!SG.loaded){
@@ -9898,7 +9905,7 @@ function renderCertEligibility(){
       <div>3. พนักงานประจำ<small>≥ 2 ปี</small></div>
       <div>4. SMARTGOAL<small>≥ ${CERT_SG_MIN} ทุกรอบ${SG.window.length ? ` · ${sgShort(SG.window[0])}–${sgShort(SG.window[SG.window.length-1])}` : ' · 2 ปีติดต่อกัน'}</small></div>
       <div>5. Project<small>${R.projHead}</small></div>
-      <div>6. Project Score<small>≥ ${R.minScore} · Register ตั้งแต่ 1 ม.ค. 68</small></div>
+      <div>6. Project Score<small>≥ ${R.minScore}${R.scoreLevelMin ? ` · Level ${R.scoreLevelMin}+` : ''} · Register ตั้งแต่ 1 ม.ค. 68</small></div>
       <div>ผล</div>
     </div>`;
     return { nPass, html: `<div class="ce-block"><div class="ce-title">${R.label}</div><div class="ce-scroll"><div class="ce-table">${head}${rows}</div></div></div>` };
