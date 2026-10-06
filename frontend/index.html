@@ -344,8 +344,8 @@
   .ce-block + .ce-block{border-top:1px solid var(--line-soft);}
   .ce-title{font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:8px;letter-spacing:.02em;}
   .ce-scroll{overflow-x:auto;padding-bottom:8px;}
-  .ce-table{min-width:1040px;}
-  .ce-row{display:grid;grid-template-columns:210px 92px 112px 112px 128px 178px 168px 128px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-soft);}
+  .ce-table{min-width:1062px;}
+  .ce-row{display:grid;grid-template-columns:210px 92px 112px 112px 150px 178px 168px 128px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-soft);}
   .ce-row:last-child{border-bottom:none;}
   .ce-row.ce-head{font-size:10.5px;color:var(--muted);font-weight:600;align-items:end;padding-top:0;}
   .ce-row.ce-head small{display:block;font-weight:400;color:var(--faint);font-size:9.5px;margin-top:2px;}
@@ -355,8 +355,8 @@
   .ce-row > :first-child{position:sticky;left:0;z-index:1;background:var(--surface);}
   @media (max-width:600px){
     .ce-block{padding:12px 12px 4px;}
-    .ce-table{min-width:930px;}
-    .ce-row{grid-template-columns:100px 92px 112px 112px 128px 178px 168px 128px;}
+    .ce-table{min-width:952px;}
+    .ce-row{grid-template-columns:100px 92px 112px 112px 150px 178px 168px 128px;}
     .ce-pm{gap:6px;font-size:11px;}
     .ce-pm .av{display:none;}
   }
@@ -371,6 +371,7 @@
   .ce-ic.wait{background:color-mix(in srgb,var(--warning) 16%,transparent);color:var(--warning);font-size:9px;}
   .ce-cell.no .ce-v b{color:var(--critical);}
   .ce-res{display:inline-block;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+  .ce-res.ok{background:color-mix(in srgb,var(--success) 15%,transparent);color:var(--success);}
   .ce-res.wait{background:color-mix(in srgb,var(--warning) 15%,transparent);color:var(--warning);}
   .ce-res.no{background:color-mix(in srgb,var(--critical) 11%,transparent);color:var(--critical);}
   .arch-msg.bad{color:var(--critical);}
@@ -2813,6 +2814,7 @@ let STOCK = [];
 let STOCKSUM = [];
 let PROJINFO = [];
 let PROJINFO_ALL = []; // ไม่ล็อกทีม - ใช้เฉพาะ card "ค้นหาทั้งบริษัท"
+let SMARTGOAL = [];   // ชีต Smart Goal - backend ส่งมาเฉพาะคนที่มีสิทธิ์เห็นการ์ด Certification Eligibility
 let PLAN = [], PLAN_TEAMWIDE = []; // แผนงานจาก tab "Project Plan" - มีแค่ชื่องาน วันเริ่ม วันจบ (ไม่มี % ในแผนเด็ดขาด)
 let ROWS_TEAMWIDE = []; // Progress1 เต็มทั้งทีมเสมอ ไม่ว่าใคร login (ไม่ผ่านการกรองรายบุคคล) - ใช้กับการ์ดที่ตั้งเป็น team-wide
 let PAYW_TEAMWIDE = [], PO_TEAMWIDE = [], STOCK_TEAMWIDE = [], STOCKSUM_TEAMWIDE = []; // คู่ team-wide ของ Tab 2
@@ -2901,6 +2903,7 @@ async function loadData(auto){
       STOCK = j.stock || [];
       STOCKSUM = j.stockSummary || [];
       PROJINFO = (j.projectInfo || []).map(normRow);
+      SMARTGOAL = Array.isArray(j.smartGoal) ? j.smartGoal : [];
       PROJINFO_ALL = (j.projectInfoAll || []).map(normRow);
       PLAN = j.projectPlan || [];
       PLAN_TEAMWIDE = j.projectPlanTeamWide || [];
@@ -2932,7 +2935,7 @@ async function loadData(auto){
     HIST = SEED_DATA.map(normRow);
     ALL = latestPerProject(HIST);
     REV = SEED_REVENUE.map(normRow);
-    PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = []; PROJINFO_ALL = []; EVM = {}; ROWS_TEAMWIDE = [];
+    PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = []; PROJINFO_ALL = []; SMARTGOAL = []; EVM = {}; ROWS_TEAMWIDE = [];
     PLAN = []; PLAN_TEAMWIDE = [];
     PAYW_TEAMWIDE = []; PO_TEAMWIDE = []; STOCK_TEAMWIDE = []; STOCKSUM_TEAMWIDE = [];
     setSource(false, null);
@@ -9767,7 +9770,8 @@ function renderPiYearChart(){
 
 // ==== Certification Eligibility: ผู้มีสิทธิ์ถูกเสนอชื่อเข้าสอบ CAPM / PMP ====
 // ข้อ 1-3 (คัดเลือก · ประสบการณ์ PM · พนักงานประจำ): OAT ยืนยันแล้วว่าผ่านทุกคน
-// ข้อ 4 SMARTGOAL: ไม่มีในไฟล์ - รอข้อมูล
+// ข้อ 4 SMARTGOAL (ชีต Smart Goal ปีละ 2 รอบ): กฎของ OAT - นับจากรอบล่าสุดที่มีคะแนน ย้อนหลัง 2 ปี = 4 รอบติดกัน
+//   ทุกรอบต้อง ≥ 90 ไม่ปัดเศษ · รอบไหนว่าง = ไม่ผ่าน · ถ้าไฟล์ยังไม่มีชีตนี้ = รอข้อมูล
 // ข้อ 5 จำนวนโครงการ: นับทุกโครงการใน Project Info ตาม Project Level (ไม่นับ Cancel)
 // ข้อ 6 Project Score: กฎของ OAT - เฉลี่ยเฉพาะโครงการ Completely Closed ที่ Register ตั้งแต่ 1 ม.ค. 2568 (ทุก Level)
 const CERT_SCORE_FROM = new Date(2025, 0, 1);
@@ -9775,6 +9779,26 @@ const CERT_RULES = {
   capm: { label:'CAPM', expYears:2, minScore:85, projHead:'Level 2+ ≥ 10 โครงการ', projOk: s => s.l2.length >= 10 },
   pmp:  { label:'PMP',  expYears:5, minScore:90, projHead:'Level 3+ ≥ 6 หรือ Level 4 ≥ 3', projOk: s => s.l3.length >= 6 || s.l4.length >= 3 },
 };
+const CERT_SG_MIN = 90, CERT_SG_ROUNDS = 4;   // 2 ปี × ปีละ 2 รอบ
+// ประเมิน SMARTGOAL ทั้งทีมพร้อมกัน: หา "รอบล่าสุดที่มีคะแนน" จากทั้งชีต (ไม่ใช่รายคน) แล้วตัดหน้าต่าง 4 รอบย้อนหลัง
+// ใช้รอบล่าสุดของทั้งชีต เพื่อให้ทุกคนถูกวัดด้วยช่วงเวลาเดียวกัน - ถ้าใครยังไม่มีคะแนนรอบล่าสุด จะเห็นว่าว่างและไม่ผ่าน
+function certSmartGoal(){
+  if(!SMARTGOAL.length) return { loaded:false, window:[], byPm:{} };
+  const rounds = (SMARTGOAL[0].scores || []).map(r => ({ year:r.year, round:r.round }));
+  let last = -1;
+  rounds.forEach((_, i) => { if(SMARTGOAL.some(row => row.scores[i] && row.scores[i].score != null)) last = i; });
+  const from = Math.max(0, last - CERT_SG_ROUNDS + 1);
+  const window = last < 0 ? [] : rounds.slice(from, last + 1).map((r, k) => ({ ...r, i: from + k }));
+  const byPm = {};
+  SMARTGOAL.forEach(row => {
+    const vals = window.map(w => ({ ...w, score: row.scores[w.i] ? row.scores[w.i].score : null }));
+    const enough = window.length === CERT_SG_ROUNDS;
+    const pass = enough && vals.every(v => v.score != null && v.score >= CERT_SG_MIN);
+    const present = vals.filter(v => v.score != null).map(v => v.score);
+    byPm[pmKey(row.pm)] = { vals, pass, enough, min: present.length ? Math.min(...present) : null, missing: vals.filter(v => v.score == null) };
+  });
+  return { loaded:true, window, byPm };
+}
 function certStatsByPM(){
   const byCode = {};   // กันรหัสซ้ำ (ข้อมูลจากคลังสะสมต่อท้าย) - ใช้แถวสุดท้ายของแต่ละรหัส
   PROJINFO.forEach(p=>{ const c = String(p['Project Code']||'').trim(); if(c) byCode[c] = p; });
@@ -9805,6 +9829,10 @@ function renderCertEligibility(){
   if(!el) return;
   if(!PROJINFO.length){ el.innerHTML = `<div class="empty">ยังไม่มีข้อมูลประวัติโครงการ - sync ข้อมูลแล้วลองใหม่</div>`; if(cnt) cnt.textContent = ''; return; }
   const stats = certStatsByPM();
+  const SG = certSmartGoal();
+  const sgLabel = w => `Y${w.year} #${w.round}`;
+  const sgShort = w => `Y${String(w.year).slice(2)}#${w.round}`;   // หัวตารางพื้นที่แคบ
+  const trunc2 = v => (Math.floor(v*100 + 1e-6)/100).toFixed(2);   // แสดงผลแบบตัดทศนิยม ไม่ปัดขึ้น
   const attr = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
   const isDone = p => String(p['Status']||'').trim().toLowerCase() === 'completely closed';
   const icon = k => `<i class="ce-ic ${k}">${k==='ok'?'✓':k==='no'?'✗':'⏳'}</i>`;
@@ -9819,7 +9847,6 @@ function renderCertEligibility(){
       // เทียบผลรวมกับ เกณฑ์ × จำนวนโครงการ แทนการหาร กันเลขทศนิยม float คลาดจนค่า 90.00 พอดีกลายเป็น 89.9999 แล้วตกเกณฑ์
       // (1e-9 รับเฉพาะความคลาดของ float เท่านั้น เล็กกว่าความต่างจริงของคะแนนทศนิยม 2 ตำแหน่งหลายล้านเท่า)
       const scorePass = s.avg != null && s.sum >= R.minScore * s.scored.length - 1e-9;
-      if(projPass && scorePass) nPass++;
       const projList = key==='capm' ? s.l2 : s.l3;
       const projTip = projList.map(p=>`L${num(p['Project Level'])} · ${p['Project Name']} (${p['Status']})`).join('\n');
       const projCell = key==='capm'
@@ -9832,14 +9859,34 @@ function renderCertEligibility(){
         // ห้ามปัดขึ้น: ตัดทศนิยมเหลือ 2 ตำแหน่ง (89.996 แสดง 89.99 ไม่ใช่ 90.00) ให้ตัวเลขที่เห็นตรงกับผลผ่าน/ไม่ผ่าน
         // การตัดสินใช้ค่าเฉลี่ยเต็มไม่ปัดเสมอ (scorePass ด้านบน) · +1e-6 กันเลขทศนิยม float เช่น 89.11*100 = 8910.9999
         : cell(scorePass?'ok':'no', (Math.floor(s.avg*100 + 1e-6)/100).toFixed(2), `จาก ${s.scored.length} โครงการ`, scoreTip);
-      const fails = [!projPass && '5', !scorePass && '6'].filter(Boolean);
+      // ข้อ 4 SMARTGOAL
+      let sgPass = null, sgCell;
+      if(!SG.loaded){
+        sgCell = cell('wait','รอข้อมูล');
+      } else {
+        const g = SG.byPm[s.pm];
+        if(!g){
+          sgPass = false; sgCell = cell('no','—','ไม่มีชื่อในชีต Smart Goal');
+        } else {
+          sgPass = g.pass;
+          const tip = g.vals.map(v => `${sgLabel(v)}: ${v.score == null ? 'ไม่มีคะแนน' : trunc2(v.score)} ${v.score != null && v.score >= CERT_SG_MIN ? '✓' : '✗'}`).join('\n')
+            + (g.enough ? '' : `\nข้อมูลไม่ถึง ${CERT_SG_ROUNDS} รอบ`);
+          const sub = !g.enough ? `มีแค่ ${g.vals.length} รอบ`
+            : g.missing.length ? `ว่าง ${g.missing.map(sgLabel).join(', ')}`
+            : `ต่ำสุดใน ${CERT_SG_ROUNDS} รอบ`;
+          sgCell = cell(sgPass ? 'ok' : 'no', g.min == null ? '—' : trunc2(g.min), sub, tip);
+        }
+      }
+      if(projPass && scorePass && (SG.loaded ? sgPass : true)) nPass++;   // ยังไม่มีชีต = นับคนที่รอ SMARTGOAL อย่างเดียว
+      const fails = [sgPass === false && '4', !projPass && '5', !scorePass && '6'].filter(Boolean);
       const result = fails.length
         ? `<span class="ce-res no">ไม่ผ่านข้อ ${fails.join(', ')}</span>`
+        : sgPass ? `<span class="ce-res ok">ผ่านทุกข้อ</span>`
         : `<span class="ce-res wait">รอ SMARTGOAL</span>`;
       return `<div class="ce-row">
         <div class="ce-pm"><div class="av" style="width:26px;height:26px;font-size:10px;background:${avatarColor(s.pm)}">${initials(s.pm)}</div><span>${s.pm}</span></div>
         ${cell('ok','ผ่าน')}${cell('ok','ผ่าน')}${cell('ok','ผ่าน')}
-        ${cell('wait','รอข้อมูล')}
+        ${sgCell}
         ${projCell}${scoreCell}
         <div class="ce-cell">${result}</div>
       </div>`;
@@ -9849,7 +9896,7 @@ function renderCertEligibility(){
       <div>1. คัดเลือก</div>
       <div>2. ประสบการณ์ PM<small>≥ ${R.expYears} ปี</small></div>
       <div>3. พนักงานประจำ<small>≥ 2 ปี</small></div>
-      <div>4. SMARTGOAL<small>90+ 2 ปีติดต่อกัน</small></div>
+      <div>4. SMARTGOAL<small>≥ ${CERT_SG_MIN} ทุกรอบ${SG.window.length ? ` · ${sgShort(SG.window[0])}–${sgShort(SG.window[SG.window.length-1])}` : ' · 2 ปีติดต่อกัน'}</small></div>
       <div>5. Project<small>${R.projHead}</small></div>
       <div>6. Project Score<small>≥ ${R.minScore} · Register ตั้งแต่ 1 ม.ค. 68</small></div>
       <div>ผล</div>
@@ -9857,7 +9904,7 @@ function renderCertEligibility(){
     return { nPass, html: `<div class="ce-block"><div class="ce-title">${R.label}</div><div class="ce-scroll"><div class="ce-table">${head}${rows}</div></div></div>` };
   };
   const capm = table('capm'), pmp = table('pmp');
-  if(cnt) cnt.textContent = `CAPM ${capm.nPass} · PMP ${pmp.nPass} คน · รอ SMARTGOAL`;
+  if(cnt) cnt.textContent = SG.loaded ? `ผ่านทุกข้อ: CAPM ${capm.nPass} · PMP ${pmp.nPass} คน` : `CAPM ${capm.nPass} · PMP ${pmp.nPass} คน · รอ SMARTGOAL`;
   el.innerHTML = capm.html + pmp.html;
 }
 

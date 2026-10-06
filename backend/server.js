@@ -413,6 +413,45 @@ function parseProjectInfoSheet(wb) {
   return { rows, sheetName };
 }
 
+// --- แกะไฟล์ Excel: sheet "Smart Goal" (คะแนน SMARTGOAL รายคน ปีละ 2 รอบ) ---
+// หัวคอลัมน์รูปแบบ "Smart Goal Y2024 #1" - อ่านปี/รอบจากหัวคอลัมน์แบบไดนามิก ปีหน้ามีคอลัมน์เพิ่มก็อ่านได้เลย
+// อ่านค่าดิบของเซลล์ (raw) ไม่ใช่ข้อความที่จัดรูปแบบแล้ว กันการปัดเศษจาก format ของเซลล์ (เกณฑ์ ≥ 90 ห้ามปัด)
+function parseSmartGoalSheet(wb) {
+  const sheetName = wb.SheetNames.find(n => n.replace(/\s+/g, '').toUpperCase() === 'SMARTGOAL');
+  if (!sheetName) return { rows: [], sheetName: null };
+  const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, raw: true, defval: null });
+  const hIdx = aoa.findIndex(r => Array.isArray(r) && r.some(v => String(v ?? '').trim().toUpperCase() === 'PM NAME'));
+  if (hIdx < 0) return { rows: [], sheetName };
+  const header = aoa[hIdx].map(h => String(h ?? '').replace(/\s+/g, ' ').trim());
+  const pmCol = header.findIndex(h => h.toUpperCase() === 'PM NAME');
+  const rounds = [];
+  header.forEach((h, i) => { const m = h.match(/Y\s*(\d{4})\s*#\s*(\d+)/i); if (m) rounds.push({ i, year: +m[1], round: +m[2] }); });
+  rounds.sort((a, b) => a.year - b.year || a.round - b.round);
+  const rows = aoa.slice(hIdx + 1)
+    .filter(r => Array.isArray(r) && String(r[pmCol] ?? '').trim())
+    .map(r => ({
+      pm: String(r[pmCol]).replace(/\s+/g, ' ').trim(),
+      scores: rounds.map(({ i, year, round }) => {
+        const v = r[i];
+        const n = (v === null || v === undefined || String(v).trim() === '') ? null : Number(String(v).replace(/,/g, ''));
+        return { year, round, score: Number.isFinite(n) ? n : null };
+      }),
+    }));
+  return { rows, sheetName };
+}
+
+// คะแนน SMARTGOAL เป็นผลประเมินรายบุคคล - ส่งให้เฉพาะคนที่มีสิทธิ์เห็นการ์ด Certification Eligibility เท่านั้น
+// ค่าเริ่มต้น (ยังไม่เคยตั้งสิทธิ์) = admin เท่านั้น ตรงกับ defaultVis:['oat'] ของการ์ดนี้ในหน้าเว็บ
+// (ไม่ส่งไปทั้งทีมแล้วค่อยซ่อนการ์ดในหน้าเว็บ เพราะข้อมูลจะยังอยู่ในเบราว์เซอร์ของทุกคน)
+function canSeeSmartGoal(user) {
+  if (!user) return false;
+  const uname = String(user.username || '').toLowerCase();
+  if (user.role === 'admin' || uname === 'oat') return true;
+  const rule = CARD_VISIBILITY.certEligibility;
+  if (rule === 'all') return true;
+  return Array.isArray(rule) && rule.map(u => String(u).toLowerCase()).includes(uname);
+}
+
 // --- แกะไฟล์ Excel: sheet ที่ชื่อเป็นรหัสโครงการล้วน ๆ (เช่น "335261233") ---
 // เป็น sheet EVM (Earned Value Management) ละเอียดที่ทีมทำเองสำหรับโครงการที่ต้องเจาะลึกเป็นพิเศษ
 // ไม่ตายตัวว่าต้องมีกี่ sheet - สแกนหาทุก sheet ที่ชื่อเป็นตัวเลขล้วน แล้ว parse ให้หมด เผื่ออนาคตมีเพิ่ม
@@ -751,6 +790,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const { rows: stockSummary, sheetName: stockSummarySheetName } = safeParse('SumStockM', () => parseSumStockM(wb), { rows: [], sheetName: null });
       const { rows: projectInfo, sheetName: projectInfoSheetName } = safeParse('Project Info', () => parseProjectInfoSheet(wb), { rows: [], sheetName: null });
       const { rows: projectPlanAll, sheetName: projectPlanSheetName } = safeParse('Project Plan', () => parseProjectPlanSheet(wb), { rows: [], sheetName: null });
+      const { rows: smartGoal, sheetName: smartGoalSheetName } = safeParse('Smart Goal', () => parseSmartGoalSheet(wb), { rows: [], sheetName: null });
 
       // Progress1 คือแกนหลัก ถ้าอ่านไม่ได้เลยแปลว่าไฟล์ผิดรูปแบบจริง ๆ - ไม่ควรเขียนทับข้อมูลเดิมที่ยังดีอยู่
       if (!rows.length) {
@@ -780,6 +820,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const stockTeam = stock.filter(s => inTeam(s.pmName));
       const stockSummaryTeam = stockSummary.filter(s => inTeam(s.pm));
       const projectInfoTeam = projectInfo.filter(p => inTeam(p['PM Name']));
+      const smartGoalTeam = smartGoal.filter(s => inTeam(s.pm));
 
       // Progress1 (rows) เป็นข้อมูลทีมเราอยู่แล้วโดยธรรมชาติ - ใช้รหัสโครงการจากตรงนี้เป็น whitelist
       // ให้ parseEvmSheets เจอเฉพาะ sheet ที่ตรงกับโครงการทีมเราเท่านั้น ไม่มีทางหลุดข้ามทีมได้
@@ -798,7 +839,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const revenueAll = [...revenue, ...fromArchive.revenue];
       const projectInfoTeamAll = [...projectInfoTeam, ...fromArchive.projectInfo];
 
-      latestData = { rows: rowsAll, revenue: revenueAll, paymentW: paymentWAll, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeamAll, projectInfoAll: projectInfo, evm, projectPlan, updatedAt: syncedAt };
+      latestData = { rows: rowsAll, revenue: revenueAll, paymentW: paymentWAll, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeamAll, projectInfoAll: projectInfo, evm, projectPlan, smartGoal: smartGoalTeam, updatedAt: syncedAt };
       lastRaw = {
         receivedAt: latestData.updatedAt,
         contentType: req.headers['content-type'] || null,
@@ -814,6 +855,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       console.log(`  + Project Info ${projectInfo.length}→${projectInfoTeam.length} (team) from "${projectInfoSheetName || '(not found)'}"`);
       console.log(`  + EVM sheets found: ${Object.keys(evm).length} (${Object.keys(evm).join(', ') || 'none'})`);
       console.log(`  + Project Plan ${projectPlanAll.length}→${projectPlan.length} (team) from "${projectPlanSheetName || '(not found)'}"`);
+      console.log(`  + Smart Goal ${smartGoal.length}→${smartGoalTeam.length} (team) from "${smartGoalSheetName || '(not found)'}"`);
       const nBack = fromArchive.rows.length + fromArchive.paymentW.length + fromArchive.revenue.length + fromArchive.projectInfo.length;
       if (nBack) {
         console.log(`  + ดึงจากคลังสะสมมาต่อท้าย: Progress1 ${fromArchive.rows.length} แถว · PaymentW ${fromArchive.paymentW.length} · Revenue ${fromArchive.revenue.length} · Project Info ${fromArchive.projectInfo.length}`);
@@ -1377,6 +1419,8 @@ ${lines}`
 
 app.get('/api/projects', requireAuth, (req, res) => {
   const { pmName, role } = req.user;
+  // ทับค่าจาก ...latestData เสมอ - คะแนน SMARTGOAL ส่งเฉพาะคนที่มีสิทธิ์เห็นการ์ด (ดู canSeeSmartGoal)
+  const smartGoal = canSeeSmartGoal(req.user) ? (latestData.smartGoal || []) : [];
   // rowsTeamWide: ข้อมูลทีมเต็มเสมอ ไม่ว่าใคร login (ไม่ถูกกรองรายบุคคล) - ใช้กับการ์ดที่ตั้งค่าให้เห็นทีมเต็มเสมอ
   // เช่น "Update PMS" ที่ OAT อยากให้ทุกคนในทีมเห็นสถานะทั้งทีม ไม่ใช่แค่โครงการของตัวเอง
   // paymentWTeamWide/poTeamWide/stockTeamWide/stockSummaryTeamWide เป็นคู่เดียวกัน สำหรับ card ฝั่ง Tab 2 (Finance & Stock)
@@ -1390,6 +1434,7 @@ app.get('/api/projects', requireAuth, (req, res) => {
     stockSummaryTeamWide: latestData.stockSummary,
     cardVisibility: CARD_VISIBILITY,
     cardDataScope: CARD_DATA_SCOPE,
+    smartGoal,
   });
 
   const target = normName(pmName);
@@ -1426,6 +1471,7 @@ app.get('/api/projects', requireAuth, (req, res) => {
     stockSummaryTeamWide: latestData.stockSummary,
     cardVisibility: CARD_VISIBILITY,
     cardDataScope: CARD_DATA_SCOPE,
+    smartGoal,
     scope: pmName,
   });
 });
