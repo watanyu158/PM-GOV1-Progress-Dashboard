@@ -9273,9 +9273,10 @@ function renderPayment(paywSource, codeSetList){
                 : `ออก Invoice ${fmtDate(inst.invoiceDate)} · เก็บเงินแล้ว ${thb(_al?_al.collected:0)} (อ้างอิงยอดรวมของโครงการ - แถวนี้ยังไม่ได้ลงวันที่รับเงิน)`)
           : state==='ship'
             ? (schedTaxOnly
-                ? `${fmtDate(inst.invoiceDate)} · ออก Tax Invoice แล้ว ยอด ${thb(num(inst.invoiced) > 0 ? inst.invoiced : inst.collecting)} · ${_stBilled
-                    ? `งวดที่ ${_stNo} วางบิลแล้ว - ยอดรอเก็บเงินนับจากการวางบิลของงวด ไม่นับซ้ำจากใบกำกับภาษีใบนี้`
-                    : `ยังไม่ได้วางบิล${_stNo ? `งวดที่ ${_stNo}` : ''} - ไม่นับเป็นยอดรอเก็บเงิน`}`
+                // งวดที่วางบิลแล้ว ไม่ต้องเขียนอธิบายต่อท้าย (OAT 15 ต.ค. 69: "ไม่ต้องเขียนบอกก็ได้ครับ")
+                ? `${fmtDate(inst.invoiceDate)} · ออก Tax Invoice แล้ว ยอด ${thb(num(inst.invoiced) > 0 ? inst.invoiced : inst.collecting)}${_stBilled
+                    ? ''
+                    : ` · ยังไม่ได้วางบิล${_stNo ? `งวดที่ ${_stNo}` : ''} - ไม่นับเป็นยอดรอเก็บเงิน`}`
               : taxOnlyRow
                 ? `ออกใบกำกับภาษีตอนส่งของ ${fmtDate(inst.invoiceDate)} · ${thb(inst.invoiced)} · ยังไม่ได้วางบิล (งวดสุดท้าย ต้องส่งมอบงานครบก่อน ตอนนี้ ${num(_al.taxOnlyPct).toLocaleString('en-US',{maximumFractionDigits:2})}%) - ยอดงวดนี้อยู่ในช่อง "ยังไม่วางบิล" ด้านบน`
                 : `ออกใบกำกับภาษีตอนส่งของ ${fmtDate(inst.invoiceDate)} · ${thb(inst.collecting)} - ไม่นับรวมใน billing ตามงวด`)
