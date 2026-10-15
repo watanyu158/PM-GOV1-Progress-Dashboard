@@ -9245,10 +9245,22 @@ function renderPayment(paywSource, codeSetList){
         const paidByAlloc = _al && _al.fullyCollected;
         // แถวงวดสุดท้ายที่ออกใบกำกับภาษีตอนส่งของไปก่อนโครงการเสร็จ - ยังไม่ได้วางบิล (ดู finalTaxOnlyInfo)
         const taxOnlyRow = !!(_al && _al.taxOnly);
+        // โครงการที่มีตารางงวดตามสัญญา (AOT): การวางบิลของงวดนับที่ "แถวเจ้าของงวด" เท่านั้น (ดู allocateCollection)
+        // แถวอื่นที่มียอด Collecting = ออก Tax Invoice อย่างเดียว ไม่ใช่การวางบิล จึงห้ามขึ้น "ออก Invoice แล้ว รอเก็บเงิน"
+        // (OAT ทัก 15 ต.ค. 69: งวดที่ 14 (ค่าติดตั้ง) ออก Tax Invoice 3,678,880 วันที่ 09 ต.ค. 69 โดยยังไม่ได้วางบิล
+        //  แต่การ์ดขึ้น "ออก Invoice แล้ว รอเก็บเงิน · ยังไม่ได้รับเงิน" เพราะเดิมดูแค่ Collecting > 0)
+        //  แถวใบกำกับภาษีส่งของ (📦) มีสถานะและคำอธิบายของตัวเองอยู่แล้ว ไม่รวมในกรณีนี้
+        const schedTaxOnly = !!CONTRACT_SCHEDULE[x.projectCode] && pending && !likelyStockInvoice && !taxOnlyRow
+          && !(_al && _al.billed > 0);
+        // งวดของแถวนี้วางบิลแล้วหรือยัง - ดูที่แถวเจ้าของงวด (หาแบบเดียวกับ allocateCollection)
+        const _stNo = schedTaxOnly ? (String(inst.desc||'').match(/งวดที่\s*(\d+)/)||[])[1] : null;
+        const _stOwner = _stNo ? (x.installments||[]).findIndex(o => new RegExp('งวดที่\\s*' + _stNo + '\\b').test(String(o.desc||''))) : -1;
+        const _stBilled = _stOwner >= 0 && !!(allocPay[_stOwner] && allocPay[_stOwner].billed > 0);
         let state, stateLabel, stateIcon;
         if(inst.collectedDate || paidByAlloc){ state='paid'; stateLabel='เก็บเงินแล้ว'; stateIcon='✓'; }
         else if(likelyStockInvoice){ state='ship'; stateLabel='ใบกำกับภาษี (ส่งของ)'; stateIcon='📦'; }
         else if(taxOnlyRow){ state='ship'; stateLabel='ใบกำกับภาษี (ส่งของ) · ยังไม่วางบิล'; stateIcon='📦'; }
+        else if(schedTaxOnly){ state='ship'; stateLabel = _stBilled ? 'ออก Tax Invoice แล้ว' : 'ออก Tax Invoice แล้ว · ยังไม่วางบิล'; stateIcon='🧾'; }
         else if(pending){ state='billing'; stateLabel='ออก Invoice แล้ว รอเก็บเงิน'; stateIcon='◕'; }
         else { state='waiting'; stateLabel='ยังไม่ออก Invoice'; stateIcon='○'; }
 
@@ -9260,7 +9272,11 @@ function renderPayment(paywSource, codeSetList){
                 ? `ออก Invoice ${fmtDate(inst.invoiceDate)} · เก็บเงินได้ ${fmtDate(inst.collectedDate)}`
                 : `ออก Invoice ${fmtDate(inst.invoiceDate)} · เก็บเงินแล้ว ${thb(_al?_al.collected:0)} (อ้างอิงยอดรวมของโครงการ - แถวนี้ยังไม่ได้ลงวันที่รับเงิน)`)
           : state==='ship'
-            ? (taxOnlyRow
+            ? (schedTaxOnly
+                ? `${fmtDate(inst.invoiceDate)} · ออก Tax Invoice แล้ว ยอด ${thb(num(inst.invoiced) > 0 ? inst.invoiced : inst.collecting)} · ${_stBilled
+                    ? `งวดที่ ${_stNo} วางบิลแล้ว - ยอดรอเก็บเงินนับจากการวางบิลของงวด ไม่นับซ้ำจากใบกำกับภาษีใบนี้`
+                    : `ยังไม่ได้วางบิล${_stNo ? `งวดที่ ${_stNo}` : ''} - ไม่นับเป็นยอดรอเก็บเงิน`}`
+              : taxOnlyRow
                 ? `ออกใบกำกับภาษีตอนส่งของ ${fmtDate(inst.invoiceDate)} · ${thb(inst.invoiced)} · ยังไม่ได้วางบิล (งวดสุดท้าย ต้องส่งมอบงานครบก่อน ตอนนี้ ${num(_al.taxOnlyPct).toLocaleString('en-US',{maximumFractionDigits:2})}%) - ยอดงวดนี้อยู่ในช่อง "ยังไม่วางบิล" ด้านบน`
                 : `ออกใบกำกับภาษีตอนส่งของ ${fmtDate(inst.invoiceDate)} · ${thb(inst.collecting)} - ไม่นับรวมใน billing ตามงวด`)
           : state==='billing'
