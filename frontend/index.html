@@ -5980,10 +5980,11 @@ const RR_TABLE = {
  11:{name:'ที่ปรึกษา (Consultant)',      def:'ขึ้นกับลักษณะลูกค้า สัญญา และความยากง่าย',              acc:'ตาม PM',   pm:'ตาม PM'},
 };
 
+// นับแบบรวมวันเริ่มและวันสิ้นสุด (OAT 20 ต.ค. 69: Aerothai-Network at Huahin 29/08/69 - 26/11/69 ต้องเป็น 90 วัน ไม่ใช่ 89)
 function rrDays(p){
   const a=parseD(p['Start Date']), b=parseD(p['End Date']);
   if(!a||!b) return null;
-  return Math.round((b-a)/86400000);
+  return Math.round((b-a)/86400000) + 1;
 }
 
 // จำแนกชนิดโครงการตามกฎที่ OAT กำหนด
