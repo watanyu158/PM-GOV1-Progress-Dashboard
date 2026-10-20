@@ -2815,6 +2815,7 @@ let STOCKSUM = [];
 let PROJINFO = [];
 let PROJINFO_ALL = []; // ไม่ล็อกทีม - ใช้เฉพาะ card "ค้นหาทั้งบริษัท"
 let SMARTGOAL = [];   // ชีต Smart Goal - backend ส่งมาเฉพาะคนที่มีสิทธิ์เห็นการ์ด Certification Eligibility
+let PLANWEIGHT = [];  // ชีต Plan Weight - น้ำหนักขั้นงานตามชนิดแผนของ PMS (การ์ด Revenue Recognition ใช้คอลัมน์ "ใหม่" เป็นมุม PM)
 let PLAN = [], PLAN_TEAMWIDE = []; // แผนงานจาก tab "Project Plan" - มีแค่ชื่องาน วันเริ่ม วันจบ (ไม่มี % ในแผนเด็ดขาด)
 let ROWS_TEAMWIDE = []; // Progress1 เต็มทั้งทีมเสมอ ไม่ว่าใคร login (ไม่ผ่านการกรองรายบุคคล) - ใช้กับการ์ดที่ตั้งเป็น team-wide
 let PAYW_TEAMWIDE = [], PO_TEAMWIDE = [], STOCK_TEAMWIDE = [], STOCKSUM_TEAMWIDE = []; // คู่ team-wide ของ Tab 2
@@ -2904,6 +2905,7 @@ async function loadData(auto){
       STOCKSUM = j.stockSummary || [];
       PROJINFO = (j.projectInfo || []).map(normRow);
       SMARTGOAL = Array.isArray(j.smartGoal) ? j.smartGoal : [];
+      PLANWEIGHT = Array.isArray(j.planWeight) ? j.planWeight : [];
       PROJINFO_ALL = (j.projectInfoAll || []).map(normRow);
       PLAN = j.projectPlan || [];
       PLAN_TEAMWIDE = j.projectPlanTeamWide || [];
@@ -2935,7 +2937,7 @@ async function loadData(auto){
     HIST = SEED_DATA.map(normRow);
     ALL = latestPerProject(HIST);
     REV = SEED_REVENUE.map(normRow);
-    PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = []; PROJINFO_ALL = []; SMARTGOAL = []; EVM = {}; ROWS_TEAMWIDE = [];
+    PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = []; PROJINFO_ALL = []; SMARTGOAL = []; PLANWEIGHT = []; EVM = {}; ROWS_TEAMWIDE = [];
     PLAN = []; PLAN_TEAMWIDE = [];
     PAYW_TEAMWIDE = []; PO_TEAMWIDE = []; STOCK_TEAMWIDE = []; STOCKSUM_TEAMWIDE = [];
     setSource(false, null);
@@ -5971,14 +5973,46 @@ const RR_TABLE = {
   2:{name:'ติดตั้ง/บริการ อย่างเดียว',   def:'มีแต่การติดตั้งหรือให้บริการอย่างเดียว',                acc:'100',      pm:'100'},
   3:{name:'ส่งของและติดตั้ง แบบที่ 1',   def:'ส่งของ+ติดตั้ง ไม่มีฝึกอบรม ไม่เกิน 30 วัน',           acc:'100',      pm:'90:10'},
   4:{name:'ส่งของและติดตั้ง แบบที่ 2',   def:'ส่งของ+ติดตั้ง มีฝึกอบรม ไม่เกิน 30 วัน',              acc:'100',      pm:'80:10:10'},
-  5:{name:'ส่งของและติดตั้ง แบบที่ 3',   def:'ส่งของ+ติดตั้ง ไม่มีฝึกอบรม 1-3 เดือน',                acc:'90:10',    pm:'80:20'},
-  6:{name:'ส่งของและติดตั้ง แบบที่ 4',   def:'ส่งของ+ติดตั้ง มีฝึกอบรม 1-3 เดือน',                   acc:'90:10',    pm:'70:20:10'},
-  7:{name:'ส่งของและติดตั้ง แบบที่ 5',   def:'ส่งของ+ติดตั้ง ไม่มีฝึกอบรม มากกว่า 3 เดือน',          acc:'70:30',    pm:'70:30'},
-  8:{name:'ส่งของและติดตั้ง แบบที่ 6',   def:'ส่งของ+ติดตั้ง มีฝึกอบรม มากกว่า 3 เดือน',             acc:'70:30',    pm:'60:30:10'},
-  9:{name:'จ้างเหมาทั่วไป',              def:'ขึ้นกับลักษณะลูกค้า สัญญา และความยากง่าย',              acc:'ตาม PM',   pm:'ตาม PM'},
+  // มุม PM ชนิด 5-9 = ค่า "ใหม่" ของชีต Plan Weight (20 ต.ค. 69 เพิ่มขั้นปิดโครงการ 10) - เป็นค่าสำรองเมื่อไฟล์ไม่มีชีตนี้ (ดู rrPmRatio)
+  5:{name:'ส่งของและติดตั้ง แบบที่ 3',   def:'ส่งของ+ติดตั้ง ไม่มีฝึกอบรม 1-3 เดือน',                acc:'90:10',    pm:'80:10:0:10'},
+  6:{name:'ส่งของและติดตั้ง แบบที่ 4',   def:'ส่งของ+ติดตั้ง มีฝึกอบรม 1-3 เดือน',                   acc:'90:10',    pm:'70:15:5:10'},
+  7:{name:'ส่งของและติดตั้ง แบบที่ 5',   def:'ส่งของ+ติดตั้ง ไม่มีฝึกอบรม มากกว่า 3 เดือน',          acc:'70:30',    pm:'70:20:0:10'},
+  8:{name:'ส่งของและติดตั้ง แบบที่ 6',   def:'ส่งของ+ติดตั้ง มีฝึกอบรม มากกว่า 3 เดือน',             acc:'70:30',    pm:'60:25:5:10'},
+  9:{name:'จ้างเหมาทั่วไป',              def:'ขึ้นกับลักษณะลูกค้า สัญญา และความยากง่าย',              acc:'ตาม PM',   pm:'ตาม PM + ปิดโครงการ 10'},
  10:{name:'พัฒนาระบบงาน (Application)',  def:'ความยากขึ้นกับการสรุปความต้องการผู้ใช้เป็นหลัก',        acc:'40:30:30', pm:'40:30:30'},
  11:{name:'ที่ปรึกษา (Consultant)',      def:'ขึ้นกับลักษณะลูกค้า สัญญา และความยากง่าย',              acc:'ตาม PM',   pm:'ตาม PM'},
 };
+
+// ===== มุม PM จากชีต Plan Weight (คอลัมน์ "ใหม่") =====
+// OAT 20 ต.ค. 69 เลือก "คง 11 ชนิดเดิม เปลี่ยนแค่สัดส่วน" - จับคู่ชนิดของการ์ดกับแถวในชีตด้วยชื่อชนิด + อบรม + ระยะเวลา
+// ไม่ใช้เลขลำดับ เพราะเลขในชีตไม่ตรงกับเลข Plan Master ของ PMS (จ้างเหมา ไม่มีสินค้า = 17/18 ในชีต แต่ 18/19 ใน Plan Master)
+// "-" = ไม่เปลี่ยน ใช้ค่าในตาราง · "x" = ตาม PM · ชนิด 10 (Application) และ 11 (ที่ปรึกษา) ไม่มีในชีต ใช้ค่าในตารางตามเดิม
+const RR_PW_DUR = {
+  le1: d => /ไม่เกิน\s*1\s*เดือน/.test(d) && !/มากกว่า/.test(d),
+  m13: d => /มากกว่า\s*1\s*เดือน/.test(d) && /ไม่เกิน\s*3\s*เดือน/.test(d),
+  gt3: d => /มากกว่า\s*3\s*เดือน/.test(d),
+};
+const rrPwInstall = (tr, dur) => r => /ส่งของและติดตั้ง/.test(r.planType) && r.training === tr && RR_PW_DUR[dur](r.desc || '');
+const RR_PW_MATCH = {
+  1: r => /ส่งของอย่างเดียว/.test(r.planType),
+  2: r => /ติดตั้งอย่างเดียว/.test(r.planType),
+  3: rrPwInstall(false, 'le1'), 4: rrPwInstall(true, 'le1'),
+  5: rrPwInstall(false, 'm13'), 6: rrPwInstall(true, 'm13'),
+  7: rrPwInstall(false, 'gt3'), 8: rrPwInstall(true, 'gt3'),
+  9: r => /^จ้างเหมา/.test(r.planType),
+};
+function rrPmRatio(n){
+  // "ปิดโครงการ 10" ห้ามแยกบรรทัด - กล่องเล็ก ถ้าตัดจะเหลือ "ปิด" ค้างบรรทัดบน
+  // (ใช้ <em> ไม่ใช่ <span> เพราะ .rr-pct span มีกรอบของกล่องตัวเลขอยู่แล้ว)
+  const fmt = v => v.replace(/ปิดโครงการ\s*(\d+(?:\.\d+)?)/, '<em style="font-style:normal;white-space:nowrap">ปิดโครงการ $1</em>');
+  const base = RR_TABLE[n] ? RR_TABLE[n].pm : '-';
+  const match = RR_PW_MATCH[n];
+  if(!match || !PLANWEIGHT.length) return fmt(base);
+  const vals = [...new Set(PLANWEIGHT.filter(match).map(r => String(r.newRatio||'').replace(/\s+/g,'')).filter(v => v && v !== '-'))];
+  if(vals.length !== 1) return fmt(base);   // ไม่มีค่าใหม่ หรือแถวที่ตรงกันให้ค่าไม่เท่ากัน -> ใช้ค่าในตาราง
+  const mx = vals[0].match(/^(?:x:)+(\d+(?:\.\d+)?)$/i);   // "x:10" = ขั้นก่อนหน้าตาม PM + ปิดโครงการ 10
+  return fmt(mx ? `ตาม PM + ปิดโครงการ ${mx[1]}` : vals[0]);
+}
 
 // นับแบบรวมวันเริ่มและวันสิ้นสุด (OAT 20 ต.ค. 69: Aerothai-Network at Huahin 29/08/69 - 26/11/69 ต้องเป็น 90 วัน ไม่ใช่ 89)
 function rrDays(p){
@@ -6043,9 +6077,10 @@ function renderRevenueRecognition(list){
   document.getElementById('rrCount').textContent=`จำแนกได้ ${nOk} จาก ${src.length}`;
 
   const nums=Object.keys(byType).map(Number).sort((a,b)=>a-b);
+  const pmOf={}; nums.forEach(n=>{ pmOf[n]=rrPmRatio(n); });
   el.innerHTML=`
     <div class="rr-note">จำแนกชนิดโครงการจาก <b>Project Type</b> + <b>Service Type</b> + <b>Training</b> + ระยะเวลาโครงการ
-      · รูปแบบ A:B:C คือสัดส่วนรับรู้ตามลำดับขั้น (ส่งของ : ติดตั้ง : อบรม)
+      · รูปแบบ A:B:C:D คือสัดส่วนรับรู้ตามลำดับขั้น (ส่งของ : ติดตั้ง : อบรม : ปิดโครงการ)
       · โครงการที่ไม่ระบุ Training ถือว่าไม่มีอบรมไว้ก่อน</div>
     <div class="rr-grid">
       ${nums.map(n=>{
@@ -6053,7 +6088,7 @@ function renderRevenueRecognition(list){
         return `<div class="rr-card">
           <div class="rr-h"><span class="rr-no">${n}</span><b>${t.name}</b><span class="rr-cnt">${items.length}</span></div>
           <div class="rr-def">${t.def}</div>
-          <div class="rr-pct"><span><i>มุมบัญชี</i><b>${t.acc}</b></span><span><i>มุม PM</i><b>${t.pm}</b></span></div>
+          <div class="rr-pct"><span><i>มุมบัญชี</i><b>${t.acc}</b></span><span><i>มุม PM</i><b>${pmOf[n]}</b></span></div>
         </div>`;
       }).join('')}
     </div>
@@ -6071,7 +6106,7 @@ function renderRevenueRecognition(list){
         const t=RR_TABLE[n];
         return `<tr><td>${p['Project Code']||'-'}</td><td>${String(p['Project Name']||'-').slice(0,50)}</td>
           <td>${n}. ${t.name}</td><td>${rrTypeCell(p)}</td><td>${r.days!=null?r.days+' วัน':'-'}</td>
-          <td>${r.training?'มี':'-'}</td><td>${t.acc}</td><td>${t.pm}</td></tr>`;
+          <td>${r.training?'มี':'-'}</td><td>${t.acc}</td><td>${pmOf[n]}</td></tr>`;
       })).join('')}
       ${[...na, ...miss].map(({p,why})=>`<tr class="rr-row-na"><td>${p['Project Code']||'-'}</td><td>${String(p['Project Name']||'-').slice(0,50)}</td>
         <td class="rr-why">${why}</td><td>${rrTypeCell(p)}</td>

@@ -440,6 +440,59 @@ function parseSmartGoalSheet(wb) {
   return { rows, sheetName };
 }
 
+// --- แกะไฟล์ Excel: sheet "Plan Weight" (น้ำหนักขั้นงานตามชนิดแผนของ PMS) ---
+// คอลัมน์ "เดิม" / "ใหม่" = สัดส่วนสรุป (ส่งของ : ติดตั้ง : อบรม : ปิดโครงการ) · "-" = ไม่เปลี่ยนจากเดิม · "x" = ตาม PM
+// การ์ด Revenue Recognition ใช้ค่า "ใหม่" เป็นช่องมุม PM (OAT 20 ต.ค. 69: คง 11 ชนิดเดิม เปลี่ยนแค่สัดส่วน)
+// อ่านตามชื่อหัวคอลัมน์ ไม่ยึดตำแหน่ง · ชื่อขั้นงานมีหัวซ้ำ 2 ชุด: ชุดแรก = น้ำหนักเดิม, ชุดที่สอง = น้ำหนักใหม่
+// (หัว "Training" มี 3 ที่: คอลัมน์ Yes/No มาก่อนเสมอ ตามด้วยขั้น Training ของชุดเดิมและชุดใหม่)
+const PLAN_PHASES = ['Initiating', 'Assessment / Site Prep', 'Ship to Warehouse / Staging', 'Ship to Customer',
+  'Implementation / Work Phase', 'Training', 'Project Closing'];
+function parsePlanWeightSheet(wb) {
+  const sheetName = wb.SheetNames.find(n => n.replace(/\s+/g, '').toUpperCase() === 'PLANWEIGHT');
+  if (!sheetName) return { rows: [], sheetName: null };
+  const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, raw: true, defval: null });
+  const norm = v => String(v ?? '').replace(/\s+/g, ' ').trim();
+  const hIdx = aoa.findIndex(r => Array.isArray(r) && r.some(v => norm(v).toUpperCase() === 'PLAN TYPE'));
+  if (hIdx < 0) return { rows: [], sheetName };
+  const header = aoa[hIdx].map(norm);
+  const col = name => header.findIndex(h => h.toUpperCase() === name.toUpperCase());
+  const cType = col('Plan Type'), cDesc = col('Description'), cPay = col('Payment Type'), cTr = col('Training'),
+        cRev = col('Recommend Rev Plan Type'), cOld = col('เดิม'), cNew = col('ใหม่');
+  // จุดเริ่มของแต่ละชุดน้ำหนัก = ตำแหน่งของหัว "Initiating" แต่ละครั้ง
+  const starts = header.map((h, i) => h.toUpperCase() === 'INITIATING' ? i : -1).filter(i => i >= 0);
+  const phaseCols = starts.map((s, k) => {
+    const end = k + 1 < starts.length ? starts[k + 1] : header.length;
+    const m = {};
+    PLAN_PHASES.forEach(ph => {
+      const i = header.findIndex((h, j) => j >= s && j < end && h.toUpperCase() === ph.toUpperCase());
+      if (i >= 0) m[ph] = i;
+    });
+    return m;
+  });
+  const numOrNull = v => (v === null || v === undefined || String(v).trim() === '') ? null
+    : (Number.isFinite(Number(String(v).replace(/,/g, ''))) ? Number(String(v).replace(/,/g, '')) : null);
+  const weights = (r, k) => {
+    if (!phaseCols[k]) return null;
+    const w = {};
+    Object.entries(phaseCols[k]).forEach(([ph, i]) => { w[ph] = numOrNull(r[i]); });
+    return w;
+  };
+  const rows = aoa.slice(hIdx + 1)
+    .filter(r => Array.isArray(r) && cType >= 0 && norm(r[cType]))
+    .map(r => ({
+      planType: norm(r[cType]),
+      desc: cDesc >= 0 ? norm(r[cDesc]) : '',
+      payType: cPay >= 0 ? norm(r[cPay]) : '',
+      training: cTr >= 0 && norm(r[cTr]) ? /^y/i.test(norm(r[cTr])) : null,
+      revType: cRev >= 0 ? norm(r[cRev]) : '',
+      oldRatio: cOld >= 0 ? norm(r[cOld]) : '',
+      newRatio: cNew >= 0 ? norm(r[cNew]) : '',
+      oldW: weights(r, 0),
+      newW: weights(r, 1),
+    }));
+  return { rows, sheetName };
+}
+
 // คะแนน SMARTGOAL เป็นผลประเมินรายบุคคล - ส่งให้เฉพาะคนที่มีสิทธิ์เห็นการ์ด Certification Eligibility เท่านั้น
 // ค่าเริ่มต้น (ยังไม่เคยตั้งสิทธิ์) = admin เท่านั้น ตรงกับ defaultVis:['oat'] ของการ์ดนี้ในหน้าเว็บ
 // (ไม่ส่งไปทั้งทีมแล้วค่อยซ่อนการ์ดในหน้าเว็บ เพราะข้อมูลจะยังอยู่ในเบราว์เซอร์ของทุกคน)
@@ -791,6 +844,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const { rows: projectInfo, sheetName: projectInfoSheetName } = safeParse('Project Info', () => parseProjectInfoSheet(wb), { rows: [], sheetName: null });
       const { rows: projectPlanAll, sheetName: projectPlanSheetName } = safeParse('Project Plan', () => parseProjectPlanSheet(wb), { rows: [], sheetName: null });
       const { rows: smartGoal, sheetName: smartGoalSheetName } = safeParse('Smart Goal', () => parseSmartGoalSheet(wb), { rows: [], sheetName: null });
+      const { rows: planWeight, sheetName: planWeightSheetName } = safeParse('Plan Weight', () => parsePlanWeightSheet(wb), { rows: [], sheetName: null });
 
       // Progress1 คือแกนหลัก ถ้าอ่านไม่ได้เลยแปลว่าไฟล์ผิดรูปแบบจริง ๆ - ไม่ควรเขียนทับข้อมูลเดิมที่ยังดีอยู่
       if (!rows.length) {
@@ -839,7 +893,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const revenueAll = [...revenue, ...fromArchive.revenue];
       const projectInfoTeamAll = [...projectInfoTeam, ...fromArchive.projectInfo];
 
-      latestData = { rows: rowsAll, revenue: revenueAll, paymentW: paymentWAll, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeamAll, projectInfoAll: projectInfo, evm, projectPlan, smartGoal: smartGoalTeam, updatedAt: syncedAt };
+      latestData = { rows: rowsAll, revenue: revenueAll, paymentW: paymentWAll, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeamAll, projectInfoAll: projectInfo, evm, projectPlan, smartGoal: smartGoalTeam, planWeight, updatedAt: syncedAt };
       lastRaw = {
         receivedAt: latestData.updatedAt,
         contentType: req.headers['content-type'] || null,
@@ -856,6 +910,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       console.log(`  + EVM sheets found: ${Object.keys(evm).length} (${Object.keys(evm).join(', ') || 'none'})`);
       console.log(`  + Project Plan ${projectPlanAll.length}→${projectPlan.length} (team) from "${projectPlanSheetName || '(not found)'}"`);
       console.log(`  + Smart Goal ${smartGoal.length}→${smartGoalTeam.length} (team) from "${smartGoalSheetName || '(not found)'}"`);
+      console.log(`  + Plan Weight ${planWeight.length} แถว from "${planWeightSheetName || '(not found)'}"`);
       const nBack = fromArchive.rows.length + fromArchive.paymentW.length + fromArchive.revenue.length + fromArchive.projectInfo.length;
       if (nBack) {
         console.log(`  + ดึงจากคลังสะสมมาต่อท้าย: Progress1 ${fromArchive.rows.length} แถว · PaymentW ${fromArchive.paymentW.length} · Revenue ${fromArchive.revenue.length} · Project Info ${fromArchive.projectInfo.length}`);
