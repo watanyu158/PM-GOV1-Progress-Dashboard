@@ -493,6 +493,56 @@ function parsePlanWeightSheet(wb) {
   return { rows, sheetName };
 }
 
+// --- แกะไฟล์ Excel: sheet "Revenue <ปี>" เช่น "Revenue 2026" (รายได้ที่รับรู้รายเดือนทั้งบริษัท ต่อโครงการ) ---
+// ใช้กับการ์ด Productivity per Workload: เดือนที่ผ่านไปแล้ว = รายได้ที่รับรู้จริง · เดือนข้างหน้า = แผน
+// หัวเดือนรูปแบบ "JAN '26" - อ่านเดือน/ปีจากหัวคอลัมน์ ไม่ยึดตำแหน่ง · ถ้ามีหลายปีในไฟล์ เลือกปีล่าสุด
+const REV_MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+function parseRevenueYearSheet(wb) {
+  const cands = wb.SheetNames
+    .map(n => ({ n, m: n.replace(/\s+/g, ' ').trim().match(/^REVENUE\s*(\d{4})$/i) }))
+    .filter(x => x.m)
+    .sort((a, b) => +b.m[1] - +a.m[1]);
+  if (!cands.length) return { year: null, rows: [], sheetName: null };
+  const { n: sheetName, m } = cands[0];
+  const year = +m[1];
+  const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, raw: true, defval: null });
+  const norm = v => String(v ?? '').replace(/\s+/g, ' ').trim();
+  const hIdx = aoa.findIndex(r => Array.isArray(r) && r.some(v => norm(v).toUpperCase() === 'PROJECT CODE'));
+  if (hIdx < 0) return { year, rows: [], sheetName };
+  const header = aoa[hIdx].map(norm);
+  const col = name => header.findIndex(h => h.toUpperCase() === name.toUpperCase());
+  const cCode = col('Project Code'), cName = col('Project Name'), cPm = col('PM Name'), cRt = col('Revenue Type'), cSp = col('Selling Price');
+  const monthCol = Array(12).fill(-1);
+  let cBefore = -1, cAfter = -1;
+  header.forEach((h, i) => {
+    const mm = h.match(/^([A-Z]{3})\s*['’]?\s*(\d{2})$/i);
+    if (mm && 2000 + +mm[2] === year) { const k = REV_MONTHS.indexOf(mm[1].toUpperCase()); if (k >= 0) monthCol[k] = i; }
+    if (new RegExp('^<\\s*' + year + '$').test(h)) cBefore = i;
+    if (new RegExp('^>\\s*' + year + '$').test(h)) cAfter = i;
+  });
+  if (cCode < 0 || monthCol.some(i => i < 0)) return { year, rows: [], sheetName };
+  const toN = v => { if (v === null || v === undefined || v === '') return 0; const x = Number(String(v).replace(/,/g, '')); return Number.isFinite(x) ? x : 0; };
+  const rows = aoa.slice(hIdx + 1)
+    .filter(r => Array.isArray(r) && norm(r[cCode]))
+    .map(r => ({
+      code: norm(r[cCode]), name: cName >= 0 ? norm(r[cName]) : '', pm: cPm >= 0 ? norm(r[cPm]) : '',
+      revType: cRt >= 0 ? norm(r[cRt]) : '', sellingPrice: cSp >= 0 ? toN(r[cSp]) : 0,
+      m: monthCol.map(i => toN(r[i])), before: cBefore >= 0 ? toN(r[cBefore]) : 0, after: cAfter >= 0 ? toN(r[cAfter]) : 0,
+    }));
+  return { year, rows, sheetName };
+}
+
+// การ์ดที่เป็นข้อมูลประเมินรายบุคคล (ค่าเริ่มต้นเห็นเฉพาะ admin/OAT) - ข้อมูลที่ใช้เฉพาะการ์ดนั้นส่งให้เฉพาะคนที่เห็นการ์ด
+// กติกาเดียวกับ canSeeSmartGoal: admin/oat เห็นเสมอ · ตั้ง 'all' = ทุกคน · ตั้งรายชื่อ = เฉพาะคนในรายชื่อ
+function canSeeAdminOnlyCard(user, cardId) {
+  if (!user) return false;
+  const uname = String(user.username || '').toLowerCase();
+  if (user.role === 'admin' || uname === 'oat') return true;
+  const rule = CARD_VISIBILITY[cardId];
+  if (rule === 'all') return true;
+  return Array.isArray(rule) && rule.map(u => String(u).toLowerCase()).includes(uname);
+}
+
 // คะแนน SMARTGOAL เป็นผลประเมินรายบุคคล - ส่งให้เฉพาะคนที่มีสิทธิ์เห็นการ์ด Certification Eligibility เท่านั้น
 // ค่าเริ่มต้น (ยังไม่เคยตั้งสิทธิ์) = admin เท่านั้น ตรงกับ defaultVis:['oat'] ของการ์ดนี้ในหน้าเว็บ
 // (ไม่ส่งไปทั้งทีมแล้วค่อยซ่อนการ์ดในหน้าเว็บ เพราะข้อมูลจะยังอยู่ในเบราว์เซอร์ของทุกคน)
@@ -845,6 +895,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const { rows: projectPlanAll, sheetName: projectPlanSheetName } = safeParse('Project Plan', () => parseProjectPlanSheet(wb), { rows: [], sheetName: null });
       const { rows: smartGoal, sheetName: smartGoalSheetName } = safeParse('Smart Goal', () => parseSmartGoalSheet(wb), { rows: [], sheetName: null });
       const { rows: planWeight, sheetName: planWeightSheetName } = safeParse('Plan Weight', () => parsePlanWeightSheet(wb), { rows: [], sheetName: null });
+      const { year: revYear, rows: revYearAll, sheetName: revYearSheetName } = safeParse('Revenue <ปี>', () => parseRevenueYearSheet(wb), { year: null, rows: [], sheetName: null });
 
       // Progress1 คือแกนหลัก ถ้าอ่านไม่ได้เลยแปลว่าไฟล์ผิดรูปแบบจริง ๆ - ไม่ควรเขียนทับข้อมูลเดิมที่ยังดีอยู่
       if (!rows.length) {
@@ -875,6 +926,8 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const stockSummaryTeam = stockSummary.filter(s => inTeam(s.pm));
       const projectInfoTeam = projectInfo.filter(p => inTeam(p['PM Name']));
       const smartGoalTeam = smartGoal.filter(s => inTeam(s.pm));
+      // ชีตรายได้รายเดือนเป็นข้อมูลทั้งบริษัท - เก็บเฉพาะโครงการของทีม
+      const revenueYear = revYear ? { year: revYear, rows: revYearAll.filter(r => inTeam(r.pm)) } : null;
 
       // Progress1 (rows) เป็นข้อมูลทีมเราอยู่แล้วโดยธรรมชาติ - ใช้รหัสโครงการจากตรงนี้เป็น whitelist
       // ให้ parseEvmSheets เจอเฉพาะ sheet ที่ตรงกับโครงการทีมเราเท่านั้น ไม่มีทางหลุดข้ามทีมได้
@@ -893,7 +946,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const revenueAll = [...revenue, ...fromArchive.revenue];
       const projectInfoTeamAll = [...projectInfoTeam, ...fromArchive.projectInfo];
 
-      latestData = { rows: rowsAll, revenue: revenueAll, paymentW: paymentWAll, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeamAll, projectInfoAll: projectInfo, evm, projectPlan, smartGoal: smartGoalTeam, planWeight, updatedAt: syncedAt };
+      latestData = { rows: rowsAll, revenue: revenueAll, paymentW: paymentWAll, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeamAll, projectInfoAll: projectInfo, evm, projectPlan, smartGoal: smartGoalTeam, planWeight, revenueYear, updatedAt: syncedAt };
       lastRaw = {
         receivedAt: latestData.updatedAt,
         contentType: req.headers['content-type'] || null,
@@ -911,6 +964,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       console.log(`  + Project Plan ${projectPlanAll.length}→${projectPlan.length} (team) from "${projectPlanSheetName || '(not found)'}"`);
       console.log(`  + Smart Goal ${smartGoal.length}→${smartGoalTeam.length} (team) from "${smartGoalSheetName || '(not found)'}"`);
       console.log(`  + Plan Weight ${planWeight.length} แถว from "${planWeightSheetName || '(not found)'}"`);
+      console.log(`  + Revenue ${revYear || '-'}: ${revYearAll.length}→${revenueYear ? revenueYear.rows.length : 0} (team) from "${revYearSheetName || '(not found)'}"`);
       const nBack = fromArchive.rows.length + fromArchive.paymentW.length + fromArchive.revenue.length + fromArchive.projectInfo.length;
       if (nBack) {
         console.log(`  + ดึงจากคลังสะสมมาต่อท้าย: Progress1 ${fromArchive.rows.length} แถว · PaymentW ${fromArchive.paymentW.length} · Revenue ${fromArchive.revenue.length} · Project Info ${fromArchive.projectInfo.length}`);
@@ -1476,6 +1530,8 @@ app.get('/api/projects', requireAuth, (req, res) => {
   const { pmName, role } = req.user;
   // ทับค่าจาก ...latestData เสมอ - คะแนน SMARTGOAL ส่งเฉพาะคนที่มีสิทธิ์เห็นการ์ด (ดู canSeeSmartGoal)
   const smartGoal = canSeeSmartGoal(req.user) ? (latestData.smartGoal || []) : [];
+  // รายได้รายเดือนต่อโครงการใช้เฉพาะการ์ด Productivity per Workload (ค่าเริ่มต้นเห็นเฉพาะ OAT) - ส่งให้เฉพาะคนที่เห็นการ์ด
+  const revenueYear = canSeeAdminOnlyCard(req.user, 'productivityWorkload') ? (latestData.revenueYear || null) : null;
   // rowsTeamWide: ข้อมูลทีมเต็มเสมอ ไม่ว่าใคร login (ไม่ถูกกรองรายบุคคล) - ใช้กับการ์ดที่ตั้งค่าให้เห็นทีมเต็มเสมอ
   // เช่น "Update PMS" ที่ OAT อยากให้ทุกคนในทีมเห็นสถานะทั้งทีม ไม่ใช่แค่โครงการของตัวเอง
   // paymentWTeamWide/poTeamWide/stockTeamWide/stockSummaryTeamWide เป็นคู่เดียวกัน สำหรับ card ฝั่ง Tab 2 (Finance & Stock)
@@ -1490,6 +1546,7 @@ app.get('/api/projects', requireAuth, (req, res) => {
     cardVisibility: CARD_VISIBILITY,
     cardDataScope: CARD_DATA_SCOPE,
     smartGoal,
+    revenueYear,
   });
 
   const target = normName(pmName);
@@ -1527,6 +1584,7 @@ app.get('/api/projects', requireAuth, (req, res) => {
     cardVisibility: CARD_VISIBILITY,
     cardDataScope: CARD_DATA_SCOPE,
     smartGoal,
+    revenueYear,
     scope: pmName,
   });
 });

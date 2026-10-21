@@ -1880,6 +1880,76 @@
     }
   }
 
+  /* ---------------- Productivity per Workload (การ์ดเฉพาะ OAT) ---------------- */
+  .ppw{--ppw-ctx:#CDBFAB;--ppw-wash:rgba(122,92,62,.10);--ppw-future:rgba(122,92,62,.055);font-size:13px;color:var(--ink);}
+  .ppw-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;}
+  .ppw-sub{font-size:12px;color:var(--muted);line-height:1.6;}
+  .ppw-mode{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+  .ppw-mode .ppw-lbl{font-size:11.5px;color:var(--muted);margin-right:2px;}
+  .ppw-mode .pi-win-btn{padding:6px 13px;font-size:12px;}
+  .ppw-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px;}
+  @media(max-width:640px){.ppw-kpis{grid-template-columns:1fr;}}
+  .ppw-kpi{border:1px solid var(--line-soft);border-radius:10px;padding:11px 14px;background:var(--surface);min-width:0;}
+  .ppw-kpi .l{font-size:11.5px;color:var(--muted);}
+  .ppw-kpi .v{font-family:'Inter',sans-serif;font-size:22px;font-weight:600;line-height:1.25;margin-top:2px;color:var(--ink);}
+  .ppw-kpi .d{font-size:11px;color:var(--muted);margin-top:1px;}
+  .ppw-sec{margin-top:18px;padding-top:14px;border-top:1px solid var(--line-soft);}
+  .ppw-sec-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .ppw-sec h4{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;color:var(--ink);}
+  .ppw-note{font-size:11.5px;color:var(--muted);line-height:1.6;margin-top:3px;}
+  .ppw-lead{font-size:12px;color:var(--ink-2);line-height:1.65;margin-top:10px;}
+  .ppw-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .ppw table{font-size:12.5px;}
+  .ppw th{padding:0 8px 7px;vertical-align:bottom;letter-spacing:.02em;text-transform:none;}
+  .ppw td{padding:9px 8px;vertical-align:top;}
+  .ppw td.n,.ppw th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .ppw th.n{white-space:normal;}
+  .ppw-sum{min-width:760px;margin-top:10px;}
+  .ppw-sum th{max-width:130px;}
+  .ppw-pm{font-weight:600;color:var(--ink);white-space:nowrap;}
+  .ppw-idx{min-width:120px;}
+  .ppw-idx .v{font-variant-numeric:tabular-nums;}
+  .ppw-ibar{position:relative;height:10px;margin-top:5px;}
+  .ppw-ibar i{position:absolute;left:0;top:0;height:10px;background:var(--brand);border-radius:0 4px 4px 0;}
+  .ppw-ibar b{position:absolute;top:-3px;width:1px;height:16px;background:var(--ink-2);}
+  .ppw-cards{display:none;}
+  .ppw-card{border:1px solid var(--line-soft);border-radius:10px;padding:10px 12px;}
+  .ppw-card dl{display:grid;grid-template-columns:1fr auto;gap:3px 10px;margin-top:6px;font-size:12.5px;}
+  .ppw-card dt{color:var(--muted);}
+  .ppw-card dd{text-align:right;font-variant-numeric:tabular-nums;}
+  @media(max-width:700px){.ppw-sumwrap{display:none;}.ppw-cards{display:grid;gap:10px;margin-top:10px;}}
+  .ppw-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:11.5px;color:var(--muted);margin-top:8px;}
+  .ppw-legend span{display:inline-flex;align-items:center;gap:6px;}
+  .ppw-legend i{display:inline-block;width:16px;height:2px;border-radius:1px;}
+  .ppw-legend i.sw{width:12px;height:10px;border-radius:2px;border:1px solid var(--line-soft);}
+  .ppw-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:10px;}
+  @media(max-width:760px){.ppw-grid{grid-template-columns:1fr;}}
+  .ppw-pnl{border:1px solid var(--line-soft);border-radius:10px;padding:10px 10px 4px;min-width:0;}
+  .ppw-pnl h5{font-size:12.5px;font-weight:600;color:var(--ink);}
+  .ppw-pnl .m{font-size:11.5px;color:var(--muted);}
+  .ppw svg{display:block;max-width:100%;height:auto;overflow:visible;}
+  .ppw svg [tabindex]:focus{outline:none;}
+  .ppw svg [tabindex]:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
+  .ppw-loadtbl{min-width:820px;margin-top:10px;}
+  .ppw-loadtbl caption{caption-side:bottom;text-align:left;color:var(--muted);font-size:11.5px;padding-top:6px;}
+  .ppw-tip{position:fixed;z-index:60;pointer-events:none;display:none;max-width:280px;background:var(--surface);color:var(--ink);
+    border:1px solid var(--line);border-radius:8px;box-shadow:var(--sh-md);padding:8px 10px;font-size:12px;line-height:1.5;}
+  .ppw-tip .v{font-weight:650;font-size:13.5px;}
+  .ppw-tip .k{display:inline-block;width:14px;height:2px;background:var(--brand);vertical-align:middle;margin-right:6px;}
+  .ppw-tip .s{color:var(--muted);}
+  .ppw-now details{border-top:1px solid var(--line-soft);padding:8px 0;}
+  .ppw-now details:first-of-type{border-top:none;}
+  .ppw-now summary{cursor:pointer;font-weight:600;font-size:12.5px;color:var(--ink);}
+  .ppw-proj{min-width:760px;margin-top:6px;}
+  .ppw-proj td{font-size:12px;}
+  .ppw-sm{font-size:11px;color:var(--muted);}
+  .ppw-tag{display:inline-block;font-size:10.5px;background:var(--warning-tint);border:1px solid #E8D4A8;color:#7E5410;border-radius:6px;padding:0 6px;white-space:nowrap;margin-top:2px;}
+  .ppw-method{margin-top:16px;border-top:1px solid var(--line-soft);padding-top:10px;}
+  .ppw-method summary{cursor:pointer;font-weight:600;font-size:12.5px;color:var(--ink-2);}
+  .ppw-method ul{margin:6px 0 0;padding-left:18px;font-size:11.5px;color:var(--ink-2);line-height:1.65;}
+  .ppw-method li{margin:3px 0;}
+  .ppw-empty{padding:28px 16px;text-align:center;color:var(--muted);font-size:12.5px;}
+
   @media(prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
 </head>
@@ -2206,6 +2276,16 @@
       <span class="p-count">🔒 OAT เท่านั้น</span>
     </div>
     <div class="p-body"><div id="oatScorecard"></div></div>
+  </div>
+  <div class="panel" id="panel-productivityWorkload" style="display:none">
+    <div class="p-head">
+      <div class="p-title">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><circle cx="8.5" cy="14.5" r="1.6"/><circle cx="13.5" cy="9.5" r="1.6"/><circle cx="18.5" cy="12.5" r="1.6"/></svg>
+        Productivity per Workload <span class="sep">-</span> <span class="th">ภาระงานเทียบผลงานราย PM</span>
+      </div>
+      <span class="p-count" id="ppwCount">🔒 OAT เท่านั้น</span>
+    </div>
+    <div class="p-body"><div id="ppwBox"></div></div>
   </div>
   </div><!-- /tab1Panels -->
 
@@ -2815,6 +2895,7 @@ let STOCKSUM = [];
 let PROJINFO = [];
 let PROJINFO_ALL = []; // ไม่ล็อกทีม - ใช้เฉพาะ card "ค้นหาทั้งบริษัท"
 let SMARTGOAL = [];   // ชีต Smart Goal - backend ส่งมาเฉพาะคนที่มีสิทธิ์เห็นการ์ด Certification Eligibility
+let REVY = null;      // ชีต "Revenue <ปี>" รายได้รายเดือนต่อโครงการ {year, rows} - backend ส่งมาเฉพาะคนที่เห็นการ์ด Productivity per Workload
 let PLANWEIGHT = [];  // ชีต Plan Weight - น้ำหนักขั้นงานตามชนิดแผนของ PMS (การ์ด Revenue Recognition ใช้คอลัมน์ "ใหม่" เป็นมุม PM)
 let PLAN = [], PLAN_TEAMWIDE = []; // แผนงานจาก tab "Project Plan" - มีแค่ชื่องาน วันเริ่ม วันจบ (ไม่มี % ในแผนเด็ดขาด)
 let ROWS_TEAMWIDE = []; // Progress1 เต็มทั้งทีมเสมอ ไม่ว่าใคร login (ไม่ผ่านการกรองรายบุคคล) - ใช้กับการ์ดที่ตั้งเป็น team-wide
@@ -2840,6 +2921,8 @@ const CARD_REGISTRY = [
   {tab:'1', tabLabel:'Project Tracking', id:'pmAvailability', en:'PM Availability', th:'พร้อมรับงานใหม่', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'projectDetails', en:'Project Details', th:'รายละเอียดโครงการ', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'teamScorecard', en:'Team Performance Scorecard', th:'ภาพรวมผลงานทีม'},
+  // เทียบผลงานต่อภาระรายคน = ข้อมูลประเมินบุคคล ค่าเริ่มต้นให้ OAT เห็นคนเดียว (เปิดให้คนอื่นได้ที่ Admin) - backend ส่งข้อมูลรายได้รายเดือนให้เฉพาะคนที่เห็นการ์ดนี้
+  {tab:'1', tabLabel:'Project Tracking', id:'productivityWorkload', en:'Productivity per Workload', th:'ภาระงานเทียบผลงานราย PM', defaultVis:['oat']},
   {tab:'2', tabLabel:'Finance & Stock', id:'revenuePlan', en:'Revenue Plan', th:'แผนรับรู้รายได้รายเดือน', scope:true},
   {tab:'2', tabLabel:'Finance & Stock', id:'revenueAttainment', en:'Revenue Attainment', th:'รายได้สะสมเทียบเป้า', scope:true},
   {tab:'2', tabLabel:'Finance & Stock', id:'rrType', en:'Revenue Recognition', th:'ชนิดโครงการและสัดส่วนการรับรู้รายได้', scope:true},
@@ -2906,6 +2989,7 @@ async function loadData(auto){
       PROJINFO = (j.projectInfo || []).map(normRow);
       SMARTGOAL = Array.isArray(j.smartGoal) ? j.smartGoal : [];
       PLANWEIGHT = Array.isArray(j.planWeight) ? j.planWeight : [];
+      REVY = (j.revenueYear && Array.isArray(j.revenueYear.rows)) ? j.revenueYear : null;
       PROJINFO_ALL = (j.projectInfoAll || []).map(normRow);
       PLAN = j.projectPlan || [];
       PLAN_TEAMWIDE = j.projectPlanTeamWide || [];
@@ -2937,7 +3021,7 @@ async function loadData(auto){
     HIST = SEED_DATA.map(normRow);
     ALL = latestPerProject(HIST);
     REV = SEED_REVENUE.map(normRow);
-    PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = []; PROJINFO_ALL = []; SMARTGOAL = []; PLANWEIGHT = []; EVM = {}; ROWS_TEAMWIDE = [];
+    PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = []; PROJINFO_ALL = []; SMARTGOAL = []; PLANWEIGHT = []; REVY = null; EVM = {}; ROWS_TEAMWIDE = [];
     PLAN = []; PLAN_TEAMWIDE = [];
     PAYW_TEAMWIDE = []; PO_TEAMWIDE = []; STOCK_TEAMWIDE = []; STOCKSUM_TEAMWIDE = [];
     setSource(false, null);
@@ -10676,6 +10760,508 @@ function renderOatScorecard(){
     </div>`;
 }
 
+/* ======================= Productivity per Workload (การ์ดเฉพาะ OAT) ======================= */
+// ภาระงานของแต่ละ PM เทียบกับรายได้ที่รับรู้ - เป็นข้อมูลเปรียบเทียบรายบุคคล ค่าเริ่มต้นเห็นเฉพาะ OAT
+// (backend ส่ง revenueYear มาให้เฉพาะคนที่มีสิทธิ์เห็นการ์ดนี้ ดู canSeeAdminOnlyCard ใน server.js)
+//
+// นิยาม (ตามต้นแบบที่ OAT ดูแล้ว 21 ต.ค. 69):
+//  · คะแนนภาระของโครงการ = Project Level + Complex Level (สลับเป็น Level อย่างเดียว หรือนับจำนวนโครงการได้)
+//  · ช่วงที่นับภาระ = วันได้รับมอบหมาย (Assigned → Accept → Start) ถึงวันปิดสัญญา (Contract Closed → Completely Closed)
+//    ยังไม่ปิด = นับถึงวันจบตามสัญญาหรือวันที่ของข้อมูล แล้วแต่อันไหนช้ากว่า · กระจายตามสัดส่วนวันในแต่ละเดือน (นับรวมวันแรกและวันสุดท้าย)
+//  · รายได้ = ชีต "Revenue <ปี>" รายเดือน · เดือนที่จบแล้วก่อนวันที่ของข้อมูล = รับรู้แล้ว · เดือนที่เหลือเป็นแผน ไม่นำมาคิด
+//  · Productivity per Workload = รายได้เดือนที่จบแล้ว ÷ คะแนนภาระสะสมช่วงเดียวกัน
+//    นับเฉพาะโครงการที่มีแถวในชีตรายได้ ทั้งตัวตั้งและตัวหาร (โครงการที่ไม่มีแถวยังอยู่ในกราฟภาระ)
+//  · ดัชนี: ค่าเฉลี่ยทีม = 100 · ไม่นับโครงการที่ยกเลิก · โครงการของหัวหน้าทีมแยกไว้ ไม่นำมาเทียบ
+//  · ขั้นงานตอนนี้อ่านจากวันเริ่ม-วันจบในชีต Project Plan เท่านั้น (ไม่ใช้ช่อง Percent ในชีตนั้น)
+//  · ไม่ขึ้นกับตัวกรองด้านบน - ดัชนีเทียบกับค่าเฉลี่ยทั้งทีม ถ้ากรองเหลือบางคนตัวเลขจะเพี้ยน
+let PPW_MODE = 'lc';     // lc = Level + Complex · lv = Level อย่างเดียว · cnt = นับจำนวนโครงการ
+let PPW_TABLE = false;   // กราฟภาระรายเดือน ↔ ตาราง
+let PPW_LAST = null;     // ผลคำนวณล่าสุด - ใช้วาดกราฟใหม่ตอนขนาดกล่องเปลี่ยน
+let PPW_DRAWN_W = 0;     // ความกว้างที่วาดกราฟไว้ล่าสุด (0 = ยังไม่ได้วาดชุดปัจจุบัน)
+let PPW_RO = null, PPW_RAF = 0;
+const PPW_LEAD = 'watanyu anantakunakorn'; // หัวหน้าทีม (OAT) - แยกไว้ ไม่นำมาเทียบกับ PM
+const PPW_M = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const PPW_NS = 'http://www.w3.org/2000/svg';
+const ppwEsc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const ppwDay = d => (d && !isNaN(d)) ? new Date(d.getFullYear(), d.getMonth(), d.getDate()) : null;
+const ppwFmt = (v, d=1) => (v==null || !isFinite(v)) ? '-' : v.toLocaleString('en-US',{minimumFractionDigits:d, maximumFractionDigits:d});
+const ppwWeight = (p, mode) => mode==='lv' ? Math.max(1, p.lv) : mode==='cnt' ? 1 : Math.max(1, p.lv + p.cx);
+const ppwSum = (a, n) => a.slice(0, Math.max(0, n)).reduce((x, y) => x + y, 0);
+const ppwFirst = s => String(s||'').split(' ')[0];
+const ppwSv = (tag, attrs) => { const e = document.createElementNS(PPW_NS, tag); for(const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+const ppwNode = (tag, cls, text) => { const e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; };
+
+// ขั้นงานตามแผน ณ วันที่ของข้อมูล - ดูเฉพาะงานหลัก (TaskID เลขเต็ม 1, 2, 3 ... ไม่รวม 0 และงานย่อยอย่าง 5.1)
+function ppwPhase(plan, asOf){
+  const ts = ((plan && plan.tasks) || [])
+    .filter(t => /^\d+$/.test(String(t.id).trim()) && String(t.id).trim() !== '0')
+    .map(t => ({ name: t.name, s: ppwDay(parseD(t.start)), e: ppwDay(parseD(t.end)) }));
+  if(!ts.length) return null;
+  const act = ts.filter(t => t.s && t.e && t.s <= asOf && asOf <= t.e);
+  if(act.length) return act.map(t => t.name).join(' + ');
+  const fut = ts.filter(t => t.s && t.s > asOf).sort((a, b) => a.s - b.s);
+  if(fut.length){
+    if(ts.every(t => !t.s || t.s > asOf)) return `ยังไม่เริ่ม (ขั้นแรก ${fmtDObj(fut[0].s)})`;
+    return `ระหว่างขั้น - ขั้นถัดไป ${fut[0].name} ${fmtDObj(fut[0].s)}`;
+  }
+  return 'เลยวันจบทุกขั้นในแผนแล้ว';
+}
+
+// รวบรวมข้อมูลโครงการ + รายได้รายเดือน (ไม่ขึ้นกับโหมดคะแนน)
+function ppwBuild(){
+  if(!REVY || !REVY.year || !Array.isArray(REVY.rows)) return null;
+  const Y = +REVY.year;
+  const t0 = lastKnownUpdatedAt ? new Date(lastKnownUpdatedAt) : null;
+  const asOf = ppwDay(t0 && !isNaN(t0) ? t0 : new Date());   // วันที่ของข้อมูล (วันที่ sync ไฟล์ล่าสุด)
+  const nowM = asOf.getFullYear() === Y ? asOf.getMonth() : (asOf.getFullYear() > Y ? 12 : -1);
+  const A = Math.max(0, Math.min(12, nowM));                  // จำนวนเดือนที่จบแล้ว = ม.ค. ถึงเดือนก่อนหน้าวันที่ของข้อมูล
+
+  // 1) ข้อมูลโครงการ: Project Info (มีโครงการที่ปิดไปแล้วด้วย) แล้วทับด้วยค่าที่กรอกไว้ในแถวล่าสุดของ Progress1 (ใหม่กว่า)
+  //    ใช้ข้อมูลทั้งทีมเสมอ (ROWS_TEAMWIDE) - การ์ดนี้เทียบกันทั้งทีม
+  const byCode = {};
+  (PROJINFO || []).forEach(r => {
+    const c = String(r['Project Code'] || '').trim(); if(!c) return;
+    byCode[c] = Object.assign(byCode[c] || {}, r);
+  });
+  latestPerProjectAll(ROWS_TEAMWIDE.length ? ROWS_TEAMWIDE : HIST).forEach(r => {
+    const c = String(r['Project Code'] || '').trim(); if(!c) return;
+    const o = byCode[c] || (byCode[c] = {});
+    Object.entries(r).forEach(([k, v]) => { if(hasCellValue(v)) o[k] = v; });
+  });
+
+  // 2) รายได้รายเดือนต่อโครงการ (หน่วยบาท - รวมแถวที่รหัสซ้ำ)
+  const revBy = {};
+  REVY.rows.forEach(r => {
+    const c = String(r.code || '').trim(); if(!c) return;
+    const o = revBy[c] || (revBy[c] = { code: c, name: r.name, pm: r.pm, m: Array(12).fill(0), sp: 0 });
+    (r.m || []).forEach((v, i) => { if(i < 12) o.m[i] += num(v); });
+    o.sp += num(r.sellingPrice);
+  });
+
+  const planByCode = {};
+  [...(PLAN_TEAMWIDE || []), ...(PLAN || [])].forEach(pl => { planByCode[String(pl.code || '').trim()] = pl; });
+
+  // 3) ช่วงที่ถือภาระของแต่ละโครงการ กระจายเป็นสัดส่วนวันในแต่ละเดือนของปี
+  const Y0 = new Date(Y, 0, 1), Y1 = new Date(Y, 11, 31);
+  const dim = m => new Date(Y, m + 1, 0).getDate();
+  const projects = [], skipped = {}, disp = {};
+  Object.entries(byCode).forEach(([code, p]) => {
+    const pm = pmKey(p['PM Name']);
+    if(!pm){ skipped[code] = 'ไม่ระบุ PM'; return; }
+    if(/^cancel/i.test(String(p['Status'] || '').trim())){ skipped[code] = 'ยกเลิก'; return; }
+    const st = ppwDay(parseD(p['Project Assigned Date']) || parseD(p['Project Accept Date']) || parseD(p['Start Date']));
+    if(!st){ skipped[code] = 'ไม่มีวันได้รับมอบหมาย/วันเริ่มงาน'; return; }
+    const fin = ppwDay(parseD(p['Contract Closed Date']) || parseD(p['Completely Closed Date']));
+    const end = ppwDay(parseD(p['End Date']));
+    const stop = fin || (end && end > asOf ? end : asOf);
+    if(stop < Y0){ skipped[code] = `ปิดก่อนปี ${Y + 543}`; return; }
+    if(st > Y1){ skipped[code] = `ได้รับมอบหมายหลังปี ${Y + 543}`; return; }
+    const act = PPW_M.map((_, m) => {
+      const a = new Date(Y, m, 1), b = new Date(Y, m, dim(m));
+      const lo = st > a ? st : a, hi = stop < b ? stop : b;
+      return Math.max(0, Math.round((hi - lo) / DAY) + 1) / dim(m);
+    });
+    const r = revBy[code];
+    const key = nrm(pm);
+    disp[key] = disp[key] || pm;
+    projects.push({
+      code, key, name: String(p['Project Name'] || code).replace(/\s+/g, ' ').trim(),
+      lv: Math.round(num(p['Project Level'])), cx: Math.round(num(p['Complex Level'])),
+      start: st, stop, end, closed: !!fin,
+      prog: hasCellValue(p['%Progress']) ? num(p['%Progress']) : null,
+      // มูลค่าที่ PM รับผิดชอบ ตามกติกา PM Accountable + MA/Rent = Selling Price (effectivePMValue)
+      // ยังไม่กรอกทั้ง 2 ช่อง = ใช้ Selling Price แทน · โครงการ MA/เช่าล้วน (PM Accountable = 0) คงเป็น 0
+      val: (num(p['PM Accountable Value']) !== 0 || num(p['MA/Rent Value']) !== 0
+        ? effectivePMValue(p) : (num(p['Selling Price']) || (r ? r.sp : 0))) / 1e6,
+      planType: String(p['Plan Master'] || '').replace(/\s*REV\s*:.*$/i, '').replace(/\s+/g, ' ').trim(),
+      phase: fin ? null : ppwPhase(planByCode[code], asOf),
+      act, rev: r ? r.m.map(v => v / 1e6) : Array(12).fill(0), hasRev: !!r,
+    });
+  });
+
+  // 4) รายได้ปีนี้ของโครงการที่ไม่อยู่ในช่วงปี (เช่น ปิดก่อนปีแต่รับรู้รายได้ทีหลัง) - แยกไว้ ไม่นับ
+  const inYear = new Set(projects.map(p => p.code));
+  const lag = Object.values(revBy).filter(r => !inYear.has(r.code)).map(r => {
+    const p = byCode[r.code];
+    return { code: r.code, name: r.name || (p && p['Project Name']) || r.code, pm: pmKey((p && p['PM Name']) || r.pm),
+      rev: ppwSum(r.m, A) / 1e6, why: skipped[r.code] || 'ไม่พบในรายชื่อโครงการของทีม' };
+  }).filter(x => Math.abs(x.rev) >= 1e-6);
+
+  const pms = Object.keys(disp).filter(k => k !== PPW_LEAD).sort((a, b) => disp[a].localeCompare(disp[b]));
+  const lead = projects.filter(p => p.key === PPW_LEAD);
+  return { Y, asOf, nowM, A, projects, pms, disp, lead, lag };
+}
+
+// คำนวณตามโหมดคะแนนที่เลือก
+function ppwCompute(D, mode){
+  const w = p => ppwWeight(p, mode), A = D.A;
+  const isOpen = p => !p.closed && p.start <= D.asOf && p.stop >= D.asOf;
+  const upto = D.nowM < 0 ? 11 : Math.min(11, D.nowM);
+  const rows = D.pms.map(key => {
+    const ps = D.projects.filter(p => p.key === key);
+    const wl = PPW_M.map((_, i) => ps.reduce((a, p) => a + w(p) * p.act[i], 0));
+    const cnt = PPW_M.map((_, i) => ps.filter(p => p.act[i] > 0).length);
+    const rp = ps.filter(p => p.hasRev);
+    const rev = rp.reduce((a, p) => a + ppwSum(p.rev, A), 0);
+    const wlr = rp.reduce((a, p) => a + w(p) * ppwSum(p.act, A), 0);
+    const valm = rp.reduce((a, p) => a + p.val * ppwSum(p.act, A), 0);
+    const now = ps.filter(isOpen);
+    const seg = wl.slice(0, upto + 1), peak = Math.max(...seg);
+    return { key, pm: D.disp[key], ps, wl, cnt, rev, wlr, valm,
+      avg: A ? ppwSum(wl, A) / A : null,
+      now, nowW: now.reduce((a, p) => a + w(p), 0), nowN: now.length,
+      peak, peakM: seg.indexOf(peak),
+      ppw: wlr ? rev / wlr : null, dens: wlr ? valm / wlr : null, pace: valm ? rev / valm * 100 : null,
+      excluded: ps.filter(p => !p.hasRev && ppwSum(p.act, A) > 0) };
+  });
+  const tr = rows.reduce((a, r) => a + r.rev, 0), tw = rows.reduce((a, r) => a + r.wlr, 0);
+  const avgs = rows.map(r => r.avg).filter(v => v != null);
+  const team = { rev: tr, ppw: tw ? tr / tw : null, avg: avgs.length ? avgs.reduce((a, b) => a + b, 0) / avgs.length : null,
+    nowW: rows.reduce((a, r) => a + r.nowW, 0), nowN: rows.reduce((a, r) => a + r.nowN, 0) };
+  rows.forEach(r => { r.idx = (r.ppw != null && team.ppw) ? r.ppw / team.ppw * 100 : null; });
+  return { rows, team };
+}
+
+function renderProductivityWorkload(){
+  const box = document.getElementById('ppwBox');
+  if(!box) return;
+  const cntEl = document.getElementById('ppwCount');
+  if(cntEl){
+    const rule = CARD_VISIBILITY.productivityWorkload ?? (CARD_REGISTRY.find(c => c.id === 'productivityWorkload') || {}).defaultVis;
+    const others = Array.isArray(rule) ? rule.filter(u => String(u).toLowerCase() !== 'oat').length : 0;
+    cntEl.textContent = rule === 'all' ? 'ทุกคนเห็น' : others ? `🔒 OAT + ${others} คน` : '🔒 OAT เท่านั้น';
+  }
+  // จำว่าเปิดรายละเอียดของใครค้างไว้ - เปลี่ยนโหมดแล้วไม่ต้องกดเปิดใหม่
+  const wasOpen = new Set([...box.querySelectorAll('.ppw-now details[open]')].map(d => d.dataset.key));
+  const hadNow = !!box.querySelector('.ppw-now');
+  PPW_DRAWN_W = 0;
+  const D = ppwBuild();
+  if(!D){
+    PPW_LAST = null;
+    box.innerHTML = `<div class="ppw-empty">ยังไม่มีข้อมูลรายได้รายเดือน (ชีต "Revenue &lt;ปี&gt;") ในข้อมูลที่ sync ล่าสุด - กด Sync ข้อมูลอีกครั้ง</div>`;
+    return;
+  }
+  if(!D.pms.length){
+    PPW_LAST = null;
+    box.innerHTML = `<div class="ppw-empty">ไม่มีโครงการของ PM ที่มีภาระในปี ${D.Y + 543}</div>`;
+    return;
+  }
+  const mode = PPW_MODE, c = ppwCompute(D, mode);
+  PPW_LAST = { D, c, mode };
+  const unit = mode === 'cnt' ? 'โครงการ' : 'คะแนน';
+  const by = D.Y + 543;
+  const span = D.A ? (D.A === 1 ? `${PPW_M[0]} ${by}` : `${PPW_M[0]}–${PPW_M[D.A - 1]} ${by}`) : '';
+  const spanS = D.A ? (D.A === 1 ? PPW_M[0] : `${PPW_M[0]}–${PPW_M[D.A - 1]}`) : '-';
+  const modeTxt = { lc: 'Project Level + Complex Level', lv: 'Project Level', cnt: '1 ต่อโครงการ' }[mode];
+
+  // ---- สรุปรายคน ----
+  const maxIdx = Math.max(150, ...c.rows.map(r => r.idx || 0)) * 1.05;
+  const sumRows = c.rows.map(r => `<tr>
+      <td><span class="ppw-pm">${ppwEsc(r.pm)}${r.excluded.length ? ' *' : ''}</span></td>
+      <td class="n">${ppwFmt(r.nowW, 0)} (${r.nowN} โครงการ)</td>
+      <td class="n">${ppwFmt(r.avg, 1)}</td>
+      <td class="n">${ppwFmt(r.rev, 1)}</td>
+      <td class="n">${ppwFmt(r.ppw, 2)}</td>
+      <td class="ppw-idx"><div class="v">${ppwFmt(r.idx, 0)}</div><div class="ppw-ibar" role="img" aria-label="ดัชนี ${ppwFmt(r.idx, 0)} เทียบค่าเฉลี่ยทีม 100"><i style="width:${Math.max(0, (r.idx || 0) / maxIdx * 100).toFixed(1)}%"></i><b style="left:${(100 / maxIdx * 100).toFixed(1)}%"></b></div></td>
+      <td class="n">${ppwFmt(r.dens, 2)}</td>
+      <td class="n">${ppwFmt(r.pace, 1)}</td>
+    </tr>`).join('');
+  const sumCards = c.rows.map(r => `<div class="ppw-card"><div class="ppw-pm">${ppwEsc(r.pm)}${r.excluded.length ? ' *' : ''}</div><dl>
+      <dt>ภาระตอนนี้</dt><dd>${ppwFmt(r.nowW, 0)} ${unit} (${r.nowN} โครงการ)</dd>
+      <dt>ภาระเฉลี่ย/เดือน ${spanS}</dt><dd>${ppwFmt(r.avg, 1)}</dd>
+      <dt>รายได้ ${spanS}</dt><dd>${ppwFmt(r.rev, 1)} ล้าน</dd>
+      <dt>Productivity</dt><dd>${ppwFmt(r.ppw, 2)} ล้าน/${unit}-เดือน</dd>
+      <dt>ดัชนี (ทีม = 100)</dt><dd>${ppwFmt(r.idx, 0)}</dd>
+      <dt>มูลค่างานต่อ${unit}</dt><dd>${ppwFmt(r.dens, 2)} ล้าน</dd>
+      <dt>อัตราเดินงาน</dt><dd>${ppwFmt(r.pace, 1)} %/เดือน</dd></dl></div>`).join('');
+  const ex = c.rows.filter(r => r.excluded.length);
+  const exTxt = ex.length ? `* ไม่นับใน Productivity เพราะไม่มีแถวในชีต Revenue ${D.Y} (ยังนับในภาระ): ` +
+    ex.map(r => `${ppwEsc(ppwFirst(r.pm))} - ${r.excluded.map(p => ppwEsc(p.name)).join(', ')}`).join(' · ') : '';
+  // ช่องว่างระหว่างคนมาจากไหน: Productivity = มูลค่างานต่อคะแนน × อัตราเดินงาน
+  const dens = c.rows.map(r => r.dens).filter(v => v != null && v > 0), paces = c.rows.map(r => r.pace).filter(v => v != null && v > 0);
+  let leadTxt = '';
+  if(dens.length >= 2 && paces.length >= 2){
+    const dS = Math.max(...dens) / Math.min(...dens), pS = Math.max(...paces) / Math.min(...paces);
+    leadTxt = `Productivity = มูลค่างานต่อ${unit}ภาระ × อัตราเดินงาน · ห่างกันสูงสุด–ต่ำสุด: มูลค่างานต่อ${unit} ${ppwFmt(dS, 1)} เท่า ส่วนอัตราเดินงาน ${ppwFmt(pS, 1)} เท่า - ` +
+      (dS > pS ? 'ช่องว่างส่วนใหญ่จึงมาจากมูลค่าของโครงการที่ได้รับมอบหมาย มากกว่าความเร็วในการเดินงาน' : 'ช่องว่างส่วนใหญ่มาจากความเร็วในการเดินงาน มากกว่ามูลค่าของโครงการที่ได้รับมอบหมาย');
+  }
+
+  // ---- ภาระรายเดือน (ตาราง) ----
+  const loadTbl = `<table class="ppw-loadtbl"><thead><tr><th>PM</th>${PPW_M.map((m, i) => `<th class="n">${m}${i > D.nowM ? '*' : ''}</th>`).join('')}</tr></thead>
+    <tbody>${c.rows.map(r => `<tr><td class="ppw-pm">${ppwEsc(r.pm)}</td>${r.wl.map((v, i) => `<td class="n">${ppwFmt(v, 1)} (${r.cnt[i]})</td>`).join('')}</tr>`).join('')}</tbody>
+    <caption>หน่วย: ${unit} · ตัวเลขในวงเล็บ = จำนวนโครงการ · * = เดือนข้างหน้า คิดตามวันจบในสัญญา</caption></table>`;
+
+  // ---- ภาระตอนนี้ รายโครงการ ----
+  const nowHtml = c.rows.map((r, k) => {
+    const list = r.now.slice().sort((a, b) => ppwWeight(b, mode) - ppwWeight(a, mode) || a.name.localeCompare(b.name));
+    const open = hadNow ? wasOpen.has(r.key) : k === 0;
+    const rowsH = list.map(p => {
+      const late = p.end && p.end < D.asOf;
+      return `<tr>
+        <td><div>${ppwEsc(p.name)}</div><div class="ppw-sm">${ppwEsc(p.code)}${p.planType ? ' · ' + ppwEsc(p.planType) : ''}</div></td>
+        <td class="n">${p.lv}</td><td class="n">${p.cx}</td><td class="n">${ppwWeight(p, mode)}</td>
+        <td class="n">${p.prog == null ? '-' : ppwFmt(p.prog, 1)}</td>
+        <td class="n">${p.end ? fmtDObj(p.end) : '-'}${late ? '<br><span class="ppw-tag">เลยวันจบ</span>' : ''}</td>
+        <td>${ppwEsc(p.phase || 'ไม่มีแผนในชีต Project Plan')}</td>
+        <td class="n">${p.hasRev ? ppwFmt(ppwSum(p.rev, D.A), 2) : `<span class="ppw-sm">ไม่มีในชีต Revenue ${D.Y}</span>`}</td>
+      </tr>`;
+    }).join('');
+    return `<details data-key="${ppwEsc(r.key)}"${open ? ' open' : ''}><summary>${ppwEsc(r.pm)} · ${list.length} โครงการ · ${ppwFmt(r.nowW, 0)} ${unit}</summary>
+      ${list.length ? `<div class="ppw-scroll scroll-x-hint"><table class="ppw-proj"><thead><tr><th>โครงการ</th><th class="n">L</th><th class="n">C</th><th class="n">คะแนน</th><th class="n">%Progress</th><th class="n">วันจบตามสัญญา</th><th>ขั้นงานตามแผนตอนนี้</th><th class="n">รายได้ ${spanS} (ล้าน)</th></tr></thead><tbody>${rowsH}</tbody></table></div>`
+        : '<div class="ppw-sm" style="padding:6px 0">ไม่มีโครงการที่ยังไม่ปิดสัญญา</div>'}
+    </details>`;
+  }).join('');
+
+  // ---- วิธีคิด ----
+  const leadRev = D.lead.reduce((a, p) => a + ppwSum(p.rev, D.A), 0);
+  const restM = D.A < 12 ? (D.A === 11 ? PPW_M[11] : `${PPW_M[Math.max(0, D.A)]}–${PPW_M[11]}`) : '';
+  const method = [
+    `คะแนนภาระของโครงการ = ${modeTxt} · นับตั้งแต่วันที่ได้รับมอบหมาย (Project Assigned Date) จนถึงวันปิดสัญญา (Contract Closed Date) ถ้ายังไม่ปิด นับถึงวันจบตามสัญญาหรือวันที่ของข้อมูล แล้วแต่อันไหนช้ากว่า · คิดตามสัดส่วนวันในแต่ละเดือน`,
+    `รายได้ = รายได้ที่รับรู้รายเดือนในชีต Revenue ${D.Y} · ${span ? span + ' = รับรู้แล้ว' : 'ยังไม่มีเดือนที่รับรู้ครบ'}${restM ? ` · ${restM} ยังเป็นแผน จึงไม่นำมาคิด` : ''}`,
+    `Productivity per Workload = รายได้${span ? ' ' + spanS : ''} ÷ คะแนนภาระสะสมช่วงเดียวกัน · นับเฉพาะโครงการที่มีแถวในชีต Revenue ${D.Y} ทั้งตัวตั้งและตัวหาร (โครงการที่ไม่มีแถวยังอยู่ในกราฟภาระ)`,
+    `แยกที่มา: Productivity = มูลค่างานต่อคะแนนภาระ × อัตราเดินงาน · มูลค่างานต่อคะแนน = มูลค่าโครงการที่ถืออยู่เฉลี่ยต่อ 1 คะแนน (ขึ้นกับงานที่ได้รับมอบหมาย) · อัตราเดินงาน = รายได้ต่อเดือนเทียบมูลค่าโครงการที่ถืออยู่`,
+    `ไม่นำมาคิด: โครงการที่ยกเลิก` +
+      (D.lag.length ? ` · รายได้ปีนี้ของโครงการที่ไม่มีภาระในปี ${by} (${D.lag.map(x => `${ppwEsc(x.name)} ${ppwFmt(x.rev, 2)} ล้าน ของ ${ppwEsc(ppwFirst(x.pm))} - ${ppwEsc(x.why)}`).join(', ')})` : '') +
+      (D.lead.length ? ` · โครงการของหัวหน้าทีม (${D.lead.map(p => ppwEsc(p.name)).join(', ')}${span ? ` รายได้ ${spanS} ${ppwFmt(leadRev, 1)} ล้าน` : ''}) แยกไว้ ไม่นำมาเทียบ` : ''),
+    `ไม่ขึ้นกับตัวกรองด้านบน (ทีม/VP/PM/สถานะ/Health) เพราะดัชนีเทียบกับค่าเฉลี่ยทั้งทีม · ขั้นงานอ่านจากวันเริ่ม-วันจบในชีต Project Plan (ไม่ใช้ช่อง Percent)`,
+    `ข้อจำกัด: ยังไม่มีชั่วโมงทำงานจริง (ระบบ Workflow มีเมนู Worklog Actual) · รายได้ By Invoice เข้าเป็นก้อนตามเดือนที่ออกใบแจ้งหนี้ · บางโครงการรับรู้รายได้หลังปิดงาน · โครงการที่ช้าเพราะปัจจัยภายนอก (รอคณะกรรมการ ของมาช้า) ทำให้อัตราเดินงานต่ำโดยไม่ใช่ความผิดของ PM`,
+  ];
+
+  box.innerHTML = `<div class="ppw">
+    <div class="ppw-top">
+      <div class="ppw-sub">${span ? `ผลงานคิดช่วง ${span}` : `ยังไม่มีเดือนที่จบในปี ${by} จึงยังคิดผลงานไม่ได้`} · ข้อมูล ณ ${fmtDObj(D.asOf)} · ภาระเป็นค่าประมาณจากระดับและความซับซ้อนของโครงการ</div>
+      <div class="ppw-mode" role="group" aria-label="คะแนนภาระของแต่ละโครงการคิดจาก">
+        <span class="ppw-lbl">คะแนนภาระคิดจาก</span>
+        ${[['lc', 'Level + Complex'], ['lv', 'Level อย่างเดียว'], ['cnt', 'จำนวนโครงการ']].map(([k, t]) =>
+          `<button type="button" class="pi-win-btn${mode === k ? ' active' : ''}" data-ppw-mode="${k}" aria-pressed="${mode === k}">${t}</button>`).join('')}
+      </div>
+    </div>
+    <div class="ppw-kpis">
+      <div class="ppw-kpi"><div class="l">ภาระทีมตอนนี้</div><div class="v">${ppwFmt(c.team.nowW, 0)} ${unit}</div><div class="d">${c.team.nowN} โครงการที่ยังไม่ปิดสัญญา · ${c.rows.length} PM</div></div>
+      <div class="ppw-kpi"><div class="l">รายได้ที่รับรู้ ${span || ''}</div><div class="v">${ppwFmt(c.team.rev, 1)} ล้าน</div><div class="d">${c.rows.length} PM · ไม่รวมโครงการของหัวหน้าทีม</div></div>
+      <div class="ppw-kpi"><div class="l">Productivity เฉลี่ยทีม</div><div class="v">${ppwFmt(c.team.ppw, 2)} ล้าน</div><div class="d">รายได้ต่อ 1 ${unit}ภาระต่อเดือน</div></div>
+    </div>
+    <div class="ppw-sec">
+      <h4>สรุปรายคน</h4>
+      <p class="ppw-note">Productivity per Workload = รายได้ที่รับรู้ ${spanS} ÷ คะแนนภาระสะสมช่วงเดียวกัน · ดัชนี: ค่าเฉลี่ยทีม = 100 (เส้นตั้งในแถบ)</p>
+      <div class="ppw-scroll ppw-sumwrap"><table class="ppw-sum"><thead><tr>
+        <th>PM</th><th class="n">ภาระตอนนี้</th><th class="n">ภาระเฉลี่ย/เดือน ${spanS}</th><th class="n">รายได้ ${spanS} (ล้าน)</th>
+        <th class="n">Productivity (ล้าน/${unit}-เดือน)</th><th>ดัชนี (ทีม = 100)</th><th class="n">มูลค่างานต่อ${unit} (ล้าน)</th><th class="n">อัตราเดินงาน (%/เดือน)</th>
+      </tr></thead><tbody>${sumRows}</tbody></table></div>
+      <div class="ppw-cards">${sumCards}</div>
+      ${exTxt ? `<p class="ppw-note">${exTxt}</p>` : ''}
+      ${leadTxt ? `<p class="ppw-lead">${leadTxt}</p>` : ''}
+    </div>
+    <div class="ppw-sec">
+      <div class="ppw-sec-h">
+        <div><h4>ภาระงานรายเดือน ปี ${by}</h4>
+          <p class="ppw-note">ค่าแต่ละเดือน = ภาระเฉลี่ยทั้งเดือน (โครงการที่เริ่มหรือปิดกลางเดือนคิดตามจำนวนวัน) · ทุกกรอบใช้สเกลเดียวกัน · พื้นจางด้านขวา = เดือนข้างหน้า คิดตามวันจบในสัญญา</p></div>
+        <button type="button" class="pi-win-btn" id="ppwTblBtn" aria-pressed="false">ดูเป็นตาราง</button>
+      </div>
+      <div id="ppwChartWrap">
+        <div class="ppw-legend" aria-hidden="true">
+          <span><i style="background:var(--brand)"></i>PM ในกรอบนั้น</span>
+          <span><i style="background:var(--ppw-ctx)"></i>คนอื่นในทีม</span>
+          <span><i class="sw" style="background:var(--ppw-future)"></i>เดือนข้างหน้า</span>
+        </div>
+        <div class="ppw-grid" id="ppwPanels"></div>
+      </div>
+      <div class="ppw-scroll scroll-x-hint" id="ppwLoadTblWrap" hidden>${loadTbl}</div>
+    </div>
+    <div class="ppw-sec">
+      <h4>ภาระ × Productivity</h4>
+      <p class="ppw-note">แกนนอน = ภาระเฉลี่ยต่อเดือน (${spanS}) · แกนตั้ง = ดัชนี Productivity per Workload · เส้นเทาเข้ม = ค่าเฉลี่ยทีม · ตัวเลขของทุกจุดอยู่ในตารางสรุปรายคนด้านบน</p>
+      <div id="ppwQuad"></div>
+    </div>
+    <div class="ppw-sec ppw-now">
+      <h4>ภาระตอนนี้ รายโครงการ</h4>
+      <p class="ppw-note">โครงการที่ยังไม่ปิดสัญญา ณ ${fmtDObj(D.asOf)} · ขั้นงานอ่านจากวันที่ในชีต Project Plan (ไม่ใช้ช่อง Percent)</p>
+      ${nowHtml}
+    </div>
+    <details class="ppw-method"><summary>วิธีคิดและข้อจำกัด</summary><ul>${method.map(t => `<li>${t}</li>`).join('')}</ul></details>
+  </div>`;
+
+  box.querySelectorAll('[data-ppw-mode]').forEach(b => b.addEventListener('click', () => {
+    if(PPW_MODE === b.dataset.ppwMode) return;
+    PPW_MODE = b.dataset.ppwMode;
+    renderProductivityWorkload();
+  }));
+  const tb = document.getElementById('ppwTblBtn');
+  if(tb) tb.addEventListener('click', () => { PPW_TABLE = !PPW_TABLE; ppwApplyView(); });
+  ppwApplyView();
+  if(!PPW_RO && window.ResizeObserver){
+    PPW_RO = new ResizeObserver(() => { cancelAnimationFrame(PPW_RAF); PPW_RAF = requestAnimationFrame(ppwDraw); });
+    PPW_RO.observe(box);
+  }
+}
+
+// สลับกราฟ ↔ ตาราง แล้ววาดกราฟให้พอดีความกว้างตอนนี้
+function ppwApplyView(){
+  const tb = document.getElementById('ppwTblBtn'), chart = document.getElementById('ppwChartWrap'), tbl = document.getElementById('ppwLoadTblWrap');
+  if(!tb || !chart || !tbl) return;
+  tb.setAttribute('aria-pressed', String(PPW_TABLE));
+  tb.textContent = PPW_TABLE ? 'ดูเป็นกราฟ' : 'ดูเป็นตาราง';
+  tb.classList.toggle('active', PPW_TABLE);
+  chart.hidden = PPW_TABLE;
+  tbl.hidden = !PPW_TABLE;
+  PPW_DRAWN_W = 0;
+  ppwDraw();
+}
+
+// วาดกราฟตามความกว้างจริงของกล่อง - ข้ามถ้าวาดที่ความกว้างนี้ไปแล้ว (PPW_DRAWN_W = 0 คือบังคับวาดใหม่)
+function ppwDraw(){
+  const box = document.getElementById('ppwBox');
+  if(!PPW_LAST || !box) return;
+  const W = box.clientWidth;
+  if(!W || W === PPW_DRAWN_W) return;              // ซ่อน/ยุบอยู่ = ความกว้าง 0 - ResizeObserver จะเรียกอีกครั้งตอนการ์ดแสดงจริง
+  PPW_DRAWN_W = W;
+  ppwHideTip();
+  if(!PPW_TABLE) ppwDrawPanels(PPW_LAST);
+  ppwDrawQuad(PPW_LAST);
+}
+
+function ppwTipEl(){
+  let t = document.getElementById('ppwTip');
+  if(!t){ t = ppwNode('div', 'ppw-tip'); t.id = 'ppwTip'; t.setAttribute('role', 'status'); t.setAttribute('aria-live', 'polite'); document.body.appendChild(t); }
+  return t;
+}
+function ppwShowTip(cx, cy, nodes){
+  const t = ppwTipEl();
+  t.replaceChildren(...nodes);
+  t.style.display = 'block';
+  const x = Math.min(window.innerWidth - t.offsetWidth - 8, cx + 14), y = Math.min(window.innerHeight - t.offsetHeight - 8, cy + 14);
+  t.style.left = Math.max(8, x) + 'px';
+  t.style.top = Math.max(8, y) + 'px';
+}
+function ppwHideTip(){ const t = document.getElementById('ppwTip'); if(t) t.style.display = 'none'; }
+
+// กราฟภาระรายเดือน: กรอบละคน (small multiples) สเกลเดียวกันทุกกรอบ คนอื่นในทีมเป็นเส้นเทาด้านหลัง
+function ppwDrawPanels(L){
+  const host = document.getElementById('ppwPanels');
+  if(!host) return;
+  host.replaceChildren();
+  const { D, c, mode } = L, unit = mode === 'cnt' ? 'โครงการ' : 'คะแนน', nowM = D.nowM;
+  const yMax = Math.max(1, ...c.rows.flatMap(r => r.wl)) * 1.12;
+  const step = [1, 2, 5, 10, 20, 50, 100].find(s => yMax / s <= 5) || 200;
+  const teamAt = i => c.rows.reduce((a, o) => a + o.wl[i], 0) / c.rows.length;
+  c.rows.forEach(r => {
+    const p = ppwNode('div', 'ppw-pnl');
+    host.appendChild(p);
+    p.appendChild(ppwNode('h5', null, r.pm));
+    const inYear = nowM >= 0 && nowM <= 11;
+    p.appendChild(ppwNode('div', 'm', (inYear ? `ตอนนี้ ${ppwFmt(r.nowW, 0)} ${unit} · ` : '') + `สูงสุด ${ppwFmt(r.peak, 1)} (${PPW_M[r.peakM]})`));
+    const W = Math.max(240, p.clientWidth - 20), H = 190, Lm = 34, Rm = 14, T = 14, B = 24;
+    const x = i => Lm + i * (W - Lm - Rm) / 11, y = v => T + (H - T - B) * (1 - v / yMax);
+    const s = ppwSv('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': `ภาระรายเดือนของ ${r.pm} ปี ${D.Y + 543}` });
+    // เดือนข้างหน้า (คิดตามวันจบในสัญญา)
+    if(nowM < 11){
+      const fx = nowM < 0 ? Lm : (x(nowM) + x(nowM + 1)) / 2;
+      s.appendChild(ppwSv('rect', { x: fx, y: T, width: W - Rm - fx, height: H - T - B, style: 'fill:var(--ppw-future)' }));
+      const t = ppwSv('text', { x: fx + 4, y: T + 11, 'font-size': 10.5, style: 'fill:var(--muted)' }); t.textContent = 'ตามแผน'; s.appendChild(t);
+    }
+    for(let v = 0; v <= yMax; v += step){
+      s.appendChild(ppwSv('line', { x1: Lm, x2: W - Rm, y1: y(v), y2: y(v), 'stroke-width': 1, style: `stroke:${v === 0 ? 'var(--line)' : 'var(--line-soft)'}` }));
+      const t = ppwSv('text', { x: Lm - 6, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 11, style: 'fill:var(--muted);font-variant-numeric:tabular-nums' });
+      t.textContent = v; s.appendChild(t);
+    }
+    // ป้ายเดือนเว้นระยะ - ป้าย ธ.ค. ใส่เพิ่มเฉพาะตอนห่างจากป้ายก่อนหน้าพอ (กันตัวหนังสือชนกัน)
+    const every = W < 420 ? 3 : 2, lastTick = 11 - (11 % every);
+    PPW_M.forEach((m, i) => {
+      if(i % every && !(i === 11 && 11 - lastTick >= 2)) return;
+      const t = ppwSv('text', { x: x(i), y: H - 7, 'text-anchor': 'middle', 'font-size': 11, style: 'fill:var(--muted)' }); t.textContent = m; s.appendChild(t);
+    });
+    const path = arr => arr.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
+    c.rows.filter(o => o !== r).forEach(o => s.appendChild(ppwSv('path', { d: path(o.wl), fill: 'none', 'stroke-width': 1.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', style: 'stroke:var(--ppw-ctx)' })));
+    s.appendChild(ppwSv('path', { d: path(r.wl) + ` L ${x(11)} ${y(0)} L ${x(0)} ${y(0)} Z`, style: 'fill:var(--ppw-wash);stroke:none' }));
+    s.appendChild(ppwSv('path', { d: path(r.wl), fill: 'none', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', style: 'stroke:var(--brand)' }));
+    // จุดเดือนปัจจุบัน + ป้ายค่า (ป้ายเดียวต่อกรอบ ค่าอื่นดูจาก tooltip/ตาราง)
+    if(inYear){
+      s.appendChild(ppwSv('circle', { cx: x(nowM), cy: y(r.wl[nowM]), r: 4.5, 'stroke-width': 2, style: 'fill:var(--brand);stroke:var(--surface)' }));
+      const lab = ppwSv('text', { x: x(nowM), y: y(r.wl[nowM]) - 10, 'text-anchor': 'middle', 'font-size': 11.5, 'font-weight': 600, style: 'fill:var(--ink)' });
+      lab.textContent = ppwFmt(r.wl[nowM], 1); s.appendChild(lab);
+    }
+    // crosshair + tooltip (เมาส์ / แตะ / คีย์บอร์ดลูกศรซ้ายขวา)
+    const cross = ppwSv('line', { x1: 0, x2: 0, y1: T, y2: H - B, 'stroke-width': 1, visibility: 'hidden', style: 'stroke:var(--faint)' });
+    s.appendChild(cross);
+    const hit = ppwSv('rect', { x: Lm, y: T, width: W - Lm - Rm, height: H - T - B, fill: 'transparent', tabindex: 0,
+      'aria-label': `ภาระรายเดือนของ ${r.pm} - กดลูกศรซ้าย/ขวาเพื่อดูแต่ละเดือน` });
+    s.appendChild(hit);
+    let cur = inYear ? nowM : 0;
+    const at = clientX => { const bb = s.getBoundingClientRect(); const px = (clientX - bb.left) / bb.width * W; return Math.max(0, Math.min(11, Math.round((px - Lm) / ((W - Lm - Rm) / 11)))); };
+    const show = (i, cx, cy) => {
+      cur = i;
+      cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.setAttribute('visibility', 'visible');
+      const k = ppwNode('div'); k.appendChild(ppwNode('span', 'k')); k.appendChild(document.createTextNode(`${ppwFirst(r.pm)} · ${PPW_M[i]}${i > nowM ? ' (ตามแผน)' : ''}`));
+      ppwShowTip(cx, cy, [ppwNode('div', 'v', `${ppwFmt(r.wl[i], 1)} ${unit}`), k, ppwNode('div', 's', `${r.cnt[i]} โครงการ · เฉลี่ยทีม ${ppwFmt(teamAt(i), 1)}`)]);
+    };
+    const showAtCross = i => { const bb = s.getBoundingClientRect(); show(i, bb.left + bb.width * x(i) / W, bb.top + 10); };
+    const off = () => { cross.setAttribute('visibility', 'hidden'); ppwHideTip(); };
+    hit.addEventListener('pointermove', e => show(at(e.clientX), e.clientX, e.clientY));
+    hit.addEventListener('pointerleave', off);
+    hit.addEventListener('focus', () => showAtCross(cur));
+    hit.addEventListener('blur', off);
+    hit.addEventListener('keydown', e => {
+      if(e.key === 'ArrowLeft' || e.key === 'ArrowRight'){ e.preventDefault(); showAtCross(Math.max(0, Math.min(11, cur + (e.key === 'ArrowRight' ? 1 : -1)))); }
+      else if(e.key === 'Escape') off();
+    });
+    p.appendChild(s);
+  });
+}
+
+// ภาระเฉลี่ย × ดัชนี Productivity - จุดละคน เส้นอ้างอิง = ค่าเฉลี่ยทีม
+function ppwDrawQuad(L){
+  const box = document.getElementById('ppwQuad');
+  if(!box) return;
+  box.replaceChildren();
+  const { c, mode } = L;
+  const pts = c.rows.filter(r => r.avg != null && r.idx != null);
+  if(!pts.length || c.team.avg == null){ box.appendChild(ppwNode('div', 'ppw-empty', 'ยังไม่มีเดือนที่รับรู้รายได้ครบ จึงยังเทียบไม่ได้')); return; }
+  const W = Math.max(300, Math.min(760, box.clientWidth)), H = W < 500 ? 260 : 300, Lm = 46, Rm = 20, T = 16, B = 40;
+  const xMax = (Math.max(...pts.map(r => r.avg), c.team.avg) * 1.25) || 1, yMax = Math.max(...pts.map(r => r.idx), 100) * 1.2;
+  const x = v => Lm + (W - Lm - Rm) * v / xMax, y = v => T + (H - T - B) * (1 - v / yMax);
+  const s = ppwSv('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': 'ภาระเฉลี่ยต่อเดือนเทียบดัชนี Productivity ของแต่ละ PM' });
+  const txt = (tx, ty, anchor, str, st, extra) => { const t = ppwSv('text', Object.assign({ x: tx, y: ty, 'text-anchor': anchor, 'font-size': 11, style: st || 'fill:var(--muted)' }, extra || {})); t.textContent = str; s.appendChild(t); return t; };
+  s.appendChild(ppwSv('line', { x1: Lm, x2: W - Rm, y1: y(0), y2: y(0), 'stroke-width': 1, style: 'stroke:var(--line)' }));
+  s.appendChild(ppwSv('line', { x1: Lm, x2: Lm, y1: T, y2: y(0), 'stroke-width': 1, style: 'stroke:var(--line)' }));
+  // ค่าเฉลี่ยทีม (เส้นทึบ)
+  s.appendChild(ppwSv('line', { x1: Lm, x2: W - Rm, y1: y(100), y2: y(100), 'stroke-width': 1, style: 'stroke:var(--muted)' }));
+  s.appendChild(ppwSv('line', { x1: x(c.team.avg), x2: x(c.team.avg), y1: T, y2: y(0), 'stroke-width': 1, style: 'stroke:var(--muted)' }));
+  txt(x(c.team.avg) + 4, y(0) - 22, 'start', `ภาระเฉลี่ยทีม ${ppwFmt(c.team.avg, 1)}`, 'fill:var(--muted)', { 'font-size': 10.5 });
+  if(W >= 500){
+    txt(W - Rm - 4, T + 12, 'end', 'ภาระสูง · ผลงานต่อภาระสูง');
+    txt(Lm + 6, T + 12, 'start', 'ภาระน้อย · ผลงานต่อภาระสูง');
+    txt(W - Rm - 4, y(0) - 8, 'end', 'ภาระสูง · ผลงานต่อภาระต่ำ');
+    txt(Lm + 6, y(0) - 8, 'start', 'ภาระน้อย · ผลงานต่อภาระต่ำ');
+  }
+  txt((Lm + W - Rm) / 2, H - 8, 'middle', `ภาระเฉลี่ยต่อเดือน (${mode === 'cnt' ? 'โครงการ' : 'คะแนน'})`, 'fill:var(--ink-2)', { 'font-size': 11.5 });
+  txt(14, (T + y(0)) / 2, 'middle', 'ดัชนี Productivity', 'fill:var(--ink-2)', { 'font-size': 11.5, transform: `rotate(-90 14 ${(T + y(0)) / 2})` });
+  for(let v = 0; v <= yMax; v += 100) txt(Lm - 6, y(v) + 4, 'end', String(v), 'fill:var(--muted);font-variant-numeric:tabular-nums');
+  // ป้ายชื่อ: วางขวาจุดก่อน ถ้าชนป้ายอื่นย้ายไปซ้าย
+  const placed = [];
+  const hits = (a) => placed.some(b => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h);
+  pts.slice().sort((a, b) => b.idx - a.idx).forEach(r => {
+    const px = x(r.avg), py = y(r.idx);
+    const g = ppwSv('g', { tabindex: 0, role: 'img', 'aria-label': `${r.pm} ภาระเฉลี่ย ${ppwFmt(r.avg, 1)} ดัชนี ${ppwFmt(r.idx, 0)}` });
+    g.appendChild(ppwSv('circle', { cx: px, cy: py, r: 14, fill: 'transparent' }));
+    g.appendChild(ppwSv('circle', { cx: px, cy: py, r: 5.5, 'stroke-width': 2, style: 'fill:var(--brand);stroke:var(--surface)' }));
+    const name = ppwFirst(r.pm), wTxt = name.length * 7 + 4;
+    let box2 = { x: px + 10, y: py - 9, w: wTxt, h: 16 }, anchor = 'start', lx = px + 10;
+    if(hits(box2) || px + 10 + wTxt > W){ box2 = { x: px - 10 - wTxt, y: py - 9, w: wTxt, h: 16 }; anchor = 'end'; lx = px - 10; }
+    let ly = py + 4;
+    if(hits(box2)){ box2.y += 16; ly += 16; }
+    placed.push(box2);
+    const t = ppwSv('text', { x: lx, y: ly, 'text-anchor': anchor, 'font-size': 12, 'font-weight': 600, style: 'fill:var(--ink)' }); t.textContent = name; g.appendChild(t);
+    const show = (cx, cy) => ppwShowTip(cx, cy, [ppwNode('div', 'v', `ดัชนี ${ppwFmt(r.idx, 0)}`), ppwNode('div', null, r.pm),
+      ppwNode('div', 's', `ภาระเฉลี่ย ${ppwFmt(r.avg, 1)} · รายได้ ${ppwFmt(r.rev, 1)} ล้าน`)]);
+    g.addEventListener('pointermove', e => show(e.clientX, e.clientY));
+    g.addEventListener('pointerleave', ppwHideTip);
+    g.addEventListener('focus', () => { const bb = g.getBoundingClientRect(); show(bb.right, bb.top); });
+    g.addEventListener('blur', ppwHideTip);
+    s.appendChild(g);
+  });
+  box.appendChild(s);
+}
+
 // รายชื่อ username จริงในทีม (ไม่รวม oat เพราะ admin เห็นทุกการ์ดเสมออยู่แล้ว ไม่ต้องมี checkbox ให้ติ๊ก)
 // ถ้ามีคนเข้า/ออกทีมในอนาคต แก้รายการตรงนี้ที่เดียว
 const TEAM_USERS = [
@@ -10955,6 +11541,7 @@ function render(){
 
   // คำนวณ Scorecard เฉพาะตอนที่ user คนนี้มีสิทธิ์เห็นจริง ๆ (กันคำนวณทิ้งเปล่า ๆ สำหรับคนที่มองไม่เห็นอยู่แล้ว)
   if(canSeeCard('teamScorecard')) renderOatScorecard();
+  if(canSeeCard('productivityWorkload')) renderProductivityWorkload();
 
   // ซ่อน/โชว์การ์ดทั้งหมดตามสิทธิ์ที่ตั้งไว้ (ค่า default = ทุกคนเห็น ยกเว้นมี entry ระบุไว้ใน CARD_VISIBILITY)
   applyCardVisibility();
