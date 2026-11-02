@@ -6703,8 +6703,7 @@ function renderProjectHealthCompare(){
   const gone = removed.map(r => {
     const s = phLiveState(r.code);
     const closedPrev = (A.closed||[]).includes(r.code);
-    if(closedPrev) return { r, ok:true, why:`ปิดสัญญาใน ${A.label} ตามรายงานเดือนก่อน - หลุดจากรายงานตามปกติ` };
-    if(s && s.closed) return { r, ok:true, why:`ปิดสัญญาแล้ว ${fmtDObj(s.cc)} (${s.st}) - หลุดจากรายงานตามปกติ` };
+    if(closedPrev || (s && s.closed)) return { r, ok:true, s };
     const c = phClosedCheck(r.code);
     return { r, ok:false, why:c.why, a: mapA.get(r.code) };
   });
@@ -6769,8 +6768,10 @@ function renderProjectHealthCompare(){
         ${closedNow.map(({r,s,pms,p})=>{
           const fileOk = s && s.closed;
           return `<div class="ph-cl ${fileOk?'ok':'warn'}">
-          <div class="ph-clh"><span class="ph-cltag ${fileOk?'':'warn'}">${fileOk?'ปิดสัญญาแล้ว':'ไฟล์ยังไม่ปิด'}</span><b>${r.name}</b><span class="ph-wc">${r.code}</span></div>
-          <div class="ph-clm">${r.pm} · มูลค่า ${phBaht(r.value)} · ความคืบหน้า ${p.b!=null?p.b.toFixed(0)+'%':'-'}${pms?' · อยู่ในแถบ Closed This Month ของรายงาน':''}${fileOk?` · ไฟล์ Excel ปิดสัญญา ${fmtDObj(s.cc)}`:''}</div>
+          <div class="ph-clh"><span class="ph-cltag ${fileOk?'':'warn'}">${fileOk?'ปิดสัญญาแล้ว':'ต้องตรวจสอบ'}</span><b>${r.name}</b><span class="ph-wc">${r.code}</span></div>
+          <div class="ph-clm">${fileOk
+            ? `${r.pm} · มูลค่า ${phBaht(r.value)} · ความคืบหน้า ${(s.pct ?? p.b) != null ? (s.pct ?? p.b).toFixed(0)+'%' : '-'} · สถานะใน PMS: ${s.st}`
+            : `${r.pm} · มูลค่า ${phBaht(r.value)} · ${p.b!=null?`รายงาน ${B.label} อยู่ที่ ${p.b.toFixed(1)}%`:'ไม่มีข้อมูลความคืบหน้า'}`}</div>
           ${fileOk ? '' : `<div class="ph-clw">${s ? `PMS ปิดสัญญาแล้ว แต่ไฟล์ Excel ยังเป็น ${s.st} ${phPct(s.pct)} - อัปเดตวันปิดสัญญาในไฟล์` : 'ไม่พบในไฟล์ Excel'}</div>`}
         </div>`;}).join('')}
       </div>
@@ -6782,10 +6783,12 @@ function renderProjectHealthCompare(){
 
     ${gone.length ? `<div class="ph-sec">ไม่อยู่ในรายงาน ${B.label}</div>
       <div class="ph-closed">
-        ${gone.map(({r,ok,why,a})=>`<div class="ph-cl ${ok?'ok':'warn'}">
+        ${gone.map(({r,ok,why,a,s})=>`<div class="ph-cl ${ok?'ok':'warn'}">
           <div class="ph-clh"><span class="ph-cltag ${ok?'':'warn'}">${ok?'ปิดสัญญาแล้ว':'ต้องตรวจสอบ'}</span><b>${r.name}</b><span class="ph-wc">${r.code}</span></div>
-          <div class="ph-clm">${r.pm} · มูลค่า ${phBaht(r.value)}${!ok ? ` · ${a&&a.last!=null?`รายงาน ${A.label} ความคืบหน้าล่าสุด ${a.last.toFixed(1)}%`:`รายงาน ${A.label} ไม่มีความคืบหน้า`}` : ''}</div>
-          ${ok ? `<div class="ph-clm">${why}</div>` : `<div class="ph-clw">${why}</div>`}
+          <div class="ph-clm">${ok
+            ? `${r.pm} · มูลค่า ${phBaht(r.value)} · ความคืบหน้า ${s && s.pct!=null ? s.pct.toFixed(0)+'%' : (r.last!=null ? r.last.toFixed(0)+'%' : '-')} · สถานะใน PMS: ${s ? s.st : 'Contract Closed'}`
+            : `${r.pm} · มูลค่า ${phBaht(r.value)} · ${a&&a.last!=null?`รายงาน ${A.label} อยู่ที่ ${a.last.toFixed(1)}%`:'ไม่มีข้อมูลความคืบหน้า'}`}</div>
+          ${ok ? '' : `<div class="ph-clw">${why}</div>`}
         </div>`).join('')}
       </div>` : ''}
 
