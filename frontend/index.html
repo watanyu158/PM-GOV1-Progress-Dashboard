@@ -6698,7 +6698,10 @@ function phtChanges(rows, S, E){
     list.push({ r, from, to, kind, n: st.n, since: st.since, atLeast: st.atLeast });
   });
   const rk = { worse: 0, stay: 1, better: 2, other: 3 };
-  list.sort((x, y) => rk[x.kind] - rk[y.kind] || sev(y.to) - sev(x.to) || y.n - x.n || String(x.r.name).localeCompare(String(y.r.name)));
+  // เรียงตามความรุนแรงของสถานะเดือนล่าสุดก่อน (Critical → Warning → ปกติ) แล้วค่อยตามกลุ่ม แย่ลง → ยังค้าง → ดีขึ้น
+  // OAT 2 พ.ย. 69: โครงการที่ Critical ต้องขึ้นก่อน Warning เสมอ ไม่ว่าจะอยู่กลุ่มไหน · เปลี่ยนสถานะอื่นอยู่ท้ายสุด
+  const sv = k => sev(k) ?? -1;
+  list.sort((x, y) => (x.kind === 'other') - (y.kind === 'other') || sv(y.to) - sv(x.to) || rk[x.kind] - rk[y.kind] || y.n - x.n || String(x.r.name).localeCompare(String(y.r.name)));
   const by = k => list.filter(x => x.kind === k);
   return { list, worse: by('worse'), stay: by('stay'), better: by('better'), other: by('other'),
            nCritE: rows.filter(r => phtAt(r.code, E) === 'Critical').length, nWarnE: rows.filter(r => phtAt(r.code, E) === 'Warning').length };
@@ -6728,7 +6731,7 @@ function renderPhtMonthly(list){
       ${phtTrailHtml(x.r.code, trail)}
     </div>`;
   };
-  const main = [...hx.worse, ...hx.stay, ...hx.better];
+  const main = hx.list.filter(x => x.kind !== 'other');   // ลำดับตาม list (Critical ก่อน Warning)
   const wFrom = hx.worse.filter(x => x.from), wNew = hx.worse.filter(x => !x.from);
   const head = [wFrom.length ? `แย่ลง ${wFrom.length}` : '', wNew.length ? `เริ่มที่ Warning/Critical ${wNew.length}` : '',
                 hx.stay.length ? `ยังค้าง ${hx.stay.length}` : '', hx.better.length ? `ดีขึ้น ${hx.better.length}` : ''].filter(Boolean).join(' · ');
@@ -7042,7 +7045,10 @@ function phHealthChanges(A, B, S, E, mapA){
     list.push({ a, b, from, to, kind, n, atLeast, isAdded: !a, trail: trail.map(m => ({ ym: m, h: hist(a, b, m) })) });
   });
   const rk = { worse: 0, stay: 1, better: 2, other: 3 };
-  list.sort((x, y) => rk[x.kind] - rk[y.kind] || sev(y.to) - sev(x.to) || y.n - x.n);
+  // เรียงตามความรุนแรงของสถานะเดือนล่าสุดก่อน (Critical → Warning → ปกติ) แล้วค่อยตามกลุ่ม แย่ลง → ยังค้าง → ดีขึ้น
+  // OAT 2 พ.ย. 69: โครงการที่ Critical ต้องขึ้นก่อน Warning เสมอ ไม่ว่าจะอยู่กลุ่มไหน · เปลี่ยนสถานะอื่นอยู่ท้ายสุด
+  const sv = k => sev(k) ?? -1;
+  list.sort((x, y) => (x.kind === 'other') - (y.kind === 'other') || sv(y.to) - sv(x.to) || rk[x.kind] - rk[y.kind] || y.n - x.n);
   const by = k => list.filter(x => x.kind === k);
   return { list, worse: by('worse'), stay: by('stay'), better: by('better'), other: by('other'), trail,
            map: new Map(list.map(x => [x.b.code, x])), nCritE: B.rows.filter(r => hAt(r, E) === 'Critical').length,
@@ -7067,7 +7073,7 @@ function phHealthSection(hx, cx){
       <div class="ph-trail">${x.trail.map(t => `<span class="ph-tc ${t.h ? PH_HMAP[t.h].cls : 'z'}" title="${phYmLabel(t.ym)}: ${t.h || 'ไม่มีสถานะ'}">${PH_TH[t.ym % 100]}<i>${t.h ? PH_HMAP[t.h].sh : '–'}</i></span>`).join('')}</div>
     </div>`;
   };
-  const main = [...hx.worse, ...hx.stay, ...hx.better];
+  const main = hx.list.filter(x => x.kind !== 'other');   // ลำดับตาม list (Critical ก่อน Warning)
   const wFrom = hx.worse.filter(x => x.from), wNew = hx.worse.filter(x => !x.from);
   const head = [wFrom.length ? `แย่ลง ${wFrom.length}` : '', wNew.length ? `เริ่มที่ Warning/Critical ${wNew.length}` : '',
                 hx.stay.length ? `ยังค้าง ${hx.stay.length}` : '', hx.better.length ? `ดีขึ้น ${hx.better.length}` : ''].filter(Boolean).join(' · ');
