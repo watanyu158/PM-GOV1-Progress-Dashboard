@@ -769,6 +769,10 @@
   .ph-fl b{color:var(--ink);font-weight:600;}
   .ph-fl i{margin-left:auto;}
   .ph-fl i{font-style:normal;font-size:10px;color:var(--faint);}
+  /* รายละเอียดงานใหม่ยาวขึ้น (วันเริ่ม-จบ · มูลค่าในไฟล์) - ให้ขึ้นบรรทัดใหม่ได้ ไม่ล้นกล่องบนจอแคบ */
+  .ph-fl{flex-wrap:wrap;}
+  .ph-fl i{min-width:0;text-align:right;}
+  @media(max-width:640px){.ph-fl i{margin-left:0;flex-basis:100%;text-align:left;}}
 
   .ph-sec{padding:4px 18px 8px;font-size:11px;font-weight:700;color:var(--ink-2);}
   .ph-tbl{padding:0 18px 12px;display:flex;flex-direction:column;gap:7px;}
@@ -1950,6 +1954,57 @@
   .ppw-method li{margin:3px 0;}
   .ppw-empty{padding:28px 16px;text-align:center;color:var(--muted);font-size:12.5px;}
 
+  /* ---------------- Workload Index (ภาระงานราย PM ตอนนี้และ 6 เดือนข้างหน้า) ---------------- */
+  .wli-sub{font-size:12px;color:var(--muted);line-height:1.6;}
+  .wli-h{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;color:var(--ink);margin-top:18px;padding-top:14px;border-top:1px solid var(--line-soft);}
+  .wli-note{font-size:11.5px;color:var(--muted);line-height:1.6;margin-top:3px;}
+  .wli-rows{margin-top:6px;}
+  .wli-row{display:grid;grid-template-columns:minmax(170px,230px) minmax(0,1fr) minmax(170px,auto);align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid var(--line-soft);}
+  .wli-row:last-child{border-bottom:none;}
+  .wli-who{display:flex;align-items:center;gap:10px;min-width:0;}
+  .wli-n{font-weight:600;font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .wli-s{font-size:11px;color:var(--muted);margin-top:1px;}
+  .wli-track{height:14px;display:flex;align-items:stretch;min-width:0;}
+  .wli-bar{display:flex;gap:2px;height:100%;min-width:0;}
+  .wli-seg{flex:1 1 0;min-width:3px;background:var(--brand);border-radius:2px;}
+  .wli-seg:last-child{border-radius:2px 4px 4px 2px;}
+  .wli-seg:hover,.wli-seg:focus-visible{background:var(--brand-2);outline:none;}
+  .wli-v{font-size:12px;color:var(--ink-2);white-space:nowrap;}
+  .wli-v b{font-size:15px;font-weight:700;color:var(--ink);margin-right:3px;}
+  .wli-tag{display:inline-block;font-size:10.5px;background:var(--warning-tint);border:1px solid #E8D4A8;color:#7E5410;border-radius:6px;padding:0 6px;margin-left:6px;white-space:nowrap;}
+  .wli-tag.plain{background:var(--surface-2);border-color:var(--line);color:var(--muted);}
+  @media(max-width:640px){
+    .wli-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"who v" "bar bar";row-gap:7px;}
+    .wli-who{grid-area:who;} .wli-track{grid-area:bar;} .wli-v{grid-area:v;text-align:right;white-space:normal;}
+    .wli-n{white-space:normal;}
+    .wli-track:empty{display:none;}
+  }
+  .wli-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .wli-heat{min-width:620px;margin-top:8px;font-size:12.5px;}
+  .wli-heat th{padding:0 8px 7px;text-transform:none;letter-spacing:.02em;vertical-align:bottom;}
+  .wli-heat th.c,.wli-heat td.c{text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .wli-heat td{padding:8px;border-bottom:1px solid var(--line-soft);}
+  .wli-heat td.c{color:var(--ink);}
+  .wli-heat td.c.z{color:var(--faint);}
+  .wli-heat td.now{border-right:1px solid var(--line);}
+  .wli-heat th.now{border-right:1px solid var(--line);}
+  .wli-heat .wli-mk{display:block;font-size:10.5px;color:#7E5410;margin-top:1px;}
+  .wli-legend{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin-top:8px;flex-wrap:wrap;}
+  .wli-legend i{display:inline-block;width:110px;height:10px;border-radius:2px;border:1px solid var(--line-soft);background:linear-gradient(90deg,rgba(122,92,62,.05),rgba(122,92,62,.5));}
+  .wli-list details{border-top:1px solid var(--line-soft);padding:8px 0;}
+  .wli-list details:first-of-type{border-top:none;}
+  .wli-list summary{cursor:pointer;font-weight:600;font-size:12.5px;color:var(--ink);}
+  .wli-proj{min-width:680px;margin-top:6px;font-size:12px;}
+  .wli-proj th{padding:0 8px 7px;text-transform:none;letter-spacing:.02em;vertical-align:bottom;}
+  .wli-proj td{padding:8px;vertical-align:top;}
+  .wli-proj td.n,.wli-proj th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .wli-sm{font-size:11px;color:var(--muted);}
+  .wli-method{margin-top:14px;border-top:1px solid var(--line-soft);padding-top:10px;}
+  .wli-method summary{cursor:pointer;font-weight:600;font-size:12.5px;color:var(--ink-2);}
+  .wli-method ul{margin:6px 0 0;padding-left:18px;font-size:11.5px;color:var(--ink-2);line-height:1.65;}
+  .wli-method li{margin:3px 0;}
+  .wli-heat td.pm{font-weight:600;color:var(--ink);white-space:nowrap;}
+
   @media(prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
 </head>
@@ -2118,6 +2173,17 @@
           <tbody id="pmBody"></tbody>
         </table>
       </div>
+    </div>
+
+    <div class="panel wide" id="panel-workloadIndex">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M3 21h18"/><rect x="5" y="12" width="3" height="6" rx="1"/><rect x="10.5" y="6" width="3" height="12" rx="1"/><rect x="16" y="9" width="3" height="9" rx="1"/></svg>
+          Workload Index <span class="sep">-</span> <span class="th">ภาระงานราย PM ตอนนี้และ 6 เดือนข้างหน้า</span>
+        </div>
+        <span class="p-count" id="wliCount"></span>
+      </div>
+      <div class="p-body"><div id="wliBox"></div></div>
     </div>
 
     <div class="panel wide" id="panel-projectHealth">
@@ -2909,6 +2975,7 @@ function hasTeamWideScope(cardId){ return CARD_DATA_SCOPE[cardId] === 'team-wide
 const CARD_REGISTRY = [
   {tab:'1', tabLabel:'Project Tracking', id:'kpis', en:'KPI Cards', th:'การ์ดสรุปภาพรวม', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'pmWorkload', en:'PM Workload', th:'ภาระงานราย PM', scope:true},
+  {tab:'1', tabLabel:'Project Tracking', id:'workloadIndex', en:'Workload Index', th:'ภาระงานราย PM ตอนนี้และ 6 เดือนข้างหน้า', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'projectHealth', en:'Project Health', th:'สถานะสุขภาพโครงการ', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'weekOverWeek', en:'Week-over-Week', th:'เทียบความคืบหน้ารายสัปดาห์', scope:true},
   {tab:'1', tabLabel:'Project Tracking', id:'complexity', en:'Project Difficulty Analysis', th:'วิเคราะห์ความซับซ้อนของโครงการ', scope:true},
@@ -6308,7 +6375,9 @@ function phParse(text, fileName){
         .replace(/^\s*\d{1,2}\s+/,'')      // ลำดับแถวที่นำหน้าชื่อ
         .replace(/\s+\d{1,2}\s*$/,'')      // ลำดับแถวถัดไปที่ติดท้ายมา
         .replace(/([a-z])([A-Z])/g,'$1 $2')   // "PDPAplatform" -> "PDPA platform" (คำติดกันจากการตัดบรรทัด)
-        .replace(/\s{2,}/g,' ').trim() || '(อ่านชื่อไม่ได้ - ดูรหัส '+code+')',
+        .replace(/\s{2,}/g,' ').trim()
+        .replace(/\s+new$/,'')              // ป้าย new (PM กดรับเดือนนี้) ที่ติดท้ายชื่อ
+        || '(อ่านชื่อไม่ได้ - ดูรหัส '+code+')',
       pm: f[2], lv: +f[3], start: f[4]||null, end: f[5]||null,
       value: +f[6].replace(/,/g,''),
       prog, last: prog.length ? prog[prog.length-1] : null
@@ -6317,27 +6386,136 @@ function phParse(text, fileName){
   return {label, ym, total, rows, fileName};
 }
 
+// อ่าน PDF เป็น (1) ข้อความรายบรรทัด ใช้หาหัวรายงาน/ยอดรวม และเป็นทางสำรอง (2) ชิ้นข้อความพร้อมพิกัด ใช้แตกตาราง
+// บรรทัด = ชิ้นข้อความที่ความสูงห่างกันไม่เกิน 2.5pt (เดิมปัดเป็นช่วงคงที่ทุก 3pt ทำให้ชิ้นที่ห่างกันแค่ 1pt
+// แต่คร่อมรอยต่อช่วงถูกแยกคนละบรรทัด - ชื่อ NSTDA'S Network Access 69 หลุดจากแถว เหลือแค่ป้าย "new")
 async function phReadPdf(file){
   await torLoadScript('lib/pdf.min.js');
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
   const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
   let out = '';
+  const pages = [];
   for(let i=1;i<=pdf.numPages;i++){
     const page = await pdf.getPage(i);
     const tc = await page.getTextContent();
-    // จัดกลุ่มตามพิกัดแนวตั้งเพื่อให้ได้บรรทัดจริง (เหมือนที่ทำกับ TOR)
-    const lm = new Map();
-    tc.items.forEach(it=>{
-      const key = Math.round(((it.transform&&it.transform[5])||0)/3);
-      const x = (it.transform&&it.transform[4])||0;
-      if(!lm.has(key)) lm.set(key, []);
-      lm.get(key).push({x, s:it.str});
+    const items = tc.items.filter(it=>it.transform && String(it.str||'').trim())
+      .map(it=>({ s:String(it.str), x:it.transform[4]||0, y:it.transform[5]||0, w:it.width||0 }));
+    pages.push(items);
+    const lines = [];
+    items.slice().sort((a,b)=>b.y-a.y).forEach(it=>{
+      const ln = lines[lines.length-1];
+      if(ln && ln.y - it.y <= 2.5) ln.items.push(it); else lines.push({y:it.y, items:[it]});
     });
-    out += [...lm.entries()].sort((a,b)=>b[0]-a[0])
-      .map(([,ps])=>ps.sort((a,b)=>a.x-b.x).map(p=>p.s).join('').replace(/\s+/g,' ').trim())
-      .filter(Boolean).join('\n') + '\n';
+    out += lines.map(ln=>{
+      const ps = ln.items.sort((a,b)=>a.x-b.x);
+      // เว้นวรรคเมื่อชิ้นข้อความห่างกันจริง (เดิมต่อติดกันหมด เช่น "85.00Log Management System")
+      return ps.map((p,k)=>(k && p.x - (ps[k-1].x + ps[k-1].w) > 1.5 ? ' ' : '') + p.s).join('').replace(/\s+/g,' ').trim();
+    }).filter(Boolean).join('\n') + '\n';
   }
-  return out;
+  return { text: out, pages };
+}
+
+const PH_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const phYmLabel = ym => ym ? `${PH_TH[ym%100]} ${String(Math.floor(ym/100)+543).slice(-2)}` : '-';
+const phPrevYm = ym => ym%100 === 1 ? (Math.floor(ym/100)-1)*100 + 12 : ym-1;
+
+// หัวรายงาน: เดือน · ยอดรวม · ช่วงเดือนของตารางความคืบหน้า
+// เดือนของรายงานใช้ชื่อไฟล์ก่อน (แบบที่ใช้มาตลอด) ถ้าชื่อไฟล์ไม่มีเดือนค่อยใช้หัวรายงาน
+// หัวรายงานเขียน "ประจำ" ด้วยนิคหิต+สระอา (ํา) ไม่ใช่สระอำ ต้องแปลงก่อนจับ ไม่งั้นจับไม่ได้เลย
+// ไฟล์ Aug-26 หัวรายงานเขียน September แต่ข้อมูลถึง ส.ค. - ถ้าไม่ตรงกันจะแจ้งไว้ใต้ผลเทียบ
+function phParseHead(text, fileName){
+  const flat = String(text||'').replace(/ /g,' ').replace(/ํา/g,'ำ').replace(/\s+/g,' ');
+  const toYm = (mon, yr) => { const m = PH_MON[String(mon).slice(0,3).toLowerCase()]; return m ? (+yr)*100 + m : null; };
+  const hm = flat.match(/ประจำ\s*เดือน\s*([A-Za-z]{3,})\s*(\d{4})/);
+  const fm = String(fileName||'').match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[-_ ]?(\d{2,4})/i);
+  const ymHead = hm ? toYm(hm[1], hm[2]) : null;
+  const ymFile = fm ? toYm(fm[1], fm[2].length===2 ? 2000 + +fm[2] : +fm[2]) : null;
+  const ym = ymFile || ymHead;
+  const tv = flat.match(/฿\s*([\d,]+\.\d{2})/);
+  const wm = flat.match(/HEALTH AND PROGRESS\s*([A-Za-z]{3})\s*[–-]\s*([A-Za-z]{3})\s*(\d{4})/i);
+  return { ym, label: ym ? phYmLabel(ym) : fileName, ymHead, ymFile,
+    total: tv ? +tv[1].replace(/,/g,'') : null,
+    win: wm ? { m1: PH_MON[wm[1].toLowerCase()], m2: PH_MON[wm[2].toLowerCase()], y: +wm[3] } : null };
+}
+
+// แตกตารางจากพิกัด: หาตำแหน่งคอลัมน์จากหัวตาราง (Code · Project · PM · Lv. · Start · End · PM Act Value · เดือน)
+// แล้วจับแต่ละช่องตามแนวตั้ง - ไม่ต้องเดาจากลำดับข้อความ ชื่อที่ตัดสองบรรทัดก็ได้ครบ
+// แถบด้านขวาของรายงาน (🔒 Closed This Month · 📝 Suspect Delay / Plan Revised) อ่านแยกเป็นรายการรหัส
+function phParseLayout(pages, head){
+  let L = null, side = null;
+  const rows = [], closed = [], suspect = [];
+  const isMon = s => PH_EN.includes(String(s).trim());
+  (pages || []).forEach(items => {
+    const codeH = items.find(it => it.s.trim() === 'Code');
+    if(codeH){
+      const onHead = it => Math.abs(it.y - codeH.y) < 2.5;
+      const h = s => items.find(it => onHead(it) && it.s.trim() === s);
+      const months = items.filter(it => isMon(it.s) && it.y <= codeH.y + 2.5 && it.y > codeH.y - 16).sort((a,b)=>a.x-b.x);
+      const proj = h('Project'), pm = h('PM'), lv = h('Lv.'), st = h('Start'), en = h('End'), val = h('PM Act Value');
+      if(proj && pm && lv && st && en && val && months.length){
+        // ปีของแต่ละคอลัมน์: ไล่จากคอลัมน์สุดท้ายย้อนหลัง ข้ามปีเมื่อเดือนย้อนจาก ม.ค. ไป ธ.ค.
+        const ms = months.map(m => PH_EN.indexOf(m.s.trim()) + 1);
+        let yr = head.win ? head.win.y : (head.ym ? Math.floor(head.ym/100) : new Date().getFullYear());
+        const yms = []; for(let k = ms.length-1; k >= 0; k--){ if(k < ms.length-1 && ms[k] > ms[k+1]) yr--; yms[k] = yr*100 + ms[k]; }
+        const lastM = months[months.length-1];
+        L = { code: codeH, proj, pm, lv, st, en, val,
+              cols: months.map((m,k) => ({ ym: yms[k], cx: m.x + m.w/2 })),
+              right: lastM.x + lastM.w + 14 };
+      }
+    }
+    if(!L) return;
+    const top = codeH ? codeH.y - 4 : Infinity;            // หน้าที่ต่อจากหน้าก่อน (ไม่มีหัวตาราง) ใช้ตำแหน่งคอลัมน์เดิม
+    const inTable = it => it.x < L.right && it.y < top;
+    const anchors = items.filter(it => inTable(it) && /^\d{9}$/.test(it.s.trim()) && Math.abs(it.x - L.code.x) < 8).sort((a,b)=>b.y-a.y);
+    const spacing = L.cols.length > 1 ? (L.cols[L.cols.length-1].cx - L.cols[0].cx) / (L.cols.length-1) : 26;
+    anchors.forEach((a, i) => {
+      const hi = i ? (anchors[i-1].y + a.y)/2 : a.y + 8;
+      const lo = i < anchors.length-1 ? (a.y + anchors[i+1].y)/2 : a.y - 8;
+      const band = items.filter(it => it !== a && inTable(it) && it.y <= hi && it.y > lo);
+      const inCol = (it, x0, x1) => it.x >= x0 && it.x < x1;
+      const txt = it => it ? it.s.trim() : '';
+      const pmIt = band.find(it => inCol(it, L.pm.x - 16, L.lv.x - 2) && /^[A-Za-z][A-Za-z.\- ]*$/.test(txt(it)));
+      const lvIt = band.find(it => inCol(it, L.lv.x - 6, L.st.x - 8) && /^\d{1,2}$/.test(txt(it)));
+      const stIt = band.find(it => inCol(it, L.st.x - 14, L.en.x - 10));
+      const enIt = band.find(it => inCol(it, L.en.x - 14, L.val.x - 4));
+      const valIt = band.find(it => inCol(it, L.val.x - 8, L.cols[0].cx - 12) && /^[\d,]+\.\d{2}$/.test(txt(it)));
+      if(!pmIt || !valIt) return;
+      const nameIts = band.filter(it => inCol(it, L.proj.x - 4, L.pm.x - 16));
+      const isNew = nameIts.some(it => txt(it) === 'new');
+      // ชื่อ: บรรทัดบนก่อน ในบรรทัดเดียวกันเรียงซ้ายไปขวา (ชิ้นติดกันไม่ต้องเว้นวรรค เช่นภาษาไทยที่ถูกตัดเป็นชิ้น)
+      const parts = nameIts.filter(it => txt(it) !== 'new').sort((p,q) => Math.abs(p.y-q.y) > 2.5 ? q.y-p.y : p.x-q.x);
+      const name = parts.map((p,k) => {
+        const prev = parts[k-1];
+        const gap = !prev ? '' : (Math.abs(prev.y-p.y) > 2.5 || p.x - (prev.x + prev.w) > 1.5 ? ' ' : '');
+        return gap + p.s;
+      }).join('').replace(/\s+/g,' ').trim();
+      const byMonth = {};
+      band.forEach(it => {
+        if(!/^\d{1,3}\.\d{2}$/.test(txt(it))) return;
+        const cx = it.x + it.w/2;
+        const col = L.cols.reduce((b,c) => Math.abs(c.cx-cx) < Math.abs(b.cx-cx) ? c : b, L.cols[0]);
+        if(Math.abs(col.cx - cx) <= spacing/2 && +txt(it) <= 100) byMonth[col.ym] = +txt(it);
+      });
+      const ymsHave = Object.keys(byMonth).map(Number).sort((p,q)=>p-q);
+      const date = it => /^\d{1,2}-[A-Za-z]{3}-\d{2}$/.test(txt(it)) ? txt(it) : null;
+      rows.push({ code: txt(a), name: name || ('(อ่านชื่อไม่ได้ - ดูรหัส ' + txt(a) + ')'), pm: txt(pmIt),
+        lv: lvIt ? +txt(lvIt) : null, start: date(stIt), end: date(enIt), value: +txt(valIt).replace(/,/g,''),
+        isNew, byMonth, prog: ymsHave.map(y => byMonth[y]), last: ymsHave.length ? byMonth[ymsHave[ymsHave.length-1]] : null });
+    });
+    // แถบด้านขวา: หัวข้อแล้วตามด้วยรหัสโครงการ (หัวข้ออาจค้างมาจากหน้าก่อน)
+    items.filter(it => it.x >= L.right).sort((a,b)=>b.y-a.y).forEach(it => {
+      const s = it.s.trim();
+      if(/Closed This Month/i.test(s)) side = 'closed';
+      else if(/Suspect Delay|Plan Revised/i.test(s)) side = 'suspect';
+      else {
+        const m = s.match(/^(\d{9})\b/);
+        if(m && side) (side === 'closed' ? closed : suspect).push(m[1]);
+      }
+    });
+  });
+  if(!rows.length) return null;
+  const colYms = L ? L.cols.map(c => c.ym) : [];
+  return { rows, closed: [...new Set(closed)], suspect: [...new Set(suspect)], colYms, layout: true };
 }
 
 async function phUpload(files){
@@ -6346,10 +6524,13 @@ async function phUpload(files){
   box.innerHTML = '<div class="ph-loading">กำลังอ่านรายงาน...</div>';
   try{
     for(const f of files){
-      const txt = await phReadPdf(f);
-      const parsed = phParse(txt, f.name);
+      const { text, pages } = await phReadPdf(f);
+      const head = phParseHead(text, f.name);
+      // แตกจากพิกัดก่อน ถ้าหาหัวตารางไม่เจอ (รูปแบบรายงานเปลี่ยน) ค่อยถอยไปใช้ตัวแตกจากข้อความแบบเดิม
+      const lay = phParseLayout(pages, head);
+      const parsed = lay ? { ...head, ...lay, fileName: f.name }
+                         : { ...phParse(text, f.name), ...head, closed: [], suspect: [], colYms: [], layout: false, fileName: f.name };
       if(!parsed.rows.length) throw new Error(`อ่านรายการโครงการจาก ${f.name} ไม่ได้ - ตรวจว่าเป็นไฟล์ Project Health Report จาก PMS`);
-      // เดือนเดียวกันให้ทับของเดิม
       // เดือนเดียวกันให้ทับของเดิม · ถ้าอ่านเดือนไม่ได้ ใช้ชื่อไฟล์แยกแทน
       PH.months = PH.months.filter(x=> parsed.ym!=null ? x.ym !== parsed.ym : x.fileName !== parsed.fileName);
       PH.months.push(parsed);
@@ -6377,27 +6558,35 @@ function phLive(code){
   };
   // ข้อมูลติดตามรายสัปดาห์ใหม่กว่าทะเบียนโครงการ จึงให้ความสำคัญก่อน
   return pick(typeof ALL!=='undefined' ? ALL : null)
-      || pick(typeof ROWS!=='undefined' ? ROWS : null)
+      || pick(typeof ROWS_TEAMWIDE!=='undefined' ? latestPerProjectAll(ROWS_TEAMWIDE) : null)
       || pick(PROJINFO_ALL);
 }
+// สถานะในไฟล์ Excel ของโครงการ (ใช้ประกอบคำอธิบาย)
+function phLiveState(code){
+  const p = phLive(code);
+  if(!p) return null;
+  const pct = parseFloat(String(p['%Progress']||'').replace(/,/g,''));
+  const cc = parseD(p['Contract Closed Date']) || parseD(p['Completely Closed Date']);
+  return { p, st: projectStatus(p), pct: isNaN(pct) ? null : pct, closed: !!cc, closedYm: cc ? cc.getFullYear()*100 + cc.getMonth()+1 : null, cc };
+}
+const phPct = v => v==null ? 'ไม่ระบุ' : v.toFixed(1)+'%';
 
 // ตรวจว่าโครงการที่หายจากรายงาน "ปิดสัญญาแล้วจริง" ตามที่สันนิษฐานหรือไม่
 function phClosedCheck(code){
-  const p = phLive(code);
-  if(!p) return {ok:false, why:'ไม่พบในข้อมูลปัจจุบัน - ตรวจกับ PMS'};
-  const st  = projectStatus(p);
-  const pct = parseFloat(String(p['%Progress']||'').replace(/,/g,''));
-  const closed = /Contract Closed|Completely Closed/i.test(st);
-  const full   = !isNaN(pct) && pct >= 99.995;
+  const s = phLiveState(code);
+  if(!s) return {ok:false, why:'ไม่พบในข้อมูลปัจจุบัน - ตรวจกับ PMS'};
+  const { st, pct, closed } = s;
+  const full = pct != null && pct >= 99.995;
   if(closed && full)  return {ok:true,  st, pct, why:null};
-  if(closed && !full) return {ok:false, st, pct, why:`ปิดสัญญาแล้วแต่ความคืบหน้ายัง ${isNaN(pct)?'ไม่ระบุ':pct.toFixed(1)+'%'} - ตรวจว่าอัปเดตครบหรือยัง`};
+  if(closed && !full) return {ok:false, st, pct, why:`ปิดสัญญาแล้วแต่ความคืบหน้ายัง ${phPct(pct)} - ตรวจว่าอัปเดตครบหรือยัง`};
   if(!closed && full) return {ok:false, st, pct, why:`อยู่ที่ 100% แล้วแต่สถานะยังเป็น ${st} - ตรวจว่าปิดสัญญาแล้วหรือยัง`};
-  return {ok:false, st, pct, why:`ยังไม่ปิดสัญญา (${st} · ${isNaN(pct)?'ไม่ระบุ':pct.toFixed(1)+'%'}) แต่หายจากรายงาน - ตรวจกับ PMS`};
+  return {ok:false, st, pct, why:`ยังไม่ปิดสัญญา (${st} · ${phPct(pct)}) แต่หายจากรายงาน - รายงานรวมเฉพาะสถานะ InProgress และโครงการที่ปิดสัญญาเดือนนั้น สถานะอื่นจึงหลุดจากรายงาน ตรวจกับ PMS`};
 }
 
 // สรุปโครงการที่ต้องเฝ้าประจำเดือน - ดึงสถานะสุขภาพและบันทึกของ PM จากข้อมูลปัจจุบัน
 // เพื่อให้ใช้เป็นร่างรายงานประจำเดือนได้เลย ไม่ต้องพิมพ์ใหม่ทั้งหมด
-function phWatchList(kept, A, B){
+// cx = { pg(a,b) -> {a,b} ความคืบหน้าของเดือนที่เทียบ · S, E = เดือนที่เทียบ · suspect = รหัสใน 📝 Suspect Delay / Plan Revised }
+function phWatchList(kept, A, B, cx){
   const live = {};
   (PROJINFO_ALL||[]).concat(typeof ALL!=='undefined' ? ALL : []).forEach(p=>{
     const c = String(p['Project Code']||'').trim();
@@ -6409,14 +6598,17 @@ function phWatchList(kept, A, B){
     const lv = live[b.code] || {};
     const health = String(lv['Project Health']||'').trim();
     const note = String(lv['Progress Update']||'').replace(/\r/g,'').trim();
-    const move = (b.last!=null && a.last!=null) ? b.last-a.last : null;
+    const pg = cx.pg(a, b);
+    const move = (pg.b!=null && pg.a!=null) ? pg.b-pg.a : null;
     const end = b.end ? new Date(b.end.replace(/(\d{1,2})-([A-Za-z]{3})-(\d{2})/, '$2 $1, 20$3')) : null;
-    const daysLeft = end && !isNaN(end) ? Math.round((end - new Date())/86400000) : null;
+    const daysLeft = end && !isNaN(end) ? Math.round((end - cx.ref)/86400000) : null;
+    const now = pg.b ?? pg.a;
     const flags = [];
-    if(move!=null && move<=0.01) flags.push('ไม่ขยับจาก'+A.label);
-    if(b.last!=null && daysLeft!=null && daysLeft<120 && b.last<70)
-      flags.push('เหลือ '+daysLeft+' วันแต่ยัง '+b.last.toFixed(0)+'%');
-    return {b, a, health, note, move, daysLeft, flags};
+    if(cx.suspect.has(b.code)) flags.push('PMS: Suspect Delay / Plan Revised');
+    if(move!=null && move<=0.01 && pg.b < 99.995) flags.push('ไม่ขยับจาก '+phYmLabel(cx.S));
+    if(now!=null && daysLeft!=null && daysLeft<120 && now<70)
+      flags.push((daysLeft>=0 ? 'เหลือ '+daysLeft+' วัน' : 'เลยวันจบ '+(-daysLeft)+' วัน')+'แต่ยัง '+now.toFixed(0)+'%');
+    return {b, a, pg, health, note, move, daysLeft, flags};
   }).filter(x => /Critical|Warning/i.test(x.health) || x.flags.length)
     .sort((x,y)=>{
       const rank = h => /Critical/i.test(h)?0 : (/Warning/i.test(h)?1 : 2);
@@ -6439,14 +6631,15 @@ function phWatchList(kept, A, B){
             ${x.flags.map(f=>`<span class="ph-fg">${f}</span>`).join('')}
           </div>
           <div class="ph-wm">${x.b.pm} · Lv.${x.b.lv} · มูลค่า ${phBaht(x.b.value)} · ความคืบหน้า ${
-            x.a.last!=null&&x.b.last!=null
-              ? `${x.a.last.toFixed(1)}% → ${x.b.last.toFixed(1)}%${x.move>0.01?` (+${x.move.toFixed(1)})`:''}`
-              : 'ไม่มีข้อมูล'}${x.daysLeft!=null?` · เหลือ ${x.daysLeft} วัน`:''}</div>
+            x.pg.a!=null&&x.pg.b!=null
+              ? `${phYmLabel(cx.S)} ${x.pg.a.toFixed(1)}% → ${cx.eLabel} ${x.pg.b.toFixed(1)}%${x.move>0.01?` (+${x.move.toFixed(1)})`:''}`
+              : x.pg.b!=null ? `${cx.eLabel} ${x.pg.b.toFixed(1)}%`
+              : x.pg.a!=null ? `${phYmLabel(cx.S)} ${x.pg.a.toFixed(1)}%` : 'ไม่มีข้อมูล'}${x.daysLeft!=null?` · ${x.daysLeft>=0?`เหลือ ${x.daysLeft} วัน`:`เลยวันจบ ${-x.daysLeft} วัน`}${cx.refNote}`:''}</div>
           ${x.note ? `<div class="ph-wn">${x.note.split(/\n+/).map(l=>l.replace(/^[-•\s]+/,'')).filter(Boolean).map(l=>`<span>${l}</span>`).join('')}</div>` : ''}
         </div>`;
       }).join('')}
     </div>
-    <div class="ph-src">สถานะ Critical/Warning มาจากข้อมูลติดตามสัปดาห์ปัจจุบัน (รายงาน PDF แสดงสุขภาพเป็นแถบสี อ่านเป็นข้อความไม่ได้) · ป้ายสีน้ำตาลคือสิ่งที่พบจากการเทียบสองเดือน</div>
+    <div class="ph-src">สถานะ Critical/Warning มาจากข้อมูลติดตามสัปดาห์ปัจจุบัน (รายงาน PDF แสดงสุขภาพเป็นแถบสี อ่านเป็นข้อความไม่ได้) · ป้ายสีน้ำตาลคือสิ่งที่พบจากการเทียบสองเดือน หรือจากแถบ Suspect Delay / Plan Revised ของรายงาน</div>
     `;
 }
 
@@ -6466,6 +6659,57 @@ function renderProjectHealthCompare(){
   const lvUp    = kept.filter(x=>x.b.lv !== x.a.lv);
   const dTotal  = (B.total!=null && A.total!=null) ? B.total - A.total : null;
 
+  // ---- เดือนที่ใช้เทียบความคืบหน้า ----
+  // ใช้ค่ารายเดือนจากคอลัมน์ของรายงาน ไม่ใช่ค่าตัวท้ายของแถว เพราะ PMS บางเดือนแสดงช่วงเดือนผิด
+  // (รายงาน ก.ย. 69 แสดง ธ.ค. 68 – พ.ค. 69 ค่าตัวท้ายจึงเป็นของ พ.ค.) · ค่าของเดือนก่อนใช้จากรายงานใหม่ก่อน (ตารางเดียวกัน)
+  const byM = B.rows.some(r=>r.byMonth) && A.rows.some(r=>r.byMonth);
+  let S = null, E = null;
+  if(byM){
+    const ymsOf = M => [...new Set(M.rows.flatMap(r=>Object.keys(r.byMonth||{}).map(Number)))].sort((p,q)=>p-q);
+    const bY = ymsOf(B), aY = ymsOf(A);
+    if(B.ym && bY.includes(B.ym)) E = B.ym;
+    else {
+      // รายงานที่พิมพ์ก่อนสิ้นเดือน (ยังไม่มีค่าเดือนนั้น) ใช้เดือนล่าสุดที่มีค่า - แต่ต้องใหม่กว่าเดือนของรายงานก่อนหน้า
+      const c = bY.filter(m => (!B.ym || m <= B.ym) && (!A.ym || m > A.ym));
+      E = c.length ? c[c.length-1] : null;
+    }
+    if(E) S = (A.ym && A.ym < E) ? A.ym : phPrevYm(E);
+    else S = aY.filter(m => !A.ym || m <= A.ym).pop() || null;   // รายงานใหม่ไม่มีค่าที่ใช้ได้ - แสดงค่าล่าสุดของรายงานก่อนหน้าไว้
+  }
+  const at = (r, ym) => (r && r.byMonth && ym && r.byMonth[ym]!=null) ? r.byMonth[ym] : null;
+  const pg = byM ? ((a, b) => ({ a: at(b, S) ?? at(a, S), b: E ? at(b, E) : null }))
+                 : ((a, b) => ({ a: a ? a.last : null, b: b ? b.last : null }));
+  if(!byM){ S = A.ym; E = B.ym; }
+  const eLabel = E ? phYmLabel(E) : B.label;
+  // วันที่ใช้นับ "เหลือกี่วัน": วันนี้ ถ้าเทียบรายงานย้อนหลัง (เกินสิ้นเดือนรายงานไปแล้ว 7 วัน) ใช้สิ้นเดือนของรายงาน
+  const mEnd = B.ym ? new Date(Math.floor(B.ym/100), B.ym%100, 0) : null;
+  const ref = (mEnd && (new Date() - mEnd) > 7*DAY) ? mEnd : new Date();
+  const refNote = ref === mEnd ? ` ณ สิ้น ${B.label}` : '';
+  const notes = [];
+  [A, B].forEach(M => {
+    if(M.ymFile && M.ymHead && M.ymFile !== M.ymHead)
+      notes.push(`ไฟล์ ${M.fileName}: ชื่อไฟล์ระบุ ${phYmLabel(M.ymFile)} แต่หัวรายงาน PMS ระบุ ${phYmLabel(M.ymHead)} - ใช้ตามชื่อไฟล์`);
+    if(M.colYms && M.colYms.length && M.ym && !M.colYms.includes(M.ym))
+      notes.push(`รายงาน ${M.label} จาก PMS แสดงความคืบหน้าช่วง ${phYmLabel(M.colYms[0])} – ${phYmLabel(M.colYms[M.colYms.length-1])} ไม่ใช่ช่วงของเดือนรายงาน`
+        + (M === A ? ` จึงใช้ค่า ${phYmLabel(S)} จากตารางในรายงาน ${B.label}` : ''));
+  });
+  if(byM && E && B.ym && E !== B.ym) notes.push(`รายงาน ${B.label} ยังไม่มีความคืบหน้าของเดือน ${B.label} จึงเทียบถึง ${phYmLabel(E)}`);
+  if(byM && !E) notes.push(`รายงาน ${B.label} ไม่มีความคืบหน้าหลัง ${phYmLabel(S)} จึงยังเทียบความคืบหน้าไม่ได้ - เมื่อเพิ่มรายงานเดือนถัดไป ระบบจะใช้ค่าของ ${B.label} จากตารางในรายงานใหม่`);
+
+  // ---- ปิดสัญญาเดือนนี้: ตามแถบ 🔒 Closed This Month ของรายงาน + โครงการในรายงานที่ไฟล์ Excel บันทึกวันปิดสัญญาในเดือนนี้ ----
+  const closedNow = B.rows.filter(r => (B.closed||[]).includes(r.code) || ((s=>s && s.closed && s.closedYm===B.ym)(phLiveState(r.code))))
+    .map(r => ({ r, s: phLiveState(r.code), pms: (B.closed||[]).includes(r.code), p: pg(mapA.get(r.code), r) }));
+  // ---- ไม่อยู่ในรายงานเดือนนี้: แยกว่าปิดสัญญาไปแล้ว (ปกติ) หรือหลุดเพราะสถานะอื่น (ต้องตรวจ) ----
+  const gone = removed.map(r => {
+    const s = phLiveState(r.code);
+    const closedPrev = (A.closed||[]).includes(r.code);
+    if(closedPrev) return { r, ok:true, why:`ปิดสัญญาใน ${A.label} ตามรายงานเดือนก่อน - หลุดจากรายงานตามปกติ` };
+    if(s && s.closed) return { r, ok:true, why:`ปิดสัญญาแล้ว ${fmtDObj(s.cc)} (${s.st}) - หลุดจากรายงานตามปกติ` };
+    const c = phClosedCheck(r.code);
+    return { r, ok:false, why:c.why, a: mapA.get(r.code) };
+  });
+  const nWarnGone = gone.filter(g=>!g.ok).length;
+
   // มูลค่าต่อ PM ทั้งสองเดือน
   const pmSet = [...new Set([...A.rows.map(r=>r.pm), ...B.rows.map(r=>r.pm)])];
   const pmVal = pmSet.map(pm=>({
@@ -6479,6 +6723,18 @@ function renderProjectHealthCompare(){
 
   const sign = n => n>0 ? 'up' : (n<0 ? 'down' : 'flat');
   const arrow = n => n>0 ? '▲' : (n<0 ? '▼' : '–');
+  // รับงานใหม่ที่มูลค่าส่วน PM เป็น 0 - บอกมูลค่าในไฟล์ประกอบ จะได้ไม่เข้าใจว่าเป็นงานไม่มีมูลค่า
+  const addedInfo = r => {
+    const bits = [`${r.pm} · Lv.${r.lv ?? '-'} · มูลค่า ${phBaht(r.value)}`];
+    if(!r.start && !r.end) bits.push('ยังไม่มีวันเริ่ม-วันจบในรายงาน');
+    else bits.push(`${r.start||'-'} ถึง ${r.end||'-'}`);
+    const s = phLiveState(r.code);
+    if(!r.value && s){
+      const sp = num(s.p['Selling Price']), ma = num(s.p['MA/Rent Value']);
+      if(sp) bits.push(`ในไฟล์ Excel: Selling Price ${phBaht(sp)}${ma ? ` · MA/Rent ${phBaht(ma)}` : ''}`);
+    }
+    return bits.join(' · ');
+  };
 
   box.innerHTML = `
     <div class="ph-hero">
@@ -6497,57 +6753,62 @@ function renderProjectHealthCompare(){
     <div class="ph-strip">
       <div class="ph-cell"><i>โครงการเดือนนี้</i><b>${B.rows.length}</b><u>${A.rows.length} เมื่อ ${A.label}</u></div>
       <div class="ph-cell ${added.length?'in':''}"><i>รับงานใหม่</i><b>${added.length}</b><u>${added.length?phBaht(added.reduce((s,r)=>s+r.value,0)):'ไม่มี'}</u></div>
-      <div class="ph-cell ${removed.length?'out':''}"><i>ไม่อยู่ในรายงานเดือนนี้</i><b>${removed.length}</b><u>${removed.length?'ปิดสัญญาหรือส่งมอบครบแล้ว':'ไม่มี'}</u></div>
+      <div class="ph-cell"><i>ปิดสัญญาเดือนนี้</i><b>${closedNow.length}</b><u>${closedNow.length?phBaht(closedNow.reduce((s,x)=>s+x.r.value,0)):'ไม่มี'}</u></div>
+      <div class="ph-cell ${nWarnGone?'out':''}"><i>ไม่อยู่ในรายงานเดือนนี้</i><b>${removed.length}</b><u>${!removed.length?'ไม่มี':nWarnGone?`ต้องตรวจ ${nWarnGone} โครงการ`:'ปิดสัญญาไปแล้วทั้งหมด'}</u></div>
       <div class="ph-cell"><i>เปลี่ยนระดับ</i><b>${lvUp.length}</b><u>${lvUp.length?'ตรวจว่าตรงกับงานจริง':'คงเดิมทั้งหมด'}</u></div>
     </div>
 
     ${added.length ? `<div class="ph-flow">
-      ${added.map(r=>`<div class="ph-fl in"><span class="ph-tag">รับงานใหม่</span>
+      ${added.map(r=>`<div class="ph-fl in"><span class="ph-tag">รับงานใหม่${r.isNew?' · PM กดรับเดือนนี้':''}</span>
         <b>${r.name}</b><span class="ph-wc">${r.code}</span>
-        <i>${r.pm} · Lv.${r.lv} · มูลค่า ${phBaht(r.value)}</i></div>`).join('')}
+        <i>${addedInfo(r)}</i></div>`).join('')}
     </div>` : ''}
 
-    ${removed.length ? (()=>{
-      const checked = removed.map(r=>({r, c:phClosedCheck(r.code), a:mapA.get(r.code)}));
-      const okList  = checked.filter(x=>x.c.ok);
-      const badList = checked.filter(x=>!x.c.ok);
-      return `<div class="ph-sec">ปิดสัญญาในเดือน ${B.label}</div>
+    ${closedNow.length ? `<div class="ph-sec">ปิดสัญญาในเดือน ${B.label}</div>
       <div class="ph-closed">
-        ${okList.map(({r,c})=>`<div class="ph-cl ok">
-          <div class="ph-clh"><span class="ph-cltag">ปิดสัญญาแล้ว</span><b>${r.name}</b><span class="ph-wc">${r.code}</span></div>
-          <div class="ph-clm">${r.pm} · มูลค่า ${phBaht(r.value)} · ความคืบหน้า ${c.pct.toFixed(0)}% · สถานะใน PMS: ${c.st}</div>
-        </div>`).join('')}
-        ${badList.map(({r,c,a})=>`<div class="ph-cl warn">
-          <div class="ph-clh"><span class="ph-cltag warn">ต้องตรวจสอบ</span><b>${r.name}</b><span class="ph-wc">${r.code}</span></div>
-          <div class="ph-clm">${r.pm} · มูลค่า ${phBaht(r.value)} · ${a&&a.last!=null?`รายงาน ${A.label} อยู่ที่ ${a.last.toFixed(1)}%`:'ไม่มีข้อมูลความคืบหน้า'}</div>
-          <div class="ph-clw">${c.why}</div>
-        </div>`).join('')}
+        ${closedNow.map(({r,s,pms,p})=>{
+          const fileOk = s && s.closed;
+          return `<div class="ph-cl ${fileOk?'ok':'warn'}">
+          <div class="ph-clh"><span class="ph-cltag ${fileOk?'':'warn'}">${fileOk?'ปิดสัญญาแล้ว':'ไฟล์ยังไม่ปิด'}</span><b>${r.name}</b><span class="ph-wc">${r.code}</span></div>
+          <div class="ph-clm">${r.pm} · มูลค่า ${phBaht(r.value)} · ความคืบหน้า ${p.b!=null?p.b.toFixed(0)+'%':'-'}${pms?' · อยู่ในแถบ Closed This Month ของรายงาน':''}${fileOk?` · ไฟล์ Excel ปิดสัญญา ${fmtDObj(s.cc)}`:''}</div>
+          ${fileOk ? '' : `<div class="ph-clw">${s ? `PMS ปิดสัญญาแล้ว แต่ไฟล์ Excel ยังเป็น ${s.st} ${phPct(s.pct)} - อัปเดตวันปิดสัญญาในไฟล์` : 'ไม่พบในไฟล์ Excel'}</div>`}
+        </div>`;}).join('')}
       </div>
-      ${okList.length ? `<div class="ph-report">
+      <div class="ph-report">
         <div class="ph-rh">ข้อความสำหรับรายงานประจำเดือน</div>
-        <div class="ph-rb">เดือน${B.label} มีโครงการที่ปิดสัญญาแล้ว ${okList.length} โครงการ${okList.length>1?' ได้แก่':' คือ'}<br>
-        ${okList.map(({r})=>`${r.code} ${r.name} (${r.pm}) มูลค่า ${phBaht(r.value)}`).join('<br>')}</div>
-      </div>` : ''}`;
-    })() : ''}
+        <div class="ph-rb">เดือน${B.label} มีโครงการที่ปิดสัญญาแล้ว ${closedNow.length} โครงการ${closedNow.length>1?' ได้แก่':' คือ'}<br>
+        ${closedNow.map(({r})=>`${r.code} ${r.name} (${r.pm}) มูลค่า ${phBaht(r.value)}`).join('<br>')}</div>
+      </div>` : ''}
 
-    ${phWatchList(kept, A, B)}
-    <div class="ph-sec">ความคืบหน้ารายโครงการ</div>
+    ${gone.length ? `<div class="ph-sec">ไม่อยู่ในรายงาน ${B.label}</div>
+      <div class="ph-closed">
+        ${gone.map(({r,ok,why,a})=>`<div class="ph-cl ${ok?'ok':'warn'}">
+          <div class="ph-clh"><span class="ph-cltag ${ok?'':'warn'}">${ok?'ปิดสัญญาแล้ว':'ต้องตรวจสอบ'}</span><b>${r.name}</b><span class="ph-wc">${r.code}</span></div>
+          <div class="ph-clm">${r.pm} · มูลค่า ${phBaht(r.value)}${!ok ? ` · ${a&&a.last!=null?`รายงาน ${A.label} ความคืบหน้าล่าสุด ${a.last.toFixed(1)}%`:`รายงาน ${A.label} ไม่มีความคืบหน้า`}` : ''}</div>
+          ${ok ? `<div class="ph-clm">${why}</div>` : `<div class="ph-clw">${why}</div>`}
+        </div>`).join('')}
+      </div>` : ''}
+
+    ${phWatchList(kept, A, B, { pg, S, E, eLabel, ref, refNote, suspect: new Set(B.suspect||[]) })}
+    <div class="ph-sec">ความคืบหน้ารายโครงการ · ${phYmLabel(S)} → ${eLabel}${E ? '' : ` (รายงาน ${B.label} ไม่มีค่า)`}</div>
     <div class="ph-tbl">
-      ${kept.sort((x,y)=>((y.b.last||0)-(y.a.last||0))-((x.b.last||0)-(x.a.last||0))).map(({a,b})=>{
-        const d = (b.last!=null && a.last!=null) ? b.last-a.last : null;
-        const stall = d!=null && d<=0.01;
+      ${kept.map(x=>({...x, p:pg(x.a, x.b)}))
+        .sort((x,y)=>(((y.p.b||0)-(y.p.a||0))-((x.p.b||0)-(x.p.a||0))))
+        .map(({a,b,p})=>{
+        const d = (p.b!=null && p.a!=null) ? p.b-p.a : null;
+        const stall = d!=null && d<=0.01 && p.b < 99.995;
         return `<div class="ph-row">
           <div class="ph-nm"><b>${b.name}</b><i>${b.code} · ${b.pm} · Lv.${b.lv}${b.lv!==a.lv?` <em>เดิม ${a.lv}</em>`:''} · มูลค่า ${phBaht(b.value)}</i></div>
           <div class="ph-bar">
             <div class="ph-track">
-              <div class="ph-fill old" style="width:${a.last||0}%"></div>
-              <div class="ph-fill new" style="width:${b.last||0}%"></div>
+              <div class="ph-fill old" style="width:${p.a||0}%"></div>
+              <div class="ph-fill new" style="width:${p.b||0}%"></div>
             </div>
             <div class="ph-num">
-              <span>${a.last!=null?a.last.toFixed(1):'-'}</span>
+              <span>${p.a!=null?p.a.toFixed(1):'-'}</span>
               <span class="ph-arr">→</span>
-              <span class="ph-now">${b.last!=null?b.last.toFixed(1):'-'}</span>
-              ${d!=null?`<span class="ph-dd ${stall?'stall':'up'}">${stall?'ไม่ขยับ':'+'+d.toFixed(1)}</span>`:''}
+              <span class="ph-now">${p.b!=null?p.b.toFixed(1):'-'}</span>
+              ${d!=null?`<span class="ph-dd ${d>0.01?'up':'stall'}">${stall?'ไม่ขยับ':(d>0?'+':'')+d.toFixed(1)}</span>`:''}
             </div>
           </div>
         </div>`;
@@ -6563,10 +6824,11 @@ function renderProjectHealthCompare(){
           <div class="ph-pmn">${x.pm}<i>${x.nb} โครงการ</i></div>
           <div class="ph-pbar"><div class="ph-pfill new" style="width:${pct}%"></div></div>
           <div class="ph-pmv">฿${phM(x.b)}M</div>
-          <div class="ph-pmd ${sign(dv)}">${dv ? `${arrow(dv)} ${phM(Math.abs(dv))}M` : 'เท่าเดิม'}</div>
+          <div class="ph-pmd ${Math.abs(dv) < 1 ? 'flat' : sign(dv)}">${Math.abs(dv) < 1 ? 'เท่าเดิม' : Math.abs(dv) < 50000 ? `${arrow(dv)} ${phBaht(Math.abs(dv))}` : `${arrow(dv)} ${phM(Math.abs(dv))}M`}</div>
         </div>`;
       }).join('')}
     </div>
+    ${notes.length ? `<div class="ph-src">${notes.join('<br>')}</div>` : ''}
     <div class="ph-foot">อ่านจาก ${PH.months.map(m=>m.label).join(' · ')} · เพิ่มไฟล์เดือนถัดไปได้เรื่อย ๆ ระบบจะเทียบสองเดือนล่าสุดเสมอ</div>`;
 }
 
@@ -11262,6 +11524,150 @@ function ppwDrawQuad(L){
   box.appendChild(s);
 }
 
+/* ======================= Workload Index (การ์ดที่ทุกคนเห็น) ======================= */
+// ภาระงานราย PM แบบง่าย (OAT 21 ต.ค. 69: อยากเห็น workload เพิ่ม และให้ทุกคนในทีมเห็นได้ เพราะไม่ใช่ข้อมูลประเมินผลงาน)
+//  · คะแนนภาระของโครงการ = Project Level + Complex Level (อย่างน้อย 1) - นิยามเดียวกับการ์ด Productivity per Workload
+//  · ตอนนี้ = รวมคะแนนของโครงการที่ได้รับมอบหมายแล้วและยังไม่ปิดสัญญา
+//  · 6 เดือนข้างหน้า = ภาระเฉลี่ยทั้งเดือน ตั้งแต่วันที่ได้รับมอบหมายถึงวันจบตามสัญญา (เริ่ม/จบกลางเดือนคิดตามจำนวนวัน)
+//    โครงการที่เลยวันจบแล้วแต่ยังไม่ปิด และโครงการที่ยังไม่มีวันจบ นับแค่ช่อง "ตอนนี้" เพราะไม่รู้ว่าจะจบเมื่อไหร่ - ติดป้ายบอกไว้
+//  · ขั้นงานตอนนี้อ่านจากวันเริ่ม-วันจบในชีต Project Plan (ไม่ใช้ช่อง Percent) แสดงประกอบเท่านั้น ไม่ได้ใช้ถ่วงคะแนน
+//    เพราะน้ำหนักใน tab Plan Weight คือสัดส่วนความคืบหน้า/รายได้ของแต่ละขั้น ไม่ใช่แรงงานของ PM
+//    (Ship to Customer ได้ 40-60% เพราะเป็นจุดส่งมอบของ ถ้าเอามาถ่วง เดือนที่ติดตั้งจะดูเหมือนว่าง) และจ้างเหมา/MA/เช่า ในชีตเป็น x
+//  · ใช้ตัวกรองด้านบนและขอบเขตข้อมูลของการ์ด (Admin ตั้งให้ PM เห็นทั้งทีมได้)
+//  · ใช้ตัวช่วยชุด ppw* (ppwDay, ppwPhase, ppwEsc, ppwFmt, tooltip) ร่วมกับการ์ด Productivity per Workload
+const WLI_MONTHS = 6;
+const wliPoints = p => Math.max(1, Math.round(num(p['Project Level'])) + Math.round(num(p['Complex Level'])));
+
+function renderWorkloadIndex(list){
+  const box = document.getElementById('wliBox');
+  if(!box) return;
+  const openKeys = new Set([...box.querySelectorAll('.wli-list details[open]')].map(d => d.dataset.key));
+  const today = ppwDay(new Date());
+  const planByCode = {};
+  [...(PLAN_TEAMWIDE || []), ...(PLAN || [])].forEach(pl => { planByCode[String(pl.code || '').trim()] = pl; });
+  // 6 เดือนถัดจากเดือนนี้
+  const months = Array.from({ length: WLI_MONTHS }, (_, k) => {
+    const a = new Date(today.getFullYear(), today.getMonth() + 1 + k, 1);
+    const b = new Date(a.getFullYear(), a.getMonth() + 1, 0);
+    return { a, b, days: b.getDate(), label: `${PPW_M[a.getMonth()]} ${String((a.getFullYear() + 543) % 100).padStart(2, '0')}` };
+  });
+
+  const groups = {};
+  (list || []).forEach(p => {
+    const pm = pmKey(p['PM Name']) || 'ไม่ระบุ', key = nrm(pm);
+    const g = groups[key] || (groups[key] = { key, pm, items: [], now: 0, m: Array(WLI_MONTHS).fill(0), late: 0, noEnd: 0 });
+    const st = projectStatus(p);
+    if(st === 'Contract Closed' || st === 'Completely Closed') return;          // ปิดสัญญาแล้ว ไม่กินเวลา PM (แต่ยังโชว์ชื่อ PM ว่าภาระ 0)
+    if(/^cancel/i.test(String(p['Status'] || '').trim())) return;
+    const code = String(p['Project Code'] || '').trim();
+    const start = ppwDay(parseD(p['Project Assigned Date']) || parseD(p['Project Accept Date']) || parseD(p['Start Date']));
+    const end = ppwDay(parseD(p['End Date']) || parseD(p['Plan End Date']));
+    const pts = wliPoints(p), late = !!(end && end < today), noEnd = !end;
+    const inNow = !start || start <= today;                                      // อยู่ใน Progress1 แต่ไม่มีวันที่เลย ถือว่าได้รับแล้ว
+    g.items.push({ code, pts, start, end, late, noEnd, inNow,
+      lv: Math.round(num(p['Project Level'])), cx: Math.round(num(p['Complex Level'])),
+      name: String(p['Project Name'] || code).replace(/\s+/g, ' ').trim(),
+      phase: ppwPhase(planByCode[code], today) });
+    if(inNow){ g.now += pts; if(late) g.late++; if(noEnd) g.noEnd++; }
+    // เดือนข้างหน้า: ต้องรู้วันจบ และยังไม่เลยวันจบ
+    if(end && !late){
+      const s0 = start || today;
+      months.forEach((mo, i) => {
+        const lo = s0 > mo.a ? s0 : mo.a, hi = end < mo.b ? end : mo.b;
+        const d = Math.round((hi - lo) / DAY) + 1;
+        if(d > 0) g.m[i] += pts * d / mo.days;
+      });
+    }
+  });
+
+  const rows = Object.values(groups).sort((a, b) => b.now - a.now || a.pm.localeCompare(b.pm));
+  const nOpen = rows.reduce((a, r) => a + r.items.filter(i => i.inNow).length, 0);
+  const cnt = document.getElementById('wliCount');
+  if(cnt) cnt.textContent = `${nOpen} โครงการ`;
+  if(!rows.length){ box.innerHTML = `<div class="empty">ไม่มีข้อมูลตรงตามตัวกรอง</div>`; return; }
+
+  const maxNow = Math.max(1, ...rows.map(r => r.now));
+  const maxCell = Math.max(1, ...rows.flatMap(r => [r.now, ...r.m]));
+  const shade = v => v > 0.05 ? `background:rgba(122,92,62,${(0.05 + 0.45 * Math.min(1, v / maxCell)).toFixed(3)})` : '';
+
+  // ---- แถบภาระตอนนี้: แถบละคน แบ่งช่องตามโครงการ (ยาวตามคะแนน) ----
+  const flat = [];
+  const barRows = rows.map(r => {
+    const now = r.items.filter(i => i.inNow).sort((a, b) => b.pts - a.pts || a.name.localeCompare(b.name));
+    const segs = now.map(i => {
+      flat.push(i);
+      return `<span class="wli-seg" style="flex-grow:${i.pts}" tabindex="0" data-k="${flat.length - 1}" aria-label="${ppwEsc(`${i.name} ${i.pts} คะแนน`)}"></span>`;
+    }).join('');
+    const tags = (r.late ? `<span class="wli-tag">เลยวันจบ ${r.late}</span>` : '') + (r.noEnd ? `<span class="wli-tag plain">ไม่มีวันจบ ${r.noEnd}</span>` : '');
+    return `<div class="wli-row">
+      <div class="wli-who"><div class="av" style="background:${avatarColor(r.pm)}">${initials(r.pm)}</div>
+        <div style="min-width:0"><div class="wli-n">${ppwEsc(r.pm)}</div><div class="wli-s">${now.length ? `${now.length} โครงการที่ยังไม่ปิด` : 'ไม่มีโครงการที่ยังไม่ปิด'}</div></div></div>
+      <div class="wli-track" role="img" aria-label="${ppwEsc(`${r.pm} ภาระตอนนี้ ${r.now} คะแนน จาก ${now.length} โครงการ`)}">${now.length ? `<div class="wli-bar" style="width:${(r.now / maxNow * 100).toFixed(1)}%">${segs}</div>` : ''}</div>
+      <div class="wli-v"><b>${r.now}</b>คะแนน${tags}</div>
+    </div>`;
+  }).join('');
+
+  // ---- 6 เดือนข้างหน้า (ตาราง + สีพื้นตามภาระ) ----
+  const heat = `<table class="wli-heat"><thead><tr><th>PM</th><th class="c now">ตอนนี้</th>${months.map(mo => `<th class="c">${mo.label}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r => `<tr><td class="pm">${ppwEsc(r.pm)}</td>
+      <td class="c now${r.now ? '' : ' z'}" style="${shade(r.now)}">${r.now ? r.now : '–'}</td>
+      ${r.m.map(v => `<td class="c${v > 0.05 ? '' : ' z'}" style="${shade(v)}">${v > 0.05 ? ppwFmt(v, 1) : '–'}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const skipped = rows.flatMap(r => r.items.filter(i => i.inNow && (i.late || i.noEnd))
+    .map(i => `${ppwEsc(ppwFirst(r.pm))} - ${ppwEsc(i.name)} (${i.late ? `จบตามสัญญา ${fmtDObj(i.end)}` : 'ยังไม่มีวันจบในสัญญา'})`));
+  const skippedNote = skipped.length ? `<p class="wli-note">ไม่นับในเดือนข้างหน้า เพราะเลยวันจบแล้วหรือยังไม่มีวันจบ จึงไม่รู้ว่าจะจบเมื่อไหร่: ${skipped.join(' · ')}</p>` : '';
+
+  // ---- รายโครงการ ----
+  const listHtml = rows.filter(r => r.items.length).map(r => {
+    const its = r.items.slice().sort((a, b) => (b.inNow - a.inNow) || b.pts - a.pts || a.name.localeCompare(b.name));
+    return `<details data-key="${ppwEsc(r.key)}"${openKeys.has(r.key) ? ' open' : ''}><summary>${ppwEsc(r.pm)} · ${its.length} โครงการ · ${r.now} คะแนน</summary>
+      <div class="wli-scroll scroll-x-hint"><table class="wli-proj"><thead><tr><th>โครงการ</th><th class="n">L</th><th class="n">C</th><th class="n">คะแนน</th><th>ขั้นงานตามแผนตอนนี้</th><th class="n">วันจบตามสัญญา</th></tr></thead><tbody>
+      ${its.map(i => `<tr>
+        <td><div>${ppwEsc(i.name)}</div><div class="wli-sm">${ppwEsc(i.code)}${i.inNow ? '' : ` · ได้รับมอบหมาย ${fmtDObj(i.start)} (ยังไม่นับในตอนนี้)`}</div></td>
+        <td class="n">${i.lv}</td><td class="n">${i.cx}</td><td class="n">${i.pts}</td>
+        <td>${ppwEsc(i.phase || 'ไม่มีแผนในชีต Project Plan')}</td>
+        <td class="n">${i.end ? fmtDObj(i.end) : '-'}${i.late ? '<br><span class="wli-tag" style="margin-left:0">เลยวันจบ</span>' : ''}</td>
+      </tr>`).join('')}
+      </tbody></table></div></details>`;
+  }).join('');
+
+  const method = [
+    'คะแนนภาระของโครงการ = Project Level + Complex Level (อย่างน้อย 1) - นิยามเดียวกับการ์ด Productivity per Workload',
+    'ตอนนี้ = รวมคะแนนของโครงการที่ได้รับมอบหมายแล้วและยังไม่ปิดสัญญา · 6 เดือนข้างหน้า = ภาระเฉลี่ยทั้งเดือน ตั้งแต่วันที่ได้รับมอบหมายถึงวันจบตามสัญญา โครงการที่เริ่มหรือจบกลางเดือนคิดตามจำนวนวัน',
+    'โครงการที่เลยวันจบแล้วแต่ยังไม่ปิด และโครงการที่ยังไม่มีวันจบ นับเฉพาะช่อง "ตอนนี้" เพราะยังไม่รู้ว่าจะจบเมื่อไหร่',
+    'ขั้นงานแสดงประกอบเท่านั้น ไม่ได้ถ่วงคะแนน เพราะน้ำหนักใน tab Plan Weight เป็นสัดส่วนความคืบหน้า/รายได้ของแต่ละขั้น ไม่ใช่แรงงานของ PM (เช่น Ship to Customer 40–60% เพราะเป็นจุดส่งมอบของ ถ้านำมาถ่วง เดือนที่ติดตั้งจะดูเหมือนว่าง) และงานจ้างเหมา/MA/เช่า ในชีตยังเป็น x',
+    'ใช้ตัวกรองด้านบน · งานที่ยังไม่อยู่ในไฟล์ (ยังไม่ได้มอบหมายในระบบ) ไม่มีในการ์ดนี้',
+  ];
+
+  box.innerHTML = `
+    <div class="wli-sub">ภาระตอนนี้ = รวมคะแนนของโครงการที่ยังไม่ปิดสัญญา · คะแนนภาระของโครงการ = Project Level + Complex Level · ณ ${fmtDObj(today)}</div>
+    <div class="wli-rows">${barRows}</div>
+    <div class="wli-h">6 เดือนข้างหน้า</div>
+    <p class="wli-note">ภาระเฉลี่ยรายเดือน (คะแนน) ตามวันจบในสัญญา · สีเข้ม = ภาระมาก · ช่อง "ตอนนี้" = คะแนนรวมของโครงการที่ถืออยู่วันนี้</p>
+    <div class="wli-scroll scroll-x-hint">${heat}</div>
+    <div class="wli-legend"><span>น้อย</span><i></i><span>มาก</span></div>
+    ${skippedNote}
+    <div class="wli-h">รายโครงการ</div>
+    <p class="wli-note">ขั้นงานอ่านจากวันเริ่ม-วันจบในชีต Project Plan (ไม่ใช้ช่อง Percent)</p>
+    <div class="wli-list">${listHtml}</div>
+    <details class="wli-method"><summary>วิธีคิด</summary><ul>${method.map(t => `<li>${t}</li>`).join('')}</ul></details>`;
+
+  // tooltip ของแต่ละช่องในแถบ (ข้อมูลเดียวกันอยู่ในรายโครงการด้วย)
+  box.querySelectorAll('.wli-seg').forEach(el => {
+    const i = flat[+el.dataset.k];
+    if(!i) return;
+    const nodes = () => [
+      ppwNode('div', 'v', `${i.pts} คะแนน`),
+      ppwNode('div', null, i.name),
+      ppwNode('div', 's', `L ${i.lv} + C ${i.cx} · ${i.phase || 'ไม่มีแผนในชีต Project Plan'}`),
+      ppwNode('div', 's', i.end ? `จบตามสัญญา ${fmtDObj(i.end)}${i.late ? ' (เลยวันจบแล้ว)' : ''}` : 'ยังไม่มีวันจบในสัญญา'),
+    ];
+    el.addEventListener('pointermove', e => ppwShowTip(e.clientX, e.clientY, nodes()));
+    el.addEventListener('pointerleave', ppwHideTip);
+    el.addEventListener('focus', () => { const bb = el.getBoundingClientRect(); ppwShowTip(bb.left + bb.width / 2, bb.bottom, nodes()); });
+    el.addEventListener('blur', ppwHideTip);
+  });
+}
+
 // รายชื่อ username จริงในทีม (ไม่รวม oat เพราะ admin เห็นทุกการ์ดเสมออยู่แล้ว ไม่ต้องมี checkbox ให้ติ๊ก)
 // ถ้ามีคนเข้า/ออกทีมในอนาคต แก้รายการตรงนี้ที่เดียว
 const TEAM_USERS = [
@@ -11564,6 +11970,7 @@ function renderFiltered(){
 
   renderKPIs(listFor('kpis'));
   renderPM(listFor('pmWorkload'));
+  renderWorkloadIndex(listFor('workloadIndex'));
   renderDonut(listFor('projectHealth'));
   renderWow(listFor('weekOverWeek'));
   renderComplexity(listFor('complexity'));
