@@ -649,6 +649,86 @@
   .ph-wn.empty{font-size:10.5px;color:var(--warning);font-style:italic;}
   .ph-tip{padding:0 18px 12px;font-size:9.5px;color:var(--faint);line-height:1.6;}
 
+  /* สุขภาพโครงการรายเดือนตามรายงาน PMS (อ่านจากสีช่องเดือน) */
+  .ph-cell.bad{border-left:3px solid var(--critical);}
+  .ph-hx{padding:0 18px 10px;display:flex;flex-direction:column;gap:8px;}
+  .ph-hr{border-radius:10px;padding:10px 14px;background:var(--surface-2);border:1px solid var(--line-soft);}
+  .ph-hr.worse{border-left:4px solid var(--critical);background:var(--critical-tint);}
+  .ph-hr.stay{border-left:4px solid var(--warning);background:var(--warning-tint);}
+  .ph-hr.better{border-left:4px solid var(--success);}
+  .ph-hr .ph-clh b{font-size:12.5px;color:var(--ink);font-weight:700;}
+  .ph-hk{font-size:9.5px;font-weight:800;padding:2px 8px;border-radius:11px;flex:none;color:#fff;}
+  .ph-hk.worse{background:var(--critical);}
+  .ph-hk.stay{background:var(--warning);}
+  .ph-hk.better{background:var(--success);}
+  .ph-hmv{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px;}
+  .ph-hm{font-size:10.5px;color:var(--faint);margin-left:4px;}
+  .ph-h,.ph-tc{border:1px solid transparent;}
+  .ph-h{font-size:10px;font-weight:700;padding:1px 8px;border-radius:5px;}
+  .ph-h.c,.ph-tc.c{background:var(--critical);color:#fff;}
+  .ph-h.w,.ph-tc.w{background:var(--warning);color:#fff;}
+  .ph-h.n,.ph-tc.n{background:var(--success-tint);color:var(--success);border-color:#C9D8BE;}
+  .ph-h.f,.ph-tc.f{background:var(--teal-tint);color:var(--teal);border-color:#C3D5C9;}
+  .ph-h.x,.ph-tc.x{background:var(--neutral-tint);color:var(--neutral);}
+  .ph-h.z,.ph-tc.z{background:var(--surface);color:var(--faint);border:1px dashed var(--line);}
+  .ph-trail{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;}
+  .ph-tc{display:flex;flex-direction:column;align-items:center;min-width:42px;padding:3px 5px;border-radius:6px;
+    font-size:9.5px;line-height:1.3;}
+  .ph-tc i{font-style:normal;font-weight:700;font-size:9px;}
+  .ph-hxo{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:0 18px 12px;}
+  .ph-hxo .trans-chip{white-space:normal;}
+  .ph-hxl{font-size:10px;color:var(--faint);margin-right:2px;}
+
+  .ph-mism{margin:0 18px 12px;padding:10px 14px;border-radius:10px;background:var(--warning-tint);border-left:4px solid var(--warning);}
+  .ph-mr{font-size:11.5px;color:var(--ink-2);line-height:1.9;}
+  .ph-mr b{color:var(--ink);font-weight:600;}
+  .ph-mn{font-size:10px;color:var(--muted);line-height:1.6;margin-top:4px;}
+
+  /* สุขภาพรายเดือนจากชีต Project Health (ใต้โดนัท) */
+  .pht{border-top:1px solid var(--line-soft);margin:14px 18px 0;padding-top:10px;}
+  .pht .ph-sec,.pht .ph-hx,.pht .ph-hxo,.pht .ph-src{padding-left:0;padding-right:0;}
+  .pht .ph-hint{margin:0 0 12px;}
+  .pht-trend{display:flex;align-items:flex-end;gap:6px;height:118px;}
+  .pht-col{flex:1 1 0;min-width:20px;max-width:64px;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;}
+  .pht-col b{font-family:'IBM Plex Mono',monospace;font-size:10.5px;line-height:14px;height:14px;margin-bottom:2px;color:var(--faint);flex:none;}
+  .pht-col b.c{color:var(--critical);}
+  .pht-col b.w{color:var(--warning);}
+  .pht-bar{flex:1;width:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;min-height:0;}
+  .pht-stack{width:100%;display:flex;flex-direction:column;border-radius:4px 4px 2px 2px;overflow:hidden;min-height:2px;}
+  .pht-stack i{display:block;min-height:2px;}
+  .pht-stack i.c,.pht-leg i.c{background:var(--critical);}
+  .pht-stack i.w,.pht-leg i.w{background:var(--warning);}
+  .pht-stack i.n,.pht-leg i.n{background:#9DBB92;}
+  .pht-stack i.f,.pht-leg i.f{background:#86AFA0;}
+  .pht-col span{font-size:9.5px;color:var(--faint);white-space:nowrap;}
+  .pht-leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:10px;color:var(--faint);margin-top:8px;}
+  .pht-leg span{display:inline-flex;align-items:center;gap:5px;}
+  .pht-leg i{width:9px;height:9px;border-radius:2px;display:inline-block;}
+  .pht-legn{flex-basis:100%;}
+  .pht-more{margin:12px 0 10px;border-top:1px solid var(--line-soft);padding-top:9px;}
+  .pht-more summary{cursor:pointer;font-size:11.5px;font-weight:600;color:var(--ink-2);}
+  .pht-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:8px;}
+  .pht-heat{border-collapse:collapse;min-width:640px;width:100%;font-size:11px;}
+  .pht-heat th{font-size:9.5px;color:var(--faint);font-weight:600;text-align:left;padding:0 6px 6px;text-transform:none;letter-spacing:.02em;}
+  .pht-heat th.m,.pht-heat td.m{text-align:center;padding:3px 2px;}
+  .pht-heat td{padding:5px 6px;border-top:1px solid var(--line-soft);vertical-align:middle;}
+  .pht-heat td b{display:block;color:var(--ink);font-weight:600;font-size:11.5px;}
+  .pht-heat td.pm{white-space:nowrap;color:var(--ink-2);}
+  .pht-heat tr.done td b{color:var(--muted);font-weight:500;}
+  .pht-heat .ph-tc{min-width:34px;padding:3px 2px;font-size:9px;font-weight:700;}
+  /* Risk Finder · Project Details: ประวัติสุขภาพรายเดือนจาก PMS */
+  .rf-hist{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:10.5px;color:var(--ink-2);}
+  .rf-hist .ph-trail{margin-top:0;gap:3px;}
+  .rf-hist .ph-tc{min-width:34px;padding:2px 4px;font-size:9px;}
+  @media(max-width:640px){.ph-trail .ph-tc{min-width:36px;padding:3px 3px;}}
+  .c-hm{margin-top:11px;}
+  .c-hm-t{display:flex;justify-content:space-between;gap:4px 8px;flex-wrap:wrap;font-size:10.5px;color:var(--muted);margin-bottom:5px;}
+  .c-hm-t em{font-style:normal;}
+  .c-hm-t em.late{color:var(--warning);font-weight:600;}
+  .c-hm-row{display:flex;gap:2px;margin-top:0;}
+  .c-hm-row .ph-tc{flex:1 1 0;min-width:0;padding:2px 0;font-size:8.5px;border-radius:4px;}
+  .c-hm-row .ph-tc i{font-size:8px;}
+
   /* แถบความคืบหน้าการวางบิล - ให้เห็นภาพรวมก่อนอ่านตัวเลข */
   .it-flow{margin-bottom:13px;}
   .it-flow-bar{height:22px;border-radius:7px;background:var(--surface-2);
@@ -1465,6 +1545,8 @@
     text-align:center;font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;
     color:var(--brand);background:var(--surface-2);border-radius:8px;padding:5px 0;
   }
+  .sc-chg{padding:9px 18px;background:#F3F4F9;border-bottom:1px solid var(--line-soft);font-size:11.5px;color:var(--ink-2);line-height:1.6;}
+  .sc-old{display:block;font-size:9.5px;font-weight:500;color:var(--muted);margin-top:1px;}
   .sc-note{padding:14px 18px;font-size:10.5px;color:var(--faint);line-height:1.7;border-top:1px dashed var(--line-soft);margin-top:4px;}
 
   /* ---------------- Admin: Card Access Management ---------------- */
@@ -2200,6 +2282,7 @@
           <div class="legend" id="legend"></div>
           <div class="ph-watch" id="phWatchList"></div>
         </div>
+        <div id="phtBox"></div>
         <div class="ph-sep"></div>
         <div class="ph-drop" id="phDrop" onclick="document.getElementById('phFile').click()">
           <input type="file" id="phFile" accept=".pdf" multiple style="display:none">
@@ -2961,6 +3044,10 @@ let STOCKSUM = [];
 let PROJINFO = [];
 let PROJINFO_ALL = []; // ไม่ล็อกทีม - ใช้เฉพาะ card "ค้นหาทั้งบริษัท"
 let SMARTGOAL = [];   // ชีต Smart Goal - backend ส่งมาเฉพาะคนที่มีสิทธิ์เห็นการ์ด Certification Eligibility
+// ชีต "Project Health" (export จาก PMS) สุขภาพรายเดือนต่อโครงการ {years, printDate, sheetNames, rows:[{code,name,pm,status,months:{YYYYMM:1-5},...}]}
+// เป็นข้อมูลระดับทีม (backend ล็อกเฉพาะทีมแล้ว) - การ์ดใช้ค้นตามรหัสโครงการที่อยู่ในรายการของการ์ดนั้น จึงยังเคารพขอบเขตข้อมูลของการ์ดเหมือนเดิม
+let PHT = null;
+let PHT_MAP = new Map();
 let REVY = null;      // ชีต "Revenue <ปี>" รายได้รายเดือนต่อโครงการ {year, rows} - backend ส่งมาเฉพาะคนที่เห็นการ์ด Productivity per Workload
 let PLANWEIGHT = [];  // ชีต Plan Weight - น้ำหนักขั้นงานตามชนิดแผนของ PMS (การ์ด Revenue Recognition ใช้คอลัมน์ "ใหม่" เป็นมุม PM)
 let PLAN = [], PLAN_TEAMWIDE = []; // แผนงานจาก tab "Project Plan" - มีแค่ชื่องาน วันเริ่ม วันจบ (ไม่มี % ในแผนเด็ดขาด)
@@ -3057,6 +3144,8 @@ async function loadData(auto){
       SMARTGOAL = Array.isArray(j.smartGoal) ? j.smartGoal : [];
       PLANWEIGHT = Array.isArray(j.planWeight) ? j.planWeight : [];
       REVY = (j.revenueYear && Array.isArray(j.revenueYear.rows)) ? j.revenueYear : null;
+      PHT = (j.projectHealthTab && Array.isArray(j.projectHealthTab.rows) && j.projectHealthTab.rows.length) ? j.projectHealthTab : null;
+      PHT_MAP = new Map((PHT ? PHT.rows : []).map(r => [String(r.code||'').trim(), r]));
       PROJINFO_ALL = (j.projectInfoAll || []).map(normRow);
       PLAN = j.projectPlan || [];
       PLAN_TEAMWIDE = j.projectPlanTeamWide || [];
@@ -3089,6 +3178,7 @@ async function loadData(auto){
     ALL = latestPerProject(HIST);
     REV = SEED_REVENUE.map(normRow);
     PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = []; PROJINFO_ALL = []; SMARTGOAL = []; PLANWEIGHT = []; REVY = null; EVM = {}; ROWS_TEAMWIDE = [];
+    PHT = null; PHT_MAP = new Map();
     PLAN = []; PLAN_TEAMWIDE = [];
     PAYW_TEAMWIDE = []; PO_TEAMWIDE = []; STOCK_TEAMWIDE = []; STOCKSUM_TEAMWIDE = [];
     setSource(false, null);
@@ -3378,6 +3468,7 @@ function renderDonut(list){
         + (bad.length>6 ? `<div class="ph-watch-h" style="margin-top:2px">และอีก ${bad.length-6} โครงการ</div>` : '')
       : `<div class="ph-watch-h">ต้องตาม</div><div class="ph-watch-ok">ไม่มีโครงการที่สถานะ Critical หรือ Warning</div>`;
   }
+  renderPhtMonthly(list);
 
   const cx=74, cy=74, r=52, w=19;
   let a = -90;
@@ -4356,11 +4447,14 @@ function renderClosure(list){
     if(!contractClosed && !completelyClosed && num(p['%Progress'])>=100){
       const endD = parseD(p['End Date']) || parseD(p['Plan End Date']);
       const lastUpdD = parseD(p['Update Date']);
-      const refDate = endD || lastUpdD;
+      // วันที่งานถึง 100% จริงตาม PMS (ชีต Project Health) ตรงกับเจตนา "นับจากวันงานเสร็จจริง" มากที่สุด
+      // เช่นงานเสร็จก่อนวันจบสัญญาเป็นเดือน ถ้านับจากวันจบจะเตือนช้าไปทั้งเดือน
+      const hitD = (r => r ? parseD(r.hit100Actual) : null)(phtRow(p['Project Code']));
+      const refDate = hitD || endD || lastUpdD;
       if(refDate){
         const daysSince = Math.round((today - refDate)/DAY);
         if(daysSince >= CLOSURE_GRACE_DAYS){
-          alerts.push({ p, sev:'warning', msg:`งานเสร็จ 100% แล้วตั้งแต่ ${fmtDate(refDate)} (${daysSince} วันก่อน) แต่ยังไม่ทำ Contract Closed` });
+          alerts.push({ p, sev:'warning', msg:`งานเสร็จ 100% แล้วตั้งแต่ ${fmtDate(refDate)} (${daysSince} วันก่อน${hitD ? ' · วันที่ถึง 100% จริงตาม PMS' : ''}) แต่ยังไม่ทำ Contract Closed` });
         }
       }
     }
@@ -4480,6 +4574,22 @@ function trackingStartTs(hist){
 //   1) Health ที่ PM กรอกเอง (Critical / Warning)
 //   2) ความเสี่ยงจริงจากตัวเลข = ช้ากว่าแผนกี่ pp (คำนวณจาก Plan Start/End เทียบวันนี้)
 // ถ้า 2 มุมนี้ไม่ตรงกัน = สัญญาณว่าต้องตรวจสอบ (เช่น Health บอก Critical แต่ตัวเลขบอกตามแผน)
+// ประวัติสุขภาพรายเดือนตาม PMS ของโครงการเสี่ยง - แยก "เสี่ยงเรื้อรัง" (Critical ติดกันหลายเดือน) ออกจาก "เพิ่งเป็นเดือนนี้"
+function phtRiskLine(code){
+  const E = phtLatestYm();
+  if(!PHT || !E || !phtRow(code)) return '';
+  const to = phtAt(code, E), from = phtAt(code, phPrevYm(E));
+  if(!to && !from) return '';
+  const st = phtStreak(code, E);
+  let txt;
+  if(!to) txt = `PMS ${phYmLabel(E)}: ยังไม่มีสถานะ`;
+  else if(phIsWC(to) && st.n >= 2) txt = `PMS: <b>${to} ${st.atLeast ? 'อย่างน้อย ' : ''}${st.n} เดือนติดต่อกัน</b> (ตั้งแต่ ${phYmLabel(st.since)})`;
+  else if(from && from !== to) txt = `PMS ${phYmLabel(E)}: <b>${from} → ${to}</b>`;
+  else txt = `PMS ${phYmLabel(E)}: ${to}${!from ? ' (เดือนแรกที่มีสถานะ)' : ''}`;
+  const yr = phtYearTxt(code, E);
+  return `<div class="rf-hist"><span>${txt}${yr ? ` · ${yr}` : ''}</span>${phtTrailHtml(code, phtWindow(E, 6))}</div>`;
+}
+
 function renderRiskFinder(list){
   const el = document.getElementById('rfBox');
   if(!el) return;
@@ -4527,6 +4637,7 @@ function renderRiskFinder(list){
         <span class="rf-name">${x.name}</span> <span class="code-tag">#${x.code}</span>
       </div>
       <div class="rf-meta">${x.pm} · ${gapTxt} ${dueTxt}</div>
+      ${phtRiskLine(x.code)}
       ${x.note?`<div class="rf-progress">${x.note}</div>`:''}
       ${mismatch}
     </div>`;
@@ -6394,13 +6505,14 @@ async function phReadPdf(file){
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
   const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
   let out = '';
-  const pages = [];
+  const pages = [], samplers = [];
   for(let i=1;i<=pdf.numPages;i++){
     const page = await pdf.getPage(i);
     const tc = await page.getTextContent();
     const items = tc.items.filter(it=>it.transform && String(it.str||'').trim())
       .map(it=>({ s:String(it.str), x:it.transform[4]||0, y:it.transform[5]||0, w:it.width||0 }));
     pages.push(items);
+    samplers.push(await phPageSampler(page));
     const lines = [];
     items.slice().sort((a,b)=>b.y-a.y).forEach(it=>{
       const ln = lines[lines.length-1];
@@ -6412,7 +6524,238 @@ async function phReadPdf(file){
       return ps.map((p,k)=>(k && p.x - (ps[k-1].x + ps[k-1].w) > 1.5 ? ' ' : '') + p.s).join('').replace(/\s+/g,' ').trim();
     }).filter(Boolean).join('\n') + '\n';
   }
-  return { text: out, pages };
+  return { text: out, pages, samplers };
+}
+
+// สุขภาพรายเดือนในรายงาน PMS เป็น "สีพื้นของช่องเดือน" ไม่มีเป็นข้อความ จึงวาดหน้ารายงานลงภาพในเครื่อง (ไม่ส่งไปไหน)
+// แล้วอ่านสีตามพิกัดของช่อง · คืนฟังก์ชัน (x, y พิกัด PDF) -> [r,g,b] หรือ null ถ้าวาดไม่ได้
+async function phPageSampler(page){
+  try{
+    const vp = page.getViewport({ scale: 2 });
+    const cv = document.createElement('canvas');
+    cv.width = Math.ceil(vp.width); cv.height = Math.ceil(vp.height);
+    const ctx = cv.getContext('2d', { willReadFrequently: true });
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    const img = ctx.getImageData(0, 0, cv.width, cv.height);
+    return (x, y) => {
+      const [px, py] = vp.convertToViewportPoint(x, y);
+      const i = Math.round(px), j = Math.round(py);
+      if(i < 0 || j < 0 || i >= img.width || j >= img.height) return null;
+      const k = (j*img.width + i)*4;
+      return [img.data[k], img.data[k+1], img.data[k+2]];
+    };
+  }catch(e){ return null; }
+}
+
+// สีตามคำอธิบายสัญลักษณ์ของรายงาน PMS (ใช้เมื่อหาแถบคำอธิบายในไฟล์ไม่เจอ) · sev ใช้ตัดสินว่าแย่ลงหรือดีขึ้น
+const PH_HEALTH = [
+  { k:'Critical',        rgb:[254,113,112], sev:3, cls:'c', sh:'Crit' },
+  { k:'Warning',         rgb:[255,214,88],  sev:2, cls:'w', sh:'Warn' },
+  { k:'Normal',          rgb:[163,255,172], sev:1, cls:'n', sh:'Norm' },
+  { k:'Fast',            rgb:[198,201,255], sev:0, cls:'f', sh:'Fast' },
+  { k:'Super Fast',      rgb:[41,171,226],  sev:0, cls:'f', sh:'SF' },
+  { k:'Contract Closed', rgb:[200,200,200], sev:null, cls:'x', sh:'ปิด' },
+];
+const PH_HMAP = Object.fromEntries(PH_HEALTH.map(h => [h.k, h]));
+const phIsWC = k => k === 'Critical' || k === 'Warning';
+
+// อ่านสีจริงของแต่ละสถานะจากแถบคำอธิบายสัญลักษณ์ (ช่องสีเล็กหน้าคำ Critical · Warning · ...) เผื่อ PMS เปลี่ยนเฉดสี
+function phLegend(pages, samplers){
+  const pal = PH_HEALTH.map(h => ({ ...h }));
+  (pages || []).some((items, pi) => {
+    const px = samplers && samplers[pi];
+    if(!px) return false;
+    const crit = items.find(it => it.s.trim() === 'Critical' && items.some(o => o.s.trim() === 'Warning' && Math.abs(o.y - it.y) < 2.5));
+    if(!crit) return false;
+    pal.forEach(h => {
+      const lb = items.find(it => it.s.trim() === h.k && Math.abs(it.y - crit.y) < 2.5);
+      if(!lb) return;
+      const cnt = {};
+      for(let dx = 3; dx <= 8; dx++) for(let dy = 0; dy <= 5; dy++){
+        const c = px(lb.x - dx, lb.y + dy);
+        if(!c || (c[0] > 240 && c[1] > 240 && c[2] > 240) || (c[0] < 60 && c[1] < 60 && c[2] < 60)) continue;
+        const key = c.join(','); cnt[key] = (cnt[key] || 0) + 1;
+      }
+      const best = Object.entries(cnt).sort((p, q) => q[1] - p[1])[0];
+      if(best && best[1] >= 6) h.rgb = best[0].split(',').map(Number);
+    });
+    return true;
+  });
+  return pal;
+}
+
+// สีของช่องเดือน: เก็บหลายจุดรอบตัวเลขในช่อง (เลี่ยงตัวอักษร) แล้วเลือกสถานะที่ได้เสียงมากสุด
+// ช่องสีขาว = เดือนนั้นไม่มีสถานะ (ยังไม่เริ่ม / ยังไม่ถึง)
+function phCellHealth(px, pal, cx, y, spacing){
+  if(!px) return null;
+  const votes = {};
+  const dxs = [-0.4, -0.32, 0.32, 0.4].map(f => f*spacing);
+  for(const dx of dxs) for(const dy of [-1.5, 1, 3, 5]){
+    const c = px(cx + dx, y + dy);
+    if(!c || (c[0] > 245 && c[1] > 245 && c[2] > 245)) continue;
+    let best = null, bd = Infinity;
+    pal.forEach(h => { const d = Math.hypot(c[0]-h.rgb[0], c[1]-h.rgb[1], c[2]-h.rgb[2]); if(d < bd){ bd = d; best = h; } });
+    if(best && bd < 40) votes[best.k] = (votes[best.k] || 0) + 1;
+  }
+  const top = Object.entries(votes).sort((p, q) => q[1] - p[1])[0];
+  return top && top[1] >= 3 ? top[0] : null;
+}
+
+// ===================== สุขภาพรายเดือนจากชีต Project Health ในไฟล์ Excel (export จาก PMS) =====================
+// รหัส 1-5 ตรงกับสีในรายงาน PDF (ตรวจเทียบ ก.ค.-ต.ค. 69 แล้ว) · เป็นค่าปัจจุบันใน PMS ณ วันที่ export
+// ต่างจาก PDF ที่เป็นภาพนิ่ง ณ วันออกรายงาน (PMS คำนวณเดือนเก่าใหม่ได้ เช่น MA - Security ส.ค. 69: PDF Warning · ชีต Normal)
+const PHT_CODE = { 1:'Critical', 2:'Warning', 3:'Normal', 4:'Fast', 5:'Super Fast' };
+const phtRow = code => PHT_MAP.get(String(code||'').trim()) || null;
+const phtAt = (code, ym) => { const r = phtRow(code); const v = r && r.months ? r.months[ym] : null; return v ? (PHT_CODE[v] || null) : null; };
+const phtNowYm = () => { const d = new Date(); return d.getFullYear()*100 + d.getMonth() + 1; };
+const phtNextYm = ym => ym % 100 === 12 ? (Math.floor(ym/100) + 1)*100 + 1 : ym + 1;
+const phtWindow = (E, n) => { const out = []; let ym = E; for(let i = 0; i < n; i++){ out.unshift(ym); ym = phPrevYm(ym); } return out; };
+// เดือนล่าสุดที่มีค่า (ไม่เกินเดือนปัจจุบัน) และเดือนแรกสุดที่ข้อมูลครอบคลุม (ใช้บอกว่านับต่อเนื่อง "อย่างน้อย")
+function phtLatestYm(){
+  if(!PHT) return null;
+  const now = phtNowYm(); let best = null;
+  PHT.rows.forEach(r => Object.keys(r.months || {}).forEach(k => { k = +k; if(k <= now && (best == null || k > best)) best = k; }));
+  return best;
+}
+function phtFirstYm(){
+  if(!PHT) return null;
+  let first = null;
+  PHT.rows.forEach(r => Object.keys(r.months || {}).forEach(k => { k = +k; if(first == null || k < first) first = k; }));
+  // รายงานเป็นรายปี - ถือว่าครอบคลุมตั้งแต่ ม.ค. ของปีแรกที่มี
+  return first ? Math.floor(first/100)*100 + 1 : null;
+}
+// นับเดือนติดต่อกันที่อยู่สถานะเดียวกับเดือน E · since = เดือนแรกของช่วงนั้น
+function phtStreak(code, E){
+  const to = phtAt(code, E);
+  if(!to) return { to: null, n: 0 };
+  let n = 0, ym = E;
+  while(phtAt(code, ym) === to){ n++; ym = phPrevYm(ym); }
+  const first = phtFirstYm();
+  return { to, n, since: phtNextYm(ym), atLeast: first != null && ym < first };
+}
+// จำนวนเดือนที่เป็น Critical / Warning ในปีของเดือน E (ถึงเดือน E)
+function phtYearCount(code, E){
+  const y = Math.floor(E/100), c = { Critical: 0, Warning: 0 };
+  for(let m = 1; m <= E % 100; m++){ const h = phtAt(code, y*100 + m); if(h in c) c[h]++; }
+  return c;
+}
+const phtYearTxt = (code, E) => {
+  const c = phtYearCount(code, E);
+  const bits = [c.Critical ? `Critical ${c.Critical}` : '', c.Warning ? `Warning ${c.Warning}` : ''].filter(Boolean);
+  return bits.length ? `ปี ${String(Math.floor(E/100) + 543).slice(-2)} เป็น ${bits.join(' · ')} เดือน` : '';
+};
+// แถบเดือนย้อนหลังแบบเดียวกับการ์ดเทียบรายงาน PDF
+const phtTrailHtml = (code, yms, cls) => `<div class="${cls || 'ph-trail'}">${yms.map(ym => { const h = phtAt(code, ym);
+  return `<span class="ph-tc ${h ? PH_HMAP[h].cls : 'z'}" title="${phYmLabel(ym)}: ${h || 'ไม่มีสถานะ'}">${PH_TH[ym % 100]}<i>${h ? PH_HMAP[h].sh : '–'}</i></span>`; }).join('')}</div>`;
+
+// แถวของชีตที่การ์ดนี้ควรเห็น: โครงการในรายการของการ์ด (ผ่านตัวกรอง/ขอบเขตแล้ว)
+// + โครงการที่ไม่อยู่บนแดชบอร์ดแล้ว (ปิดจบระหว่างปี) ที่ตรงกับขอบเขตและตัวกรอง PM - ไม่งั้นแนวโน้มต้นปีจะขาดโครงการที่จบไปแล้ว
+function phtRowsFor(list, cardId){
+  if(!PHT) return [];
+  const inList = new Set(list.map(p => String(p['Project Code']||'').trim()));
+  const scoped = !hasTeamWideScope(cardId) && SCOPE;
+  return PHT.rows.filter(r => {
+    if(inList.has(r.code)) return true;
+    if(ACTIVE_CODES.has(r.code)) return false;              // ยังอยู่บนแดชบอร์ด แต่ถูกตัวกรองตัดออก
+    if(filters.team || filters.vp || filters.status || filters.health) return false;
+    if(filters.pm && pmKey(r.pm) !== filters.pm) return false;
+    if(scoped && pmKey(r.pm).toLowerCase() !== pmKey(SCOPE).toLowerCase()) return false;
+    return true;
+  });
+}
+
+// การเปลี่ยนสถานะระหว่างเดือน S กับ E - กติกาเดียวกับการ์ดเทียบรายงาน PDF (phHealthChanges)
+function phtChanges(rows, S, E){
+  const sev = k => PH_HMAP[k] ? PH_HMAP[k].sev : null;
+  const list = [];
+  rows.forEach(r => {
+    const from = phtAt(r.code, S), to = phtAt(r.code, E);
+    if(!to || (from === to && !phIsWC(to))) return;
+    let kind;
+    if(!from) kind = phIsWC(to) ? 'worse' : null;
+    else if(from === to) kind = 'stay';
+    else if(sev(to) > sev(from) && phIsWC(to)) kind = 'worse';
+    else if(sev(to) < sev(from) && phIsWC(from)) kind = 'better';
+    else kind = 'other';
+    if(!kind) return;
+    const st = phtStreak(r.code, E);
+    list.push({ r, from, to, kind, n: st.n, since: st.since, atLeast: st.atLeast });
+  });
+  const rk = { worse: 0, stay: 1, better: 2, other: 3 };
+  list.sort((x, y) => rk[x.kind] - rk[y.kind] || sev(y.to) - sev(x.to) || y.n - x.n || String(x.r.name).localeCompare(String(y.r.name)));
+  const by = k => list.filter(x => x.kind === k);
+  return { list, worse: by('worse'), stay: by('stay'), better: by('better'), other: by('other'),
+           nCritE: rows.filter(r => phtAt(r.code, E) === 'Critical').length, nWarnE: rows.filter(r => phtAt(r.code, E) === 'Warning').length };
+}
+
+// ส่วน "สุขภาพรายเดือนตาม PMS" ในการ์ด Project Health - ขึ้นทุกครั้งที่อัปโหลด Excel ไม่ต้องรอไฟล์ PDF
+function renderPhtMonthly(list){
+  const el = document.getElementById('phtBox');
+  if(!el) return;
+  const E = phtLatestYm();
+  if(!PHT || !E){ el.innerHTML = ''; return; }
+  const S = phPrevYm(E);
+  const rows = phtRowsFor(list, 'projectHealth');
+  if(!rows.length){ el.innerHTML = ''; return; }
+  const hx = phtChanges(rows, S, E);
+  const trail = phtWindow(E, 6);
+  const isNow = E === phtNowYm();
+  const closedSt = r => /closed/i.test(r.status || '') ? ` · สถานะ PMS: ${r.status.replace(/^(\w)/, c => c.toUpperCase())}` : '';
+  const chip = k => k ? `<span class="ph-h ${PH_HMAP[k].cls}">${k}</span>` : `<span class="ph-h z">ยังไม่มีสถานะ ${phYmLabel(S)}</span>`;
+  const streak = x => `${x.to} ${x.atLeast ? 'อย่างน้อย ' : ''}${x.n} เดือนติดต่อกัน${x.n >= 2 ? ` (ตั้งแต่ ${phYmLabel(x.since)})` : ''}`;
+  const row = x => {
+    const tag = x.kind === 'worse' && !x.from ? `เริ่มที่ ${x.to}` : { worse: 'แย่ลง', stay: 'ยังค้าง', better: 'ดีขึ้น' }[x.kind];
+    const meta = [pmKey(x.r.pm), x.kind === 'stay' || x.n >= 2 ? streak(x) : '', phtYearTxt(x.r.code, E)].filter(Boolean).join(' · ') + closedSt(x.r);
+    return `<div class="ph-hr ${x.kind}">
+      <div class="ph-clh"><span class="ph-hk ${x.kind}">${tag}</span><b>${x.r.name || x.r.code}</b><span class="ph-wc">${x.r.code}</span></div>
+      <div class="ph-hmv">${x.kind === 'stay' ? chip(x.to) : `${chip(x.from)}<span class="ph-arr">→</span>${chip(x.to)}`}<span class="ph-hm">${meta}</span></div>
+      ${phtTrailHtml(x.r.code, trail)}
+    </div>`;
+  };
+  const main = [...hx.worse, ...hx.stay, ...hx.better];
+  const wFrom = hx.worse.filter(x => x.from), wNew = hx.worse.filter(x => !x.from);
+  const head = [wFrom.length ? `แย่ลง ${wFrom.length}` : '', wNew.length ? `เริ่มที่ Warning/Critical ${wNew.length}` : '',
+                hx.stay.length ? `ยังค้าง ${hx.stay.length}` : '', hx.better.length ? `ดีขึ้น ${hx.better.length}` : ''].filter(Boolean).join(' · ');
+
+  // แนวโน้มทั้งทีมรายเดือน (12 เดือนล่าสุดที่มีข้อมูล) - จำนวนโครงการแยกตามสุขภาพ
+  const win = phtWindow(E, 12).filter(ym => rows.some(r => phtAt(r.code, ym)));
+  const cnt = win.map(ym => {
+    const c = { Critical: 0, Warning: 0, Normal: 0, Fast: 0, 'Super Fast': 0 };
+    rows.forEach(r => { const h = phtAt(r.code, ym); if(h) c[h]++; });
+    return { ym, c, tot: Object.values(c).reduce((a, b) => a + b, 0) };
+  });
+  const maxTot = Math.max(1, ...cnt.map(x => x.tot));
+  const seg = (n, cls) => n ? `<i class="${cls}" style="flex:${n}"></i>` : '';
+  const trend = `<div class="pht-trend">${cnt.map(x => {
+    const bad = x.c.Critical + x.c.Warning;
+    return `<div class="pht-col" title="${phYmLabel(x.ym)}: Critical ${x.c.Critical} · Warning ${x.c.Warning} · Normal ${x.c.Normal} · Fast ${x.c.Fast} · Super Fast ${x.c['Super Fast']}">
+      <div class="pht-bar"><b class="${x.c.Critical ? 'c' : bad ? 'w' : ''}">${bad || ''}</b><div class="pht-stack" style="height:calc((100% - 16px) * ${(x.tot/maxTot).toFixed(3)})">${seg(x.c.Critical,'c')}${seg(x.c.Warning,'w')}${seg(x.c.Normal,'n')}${seg(x.c.Fast + x.c['Super Fast'],'f')}</div></div>
+      <span>${PH_TH[x.ym % 100]}</span>
+    </div>`; }).join('')}</div>
+    <div class="pht-leg"><span><i class="c"></i>Critical</span><span><i class="w"></i>Warning</span><span><i class="n"></i>Normal</span><span><i class="f"></i>Fast / Super Fast</span><span class="pht-legn">ตัวเลขบนแท่ง = จำนวนโครงการที่เป็น Critical หรือ Warning ในเดือนนั้น</span></div>`;
+
+  // ตารางสุขภาพรายเดือนทุกโครงการ (พับไว้) - เรียงสถานะเดือนล่าสุดที่หนักสุดขึ้นก่อน
+  const sevE = r => { const h = phtAt(r.code, E); return h ? PH_HMAP[h].sev : -1; };
+  const heatRows = rows.filter(r => win.some(ym => phtAt(r.code, ym)))
+    .sort((a, b) => sevE(b) - sevE(a) || pmKey(a.pm).localeCompare(pmKey(b.pm)) || String(a.name).localeCompare(String(b.name)));
+  const heat = `<details class="pht-more"><summary>ดูสุขภาพรายเดือนทุกโครงการ (${heatRows.length} โครงการ · ${phYmLabel(win[0])} – ${phYmLabel(E)})</summary>
+    <div class="pht-scroll"><table class="pht-heat"><thead><tr><th>โครงการ</th><th>PM</th>${win.map(ym => `<th class="m">${PH_TH[ym % 100]}</th>`).join('')}</tr></thead>
+    <tbody>${heatRows.map(r => `<tr class="${/closed/i.test(r.status || '') || r.archived ? 'done' : ''}">
+      <td><b>${r.name || r.code}</b><span class="ph-wc">${r.code}${r.status ? ` · ${r.status}` : ''}</span></td><td class="pm">${pmKey(r.pm)}</td>
+      ${win.map(ym => { const h = phtAt(r.code, ym); return `<td class="m"><span class="ph-tc ${h ? PH_HMAP[h].cls : 'z'}" title="${phYmLabel(ym)}: ${h || 'ไม่มีสถานะ'}">${h ? PH_HMAP[h].sh : '–'}</span></td>`; }).join('')}
+    </tr>`).join('')}</tbody></table></div></details>`;
+
+  el.innerHTML = `<div class="pht">
+    <div class="ph-sec pht-title">สุขภาพรายเดือนตาม PMS · ${phYmLabel(S)} → ${phYmLabel(E)}${isNow ? ' (เดือนปัจจุบัน ข้อมูลถึงวันที่ export)' : ''}${head ? ` · ${head}` : ''}</div>
+    ${main.length ? `<div class="ph-hx">${main.map(row).join('')}</div>`
+      : `<div class="ph-hint">ไม่มีโครงการที่อยู่หรือเปลี่ยนเข้า-ออกสถานะ Warning/Critical ระหว่าง ${phYmLabel(S)} กับ ${phYmLabel(E)}</div>`}
+    ${hx.other.length ? `<div class="ph-hxo"><span class="ph-hxl">เปลี่ยนสถานะอื่น (ไม่เกี่ยวกับ Warning/Critical)</span>${hx.other.map(x =>
+        `<span class="trans-chip flat">${x.r.name || x.r.code} <b>${x.from} → ${x.to}</b></span>`).join('')}</div>` : ''}
+    <div class="ph-sec">แนวโน้มสุขภาพรายเดือน (${rows.length} โครงการ รวมที่ปิดไปแล้วในช่วงนี้)</div>
+    ${trend}
+    ${heat}
+    <div class="ph-src">ที่มา: ชีต ${(PHT.sheetNames || ['Project Health']).join(', ')} ในไฟล์ Excel${PHT.printDate ? ` (export จาก PMS ${PHT.printDate})` : ''} · เป็นค่าปัจจุบันใน PMS ซึ่งคำนวณเดือนก่อนหน้าใหม่ได้ จึงอาจต่างจากรายงาน PDF ที่ออก ณ วันนั้น · โครงการที่ปิดจบไปแล้วระหว่างปียังนับในแนวโน้มและตาราง</div>
+  </div>`;
 }
 
 const PH_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -6441,11 +6784,13 @@ function phParseHead(text, fileName){
 // แตกตารางจากพิกัด: หาตำแหน่งคอลัมน์จากหัวตาราง (Code · Project · PM · Lv. · Start · End · PM Act Value · เดือน)
 // แล้วจับแต่ละช่องตามแนวตั้ง - ไม่ต้องเดาจากลำดับข้อความ ชื่อที่ตัดสองบรรทัดก็ได้ครบ
 // แถบด้านขวาของรายงาน (🔒 Closed This Month · 📝 Suspect Delay / Plan Revised) อ่านแยกเป็นรายการรหัส
-function phParseLayout(pages, head){
+function phParseLayout(pages, head, samplers){
   let L = null, side = null;
   const rows = [], closed = [], suspect = [];
   const isMon = s => PH_EN.includes(String(s).trim());
-  (pages || []).forEach(items => {
+  const pal = phLegend(pages, samplers);
+  (pages || []).forEach((items, pi) => {
+    const px = samplers ? samplers[pi] : null;
     const codeH = items.find(it => it.s.trim() === 'Code');
     if(codeH){
       const onHead = it => Math.abs(it.y - codeH.y) < 2.5;
@@ -6497,10 +6842,13 @@ function phParseLayout(pages, head){
         if(Math.abs(col.cx - cx) <= spacing/2 && +txt(it) <= 100) byMonth[col.ym] = +txt(it);
       });
       const ymsHave = Object.keys(byMonth).map(Number).sort((p,q)=>p-q);
+      // สุขภาพรายเดือนจากสีช่อง (อ่านที่ระดับเดียวกับรหัสโครงการ = แถวเดียวกัน)
+      const healthByMonth = {};
+      if(px) L.cols.forEach(c => { const h = phCellHealth(px, pal, c.cx, a.y, spacing); if(h) healthByMonth[c.ym] = h; });
       const date = it => /^\d{1,2}-[A-Za-z]{3}-\d{2}$/.test(txt(it)) ? txt(it) : null;
       rows.push({ code: txt(a), name: name || ('(อ่านชื่อไม่ได้ - ดูรหัส ' + txt(a) + ')'), pm: txt(pmIt),
         lv: lvIt ? +txt(lvIt) : null, start: date(stIt), end: date(enIt), value: +txt(valIt).replace(/,/g,''),
-        isNew, byMonth, prog: ymsHave.map(y => byMonth[y]), last: ymsHave.length ? byMonth[ymsHave[ymsHave.length-1]] : null });
+        isNew, byMonth, healthByMonth, prog: ymsHave.map(y => byMonth[y]), last: ymsHave.length ? byMonth[ymsHave[ymsHave.length-1]] : null });
     });
     // แถบด้านขวา: หัวข้อแล้วตามด้วยรหัสโครงการ (หัวข้ออาจค้างมาจากหน้าก่อน)
     items.filter(it => it.x >= L.right).sort((a,b)=>b.y-a.y).forEach(it => {
@@ -6515,7 +6863,9 @@ function phParseLayout(pages, head){
   });
   if(!rows.length) return null;
   const colYms = L ? L.cols.map(c => c.ym) : [];
-  return { rows, closed: [...new Set(closed)], suspect: [...new Set(suspect)], colYms, layout: true };
+  // อ่านสีได้หรือไม่ (วาดหน้าไม่ได้ / ไม่มีช่องสีเลย) - ใช้แจ้งใต้ผลเทียบ
+  const healthRead = rows.some(r => Object.keys(r.healthByMonth).length);
+  return { rows, closed: [...new Set(closed)], suspect: [...new Set(suspect)], colYms, layout: true, healthRead };
 }
 
 async function phUpload(files){
@@ -6524,10 +6874,10 @@ async function phUpload(files){
   box.innerHTML = '<div class="ph-loading">กำลังอ่านรายงาน...</div>';
   try{
     for(const f of files){
-      const { text, pages } = await phReadPdf(f);
+      const { text, pages, samplers } = await phReadPdf(f);
       const head = phParseHead(text, f.name);
       // แตกจากพิกัดก่อน ถ้าหาหัวตารางไม่เจอ (รูปแบบรายงานเปลี่ยน) ค่อยถอยไปใช้ตัวแตกจากข้อความแบบเดิม
-      const lay = phParseLayout(pages, head);
+      const lay = phParseLayout(pages, head, samplers);
       const parsed = lay ? { ...head, ...lay, fileName: f.name }
                          : { ...phParse(text, f.name), ...head, closed: [], suspect: [], colYms: [], layout: false, fileName: f.name };
       if(!parsed.rows.length) throw new Error(`อ่านรายการโครงการจาก ${f.name} ไม่ได้ - ตรวจว่าเป็นไฟล์ Project Health Report จาก PMS`);
@@ -6605,6 +6955,8 @@ function phWatchList(kept, A, B, cx){
     const now = pg.b ?? pg.a;
     const flags = [];
     if(cx.suspect.has(b.code)) flags.push('PMS: Suspect Delay / Plan Revised');
+    const hc = cx.hx && cx.hx.map.get(b.code);
+    if(hc && hc.kind === 'worse') flags.push(`PMS ${phYmLabel(cx.hxE || cx.E)}: ${hc.from ? `${hc.from} → ${hc.to}` : `เริ่มที่ ${hc.to}`}`);
     if(move!=null && move<=0.01 && pg.b < 99.995) flags.push('ไม่ขยับจาก '+phYmLabel(cx.S));
     if(now!=null && daysLeft!=null && daysLeft<120 && now<70)
       flags.push((daysLeft>=0 ? 'เหลือ '+daysLeft+' วัน' : 'เลยวันจบ '+(-daysLeft)+' วัน')+'แต่ยัง '+now.toFixed(0)+'%');
@@ -6639,8 +6991,98 @@ function phWatchList(kept, A, B, cx){
         </div>`;
       }).join('')}
     </div>
-    <div class="ph-src">สถานะ Critical/Warning มาจากข้อมูลติดตามสัปดาห์ปัจจุบัน (รายงาน PDF แสดงสุขภาพเป็นแถบสี อ่านเป็นข้อความไม่ได้) · ป้ายสีน้ำตาลคือสิ่งที่พบจากการเทียบสองเดือน หรือจากแถบ Suspect Delay / Plan Revised ของรายงาน</div>
+    <div class="ph-src">ป้าย Critical/Warning หน้าชื่อมาจากข้อมูลติดตามสัปดาห์ปัจจุบันในไฟล์ Excel${cx.hx ? ' (สถานะรายเดือนตามรายงาน PMS ดูในหัวข้อสุขภาพโครงการด้านบน)' : ''} · ป้ายสีน้ำตาลคือสิ่งที่พบจากการเทียบสองเดือน${cx.hx ? ' สุขภาพที่แย่ลงตามรายงาน' : ''} หรือแถบ Suspect Delay / Plan Revised ของรายงาน</div>
     `;
+}
+
+// ---- สุขภาพโครงการรายเดือนตามรายงาน PMS (อ่านจากสีช่องเดือน) ----
+// เทียบเดือน S กับ E ชุดเดียวกับความคืบหน้า · สถานะของ S ใช้จากตารางในรายงานใหม่ก่อน (ตารางเดียวกัน) ไม่มีค่อยใช้รายงานก่อนหน้า
+// แยกเป็น แย่ลง (เข้าสู่ Warning/Critical หรือ Warning -> Critical) · ยังค้าง Warning/Critical · ดีขึ้น (ออกจาก/เบาลง) · เปลี่ยนอื่น ๆ
+function phHealthChanges(A, B, S, E, mapA){
+  const read = M => M && M.rows.some(r => r.healthByMonth && Object.keys(r.healthByMonth).length);
+  if(!E || !read(B)) return null;
+  const hAt = (r, ym) => (r && r.healthByMonth && ym && r.healthByMonth[ym]) || null;
+  const hist = (a, b, ym) => hAt(b, ym) || hAt(a, ym);
+  const sev = k => PH_HMAP[k] ? PH_HMAP[k].sev : null;
+  const winB = new Set(B.colYms || []), winA = new Set(A.colYms || []);
+  const trail = [...new Set([...(B.colYms || []).filter(m => m <= E), S].filter(Boolean))].sort((p,q)=>p-q).slice(-6);
+  const list = [];
+  B.rows.forEach(b => {
+    const a = mapA.get(b.code) || null;
+    const from = S ? hist(a, b, S) : null, to = hAt(b, E);
+    if(!to || from === to && !phIsWC(to)) return;
+    // นับเดือนติดต่อกันที่อยู่สถานะเดียวกับเดือน E · ถ้านับย้อนจนพ้นช่วงที่รายงานมีข้อมูล ให้บอกว่า "อย่างน้อย"
+    let n = 0, ym = E;
+    while(hist(a, b, ym) === to){ n++; ym = phPrevYm(ym); }
+    const atLeast = !winB.has(ym) && !winA.has(ym);
+    let kind;
+    if(sev(to) == null || (from && sev(from) == null)) kind = 'other';            // ช่องสีเทา = ปิดสัญญา ไม่ใช่สถานะสุขภาพ
+    else if(!from) kind = phIsWC(to) ? 'worse' : null;                             // เพิ่งมีสถานะเดือนนี้ - แจ้งเฉพาะที่เริ่มต้นก็ Warning/Critical
+    else if(from === to) kind = 'stay';
+    else if(sev(to) > sev(from) && phIsWC(to)) kind = 'worse';
+    else if(sev(to) < sev(from) && phIsWC(from)) kind = 'better';
+    else kind = 'other';
+    if(!kind) return;
+    list.push({ a, b, from, to, kind, n, atLeast, isAdded: !a, trail: trail.map(m => ({ ym: m, h: hist(a, b, m) })) });
+  });
+  const rk = { worse: 0, stay: 1, better: 2, other: 3 };
+  list.sort((x, y) => rk[x.kind] - rk[y.kind] || sev(y.to) - sev(x.to) || y.n - x.n);
+  const by = k => list.filter(x => x.kind === k);
+  return { list, worse: by('worse'), stay: by('stay'), better: by('better'), other: by('other'), trail,
+           map: new Map(list.map(x => [x.b.code, x])), nCritE: B.rows.filter(r => hAt(r, E) === 'Critical').length,
+           nWarnE: B.rows.filter(r => hAt(r, E) === 'Warning').length };
+}
+
+function phHealthSection(hx, cx){
+  const S = cx.S, E = cx.E;
+  const chip = (k) => k ? `<span class="ph-h ${PH_HMAP[k].cls}">${k}</span>` : `<span class="ph-h z">ไม่มีสถานะ</span>`;
+  const fromTxt = x => x.from || (x.isAdded ? 'งานใหม่' : `ไม่มีสถานะ ${phYmLabel(S)}`);
+  const streak = x => `${x.to} ${x.atLeast ? 'อย่างน้อย ' : ''}${x.n} เดือนติดต่อกัน`;
+  const row = x => {
+    const p = cx.pg(x.a, x.b);
+    const prog = p.a != null && p.b != null ? `ความคืบหน้า ${phYmLabel(S)} ${p.a.toFixed(1)}% → ${phYmLabel(E)} ${p.b.toFixed(1)}%`
+               : p.b != null ? `ความคืบหน้า ${phYmLabel(E)} ${p.b.toFixed(1)}%` : '';
+    // ไม่มีสถานะเดือนก่อน (เพิ่งเริ่ม/งานใหม่) แล้วมาเป็น Warning/Critical เลย - ไม่เรียกว่าแย่ลง
+    const tag = x.kind === 'worse' && !x.from ? `เริ่มที่ ${x.to}` : { worse: 'แย่ลง', stay: 'ยังค้าง', better: 'ดีขึ้น' }[x.kind];
+    return `<div class="ph-hr ${x.kind}">
+      <div class="ph-clh"><span class="ph-hk ${x.kind}">${tag}</span><b>${x.b.name}</b><span class="ph-wc">${x.b.code}</span></div>
+      <div class="ph-hmv">${x.kind === 'stay' ? chip(x.to) : `${x.from ? chip(x.from) : `<span class="ph-h z">${fromTxt(x)}</span>`}<span class="ph-arr">→</span>${chip(x.to)}`}
+        <span class="ph-hm">${[x.b.pm, x.kind === 'stay' || x.n >= 2 ? streak(x) : '', prog].filter(Boolean).join(' · ')}</span></div>
+      <div class="ph-trail">${x.trail.map(t => `<span class="ph-tc ${t.h ? PH_HMAP[t.h].cls : 'z'}" title="${phYmLabel(t.ym)}: ${t.h || 'ไม่มีสถานะ'}">${PH_TH[t.ym % 100]}<i>${t.h ? PH_HMAP[t.h].sh : '–'}</i></span>`).join('')}</div>
+    </div>`;
+  };
+  const main = [...hx.worse, ...hx.stay, ...hx.better];
+  const wFrom = hx.worse.filter(x => x.from), wNew = hx.worse.filter(x => !x.from);
+  const head = [wFrom.length ? `แย่ลง ${wFrom.length}` : '', wNew.length ? `เริ่มที่ Warning/Critical ${wNew.length}` : '',
+                hx.stay.length ? `ยังค้าง ${hx.stay.length}` : '', hx.better.length ? `ดีขึ้น ${hx.better.length}` : ''].filter(Boolean).join(' · ');
+  const name = x => `${x.b.name} (${x.b.pm})`;
+  const rep = [
+    wFrom.length ? `สุขภาพแย่ลง ${wFrom.length} โครงการ: ${wFrom.map(x => `${name(x)} ${x.from} → ${x.to}`).join(', ')}` : '',
+    wNew.length ? `เริ่มมีสถานะเป็น Warning/Critical ${wNew.length} โครงการ: ${wNew.map(x => `${name(x)} ${x.to}${x.isAdded ? ' (งานใหม่)' : ''}`).join(', ')}` : '',
+    hx.stay.length ? `ยังอยู่ในสถานะ Warning/Critical ${hx.stay.length} โครงการ: ${hx.stay.map(x => `${name(x)} ${streak(x)}`).join(', ')}` : '',
+    hx.better.length ? `ดีขึ้น ${hx.better.length} โครงการ: ${hx.better.map(x => `${name(x)} ${x.from} → ${x.to}`).join(', ')}` : '',
+  ].filter(Boolean);
+  const fromTab = cx.src === 'tab';
+  const mm = cx.mism || [];
+  const mismHtml = mm.length ? `<div class="ph-mism">
+      <div class="ph-rh">สีในรายงาน PDF ไม่ตรงกับชีต Project Health ในไฟล์ Excel ${mm.length} จุด</div>
+      ${mm.map(m => `<div class="ph-mr"><b>${m.b.name}</b> <span class="ph-wc">${m.b.code}</span> · ${phYmLabel(m.ym)}: รายงาน PDF ${chip(m.pdfH)} ชีต Excel ${chip(m.tabH)}</div>`).join('')}
+      <div class="ph-mn">ชีตใน Excel คือค่าปัจจุบันใน PMS (PMS คำนวณเดือนก่อนหน้าใหม่ได้) ส่วน PDF คือค่า ณ วันออกรายงาน - ถ้าอ้างอิงรายงานที่ส่งไปแล้วให้ยึด PDF ถ้าดูสถานะปัจจุบันให้ยึดชีต</div>
+    </div>` : '';
+  return `
+    <div class="ph-sec">สุขภาพโครงการตาม${fromTab ? 'ชีต Project Health (PMS)' : 'รายงาน PMS'} · ${phYmLabel(S)} → ${phYmLabel(E)}${head ? ` · ${head}` : ''}</div>
+    ${main.length ? `<div class="ph-hx">${main.map(row).join('')}</div>`
+                  : `<div class="ph-hint" style="margin:0 18px 12px">ไม่มีโครงการที่อยู่หรือเปลี่ยนเข้า-ออกสถานะ Warning/Critical ระหว่าง ${phYmLabel(S)} กับ ${phYmLabel(E)}</div>`}
+    ${hx.other.length ? `<div class="ph-hxo"><span class="ph-hxl">เปลี่ยนสถานะอื่น (ไม่เกี่ยวกับ Warning/Critical)</span>${hx.other.map(x =>
+        `<span class="trans-chip flat">${x.b.name} <b>${fromTxt(x)} → ${x.to}</b></span>`).join('')}</div>` : ''}
+    ${mismHtml}
+    ${rep.length ? `<div class="ph-report">
+      <div class="ph-rh">ข้อความสำหรับรายงานประจำเดือน</div>
+      <div class="ph-rb">สุขภาพโครงการเดือน${phYmLabel(E)} เทียบ ${phYmLabel(S)} ตาม${fromTab ? 'ข้อมูลใน PMS' : 'รายงาน PMS'}<br>${rep.join('<br>')}</div>
+    </div>` : ''}
+    <div class="ph-src">${fromTab
+      ? `รายงาน PDF ${cx.bLabel} ไม่มีสีสถานะของเดือนที่ใช้เทียบได้ จึงใช้ชีต Project Health ในไฟล์ Excel แทน (ค่าปัจจุบันใน PMS ไม่ใช่ภาพนิ่ง ณ วันออกรายงาน) · แถบเดือนด้านล่างแต่ละโครงการคือสถานะย้อนหลังจากชีตเดียวกัน`
+      : `อ่านจากสีช่องรายเดือนในตาราง Health and Progress ของรายงาน PMS เทียบกับสีในคำอธิบายสัญลักษณ์ของรายงาน (วาดและอ่านในเครื่องนี้ ไม่ส่งไฟล์ไปไหน) · สถานะของ ${phYmLabel(S)} ใช้จากตารางในรายงาน ${cx.bLabel} ก่อน · แถบเดือนด้านล่างแต่ละโครงการคือสถานะย้อนหลังตามรายงาน${cx.tabChecked && !mm.length ? ' · ตรวจกับชีต Project Health ในไฟล์ Excel แล้ว ตรงกันทุกโครงการ' : ''}`}</div>`;
 }
 
 function renderProjectHealthCompare(){
@@ -6685,6 +7127,32 @@ function renderProjectHealthCompare(){
   const mEnd = B.ym ? new Date(Math.floor(B.ym/100), B.ym%100, 0) : null;
   const ref = (mEnd && (new Date() - mEnd) > 7*DAY) ? mEnd : new Date();
   const refNote = ref === mEnd ? ` ณ สิ้น ${B.label}` : '';
+  // สุขภาพรายเดือนจากสีช่องในรายงาน (เดือนชุดเดียวกับความคืบหน้า)
+  let hx = byM ? phHealthChanges(A, B, S, E, mapA) : null;
+  let hxSrc = 'pdf', hS = S, hE = E;
+  // รายงาน PDF ไม่มีสีสถานะของเดือนที่ใช้เทียบได้ (ช่วงเดือนผิด / อ่านสีไม่ได้) - ใช้ชีต Project Health ในไฟล์ Excel แทน
+  if(!hx && PHT){
+    const tS = E ? S : A.ym, tE = E || B.ym;
+    if(tS && tE && tS < tE && B.rows.some(r => phtAt(r.code, tE))){
+      const syn = M => ({ ...M, colYms: [...new Set([...(M.colYms || []).filter(m => m <= tE), ...phtWindow(tE, 6)])].sort((p, q) => p - q),
+        rows: M.rows.map(r => { const hb = {}; phtWindow(tE, 24).forEach(ym => { const h = phtAt(r.code, ym); if(h) hb[ym] = h; }); return { ...r, healthByMonth: hb }; }) });
+      const A2 = syn(A), B2 = syn(B);
+      const t = phHealthChanges(A2, B2, tS, tE, new Map(A2.rows.map(r => [r.code, r])));
+      if(t){ hx = t; hxSrc = 'tab'; hS = tS; hE = tE; }
+    }
+  }
+  // สีในรายงาน PDF เทียบกับชีต Project Health (ค่าปัจจุบันใน PMS) ของเดือนที่ใช้เทียบ - แจ้งจุดที่ไม่ตรงกัน
+  const mism = [];
+  if(hx && hxSrc === 'pdf' && PHT){
+    B.rows.forEach(b => {
+      const a = mapA.get(b.code);
+      [S, E].forEach(ym => {
+        const pdfH = (b.healthByMonth && b.healthByMonth[ym]) || (ym === S && a && a.healthByMonth && a.healthByMonth[ym]) || null;
+        const tabH = phtAt(b.code, ym);
+        if(pdfH && tabH && pdfH !== tabH && PH_HMAP[pdfH] && PH_HMAP[pdfH].sev != null) mism.push({ b, ym, pdfH, tabH });
+      });
+    });
+  }
   const notes = [];
   [A, B].forEach(M => {
     if(M.ymFile && M.ymHead && M.ymFile !== M.ymHead)
@@ -6694,7 +7162,8 @@ function renderProjectHealthCompare(){
         + (M === A ? ` จึงใช้ค่า ${phYmLabel(S)} จากตารางในรายงาน ${B.label}` : ''));
   });
   if(byM && E && B.ym && E !== B.ym) notes.push(`รายงาน ${B.label} ยังไม่มีความคืบหน้าของเดือน ${B.label} จึงเทียบถึง ${phYmLabel(E)}`);
-  if(byM && !E) notes.push(`รายงาน ${B.label} ไม่มีความคืบหน้าหลัง ${phYmLabel(S)} จึงยังเทียบความคืบหน้าไม่ได้ - เมื่อเพิ่มรายงานเดือนถัดไป ระบบจะใช้ค่าของ ${B.label} จากตารางในรายงานใหม่`);
+  if(byM && !E) notes.push(`รายงาน ${B.label} ไม่มีความคืบหน้าหลัง ${phYmLabel(S)} จึงยังเทียบความคืบหน้า${hxSrc === 'tab' ? '' : 'และสถานะสุขภาพรายเดือน'}ไม่ได้ - เมื่อเพิ่มรายงานเดือนถัดไป ระบบจะใช้ค่าของ ${B.label} จากตารางในรายงานใหม่`);
+  if(byM && E && !hx) notes.push(`อ่านสีสถานะสุขภาพรายเดือนจากรายงาน ${B.label} ไม่ได้ (เบราว์เซอร์วาดหน้ารายงานไม่สำเร็จ หรือรูปแบบสีเปลี่ยน) จึงไม่แสดงการเปลี่ยนสถานะ Warning/Critical`);
 
   // ---- ปิดสัญญาเดือนนี้: ตามแถบ 🔒 Closed This Month ของรายงาน + โครงการในรายงานที่ไฟล์ Excel บันทึกวันปิดสัญญาในเดือนนี้ ----
   const closedNow = B.rows.filter(r => (B.closed||[]).includes(r.code) || ((s=>s && s.closed && s.closedYm===B.ym)(phLiveState(r.code))))
@@ -6755,6 +7224,7 @@ function renderProjectHealthCompare(){
       <div class="ph-cell"><i>ปิดสัญญาเดือนนี้</i><b>${closedNow.length}</b><u>${closedNow.length?phBaht(closedNow.reduce((s,x)=>s+x.r.value,0)):'ไม่มี'}</u></div>
       <div class="ph-cell ${nWarnGone?'out':''}"><i>ไม่อยู่ในรายงานเดือนนี้</i><b>${removed.length}</b><u>${!removed.length?'ไม่มี':nWarnGone?`ต้องตรวจ ${nWarnGone} โครงการ`:'ปิดสัญญาไปแล้วทั้งหมด'}</u></div>
       <div class="ph-cell"><i>เปลี่ยนระดับ</i><b>${lvUp.length}</b><u>${lvUp.length?'ตรวจว่าตรงกับงานจริง':'คงเดิมทั้งหมด'}</u></div>
+      ${hx ? `<div class="ph-cell ${hx.worse.length?'bad':''}"><i>สุขภาพแย่ลง (PMS)</i><b>${hx.worse.length}</b><u>${hx.worse.some(x=>!x.from)?`รวมที่เพิ่งมีสถานะ ${hx.worse.filter(x=>!x.from).length} · `:''}${hx.better.length?`ดีขึ้น ${hx.better.length} · `:''}${phYmLabel(hE)} มี Critical ${hx.nCritE} · Warning ${hx.nWarnE}</u></div>` : ''}
     </div>
 
     ${added.length ? `<div class="ph-flow">
@@ -6792,7 +7262,8 @@ function renderProjectHealthCompare(){
         </div>`).join('')}
       </div>` : ''}
 
-    ${phWatchList(kept, A, B, { pg, S, E, eLabel, ref, refNote, suspect: new Set(B.suspect||[]) })}
+    ${hx ? phHealthSection(hx, { pg, S: hS, E: hE, bLabel: B.label, src: hxSrc, mism, tabChecked: !!PHT }) : ''}
+    ${phWatchList(kept, A, B, { pg, S, E, eLabel, ref, refNote, suspect: new Set(B.suspect||[]), hx, hxE: hE })}
     <div class="ph-sec">ความคืบหน้ารายโครงการ · ${phYmLabel(S)} → ${eLabel}${E ? '' : ` (รายงาน ${B.label} ไม่มีค่า)`}</div>
     <div class="ph-tbl">
       ${kept.map(x=>({...x, p:pg(x.a, x.b)}))
@@ -10566,6 +11037,30 @@ function renderCompanySearch(query){
   }).join('') + moreNote;
 }
 
+// สุขภาพรายเดือนของปีนี้ตาม PMS + วันที่งานถึง 100% จริงเทียบวันจบสัญญา (จากชีต Project Health)
+function phtCardStrip(code, p){
+  const r = phtRow(code), E = phtLatestYm();
+  if(!PHT || !r || !E) return '';
+  const y = Math.floor(E/100);
+  let yms = []; for(let m = 1; m <= E % 100; m++) yms.push(y*100 + m);
+  const first = yms.findIndex(ym => phtAt(code, ym));
+  if(first < 0) return '';
+  yms = yms.slice(first);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const hitA = parseD(r.hit100Actual), hitU = parseD(r.hit100Update), end = parseD(r.end);
+  const st = projectStatus(p);
+  const closed = st === 'Contract Closed' || st === 'Completely Closed';
+  let hit = '';
+  if(hitA){
+    const d = end ? Math.round((hitA - end)/DAY) : null;
+    const lag = hitU ? Math.round((hitU - hitA)/DAY) : null;
+    hit = `<em class="${d > 0 ? 'late' : ''}">ถึง 100% จริง ${fmtDObj(hitA)}${d == null ? '' : d < 0 ? ` · ก่อนวันจบ ${-d} วัน` : d === 0 ? ' · ตรงวันจบ' : ` · หลังวันจบ ${d} วัน`}${lag != null && lag >= 7 ? ` · บันทึกใน PMS ช้า ${lag} วัน` : ''}</em>`;
+  } else if(end && !closed && end < today){
+    hit = `<em class="late">เลยวันจบ ${Math.round((today - end)/DAY)} วัน ยังไม่ถึง 100% ตาม PMS</em>`;
+  }
+  return `<div class="c-hm"><div class="c-hm-t"><span>สุขภาพรายเดือนตาม PMS ปี ${y + 543}</span>${hit}</div>${phtTrailHtml(code, yms, 'c-hm-row')}</div>`;
+}
+
 function renderCards(list){
   document.getElementById('projCount').textContent = `${list.length} / ${ALL.length}`;
   const el = document.getElementById('grid');
@@ -10609,6 +11104,7 @@ function renderCards(list){
         <div class="c-prog-t"><span>ความคืบหน้า</span><b>${pr.toFixed(1)}%</b></div>
         <div class="c-bar"><i style="width:${pr}%;background:${col}"></i></div>
       </div>
+      ${phtCardStrip(code, p)}
       ${p['Progress Update'] ? `<div class="c-note">${p['Progress Update']}</div>` : ''}
       <div class="c-foot">
         <span>${svg(I.cal)}${fmtDate(p['Start Date'])} - ${fmtDate(p['End Date'])}${(() => {
@@ -10727,6 +11223,26 @@ function buildEvmDetailHtml(evm, projectCode){
 // ใช้การจัดอันดับ (rank-based) แทนตัวเลขดิบในการถ่วงน้ำหนัก กันไม่ให้ใครชนะแค่เพราะบังเอิญได้สัญญาก้อนใหญ่
 // (เช่น Watanyu มีโครงการ AOT มูลค่า 800M+ ตัวเดียว ซึ่งเป็นเรื่องการมอบหมายงาน ไม่ใช่ตัวชี้วัดฝีมือโดยตรง)
 // น้ำหนักเน้นมิติที่ "อยู่ในการควบคุมของ PM เอง" (ตรงเวลา) มากกว่ามิติที่อาจถูกปัจจัยภายนอกกระทบ (ผู้ขายส่งช้า ฯลฯ)
+// สุขภาพสะสมทั้งปีของ PM จากชีต Project Health: นับเดือน-โครงการ ตั้งแต่ ม.ค. ถึงเดือนล่าสุดที่มีข้อมูล
+function phtPmYear(pm, year){
+  const E = phtLatestYm();
+  if(!PHT || !E) return null;
+  const last = Math.min(E, year*100 + 12);
+  const key = pmKey(pm).toLowerCase();
+  const out = { n: 0, ok: 0, crit: 0, warn: 0, projects: 0, from: year*100 + 1, to: last };
+  PHT.rows.filter(r => pmKey(r.pm).toLowerCase() === key).forEach(r => {
+    let any = false;
+    for(let ym = year*100 + 1; ym <= last; ym++){
+      const h = phtAt(r.code, ym);
+      if(!h) continue;
+      any = true; out.n++;
+      if(h === 'Critical') out.crit++; else if(h === 'Warning') out.warn++; else out.ok++;
+    }
+    if(any) out.projects++;
+  });
+  return out.n ? out : null;
+}
+
 function computeTeamScorecard(){
   const today0 = new Date(); today0.setHours(0,0,0,0);
   // ปี "1 ปี" ที่ OAT ต้องการคือปีปฏิทินเต็ม (1 ม.ค. - 31 ธ.ค. ของปีปัจจุบัน) ไม่ใช่ย้อนหลัง 365 วันจากวันนี้
@@ -10798,7 +11314,12 @@ function computeTeamScorecard(){
     // 3) สัดส่วนโครงการ Health ปกติ ณ ตอนนี้ (เฉพาะที่ยังไม่ปิดงาน)
     const openProjects = pmProjects.filter(p=>{ const st=projectStatus(p); return st!=='Contract Closed' && st!=='Completely Closed'; });
     const normalN = openProjects.filter(p=>H.cls(p['Project Health'])==='success').length;
-    const healthyPct = openProjects.length ? (normalN/openProjects.length*100) : null;
+    const healthNowPct = openProjects.length ? (normalN/openProjects.length*100) : null;
+    // OAT 2 พ.ย. 69: เปลี่ยนมิติ Health เป็น "สะสมทั้งปี" ให้ตรงกับหลักที่ทุกมิติสะสมทั้งปี
+    // = สัดส่วนเดือน-โครงการที่สุขภาพปกติ (Normal/Fast/Super Fast) ตั้งแต่ ม.ค. ถึงเดือนล่าสุด จากชีต Project Health
+    // นับรวมโครงการที่ปิดไปแล้วระหว่างปี · ไม่มีชีตนี้ในไฟล์ = ใช้สถานะ ณ วันนี้แบบเดิม
+    const healthYear = phtPmYear(pm, today0.getFullYear());
+    const healthyPct = healthYear ? healthYear.ok/healthYear.n*100 : healthNowPct;
 
     // 4) ช่องว่าง Revenue Attainment ปัจจุบัน ถ่วงน้ำหนักด้วย Selling Price (บวก = ช้ากว่าแผนเฉลี่ย, ลบ = เร็วกว่า)
     const revItems = REV.filter(r=>pmKey(r['PM Name'])===pm && r['Project Code']);
@@ -10853,7 +11374,7 @@ function computeTeamScorecard(){
     const invScore = invOnTimePct===null ? null
       : Math.max(0, Math.min(100, invOnTimePct + (invEarlyAvg===null ? 0 : Math.max(-15, Math.min(15, invEarlyAvg/2)))));
 
-    return {pm, punctualityPct, projCount1y, projValue1y, workloadIndex, healthyPct, revGapWeighted, stalledCount,
+    return {pm, punctualityPct, projCount1y, projValue1y, workloadIndex, healthyPct, healthNowPct, healthYear, revGapWeighted, stalledCount,
             invScore, invOnTimePct, invEarlyAvg, invDue, invBilled, invSampleN: earlyDays.length};
   });
 }
@@ -10969,9 +11490,31 @@ function renderOatScorecard(){
   })
   .sort((a,b)=> b.composite-a.composite || (b.workloadIndex||0)-(a.workloadIndex||0));
 
+  // Health สะสมทั้งปี (ชีต Project Health) - คำนวณอันดับแบบเดิม (Health ณ วันนี้) ไว้เทียบ ให้เห็นผลของการเปลี่ยนวิธีคิด
+  const yearMode = data.some(x => x.healthYear);
+  const yr = yearMode ? data.find(x => x.healthYear).healthYear : null;
+  const oldRank = {};
+  if(yearMode){
+    const sHealthOld = rankScore(data, 'healthNowPct', true, n);
+    data.map(x => ({ pm: x.pm, wli: x.workloadIndex || 0,
+        c: (sPunc[x.pm] ?? 50)*WEIGHTS.punc + (sWLI[x.pm] ?? 50)*WEIGHTS.wli + (sHealthOld[x.pm] ?? 50)*WEIGHTS.health
+         + (sRev[x.pm] ?? 50)*WEIGHTS.rev + (sInv[x.pm] ?? 50)*WEIGHTS.inv }))
+      .sort((a,b) => b.c - a.c || b.wli - a.wli)
+      .forEach((x,i) => { oldRank[x.pm] = { rank: i+1, c: x.c }; });
+  }
+  const moved = yearMode ? scored.map((x,i) => ({ pm: x.pm, from: oldRank[x.pm].rank, to: i+1 })).filter(m => m.from !== m.to) : [];
+  const cMoved = yearMode ? scored.filter(x => oldRank[x.pm].c.toFixed(0) !== x.composite.toFixed(0))
+    .map(x => `${ppwFirst(x.pm)} ${oldRank[x.pm].c.toFixed(0)} → ${x.composite.toFixed(0)}`) : [];
+  const healthTip = x => x.healthYear
+    ? `สะสม ${phYmLabel(x.healthYear.from)} – ${phYmLabel(x.healthYear.to)}: ปกติ ${x.healthYear.ok} จาก ${x.healthYear.n} เดือน-โครงการ (${x.healthYear.projects} โครงการ) · Critical ${x.healthYear.crit} · Warning ${x.healthYear.warn}&#10;วิธีเดิม (ณ วันนี้ เฉพาะโครงการที่ยังไม่ปิด): ${x.healthNowPct!=null ? x.healthNowPct.toFixed(0)+'%' : 'ไม่มีโครงการที่ยังไม่ปิด'}`
+    : 'สัดส่วนโครงการที่ยังไม่ปิดที่ Health ปกติ ณ วันนี้';
+  const healthLbl = yearMode ? 'Health ปกติ (ทั้งปี)' : 'Health ปกติ';
+
   const top = scored[0];
   const reasons = [];
-  if(top.cHealth>=75 && top.healthyPct!==null) reasons.push(`โครงการที่ดูแลอยู่ ${top.healthyPct.toFixed(0)}% อยู่ในสถานะ Normal`);
+  if(top.cHealth>=75 && top.healthyPct!==null) reasons.push(top.healthYear
+    ? `สุขภาพโครงการปกติ ${top.healthyPct.toFixed(0)}% ของเดือนทั้งปี`
+    : `โครงการที่ดูแลอยู่ ${top.healthyPct.toFixed(0)}% อยู่ในสถานะ Normal`);
   if(top.cRev>=75 && top.revGapWeighted!==null) reasons.push(`Revenue Attainment ${top.revGapWeighted<=0?'ล้ำหน้า':'ใกล้เคียง'}แผน (${top.revGapWeighted>0?'-':'+'}${Math.abs(top.revGapWeighted).toFixed(1)}pp)`);
   const reasonTxt = reasons.length ? reasons.join(' · ') : 'คะแนนรวมสูงสุดจากทุกมิติเฉลี่ยกัน';
 
@@ -10980,10 +11523,10 @@ function renderOatScorecard(){
     return `<div class="sc-row ${i===0?'sc-top':''}">
       <div class="sc-rank">${medal}</div>
       <div class="av" style="background:${avatarColor(x.pm)}">${initials(x.pm)}</div>
-      <div class="sc-name">${x.pm}</div>
+      <div class="sc-name">${x.pm}${yearMode && (oldRank[x.pm].rank !== i+1 || oldRank[x.pm].c.toFixed(0) !== x.composite.toFixed(0)) ? `<span class="sc-old" title="อันดับและคะแนนรวมถ้าใช้ Health ณ วันนี้แบบเดิม">${oldRank[x.pm].rank !== i+1 ? `วิธีเดิม #${oldRank[x.pm].rank} (${oldRank[x.pm].c.toFixed(0)})` : `วิธีเดิม ${oldRank[x.pm].c.toFixed(0)} คะแนน`}</span>` : ''}</div>
       <div class="sc-metric"><div class="sc-l">อัปเดต PMS</div><div class="sc-v ${x.punctualityPct!=null&&x.punctualityPct<80?'sc-late':''}" title="สัดส่วนสัปดาห์ที่อัปเดตตรงวันศุกร์ ในปีนี้">${x.punctualityPct!=null?x.punctualityPct.toFixed(0)+'%':'-'}</div></div>
       <div class="sc-metric"><div class="sc-l">ดัชนีภาระงาน</div><div class="sc-v" title="WLI = ผลรวม (ระดับความยาก x ตัวคูณมูลค่า) ของทุกโครงการ&#10;มูลค่า ${compact(x.projValue1y)} · ${x.projCount1y||0} โครงการ">${(x.workloadIndex||0).toFixed(1)}<u class="sc-adj">${x.projCount1y||0} โครงการ · ${compact(x.projValue1y)}</u></div></div>
-      <div class="sc-metric"><div class="sc-l">Health ปกติ</div><div class="sc-v">${x.healthyPct!=null?x.healthyPct.toFixed(0)+'%':'-'}</div></div>
+      <div class="sc-metric"><div class="sc-l">${healthLbl}</div><div class="sc-v" title="${healthTip(x)}">${x.healthyPct!=null?x.healthyPct.toFixed(0)+'%':'-'}${x.healthYear ? `<u class="sc-adj">ณ วันนี้ ${x.healthNowPct!=null ? x.healthNowPct.toFixed(0)+'%' : '-'}</u>` : ''}</div></div>
       <div class="sc-metric"><div class="sc-l">Rev.Gap</div><div class="sc-v" style="color:${x.revGapWeighted>0?'var(--critical)':'var(--success)'}">${x.revGapWeighted!=null?(x.revGapWeighted>0?'-':'+')+Math.abs(x.revGapWeighted).toFixed(1)+'pp':'-'}</div></div>
       
       <div class="sc-metric"><div class="sc-l">วางบิล</div><div class="sc-v" title="ตรงกำหนด ${x.invBilled}/${x.invDue} งวด${x.invEarlyAvg!==null?` · เทียบสัญญาเฉลี่ย ${x.invEarlyAvg>0?'เร็วกว่า':'ช้ากว่า'} ${Math.abs(x.invEarlyAvg).toFixed(0)} วัน (จาก ${x.invSampleN} งวด)`:' · ไม่มีงวดที่ระบุเงื่อนไขวันในสัญญา'}">${x.invOnTimePct===null?'-':x.invOnTimePct.toFixed(0)+'%'}${x.invEarlyAvg!==null&&x.invEarlyAvg>0?'<span style="font-size:8px;color:var(--success)"> ⚡</span>':''}</div></div>
@@ -10996,6 +11539,8 @@ function renderOatScorecard(){
 
   el.innerHTML = `
     <div class="sc-winner">🏆 <b>${top.pm}</b> มีคะแนนรวมสูงสุด (${top.composite.toFixed(0)}/100) - ${reasonTxt}</div>
+    ${yearMode ? `<div class="sc-chg">มิติ Health ใช้สุขภาพสะสมทั้งปี ${phYmLabel(yr.from)} – ${phYmLabel(yr.to)} จากชีต Project Health (รวมโครงการที่ปิดไปแล้ว) แทนสถานะ ณ วันนี้ ·
+      ${moved.length ? `อันดับที่เปลี่ยนจากวิธีเดิม: ${moved.map(m => `${ppwFirst(m.pm)} ${m.from} → ${m.to}`).join(' · ')}` : 'อันดับเท่ากับวิธีเดิมทุกคน'}${cMoved.length ? ` · คะแนนรวมที่เปลี่ยน: ${cMoved.join(' · ')}` : ''}</div>` : ''}
     <div class="sc-radar-wrap">
       <div class="sc-radar-svg">${radarSvg}</div>
       <div class="sc-radar-legend">${radarLegend}</div>
@@ -11006,7 +11551,7 @@ function renderOatScorecard(){
       <div class="sc-rank"></div><div class="av" style="visibility:hidden"></div><div class="sc-name">PM</div>
       <div class="sc-metric"><div class="sc-l">อัปเดต PMS</div></div>
       <div class="sc-metric"><div class="sc-l">ดัชนีภาระงาน</div></div>
-      <div class="sc-metric"><div class="sc-l">Health ปกติ</div></div>
+      <div class="sc-metric"><div class="sc-l">${healthLbl}</div></div>
       <div class="sc-metric"><div class="sc-l">Rev.Gap</div></div>
       
       <div class="sc-metric"><div class="sc-l">วางบิล</div></div>
@@ -11018,6 +11563,7 @@ function renderOatScorecard(){
       <b>มิติวางบิล</b> = % งวดที่ถึงกำหนดแล้ววางบิลจริง ปรับด้วยความเร็วเทียบเงื่อนไขในสัญญา (เฉพาะงวดที่ระบุ &quot;X วัน&quot;) - ⚡ = เฉลี่ยวางบิลเร็วกว่าสัญญา
       (เน้นมิติที่อยู่ในการควบคุมของ PM เองมากกว่า)<br>
       <b>อัปเดต PMS</b> นับสะสมทั้งปี รายโครงการ - PM ที่ดูแล 5 โครงการต้องกรอกครบทั้ง 5 ทุกสัปดาห์<br>
+      <b>Health ปกติ</b> ${yearMode ? `= สัดส่วนเดือน-โครงการที่สุขภาพปกติ (Normal / Fast / Super Fast) ตั้งแต่ ${phYmLabel(yr.from)} ถึง ${phYmLabel(yr.to)} จากชีต Project Health ที่ export จาก PMS นับรวมโครงการที่ปิดไปแล้วระหว่างปี - ชี้ที่ตัวเลขเพื่อดูจำนวนเดือนและค่าแบบเดิม` : '= สัดส่วนโครงการที่ยังไม่ปิดที่ Health ปกติ ณ วันนี้ (เพิ่มชีต Project Health ในไฟล์ Excel เพื่อใช้แบบสะสมทั้งปี)'} · Health แดงบางครั้งมาจากของมาช้า ไม่ใช่ฝีมือ PM จึงให้น้ำหนักแค่ 15%<br>
         <b>ดัชนีภาระงาน (Workload Index)</b> = ผลรวมของ <b>ระดับความยาก x ตัวคูณมูลค่า</b> ทุกโครงการ · ตัวคูณมูลค่า: ต่ำกว่า 10M = 1.0 · 10-50M = 1.5 · 50-200M = 2.5 · 200-500M = 4.0 · เกิน 500M = 6.0<br>
         นับเป็นมิติคะแนน 25% - เป็นความรับผิดชอบทั้งโครงการ จึงมีน้ำหนักมากกว่าวินัยการกรอกข้อมูล<br>
         <b>ข้อควรระวัง:</b> "Rev.Gap" อาจเกิดจากปัจจัยภายนอก (ผู้ขายส่งของช้า, รอราชการอนุมัติ ฯลฯ) ไม่ใช่ฝีมือ PM เสมอไป
@@ -11540,6 +12086,18 @@ function ppwDrawQuad(L){
 //  · ใช้ตัวช่วยชุด ppw* (ppwDay, ppwPhase, ppwEsc, ppwFmt, tooltip) ร่วมกับการ์ด Productivity per Workload
 const WLI_MONTHS = 6;
 const wliPoints = p => Math.max(1, Math.round(num(p['Project Level'])) + Math.round(num(p['Complex Level'])));
+// คะแนนเพิ่มของโครงการที่มีปัญหาต่อเนื่อง (OAT 2 พ.ย. 69) - โครงการที่ Warning/Critical ติดกันหลายเดือนกินแรง PM มากกว่างานปกติ
+// (ประชุมแก้ปัญหา · ตามผู้ขาย · รายงานผู้บริหาร) · นับเดือนที่เป็น Warning หรือ Critical ติดกันจนถึงเดือนล่าสุดในชีต Project Health
+// 2 เดือน +1 · ตั้งแต่ 3 เดือน +2 · เดือนแรกที่เพิ่งเป็นยังไม่บวก · ใช้กับภาระ "ตอนนี้" เท่านั้น ไม่เดาว่าเดือนข้างหน้าจะยังมีปัญหา
+// ไม่มีชีต Project Health = ไม่บวก (เหมือนเดิม) · การ์ด Productivity per Workload ยังใช้ Level + Complex อย่างเดียว
+function wliBonus(code){
+  const E = phtLatestYm();
+  if(!PHT || !E) return { pts: 0, n: 0, to: null };
+  let n = 0, ym = E, h;
+  while((h = phtAt(code, ym)) && phIsWC(h)){ n++; ym = phPrevYm(ym); }
+  return { pts: n >= 3 ? 2 : n === 2 ? 1 : 0, n, to: phtAt(code, E) };
+}
+const wliBonusTxt = i => i.bonus ? `Warning/Critical ต่อเนื่อง ${i.bonusN} เดือน (เดือนล่าสุด ${i.bonusTo}) +${i.bonus}` : '';
 
 function renderWorkloadIndex(list){
   const box = document.getElementById('wliBox');
@@ -11558,27 +12116,29 @@ function renderWorkloadIndex(list){
   const groups = {};
   (list || []).forEach(p => {
     const pm = pmKey(p['PM Name']) || 'ไม่ระบุ', key = nrm(pm);
-    const g = groups[key] || (groups[key] = { key, pm, items: [], now: 0, m: Array(WLI_MONTHS).fill(0), late: 0, noEnd: 0 });
+    const g = groups[key] || (groups[key] = { key, pm, items: [], now: 0, m: Array(WLI_MONTHS).fill(0), late: 0, noEnd: 0, bonus: 0 });
     const st = projectStatus(p);
     if(st === 'Contract Closed' || st === 'Completely Closed') return;          // ปิดสัญญาแล้ว ไม่กินเวลา PM (แต่ยังโชว์ชื่อ PM ว่าภาระ 0)
     if(/^cancel/i.test(String(p['Status'] || '').trim())) return;
     const code = String(p['Project Code'] || '').trim();
     const start = ppwDay(parseD(p['Project Assigned Date']) || parseD(p['Project Accept Date']) || parseD(p['Start Date']));
     const end = ppwDay(parseD(p['End Date']) || parseD(p['Plan End Date']));
-    const pts = wliPoints(p), late = !!(end && end < today), noEnd = !end;
+    const base = wliPoints(p), late = !!(end && end < today), noEnd = !end;
     const inNow = !start || start <= today;                                      // อยู่ใน Progress1 แต่ไม่มีวันที่เลย ถือว่าได้รับแล้ว
-    g.items.push({ code, pts, start, end, late, noEnd, inNow,
+    const bn = inNow ? wliBonus(code) : { pts: 0, n: 0, to: null };
+    const pts = base + bn.pts;                                                   // ภาระตอนนี้ = พื้นฐาน + ปัญหาต่อเนื่อง
+    g.items.push({ code, pts, base, bonus: bn.pts, bonusN: bn.n, bonusTo: bn.to, start, end, late, noEnd, inNow,
       lv: Math.round(num(p['Project Level'])), cx: Math.round(num(p['Complex Level'])),
       name: String(p['Project Name'] || code).replace(/\s+/g, ' ').trim(),
       phase: ppwPhase(planByCode[code], today) });
-    if(inNow){ g.now += pts; if(late) g.late++; if(noEnd) g.noEnd++; }
+    if(inNow){ g.now += pts; g.bonus += bn.pts; if(late) g.late++; if(noEnd) g.noEnd++; }
     // เดือนข้างหน้า: ต้องรู้วันจบ และยังไม่เลยวันจบ
     if(end && !late){
       const s0 = start || today;
       months.forEach((mo, i) => {
         const lo = s0 > mo.a ? s0 : mo.a, hi = end < mo.b ? end : mo.b;
         const d = Math.round((hi - lo) / DAY) + 1;
-        if(d > 0) g.m[i] += pts * d / mo.days;
+        if(d > 0) g.m[i] += base * d / mo.days;
       });
     }
   });
@@ -11606,7 +12166,7 @@ function renderWorkloadIndex(list){
       <div class="wli-who"><div class="av" style="background:${avatarColor(r.pm)}">${initials(r.pm)}</div>
         <div style="min-width:0"><div class="wli-n">${ppwEsc(r.pm)}</div><div class="wli-s">${now.length ? `${now.length} โครงการที่ยังไม่ปิด` : 'ไม่มีโครงการที่ยังไม่ปิด'}</div></div></div>
       <div class="wli-track" role="img" aria-label="${ppwEsc(`${r.pm} ภาระตอนนี้ ${r.now} คะแนน จาก ${now.length} โครงการ`)}">${now.length ? `<div class="wli-bar" style="width:${(r.now / maxNow * 100).toFixed(1)}%">${segs}</div>` : ''}</div>
-      <div class="wli-v"><b>${r.now}</b>คะแนน${tags}</div>
+      <div class="wli-v"><b>${r.now}</b>คะแนน${r.bonus ? `<span class="wli-tag" title="รวมคะแนนเพิ่มของโครงการที่ Warning/Critical ต่อเนื่อง">ปัญหาต่อเนื่อง +${r.bonus}</span>` : ''}${tags}</div>
     </div>`;
   }).join('');
 
@@ -11625,8 +12185,8 @@ function renderWorkloadIndex(list){
     return `<details data-key="${ppwEsc(r.key)}"${openKeys.has(r.key) ? ' open' : ''}><summary>${ppwEsc(r.pm)} · ${its.length} โครงการ · ${r.now} คะแนน</summary>
       <div class="wli-scroll scroll-x-hint"><table class="wli-proj"><thead><tr><th>โครงการ</th><th class="n">L</th><th class="n">C</th><th class="n">คะแนน</th><th>ขั้นงานตามแผนตอนนี้</th><th class="n">วันจบตามสัญญา</th></tr></thead><tbody>
       ${its.map(i => `<tr>
-        <td><div>${ppwEsc(i.name)}</div><div class="wli-sm">${ppwEsc(i.code)}${i.inNow ? '' : ` · ได้รับมอบหมาย ${fmtDObj(i.start)} (ยังไม่นับในตอนนี้)`}</div></td>
-        <td class="n">${i.lv}</td><td class="n">${i.cx}</td><td class="n">${i.pts}</td>
+        <td><div>${ppwEsc(i.name)}</div><div class="wli-sm">${ppwEsc(i.code)}${i.inNow ? '' : ` · ได้รับมอบหมาย ${fmtDObj(i.start)} (ยังไม่นับในตอนนี้)`}${i.bonus ? ` · ${wliBonusTxt(i)}` : ''}</div></td>
+        <td class="n">${i.lv}</td><td class="n">${i.cx}</td><td class="n">${i.pts}${i.bonus ? `<div class="wli-sm">${i.base} + ${i.bonus}</div>` : ''}</td>
         <td>${ppwEsc(i.phase || 'ไม่มีแผนในชีต Project Plan')}</td>
         <td class="n">${i.end ? fmtDObj(i.end) : '-'}${i.late ? '<br><span class="wli-tag" style="margin-left:0">เลยวันจบ</span>' : ''}</td>
       </tr>`).join('')}
@@ -11640,9 +12200,13 @@ function renderWorkloadIndex(list){
     'ขั้นงานแสดงประกอบเท่านั้น ไม่ได้ถ่วงคะแนน เพราะน้ำหนักใน tab Plan Weight เป็นสัดส่วนความคืบหน้า/รายได้ของแต่ละขั้น ไม่ใช่แรงงานของ PM (เช่น Ship to Customer 40–60% เพราะเป็นจุดส่งมอบของ ถ้านำมาถ่วง เดือนที่ติดตั้งจะดูเหมือนว่าง) และงานจ้างเหมา/MA/เช่า ในชีตยังเป็น x',
     'ใช้ตัวกรองด้านบน · งานที่ยังไม่อยู่ในไฟล์ (ยังไม่ได้มอบหมายในระบบ) ไม่มีในการ์ดนี้',
   ];
+  if(PHT && phtLatestYm()){
+    method[0] = 'คะแนนภาระของโครงการ = Project Level + Complex Level (อย่างน้อย 1) - นิยามเดียวกับการ์ด Productivity per Workload แต่การ์ดนี้บวกคะแนนปัญหาต่อเนื่องในภาระตอนนี้ด้วย';
+    method.splice(1, 0, `คะแนนปัญหาต่อเนื่อง: โครงการที่เป็น Warning หรือ Critical ติดกันจนถึง ${phYmLabel(phtLatestYm())} ตามชีต Project Health (PMS) - 2 เดือน +1 · ตั้งแต่ 3 เดือน +2 · เดือนแรกที่เพิ่งเป็นยังไม่บวก เพราะงานที่มีปัญหาต่อเนื่องใช้แรง PM มากกว่างานปกติ (ประชุมแก้ปัญหา ตามผู้ขาย รายงานผู้บริหาร) · บวกเฉพาะช่อง "ตอนนี้" ไม่บวกในเดือนข้างหน้า เพราะไม่รู้ว่าปัญหาจะจบเมื่อไหร่`);
+  }
 
   box.innerHTML = `
-    <div class="wli-sub">ภาระตอนนี้ = รวมคะแนนของโครงการที่ยังไม่ปิดสัญญา · คะแนนภาระของโครงการ = Project Level + Complex Level · ณ ${fmtDObj(today)}</div>
+    <div class="wli-sub">ภาระตอนนี้ = รวมคะแนนของโครงการที่ยังไม่ปิดสัญญา · คะแนนภาระของโครงการ = Project Level + Complex Level${PHT && phtLatestYm() ? ' + คะแนนปัญหาต่อเนื่อง (Warning/Critical ติดกัน 2 เดือน +1 · ตั้งแต่ 3 เดือน +2)' : ''} · ณ ${fmtDObj(today)}</div>
     <div class="wli-rows">${barRows}</div>
     <div class="wli-h">6 เดือนข้างหน้า</div>
     <p class="wli-note">ภาระเฉลี่ยรายเดือน (คะแนน) ตามวันจบในสัญญา · สีเข้ม = ภาระมาก · ช่อง "ตอนนี้" = คะแนนรวมของโครงการที่ถืออยู่วันนี้</p>
@@ -11661,7 +12225,8 @@ function renderWorkloadIndex(list){
     const nodes = () => [
       ppwNode('div', 'v', `${i.pts} คะแนน`),
       ppwNode('div', null, i.name),
-      ppwNode('div', 's', `L ${i.lv} + C ${i.cx} · ${i.phase || 'ไม่มีแผนในชีต Project Plan'}`),
+      ppwNode('div', 's', `L ${i.lv} + C ${i.cx}${i.bonus ? ` + ปัญหาต่อเนื่อง ${i.bonus}` : ''} · ${i.phase || 'ไม่มีแผนในชีต Project Plan'}`),
+      ...(i.bonus ? [ppwNode('div', 's', `PMS: ${wliBonusTxt(i)}`)] : []),
       ppwNode('div', 's', i.end ? `จบตามสัญญา ${fmtDObj(i.end)}${i.late ? ' (เลยวันจบแล้ว)' : ''}` : 'ยังไม่มีวันจบในสัญญา'),
     ];
     el.addEventListener('pointermove', e => ppwShowTip(e.clientX, e.clientY, nodes()));

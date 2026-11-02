@@ -532,6 +532,107 @@ function parseRevenueYearSheet(wb) {
   return { year, rows, sheetName };
 }
 
+// --- ชีต "Project Health" (รายงาน Project Health Report ที่ export จาก PMS) ---
+// สุขภาพรายเดือน ม.ค.-ธ.ค. ของปีที่ระบุในหัวรายงาน (Year : 2026) เป็นรหัส 1-5
+//   1 Critical · 2 Warning · 3 Normal · 4 Fast · 5 Super Fast (ตรวจเทียบกับสีในรายงาน PDF ก.ค.-ต.ค. 69 แล้ว)
+// เป็นค่าปัจจุบันใน PMS ณ วันที่ export (PMS คำนวณเดือนเก่าใหม่ได้) ไม่ใช่ภาพนิ่งแบบ PDF
+// อ่านทุกชีตที่ชื่อขึ้นต้นด้วย "Project Health" (เผื่อเก็บชีตปีก่อนไว้คู่กัน เช่น "Project Health 2026") หาคอลัมน์จากหัวตาราง ไม่ยึดตำแหน่ง
+const PH_TAB_TEXT = { CRITICAL: 1, WARNING: 2, NORMAL: 3, FAST: 4, 'SUPER FAST': 5 };
+function parseProjectHealthSheets(wb) {
+  const norm = v => String(v ?? '').replace(/\s+/g, ' ').trim();
+  const names = wb.SheetNames.filter(n => /^PROJECT ?HEALTH\b/i.test(norm(n)));
+  const byCode = {}, years = [], sheets = [];
+  let printDate = null;
+  // วันที่ในชีตเป็นได้ทั้งข้อความ dd/mm/yyyy และเซลล์วันที่ (อ่านแบบ raw:false = yyyy-mm-dd) - ส่งต่อเป็น yyyy-mm-dd เสมอ
+  const toIso = v => {
+    const s = norm(v);
+    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : null;
+  };
+  const toH = v => {
+    const s = norm(v).toUpperCase();
+    if (!s) return null;
+    if (/^[1-5](\.0+)?$/.test(s)) return parseInt(s, 10);
+    return PH_TAB_TEXT[s] || null;
+  };
+  names.forEach(sheetName => {
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, raw: false, defval: null, dateNF: 'yyyy-mm-dd' });
+    let year = null, pd = null;
+    aoa.slice(0, 10).forEach(r => (Array.isArray(r) ? r : []).forEach((v, i) => {
+      const k = norm(v).replace(/\s*:$/, '').toUpperCase();
+      if (k === 'YEAR' && year == null) { const y = parseInt(norm(r[i + 1]), 10); if (y > 2000 && y < 2100) year = y; }
+      if (k === 'PRINT DATE' && !pd) pd = norm(r[i + 1]) || null;
+    }));
+    if (year == null) { const m = norm(sheetName).match(/(20\d{2})/); if (m) year = +m[1]; }
+    const hIdx = aoa.findIndex(r => Array.isArray(r) && r.some(v => norm(v).toUpperCase() === 'PROJECT CODE'));
+    if (hIdx < 0 || year == null) { console.log(`⚠ ชีต "${sheetName}": หาหัวตารางหรือปีของรายงานไม่เจอ - ข้าม`); return; }
+    const header = aoa[hIdx].map(v => norm(v).toUpperCase());
+    const col = name => header.indexOf(name);
+    const c = { code: col('PROJECT CODE'), name: col('PROJECT NAME'), pm: col('PM NAME'), status: col('STATUS'),
+      last: col('LAST UPDATE PROGRESS'), start: col('PROJECT START DATE'), end: col('PROJECT END DATE'),
+      hitU: col('HIT 100% UPDATE DATE'), hitA: col('HIT 100% ACTUAL DATE') };
+    const mCols = REV_MONTHS.map(m => header.indexOf(m));
+    if (c.code < 0 || mCols.every(i => i < 0)) { console.log(`⚠ ชีต "${sheetName}": ไม่พบคอลัมน์รหัสโครงการหรือคอลัมน์เดือน - ข้าม`); return; }
+    years.push(year); sheets.push(sheetName);
+    // ชีตปีล่าสุดเป็นตัวหลักของข้อมูลประกอบ (สถานะ · วันที่) - ชีตปีก่อนเติมแค่เดือนของปีนั้น
+    const isNewest = years.every(y => y <= year);
+    if (isNewest && pd) printDate = pd;
+    aoa.slice(hIdx + 1).forEach(r => {
+      if (!Array.isArray(r)) return;
+      const code = norm(r[c.code]);
+      if (!/^\d{6,}$/.test(code)) return;
+      const pm = c.pm >= 0 ? norm(r[c.pm]) : '';
+      const cur = byCode[code] || (byCode[code] = { code, months: {} });
+      mCols.forEach((ci, k) => { if (ci < 0) return; const h = toH(r[ci]); if (h) cur.months[year * 100 + k + 1] = h; });
+      if (isNewest || !cur.name) {
+        cur.name = c.name >= 0 ? norm(r[c.name]) : cur.name || '';
+        cur.pm = pm || cur.pm || '';
+        cur.status = c.status >= 0 ? norm(r[c.status]) : '';
+        cur.lastUpdate = c.last >= 0 ? toIso(r[c.last]) : null;
+        cur.start = c.start >= 0 ? toIso(r[c.start]) : null;
+        cur.end = c.end >= 0 ? toIso(r[c.end]) : null;
+        cur.hit100Update = c.hitU >= 0 ? toIso(r[c.hitU]) : null;
+        cur.hit100Actual = c.hitA >= 0 ? toIso(r[c.hitA]) : null;
+        cur.year = year;
+      }
+    });
+  });
+  if (!sheets.length) return { found: false, rows: [], years: [], sheetNames: [], printDate: null };
+  return { found: true, rows: Object.values(byCode), years: [...new Set(years)].sort(), sheetNames: sheets, printDate };
+}
+
+// เก็บสุขภาพรายเดือนสะสมข้ามปีไว้ในคลัง (รายงาน PMS ทีละปี - เดือน ม.ค. ปีใหม่ต้องเทียบกับ ธ.ค. ปีก่อน)
+// เดือนของปีที่อยู่ในไฟล์ล่าสุดใช้ค่าจากไฟล์เสมอ (PMS คำนวณใหม่ได้) · เดือนของปีอื่นเติมจากคลัง
+function mergeHealthArchive(tab) {
+  const store = PAYMENT_ARCHIVE.healthMonths || (PAYMENT_ARCHIVE.healthMonths = {});
+  const inFileYear = ym => tab.years.includes(Math.floor(ym / 100));
+  tab.rows.forEach(r => {
+    const e = store[r.code] || (store[r.code] = { code: r.code, months: {} });
+    e.name = r.name; e.pm = r.pm;
+    Object.keys(e.months).map(Number).filter(inFileYear).forEach(ym => { if (!r.months[ym]) delete e.months[ym]; });
+    Object.assign(e.months, r.months);
+  });
+  savePaymentArchive(PAYMENT_ARCHIVE);
+  const inTab = new Set(tab.rows.map(r => r.code));
+  let added = 0;
+  const rows = tab.rows.map(r => {
+    const e = store[r.code];
+    const extra = {};
+    Object.entries(e.months).forEach(([ym, h]) => { if (!inFileYear(+ym)) { extra[ym] = h; added++; } });
+    return Object.keys(extra).length ? { ...r, months: { ...extra, ...r.months } } : r;
+  });
+  // โครงการที่มีในคลังแต่ไม่อยู่ในรายงานปีนี้ (จบไปก่อนปีนี้) - ส่งไปเฉพาะประวัติรายเดือน
+  Object.values(store).forEach(e => {
+    if (inTab.has(e.code) || !inTeam(e.pm)) return;
+    const months = {};
+    Object.entries(e.months).forEach(([ym, h]) => { if (!inFileYear(+ym)) months[ym] = h; });
+    if (Object.keys(months).length) { rows.push({ code: e.code, name: e.name, pm: e.pm, months, archived: true }); added += Object.keys(months).length; }
+  });
+  return { rows, fromArchive: added };
+}
+
 // การ์ดที่เป็นข้อมูลประเมินรายบุคคล (ค่าเริ่มต้นเห็นเฉพาะ admin/OAT) - ข้อมูลที่ใช้เฉพาะการ์ดนั้นส่งให้เฉพาะคนที่เห็นการ์ด
 // กติกาเดียวกับ canSeeSmartGoal: admin/oat เห็นเสมอ · ตั้ง 'all' = ทุกคน · ตั้งรายชื่อ = เฉพาะคนในรายชื่อ
 function canSeeAdminOnlyCard(user, cardId) {
@@ -896,6 +997,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const { rows: smartGoal, sheetName: smartGoalSheetName } = safeParse('Smart Goal', () => parseSmartGoalSheet(wb), { rows: [], sheetName: null });
       const { rows: planWeight, sheetName: planWeightSheetName } = safeParse('Plan Weight', () => parsePlanWeightSheet(wb), { rows: [], sheetName: null });
       const { year: revYear, rows: revYearAll, sheetName: revYearSheetName } = safeParse('Revenue <ปี>', () => parseRevenueYearSheet(wb), { year: null, rows: [], sheetName: null });
+      const healthTabRaw = safeParse('Project Health', () => parseProjectHealthSheets(wb), { found: false, rows: [], years: [], sheetNames: [], printDate: null });
 
       // Progress1 คือแกนหลัก ถ้าอ่านไม่ได้เลยแปลว่าไฟล์ผิดรูปแบบจริง ๆ - ไม่ควรเขียนทับข้อมูลเดิมที่ยังดีอยู่
       if (!rows.length) {
@@ -928,6 +1030,14 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const smartGoalTeam = smartGoal.filter(s => inTeam(s.pm));
       // ชีตรายได้รายเดือนเป็นข้อมูลทั้งบริษัท - เก็บเฉพาะโครงการของทีม
       const revenueYear = revYear ? { year: revYear, rows: revYearAll.filter(r => inTeam(r.pm)) } : null;
+      // สุขภาพรายเดือนจาก PMS: เก็บเฉพาะโครงการของทีม แล้วเติมเดือนของปีก่อนจากคลัง · ไม่มีชีตนี้ในไฟล์ = ไม่ส่ง (ไม่ใช้คลังค้างแทน)
+      let projectHealthTab = null, healthFromArchive = 0;
+      if (healthTabRaw.found) {
+        const teamTab = { ...healthTabRaw, rows: healthTabRaw.rows.filter(r => inTeam(r.pm)) };
+        const merged = safeParse('Project Health (คลังสะสม)', () => mergeHealthArchive(teamTab), { rows: teamTab.rows, fromArchive: 0 });
+        healthFromArchive = merged.fromArchive;
+        projectHealthTab = { years: teamTab.years, printDate: teamTab.printDate, sheetNames: teamTab.sheetNames, rows: merged.rows };
+      }
 
       // Progress1 (rows) เป็นข้อมูลทีมเราอยู่แล้วโดยธรรมชาติ - ใช้รหัสโครงการจากตรงนี้เป็น whitelist
       // ให้ parseEvmSheets เจอเฉพาะ sheet ที่ตรงกับโครงการทีมเราเท่านั้น ไม่มีทางหลุดข้ามทีมได้
@@ -946,7 +1056,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const revenueAll = [...revenue, ...fromArchive.revenue];
       const projectInfoTeamAll = [...projectInfoTeam, ...fromArchive.projectInfo];
 
-      latestData = { rows: rowsAll, revenue: revenueAll, paymentW: paymentWAll, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeamAll, projectInfoAll: projectInfo, evm, projectPlan, smartGoal: smartGoalTeam, planWeight, revenueYear, updatedAt: syncedAt };
+      latestData = { rows: rowsAll, revenue: revenueAll, paymentW: paymentWAll, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeamAll, projectInfoAll: projectInfo, evm, projectPlan, smartGoal: smartGoalTeam, planWeight, revenueYear, projectHealthTab, updatedAt: syncedAt };
       lastRaw = {
         receivedAt: latestData.updatedAt,
         contentType: req.headers['content-type'] || null,
@@ -965,6 +1075,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       console.log(`  + Smart Goal ${smartGoal.length}→${smartGoalTeam.length} (team) from "${smartGoalSheetName || '(not found)'}"`);
       console.log(`  + Plan Weight ${planWeight.length} แถว from "${planWeightSheetName || '(not found)'}"`);
       console.log(`  + Revenue ${revYear || '-'}: ${revYearAll.length}→${revenueYear ? revenueYear.rows.length : 0} (team) from "${revYearSheetName || '(not found)'}"`);
+      console.log(`  + Project Health ${healthTabRaw.years.join(',') || '-'}: ${healthTabRaw.rows.length}→${projectHealthTab ? projectHealthTab.rows.filter(r => !r.archived).length : 0} (team) from "${healthTabRaw.sheetNames.join(', ') || '(not found)'}"${healthFromArchive ? ` + เดือนจากคลัง ${healthFromArchive}` : ''}`);
       const nBack = fromArchive.rows.length + fromArchive.paymentW.length + fromArchive.revenue.length + fromArchive.projectInfo.length;
       if (nBack) {
         console.log(`  + ดึงจากคลังสะสมมาต่อท้าย: Progress1 ${fromArchive.rows.length} แถว · PaymentW ${fromArchive.paymentW.length} · Revenue ${fromArchive.revenue.length} · Project Info ${fromArchive.projectInfo.length}`);
@@ -983,7 +1094,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       }
 
       if (failed.length) console.error(`⚠ sync สำเร็จบางส่วน - sheet ที่อ่านไม่ได้: ${failed.join(', ')}`);
-      return res.json({ ok: true, mode: 'file', sheet: sheetName, count: rows.length, revenueSheet: revenueSheetName, revenueCount: revenue.length, paymentWCount: paymentWTeam.length, paymentWFromArchiveCount: fromArchive.paymentW.length, archivedProjectCount: fromArchive.codes.length, poCount: poTeam.length, stockCount: stockTeam.length, stockSummaryCount: stockSummaryTeam.length, projectInfoCount: projectInfoTeam.length, projectPlanCount: projectPlan.length, failedSheets: failed, updatedAt: latestData.updatedAt });
+      return res.json({ ok: true, mode: 'file', sheet: sheetName, count: rows.length, revenueSheet: revenueSheetName, revenueCount: revenue.length, paymentWCount: paymentWTeam.length, paymentWFromArchiveCount: fromArchive.paymentW.length, archivedProjectCount: fromArchive.codes.length, poCount: poTeam.length, stockCount: stockTeam.length, stockSummaryCount: stockSummaryTeam.length, projectInfoCount: projectInfoTeam.length, projectPlanCount: projectPlan.length, projectHealthCount: projectHealthTab ? projectHealthTab.rows.filter(r => !r.archived).length : 0, failedSheets: failed, updatedAt: latestData.updatedAt });
     }
 
     // ทางสำรอง: body เป็น JSON array ของแถวข้อมูลตรง ๆ
