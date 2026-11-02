@@ -3144,13 +3144,22 @@ async function loadData(auto){
       SMARTGOAL = Array.isArray(j.smartGoal) ? j.smartGoal : [];
       PLANWEIGHT = Array.isArray(j.planWeight) ? j.planWeight : [];
       REVY = (j.revenueYear && Array.isArray(j.revenueYear.rows)) ? j.revenueYear : null;
-      PHT = (j.projectHealthTab && Array.isArray(j.projectHealthTab.rows) && j.projectHealthTab.rows.length) ? j.projectHealthTab : null;
-      PHT_MAP = new Map((PHT ? PHT.rows : []).map(r => [String(r.code||'').trim(), r]));
       PROJINFO_ALL = (j.projectInfoAll || []).map(normRow);
       PLAN = j.projectPlan || [];
       PLAN_TEAMWIDE = j.projectPlanTeamWide || [];
       EVM = j.evm || {};
       ROWS_TEAMWIDE = (j.rowsTeamWide || []).map(normRow);
+      // ชีต Project Health: ใช้เฉพาะโครงการที่อยู่ใน Progress1 (โครงการที่ติดตามรายสัปดาห์จริง รวมที่ย้ายไปคลังแล้ว)
+      // OAT 2 พ.ย. 69: ชีตนั้นมีงานทั้งปีรวมที่จบก่อนเริ่มติดตาม ถ้าเอามาทั้งหมดการ์ดที่สะสมทั้งปีจะนับปนเข้ามา
+      // (backend กรองให้แล้ว - กรองซ้ำตรงนี้กันกรณี backend ยังเป็นรุ่นเก่า)
+      PHT = null; PHT_MAP = new Map();
+      if(j.projectHealthTab && Array.isArray(j.projectHealthTab.rows)){
+        const p1 = new Set([...ROWS_TEAMWIDE, ...HIST].map(r => String(r['Project Code']||'').trim()).filter(Boolean));
+        const kept = j.projectHealthTab.rows.filter(r => p1.has(String(r.code||'').trim()));
+        const dropped = j.projectHealthTab.rows.length - kept.length;
+        if(kept.length) PHT = { ...j.projectHealthTab, rows: kept, notTracked: (j.projectHealthTab.notTracked || 0) + dropped };
+        PHT_MAP = new Map(kept.map(r => [String(r.code||'').trim(), r]));
+      }
       PAYW_TEAMWIDE = j.paymentWTeamWide || [];
       PO_TEAMWIDE = j.poTeamWide || [];
       STOCK_TEAMWIDE = j.stockTeamWide || [];
@@ -6633,16 +6642,23 @@ function phtStreak(code, E){
   const first = phtFirstYm();
   return { to, n, since: phtNextYm(ym), atLeast: first != null && ym < first };
 }
-// จำนวนเดือนที่เป็น Critical / Warning ในปีของเดือน E (ถึงเดือน E)
+// ค่าที่ "สะสม" (Health ทั้งปีใน Scorecard · กราฟแนวโน้ม · จำนวนเดือนที่เป็น Critical/Warning) นับตั้งแต่เดือนที่เริ่มติดตามใน Progress1
+// OAT 2 พ.ย. 69: นับตั้งแต่ ก.ค. 69 ที่เริ่มติดตาม (Progress1 เริ่มบันทึก 3 ก.ค. 69) - ก่อนหน้านั้นยังไม่ได้ดูแลผ่านระบบนี้
+// ปีถัดไปนับตั้งแต่ ม.ค. ตามปกติ · แถบเดือนย้อนหลังและสถานะต่อเนื่องยังแสดงตามจริงใน PMS (เป็นประวัติ ไม่ใช่ค่าสะสม)
+const PHT_TRACK_START = 202607;
+const phtFromYm = year => Math.max(year*100 + 1, PHT_TRACK_START);
+// จำนวนเดือนที่เป็น Critical / Warning ตั้งแต่เริ่มติดตามในปีของเดือน E ถึงเดือน E
 function phtYearCount(code, E){
-  const y = Math.floor(E/100), c = { Critical: 0, Warning: 0 };
-  for(let m = 1; m <= E % 100; m++){ const h = phtAt(code, y*100 + m); if(h in c) c[h]++; }
+  const c = { Critical: 0, Warning: 0 };
+  for(let ym = phtFromYm(Math.floor(E/100)); ym <= E; ym = phtNextYm(ym)){ const h = phtAt(code, ym); if(h in c) c[h]++; }
   return c;
 }
 const phtYearTxt = (code, E) => {
   const c = phtYearCount(code, E);
   const bits = [c.Critical ? `Critical ${c.Critical}` : '', c.Warning ? `Warning ${c.Warning}` : ''].filter(Boolean);
-  return bits.length ? `ปี ${String(Math.floor(E/100) + 543).slice(-2)} เป็น ${bits.join(' · ')} เดือน` : '';
+  const from = phtFromYm(Math.floor(E/100));
+  const span = from % 100 === 1 ? `ปี ${String(Math.floor(E/100) + 543).slice(-2)}` : `ตั้งแต่ ${phYmLabel(from)}`;
+  return bits.length ? `${span} เป็น ${bits.join(' · ')} เดือน` : '';
 };
 // แถบเดือนย้อนหลังแบบเดียวกับการ์ดเทียบรายงาน PDF
 const phtTrailHtml = (code, yms, cls) => `<div class="${cls || 'ph-trail'}">${yms.map(ym => { const h = phtAt(code, ym);
@@ -6718,7 +6734,7 @@ function renderPhtMonthly(list){
                 hx.stay.length ? `ยังค้าง ${hx.stay.length}` : '', hx.better.length ? `ดีขึ้น ${hx.better.length}` : ''].filter(Boolean).join(' · ');
 
   // แนวโน้มทั้งทีมรายเดือน (12 เดือนล่าสุดที่มีข้อมูล) - จำนวนโครงการแยกตามสุขภาพ
-  const win = phtWindow(E, 12).filter(ym => rows.some(r => phtAt(r.code, ym)));
+  const win = phtWindow(E, 12).filter(ym => ym >= PHT_TRACK_START && rows.some(r => phtAt(r.code, ym)));
   const cnt = win.map(ym => {
     const c = { Critical: 0, Warning: 0, Normal: 0, Fast: 0, 'Super Fast': 0 };
     rows.forEach(r => { const h = phtAt(r.code, ym); if(h) c[h]++; });
@@ -6751,10 +6767,10 @@ function renderPhtMonthly(list){
       : `<div class="ph-hint">ไม่มีโครงการที่อยู่หรือเปลี่ยนเข้า-ออกสถานะ Warning/Critical ระหว่าง ${phYmLabel(S)} กับ ${phYmLabel(E)}</div>`}
     ${hx.other.length ? `<div class="ph-hxo"><span class="ph-hxl">เปลี่ยนสถานะอื่น (ไม่เกี่ยวกับ Warning/Critical)</span>${hx.other.map(x =>
         `<span class="trans-chip flat">${x.r.name || x.r.code} <b>${x.from} → ${x.to}</b></span>`).join('')}</div>` : ''}
-    <div class="ph-sec">แนวโน้มสุขภาพรายเดือน (${rows.length} โครงการ รวมที่ปิดไปแล้วในช่วงนี้)</div>
+    ${win.length ? `<div class="ph-sec">แนวโน้มสุขภาพรายเดือน ตั้งแต่ ${phYmLabel(win[0])} ที่เริ่มติดตาม (${heatRows.length} โครงการใน Progress1 รวมที่ปิดไปแล้ว)</div>
     ${trend}
-    ${heat}
-    <div class="ph-src">ที่มา: ชีต ${(PHT.sheetNames || ['Project Health']).join(', ')} ในไฟล์ Excel${PHT.printDate ? ` (export จาก PMS ${PHT.printDate})` : ''} · เป็นค่าปัจจุบันใน PMS ซึ่งคำนวณเดือนก่อนหน้าใหม่ได้ จึงอาจต่างจากรายงาน PDF ที่ออก ณ วันนั้น · โครงการที่ปิดจบไปแล้วระหว่างปียังนับในแนวโน้มและตาราง</div>
+    ${heat}` : ''}
+    <div class="ph-src">ที่มา: ชีต ${(PHT.sheetNames || ['Project Health']).join(', ')} ในไฟล์ Excel${PHT.printDate ? ` (export จาก PMS ${PHT.printDate})` : ''} · เป็นค่าปัจจุบันใน PMS ซึ่งคำนวณเดือนก่อนหน้าใหม่ได้ จึงอาจต่างจากรายงาน PDF ที่ออก ณ วันนั้น · ใช้เฉพาะโครงการที่อยู่ในชีต Progress1 (รวมที่ปิดจบไปแล้ว)${PHT.notTracked ? ` · ชีต Project Health มีงานของทีมอีก ${PHT.notTracked} โครงการที่ไม่ได้อยู่ใน Progress1 จึงไม่นำมานับ` : ''}</div>
   </div>`;
 }
 
@@ -11223,16 +11239,17 @@ function buildEvmDetailHtml(evm, projectCode){
 // ใช้การจัดอันดับ (rank-based) แทนตัวเลขดิบในการถ่วงน้ำหนัก กันไม่ให้ใครชนะแค่เพราะบังเอิญได้สัญญาก้อนใหญ่
 // (เช่น Watanyu มีโครงการ AOT มูลค่า 800M+ ตัวเดียว ซึ่งเป็นเรื่องการมอบหมายงาน ไม่ใช่ตัวชี้วัดฝีมือโดยตรง)
 // น้ำหนักเน้นมิติที่ "อยู่ในการควบคุมของ PM เอง" (ตรงเวลา) มากกว่ามิติที่อาจถูกปัจจัยภายนอกกระทบ (ผู้ขายส่งช้า ฯลฯ)
-// สุขภาพสะสมทั้งปีของ PM จากชีต Project Health: นับเดือน-โครงการ ตั้งแต่ ม.ค. ถึงเดือนล่าสุดที่มีข้อมูล
+// สุขภาพสะสมทั้งปีของ PM จากชีต Project Health: นับเดือน-โครงการ ตั้งแต่เดือนที่เริ่มติดตาม (ก.ค. 69 · ปีถัดไป ม.ค.) ถึงเดือนล่าสุดที่มีข้อมูล
 function phtPmYear(pm, year){
   const E = phtLatestYm();
   if(!PHT || !E) return null;
-  const last = Math.min(E, year*100 + 12);
+  const first = phtFromYm(year), last = Math.min(E, year*100 + 12);
+  if(first > last) return null;
   const key = pmKey(pm).toLowerCase();
-  const out = { n: 0, ok: 0, crit: 0, warn: 0, projects: 0, from: year*100 + 1, to: last };
+  const out = { n: 0, ok: 0, crit: 0, warn: 0, projects: 0, from: first, to: last };
   PHT.rows.filter(r => pmKey(r.pm).toLowerCase() === key).forEach(r => {
     let any = false;
-    for(let ym = year*100 + 1; ym <= last; ym++){
+    for(let ym = first; ym <= last; ym = phtNextYm(ym)){
       const h = phtAt(r.code, ym);
       if(!h) continue;
       any = true; out.n++;
@@ -11513,7 +11530,7 @@ function renderOatScorecard(){
   const top = scored[0];
   const reasons = [];
   if(top.cHealth>=75 && top.healthyPct!==null) reasons.push(top.healthYear
-    ? `สุขภาพโครงการปกติ ${top.healthyPct.toFixed(0)}% ของเดือนทั้งปี`
+    ? `สุขภาพโครงการปกติ ${top.healthyPct.toFixed(0)}% ของเดือนที่ติดตาม`
     : `โครงการที่ดูแลอยู่ ${top.healthyPct.toFixed(0)}% อยู่ในสถานะ Normal`);
   if(top.cRev>=75 && top.revGapWeighted!==null) reasons.push(`Revenue Attainment ${top.revGapWeighted<=0?'ล้ำหน้า':'ใกล้เคียง'}แผน (${top.revGapWeighted>0?'-':'+'}${Math.abs(top.revGapWeighted).toFixed(1)}pp)`);
   const reasonTxt = reasons.length ? reasons.join(' · ') : 'คะแนนรวมสูงสุดจากทุกมิติเฉลี่ยกัน';
@@ -11539,7 +11556,7 @@ function renderOatScorecard(){
 
   el.innerHTML = `
     <div class="sc-winner">🏆 <b>${top.pm}</b> มีคะแนนรวมสูงสุด (${top.composite.toFixed(0)}/100) - ${reasonTxt}</div>
-    ${yearMode ? `<div class="sc-chg">มิติ Health ใช้สุขภาพสะสมทั้งปี ${phYmLabel(yr.from)} – ${phYmLabel(yr.to)} จากชีต Project Health (รวมโครงการที่ปิดไปแล้ว) แทนสถานะ ณ วันนี้ ·
+    ${yearMode ? `<div class="sc-chg">มิติ Health ใช้สุขภาพสะสม ${phYmLabel(yr.from)} – ${phYmLabel(yr.to)}${yr.from === PHT_TRACK_START ? ' (ตั้งแต่เริ่มติดตามใน Progress1)' : ''} จากชีต Project Health เฉพาะโครงการที่อยู่ใน Progress1 (รวมที่ปิดไปแล้ว) แทนสถานะ ณ วันนี้ ·
       ${moved.length ? `อันดับที่เปลี่ยนจากวิธีเดิม: ${moved.map(m => `${ppwFirst(m.pm)} ${m.from} → ${m.to}`).join(' · ')}` : 'อันดับเท่ากับวิธีเดิมทุกคน'}${cMoved.length ? ` · คะแนนรวมที่เปลี่ยน: ${cMoved.join(' · ')}` : ''}</div>` : ''}
     <div class="sc-radar-wrap">
       <div class="sc-radar-svg">${radarSvg}</div>
@@ -11563,7 +11580,7 @@ function renderOatScorecard(){
       <b>มิติวางบิล</b> = % งวดที่ถึงกำหนดแล้ววางบิลจริง ปรับด้วยความเร็วเทียบเงื่อนไขในสัญญา (เฉพาะงวดที่ระบุ &quot;X วัน&quot;) - ⚡ = เฉลี่ยวางบิลเร็วกว่าสัญญา
       (เน้นมิติที่อยู่ในการควบคุมของ PM เองมากกว่า)<br>
       <b>อัปเดต PMS</b> นับสะสมทั้งปี รายโครงการ - PM ที่ดูแล 5 โครงการต้องกรอกครบทั้ง 5 ทุกสัปดาห์<br>
-      <b>Health ปกติ</b> ${yearMode ? `= สัดส่วนเดือน-โครงการที่สุขภาพปกติ (Normal / Fast / Super Fast) ตั้งแต่ ${phYmLabel(yr.from)} ถึง ${phYmLabel(yr.to)} จากชีต Project Health ที่ export จาก PMS นับรวมโครงการที่ปิดไปแล้วระหว่างปี - ชี้ที่ตัวเลขเพื่อดูจำนวนเดือนและค่าแบบเดิม` : '= สัดส่วนโครงการที่ยังไม่ปิดที่ Health ปกติ ณ วันนี้ (เพิ่มชีต Project Health ในไฟล์ Excel เพื่อใช้แบบสะสมทั้งปี)'} · Health แดงบางครั้งมาจากของมาช้า ไม่ใช่ฝีมือ PM จึงให้น้ำหนักแค่ 15%<br>
+      <b>Health ปกติ</b> ${yearMode ? `= สัดส่วนเดือน-โครงการที่สุขภาพปกติ (Normal / Fast / Super Fast) ตั้งแต่ ${phYmLabel(yr.from)}${yr.from === PHT_TRACK_START ? ' (เดือนที่เริ่มติดตามใน Progress1)' : ''} ถึง ${phYmLabel(yr.to)} จากชีต Project Health ที่ export จาก PMS เฉพาะโครงการที่อยู่ใน Progress1 นับรวมที่ปิดไปแล้วระหว่างปี - ชี้ที่ตัวเลขเพื่อดูจำนวนเดือนและค่าแบบเดิม` : '= สัดส่วนโครงการที่ยังไม่ปิดที่ Health ปกติ ณ วันนี้ (เพิ่มชีต Project Health ในไฟล์ Excel เพื่อใช้แบบสะสมทั้งปี)'} · Health แดงบางครั้งมาจากของมาช้า ไม่ใช่ฝีมือ PM จึงให้น้ำหนักแค่ 15%<br>
         <b>ดัชนีภาระงาน (Workload Index)</b> = ผลรวมของ <b>ระดับความยาก x ตัวคูณมูลค่า</b> ทุกโครงการ · ตัวคูณมูลค่า: ต่ำกว่า 10M = 1.0 · 10-50M = 1.5 · 50-200M = 2.5 · 200-500M = 4.0 · เกิน 500M = 6.0<br>
         นับเป็นมิติคะแนน 25% - เป็นความรับผิดชอบทั้งโครงการ จึงมีน้ำหนักมากกว่าวินัยการกรอกข้อมูล<br>
         <b>ข้อควรระวัง:</b> "Rev.Gap" อาจเกิดจากปัจจัยภายนอก (ผู้ขายส่งของช้า, รอราชการอนุมัติ ฯลฯ) ไม่ใช่ฝีมือ PM เสมอไป

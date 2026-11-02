@@ -605,8 +605,10 @@ function parseProjectHealthSheets(wb) {
 
 // เก็บสุขภาพรายเดือนสะสมข้ามปีไว้ในคลัง (รายงาน PMS ทีละปี - เดือน ม.ค. ปีใหม่ต้องเทียบกับ ธ.ค. ปีก่อน)
 // เดือนของปีที่อยู่ในไฟล์ล่าสุดใช้ค่าจากไฟล์เสมอ (PMS คำนวณใหม่ได้) · เดือนของปีอื่นเติมจากคลัง
-function mergeHealthArchive(tab) {
+function mergeHealthArchive(tab, trackedCodes) {
   const store = PAYMENT_ARCHIVE.healthMonths || (PAYMENT_ARCHIVE.healthMonths = {});
+  // เก็บเฉพาะโครงการที่อยู่ใน Progress1 - ล้างรายการเก่าที่ไม่ได้ติดตาม (เคยเก็บทั้งชีตในรุ่นก่อน)
+  if (trackedCodes) Object.keys(store).forEach(code => { if (!trackedCodes.has(code)) delete store[code]; });
   const inFileYear = ym => tab.years.includes(Math.floor(ym / 100));
   tab.rows.forEach(r => {
     const e = store[r.code] || (store[r.code] = { code: r.code, months: {} });
@@ -625,7 +627,7 @@ function mergeHealthArchive(tab) {
   });
   // โครงการที่มีในคลังแต่ไม่อยู่ในรายงานปีนี้ (จบไปก่อนปีนี้) - ส่งไปเฉพาะประวัติรายเดือน
   Object.values(store).forEach(e => {
-    if (inTab.has(e.code) || !inTeam(e.pm)) return;
+    if (inTab.has(e.code) || !inTeam(e.pm) || (trackedCodes && !trackedCodes.has(e.code))) return;
     const months = {};
     Object.entries(e.months).forEach(([ym, h]) => { if (!inFileYear(+ym)) months[ym] = h; });
     if (Object.keys(months).length) { rows.push({ code: e.code, name: e.name, pm: e.pm, months, archived: true }); added += Object.keys(months).length; }
@@ -1030,14 +1032,6 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const smartGoalTeam = smartGoal.filter(s => inTeam(s.pm));
       // ชีตรายได้รายเดือนเป็นข้อมูลทั้งบริษัท - เก็บเฉพาะโครงการของทีม
       const revenueYear = revYear ? { year: revYear, rows: revYearAll.filter(r => inTeam(r.pm)) } : null;
-      // สุขภาพรายเดือนจาก PMS: เก็บเฉพาะโครงการของทีม แล้วเติมเดือนของปีก่อนจากคลัง · ไม่มีชีตนี้ในไฟล์ = ไม่ส่ง (ไม่ใช้คลังค้างแทน)
-      let projectHealthTab = null, healthFromArchive = 0;
-      if (healthTabRaw.found) {
-        const teamTab = { ...healthTabRaw, rows: healthTabRaw.rows.filter(r => inTeam(r.pm)) };
-        const merged = safeParse('Project Health (คลังสะสม)', () => mergeHealthArchive(teamTab), { rows: teamTab.rows, fromArchive: 0 });
-        healthFromArchive = merged.fromArchive;
-        projectHealthTab = { years: teamTab.years, printDate: teamTab.printDate, sheetNames: teamTab.sheetNames, rows: merged.rows };
-      }
 
       // Progress1 (rows) เป็นข้อมูลทีมเราอยู่แล้วโดยธรรมชาติ - ใช้รหัสโครงการจากตรงนี้เป็น whitelist
       // ให้ parseEvmSheets เจอเฉพาะ sheet ที่ตรงกับโครงการทีมเราเท่านั้น ไม่มีทางหลุดข้ามทีมได้
@@ -1055,6 +1049,21 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const rowsAll = [...rows, ...fromArchive.rows];
       const revenueAll = [...revenue, ...fromArchive.revenue];
       const projectInfoTeamAll = [...projectInfoTeam, ...fromArchive.projectInfo];
+
+      // สุขภาพรายเดือนจาก PMS: เก็บเฉพาะโครงการที่อยู่ใน Progress1 (รวมที่ย้ายไปคลังแล้ว) = โครงการที่ OAT ติดตามรายสัปดาห์จริง
+      // OAT 2 พ.ย. 69: ชีต Project Health มีโครงการทั้งปีของทีม รวมงานที่จบก่อนเริ่มติดตามใน Progress1 (เช่น API for e-Ticket)
+      // ถ้าเอามาทั้งหมด การ์ดที่สะสมทั้งปีจะนับงานที่ไม่ได้ติดตามปนเข้ามา · แล้วเติมเดือนของปีก่อนจากคลัง
+      // ไม่มีชีตนี้ในไฟล์ = ไม่ส่ง (ไม่ใช้คลังค้างแทน)
+      let projectHealthTab = null, healthFromArchive = 0, healthNotTracked = [];
+      if (healthTabRaw.found) {
+        const p1Codes = new Set(rowsAll.map(r => String(r['Project Code'] || '').trim()).filter(Boolean));
+        const teamRows = healthTabRaw.rows.filter(r => inTeam(r.pm));
+        healthNotTracked = teamRows.filter(r => !p1Codes.has(r.code));
+        const trackedTab = { ...healthTabRaw, rows: teamRows.filter(r => p1Codes.has(r.code)) };
+        const merged = safeParse('Project Health (คลังสะสม)', () => mergeHealthArchive(trackedTab, p1Codes), { rows: trackedTab.rows, fromArchive: 0 });
+        healthFromArchive = merged.fromArchive;
+        projectHealthTab = { years: trackedTab.years, printDate: trackedTab.printDate, sheetNames: trackedTab.sheetNames, rows: merged.rows, notTracked: healthNotTracked.length };
+      }
 
       latestData = { rows: rowsAll, revenue: revenueAll, paymentW: paymentWAll, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeamAll, projectInfoAll: projectInfo, evm, projectPlan, smartGoal: smartGoalTeam, planWeight, revenueYear, projectHealthTab, updatedAt: syncedAt };
       lastRaw = {
@@ -1075,7 +1084,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       console.log(`  + Smart Goal ${smartGoal.length}→${smartGoalTeam.length} (team) from "${smartGoalSheetName || '(not found)'}"`);
       console.log(`  + Plan Weight ${planWeight.length} แถว from "${planWeightSheetName || '(not found)'}"`);
       console.log(`  + Revenue ${revYear || '-'}: ${revYearAll.length}→${revenueYear ? revenueYear.rows.length : 0} (team) from "${revYearSheetName || '(not found)'}"`);
-      console.log(`  + Project Health ${healthTabRaw.years.join(',') || '-'}: ${healthTabRaw.rows.length}→${projectHealthTab ? projectHealthTab.rows.filter(r => !r.archived).length : 0} (team) from "${healthTabRaw.sheetNames.join(', ') || '(not found)'}"${healthFromArchive ? ` + เดือนจากคลัง ${healthFromArchive}` : ''}`);
+      console.log(`  + Project Health ${healthTabRaw.years.join(',') || '-'}: ${healthTabRaw.rows.length}→${projectHealthTab ? projectHealthTab.rows.filter(r => !r.archived).length : 0} (อยู่ใน Progress1) from "${healthTabRaw.sheetNames.join(', ') || '(not found)'}"${healthNotTracked.length ? ` · ไม่อยู่ใน Progress1 ${healthNotTracked.length} โครงการ (ไม่นำมาใช้)` : ''}${healthFromArchive ? ` + เดือนจากคลัง ${healthFromArchive}` : ''}`);
       const nBack = fromArchive.rows.length + fromArchive.paymentW.length + fromArchive.revenue.length + fromArchive.projectInfo.length;
       if (nBack) {
         console.log(`  + ดึงจากคลังสะสมมาต่อท้าย: Progress1 ${fromArchive.rows.length} แถว · PaymentW ${fromArchive.paymentW.length} · Revenue ${fromArchive.revenue.length} · Project Info ${fromArchive.projectInfo.length}`);
