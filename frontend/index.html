@@ -1141,6 +1141,9 @@
   .rp-month-i.onplan{border-left-color:var(--success);}
   .rp-month-i.ahead{border-left-color:#3D6B7A;}
   .rp-month-i.notstarted{border-left-color:var(--faint);background:var(--surface-2);}
+  .rp-month-i.inprogress{border-left-color:var(--brand-2);}
+  .rp-badge-inprogress{background:var(--brand-tint);color:var(--brand);}
+  .rp-month-msg.inprogress{color:var(--ink-2);}
   .rp-badge-notstarted{background:var(--surface-2);color:var(--faint);border:1px dashed var(--line-soft);}
   .rp-month-msg.notstarted{color:var(--faint);}
   .rp-ms-v.new{color:var(--faint);}
@@ -1179,7 +1182,13 @@
   .rp-prop > summary:hover{background:#EFE3D2;}
   .rp-pp{width:100%;border-collapse:collapse;margin-top:7px;font-size:10.5px;}
   .rp-pp th{font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;padding:4px 6px;border-bottom:1px solid var(--line-soft);text-align:right;}
-  .rp-pp th:first-child{text-align:left;}
+  .rp-pp thead tr:first-child th:first-child{text-align:left;}
+  /* หัวกลุ่ม แผนเดิม / แผนที่แนะนำ และหัวย่อย รายเดือน / สะสม จัดกึ่งกลางเหมือนกันทั้งสองกลุ่ม
+     (เดิมหัวย่อย "รายเดือน" ของแผนเดิมเป็นช่องแรกของแถว จึงโดนกฎชิดซ้ายของคอลัมน์เดือนไปด้วย) */
+  .rp-pp th.rp-g-old,.rp-pp th.rp-g-new{text-align:center;}
+  .rp-pp tr.rp-past td{color:var(--muted);}
+  .rp-pasttag{font-size:8.5px;font-weight:600;padding:1px 6px;border-radius:8px;background:var(--surface-2);color:var(--faint);border:1px solid var(--line-soft);}
+  .rp-pp-act u{display:block;text-decoration:none;font-size:8.5px;color:var(--faint);font-weight:400;}
   .rp-pp td{padding:4px 6px;border-bottom:1px solid var(--line-soft);text-align:right;font-family:'IBM Plex Mono',monospace;}
   .rp-pp td:first-child{text-align:left;font-family:'Inter',sans-serif;color:var(--ink-2);}
   .rp-pp tr.rp-now{background:var(--warning-tint);}
@@ -2630,7 +2639,7 @@
       <div class="p-head">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11h14V8"/><path d="M10 12h4"/></svg>
-          Finance Data Archive <span class="sep">-</span> <span class="th">คลังข้อมูลการเงินสะสม (PaymentW)</span>
+          Finance Data Archive <span class="sep">-</span> <span class="th">คลังข้อมูลการเงินสะสม</span>
         </div>
         <span class="p-count" id="archCount"></span>
       </div>
@@ -5167,6 +5176,35 @@ function withClosedRevenueProjects(list){
   return { list: [...list, ...applyFilters(extra)], shown };
 }
 
+// ประวัติ %Progress รายสัปดาห์ของโครงการ (เรียงตามวันที่) - ใช้ทั้งความเร็วงานและงานจริง ณ สิ้นแต่ละเดือน
+function rpProgHist(code){
+  const c = String(code||'').trim();
+  const src = (typeof ROWS_TEAMWIDE !== 'undefined' && ROWS_TEAMWIDE.length) ? ROWS_TEAMWIDE : HIST;
+  return src.filter(r => String(r['Project Code']||'').trim() === c)
+    .map(r => ({ d: parseD(r['Update Date']), raw: r['%Progress'] }))
+    .filter(x => x.d && x.raw !== null && x.raw !== undefined && x.raw !== '' && !isNaN(num(x.raw)))
+    .map(x => ({ d: x.d, v: num(x.raw) }))
+    .sort((a, b) => a.d - b.d);
+}
+// ความเร็วงาน 4 สัปดาห์ล่าสุด (pp ต่อวัน): จากค่าล่าสุด ย้อนไปค่าที่บันทึกก่อนหน้านั้นอย่างน้อย 28 วัน
+// ใช้คาดว่าสิ้นเดือนงานจะถึงเท่าไหร่ ตอนสัปดาห์สุดท้ายของเดือน (ช่วงสั้นกว่า 7 วันไม่นับ - สัปดาห์เดียวกระโดดง่าย)
+function rpPace(code){
+  const h = rpProgHist(code);
+  if(h.length < 2) return null;
+  const end = h[h.length - 1];
+  const cut = end.d.getTime() - 28*DAY;
+  const base = [...h].reverse().find(x => x.d.getTime() <= cut) || h[0];
+  const days = (end.d - base.d) / DAY;
+  if(days < 7) return null;
+  return { perDay: Math.max(0, (end.v - base.v) / days), base, end, days };
+}
+// งานจริง ณ สิ้นเดือน (ค่าล่าสุดที่บันทึกไม่เกินวันสุดท้ายของเดือนนั้น) · ไม่มีบันทึกเลย = null
+function rpMonthEndProg(code, y, m){
+  const last = new Date(y, m + 1, 0, 23, 59, 59);
+  const h = rpProgHist(code).filter(x => x.d <= last);
+  return h.length ? h[h.length - 1] : null;
+}
+
 function renderRevenuePlan(list){
   const el = document.getElementById('rpBox');
   if(!el) return;
@@ -5219,6 +5257,25 @@ function renderRevenuePlan(list){
   const teamBF = items.reduce((s,x)=>s+x.selling*x.bfPct/100,0);
   const teamBeyond = items.reduce((s,x)=>s+x.selling*x.beyondPct/100,0);
   const nowM = new Date().getMonth();
+  // วันในเดือน - แผนเดือนนี้ยังทำได้ถึงสิ้นเดือน ต้นเดือนงานยังไม่ถึงเป้าเดือนนี้เป็นเรื่องปกติ
+  // เทียบ "ณ วันนี้" กับแผนสะสมถึงสิ้นเดือนก่อน + แผนเดือนนี้ตามสัดส่วนวันที่ผ่านไป (กติกาเดียวกับเป้ารายได้แบบเฉลี่ยรายวัน)
+  // OAT 3 พ.ย. 69: ต้นเดือนยังไม่ต้องแนะนำให้เลื่อนแผน - แนะนำเมื่อเข้าสัปดาห์สุดท้ายของเดือนแล้วงานยังห่างแผนมาก
+  const today2 = new Date();
+  const dInMonth = new Date(today2.getFullYear(), today2.getMonth()+1, 0).getDate();
+  const dLeft = dInMonth - today2.getDate();
+  const elapsedFrac = today2.getDate() / dInMonth;
+  const lastWeek = dLeft < 7;          // 7 วันสุดท้ายของเดือน (รวมวันนี้)
+  items.forEach(x => {
+    x.cPrev = x.bfPct + x.monthPct.slice(0, nowM).reduce((s,v)=>s+v,0);   // แผนสะสมถึงสิ้นเดือนก่อน (= รับรู้ไปแล้ว)
+    x.planCum = x.cPrev + x.monthPct[nowM];                                 // แผนสะสมถึงสิ้นเดือนนี้
+    x.expNow = x.cPrev + x.monthPct[nowM] * elapsedFrac;                     // ณ วันนี้ควรอยู่ราว
+    x.gapNow = x.pmsCur - x.expNow;
+    // สัปดาห์สุดท้าย: คาดว่าสิ้นเดือนงานถึงเท่าไหร่จากความเร็ว 4 สัปดาห์ล่าสุด (ต่อจากค่าล่าสุดที่บันทึกถึงวันสิ้นเดือน)
+    x.pace = rpPace(x.code);
+    const mEndD = new Date(today2.getFullYear(), today2.getMonth()+1, 0);
+    x.proj = x.pace ? Math.max(x.pmsCur, Math.min(100, x.pace.end.v + x.pace.perDay * Math.max(0, Math.round((mEndD - x.pace.end.d)/DAY)))) : null;
+    x.willMake = x.proj != null && x.proj >= x.planCum - 2;
+  });
   const doneBaht = teamMonth.slice(0,nowM+1).reduce((s,v)=>s+v,0);
   const leftBaht = teamMonth.slice(nowM+1).reduce((s,v)=>s+v,0);
   const peakIdx = teamMonth.indexOf(Math.max(...teamMonth));
@@ -5227,16 +5284,19 @@ function renderRevenuePlan(list){
   // ถ้า 2 อย่างนี้ห่างกันมาก แปลว่าแผนกับงานจริงไม่สอดคล้อง ต้องปรับอย่างใดอย่างหนึ่ง
   const advice = [];
   items.forEach(x=>{
-    const planCum = x.bfPct + x.monthPct.slice(0, nowM+1).reduce((s,v)=>s+v,0);
-    const gap = x.pmsCur - planCum;
+    // เทียบกับ "ณ วันนี้ควรอยู่ราว" ไม่ใช่แผนถึงสิ้นเดือน - ต้นเดือนงานของเดือนนี้ยังไม่ต้องเสร็จ
+    const gap = x.gapNow;
     const remainPct = x.monthPct.slice(nowM+1).reduce((s,v)=>s+v,0) + x.beyondPct;
     const maxRemain = Math.max(...x.monthPct.slice(nowM+1), 0);
     const maxRemainIdx = x.monthPct.indexOf(maxRemain, nowM+1);
 
     if(gap <= -10) advice.push({t:'warn', code:x.code, name:x.name,
-      msg:`งานจริงช้ากว่าแผนรับรู้รายได้ ${Math.abs(gap).toFixed(1)}pp (ทำได้ ${x.pmsCur.toFixed(1)}% แต่แผนตั้งไว้ ${planCum.toFixed(1)}%) - ถ้าไม่เร่งงาน ควรเลื่อนแผนรับรู้รายได้ออกไป ไม่งั้นจะรับรู้ไม่ทันตามที่วางไว้`});
+      msg:`งานจริงช้ากว่าแผนรับรู้รายได้ ${Math.abs(gap).toFixed(1)}pp (ทำได้ ${x.pmsCur.toFixed(1)}% แต่ ณ วันนี้ตามแผนควรอยู่ราว ${x.expNow.toFixed(1)}%) - ${
+        !lastWeek ? 'ติดตามว่าจะเร่งงานทันแผนสิ้นเดือนหรือไม่'
+        : x.willMake ? `4 สัปดาห์ที่ผ่านมางานขยับเฉลี่ย ${(x.pace.perDay*7).toFixed(1)}pp/สัปดาห์ ถ้ารักษาจังหวะนี้น่าจะทันแผนสิ้นเดือน`
+        : 'ถ้าไม่เร่งงาน ควรเลื่อนแผนรับรู้รายได้ออกไป ไม่งั้นจะรับรู้ไม่ทันตามที่วางไว้'}`});
     else if(gap >= 10) advice.push({t:'good', code:x.code, name:x.name,
-      msg:`งานเร็วกว่าแผนรับรู้รายได้ ${gap.toFixed(1)}pp (ทำได้ ${x.pmsCur.toFixed(1)}% แผนตั้งไว้ ${planCum.toFixed(1)}%) - มีโอกาสเร่งรับรู้รายได้เข้ามาเร็วขึ้นได้ ${thb(x.selling*Math.min(gap,remainPct)/100)}`});
+      msg:`งานเร็วกว่าแผนรับรู้รายได้ ${gap.toFixed(1)}pp (ทำได้ ${x.pmsCur.toFixed(1)}% ณ วันนี้ตามแผนควรอยู่ราว ${x.expNow.toFixed(1)}%) - มีโอกาสเร่งรับรู้รายได้เข้ามาเร็วขึ้นได้ ${thb(x.selling*Math.min(gap,remainPct)/100)}`});
 
     if(maxRemain >= 40) advice.push({t:'risk', code:x.code, name:x.name,
       msg:`แผนกระจุกตัวหนักที่เดือน${RP_MONTH_TH[maxRemainIdx]} ${maxRemain.toFixed(1)}% (${thb(x.selling*maxRemain/100)}) เดือนเดียว - เสี่ยงพลาดเป้าทั้งก้อนถ้างานสะดุด ควรพิจารณาทยอยรับรู้`});
@@ -5300,8 +5360,8 @@ function renderRevenuePlan(list){
 
   // ---- รายโครงการ ----
   const projRows = items.slice().sort((a,b)=>b.selling-a.selling).map(x=>{
-    const planCum = x.bfPct + x.monthPct.slice(0, nowM+1).reduce((s,v)=>s+v,0);
-    const gap = x.pmsCur - planCum;
+    const planCum = x.planCum;
+    const gap = x.gapNow;     // เทียบกับ ณ วันนี้ควรอยู่ราว (ไม่ใช่แผนถึงสิ้นเดือน)
     const gapCls = gap<=-10?'down':gap>=10?'up':'flat';
     const cells = x.monthPct.map((v,i)=>{
       // ต้องแยก 3 กรณีให้ชัด: ค่าบวก / ค่าติดลบ (กลับรายการ) / ไม่มีแผนเลย
@@ -5321,7 +5381,7 @@ function renderRevenuePlan(list){
     }).join('');
     return `<tr>
       <td class="rp-name">${x.name} <span class="code-tag">#${x.code}</span>${x.closedTag?` <span class="rr-rt">${x.closedTag}</span>`:''}
-        <div class="rp-name-sub">Selling ${compact(x.selling)} · แผนสะสมถึงเดือนนี้ ${planCum.toFixed(1)}% · ทำจริง ${x.pmsCur.toFixed(1)}% <span class="ov-d ${gapCls}" style="font-size:9.5px;padding:1px 6px">${gap>0?'+':''}${gap.toFixed(1)}pp</span></div>
+        <div class="rp-name-sub">Selling ${compact(x.selling)} · แผนสะสมถึงสิ้นเดือนนี้ ${planCum.toFixed(1)}% · ณ วันนี้ควรอยู่ราว ${x.expNow.toFixed(1)}% · ทำจริง ${x.pmsCur.toFixed(1)}% <span class="ov-d ${gapCls}" style="font-size:9.5px;padding:1px 6px" title="ทำจริงเทียบกับที่ควรอยู่ ณ วันนี้">${gap>0?'+':''}${gap.toFixed(1)}pp</span></div>
       </td>
       ${x.bfPct>0?`<td class="rp-cell bf" title="รับรู้ก่อนปี 2026 · ${x.bfPct.toFixed(2)}%"><div class="rp-baht">${compact(x.selling*x.bfPct/100)}</div><div class="rp-pct">${x.bfPct.toFixed(0)}%</div></td>`:'<td class="rp-cell bf"><span class="rp-dash">-</span></td>'}
       ${cells}
@@ -5330,26 +5390,27 @@ function renderRevenuePlan(list){
   }).join('');
 
   // ---- โฟกัสเดือนนี้: ดูเฉพาะโครงการที่มีแผนรับรู้รายได้ในเดือนปัจจุบัน ว่าพร้อมรับรู้จริงไหม ----
-  const today2 = new Date();
-  const dInMonth = new Date(today2.getFullYear(), today2.getMonth()+1, 0).getDate();
-  const dLeft = dInMonth - today2.getDate();
   // เกณฑ์นัยยะ ±2pp - ต่ำกว่านี้ถือว่าอยู่ในช่วงคลาดเคลื่อนปกติของการรายงาน ไม่ต้องแจ้งเตือน
   // (ตรวจกับข้อมูลจริงแล้ว: ±1pp เป็นความคลาดเคลื่อนธรรมดา แต่ ±2pp ขึ้นไปมีเหตุผลให้ต้องปรับจริง)
   const RP_SIG = 2;
   const thisMonthItems = items.filter(x=>x.monthPct[nowM] > 0).map(x=>{
-    const planCum = x.bfPct + x.monthPct.slice(0, nowM+1).reduce((s,v)=>s+v,0);
-    const gap = x.pmsCur - planCum;
+    const planCum = x.planCum;
+    const gap = x.pmsCur - planCum;          // เทียบแผนถึงสิ้นเดือนนี้ = พร้อมรับรู้ยอดของเดือนนี้แล้วหรือยัง
     // แยก "ยังไม่เริ่มโครงการ" ออกจาก "เริ่มแล้วแต่ช้า" - 2 อย่างนี้ต้องจัดการคนละแบบ
     // ยังไม่เริ่ม = ยังไม่มี %Progress / Start Date ใน Progress1 เลย (มักอยู่ช่วงรอเซ็นสัญญา)
     // ตามนโยบายบริษัท: ตั้ง WIP ได้ตั้งแต่เดือนที่เซ็นสัญญา จึงไม่ควรถูกนับว่า "ช้ากว่าแผน"
     const p = x.p || {};
     const noProgressData = (p['%Progress']===null || p['%Progress']===undefined || p['%Progress']==='')
                            && !p['Start Date'];
+    // ยังไม่ถึงแผนสิ้นเดือน: ก่อนสัปดาห์สุดท้าย ถ้างานยังอยู่ในจังหวะของวันนี้ = "ระหว่างทำ" (ไม่ใช่ช้า)
+    // สัปดาห์สุดท้ายดูความเร็วงาน 4 สัปดาห์ล่าสุดว่าจะทันสิ้นเดือนไหม - ไม่ทันจึงแนะนำให้เลื่อนแผน/คุยลูกค้า
     const st = noProgressData ? 'notstarted'
              : gap >= RP_SIG ? 'ahead'
-             : gap <= -RP_SIG ? 'behind'
-             : 'onplan';
-    return {...x, thisPct:x.monthPct[nowM], thisBaht:x.monthBaht[nowM], planCum, gap, st,
+             : gap > -RP_SIG ? 'onplan'
+             : (!lastWeek && x.gapNow > -RP_SIG) ? 'inprogress'
+             : 'behind';
+    const recommend = st === 'behind' && lastWeek && !x.willMake;                // แนะนำเลื่อนแผน/คุยลูกค้า เฉพาะกรณีนี้
+    return {...x, thisPct:x.monthPct[nowM], thisBaht:x.monthBaht[nowM], planCum, gap, st, recommend,
             note:(p['Progress Update']||'').trim()};
   }).sort((a,b)=>b.thisBaht - a.thisBaht);
   const thisMonthTotal = thisMonthItems.reduce((s,x)=>s+x.thisBaht,0);
@@ -5364,6 +5425,10 @@ function renderRevenuePlan(list){
   const mAhead  = thisMonthItems.filter(x=>x.st==='ahead');
   const mOnplan = thisMonthItems.filter(x=>x.st==='onplan');
   const mNew    = thisMonthItems.filter(x=>x.st==='notstarted');
+  const mInprog = thisMonthItems.filter(x=>x.st==='inprogress');
+  const mRecom  = mBehind.filter(x=>x.recommend);
+  const inprogBaht = mInprog.reduce((s,x)=>s+x.thisBaht,0);
+  const recomBaht  = mRecom.reduce((s,x)=>s+x.thisBaht,0);
   const behindBaht = mBehind.reduce((s,x)=>s+x.thisBaht,0);
   const aheadBaht  = mAhead.reduce((s,x)=>s+x.thisBaht,0);
   const newBaht    = mNew.reduce((s,x)=>s+x.thisBaht,0);
@@ -5372,15 +5437,18 @@ function renderRevenuePlan(list){
   // สรุป "ควรทำอะไร" ตามสถานการณ์จริงของเดือนนี้ - เปลี่ยนตามจำนวนวันที่เหลือด้วย
   const todos = [];
   if(mOnplan.length || mAhead.length) todos.push(`ตั้งเบิก/รับรู้รายได้ได้เลย ${mOnplan.length+mAhead.length} โครงการ รวม ${thb(readyBaht)} บาท`);
-  if(mBehind.length) todos.push(dLeft<=3
-    ? `เร่งตัดสินใจ ${mBehind.length} โครงการ (${thb(behindBaht)} บาท) - เหลือ ${dLeft} วัน ถ้าไม่ทันควรเลื่อนแผนไปเดือนหน้าตั้งแต่ตอนนี้ อย่ารอให้ตกเดือน`
-    : `ตาม ${mBehind.length} โครงการที่งานช้ากว่าแผน (${thb(behindBaht)} บาท) - ยังเหลือ ${dLeft} วัน พอเร่งได้`);
+  if(mInprog.length) todos.push(`ติดตาม ${mInprog.length} โครงการที่กำลังทำงานของเดือนนี้ (${thb(inprogBaht)} บาท) - ยังอยู่ในจังหวะ เหลืออีก ${dLeft} วัน`);
+  if(mRecom.length) todos.push(`เร่งตัดสินใจ ${mRecom.length} โครงการที่คาดว่าไม่ทันสิ้นเดือน (${thb(recomBaht)} บาท) - เหลือ ${dLeft} วัน ควรเลื่อนแผนส่วนที่ไม่ทันไปเดือนหน้าหรือคุยกับลูกค้า/ทีมด่วน`);
+  if(mBehind.length > mRecom.length) todos.push(lastWeek
+    ? `ตาม ${mBehind.length - mRecom.length} โครงการที่ยังช้ากว่าแผน แต่ถ้ารักษาจังหวะงานช่วงที่ผ่านมาน่าจะทันสิ้นเดือน`
+    : `เร่ง ${mBehind.length} โครงการที่งานช้ากว่าจังหวะของเดือนนี้ (${thb(behindBaht)} บาท) - ยังเหลือ ${dLeft} วัน`);
   if(mAhead.length) todos.push(`ทบทวนแผน ${mAhead.length} โครงการที่งานเร็วกว่าแผน (${thb(aheadBaht)} บาท) - อาจดึงรับรู้รายได้เข้ามาเร็วขึ้นได้`);
   if(mNew.length) todos.push(`ติดตาม ${mNew.length} โครงการที่เพิ่งเริ่ม/รอเซ็นสัญญา (${thb(newBaht)} บาท) - ตั้ง WIP ตามนโยบายได้ แต่ต้องเติม Start Date และ %Progress ใน PMS ให้ครบ ระบบจะได้ประเมินได้ถูกต้อง`);
 
   const RP_ST = {
     ahead:      {icon:'\u25B2', label:'เร็วกว่าแผน',   cls:'ahead'},
     behind:     {icon:'\u25BC', label:'ช้ากว่าแผน',    cls:'behind'},
+    inprogress: {icon:'\u25B8', label:'ระหว่างทำ',      cls:'inprogress'},
     onplan:     {icon:'\u25CF', label:'ตรงแผน',        cls:'onplan'},
     notstarted: {icon:'\u25CB', label:'ยังไม่เริ่มงาน', cls:'notstarted'},
   };
@@ -5395,6 +5463,7 @@ function renderRevenuePlan(list){
       ${reversalItems.length?`<div><span class="rp-ms-l">กลับรายการ</span><span class="rp-ms-v risk">${thb(reversalBaht)}</span><span class="rp-ms-s">${reversalItems.length} โครงการ</span></div>
       <div><span class="rp-ms-l">ยอดสุทธิ</span><span class="rp-ms-v">${thb(netMonthTotal)}</span><span class="rp-ms-s">ตรงกับแถวรวมในตาราง</span></div>`:''}
       <div><span class="rp-ms-l">พร้อมรับรู้</span><span class="rp-ms-v ok">${thb(readyBaht)}</span><span class="rp-ms-s">${mOnplan.length+mAhead.length} โครงการ</span></div>
+      ${mInprog.length?`<div><span class="rp-ms-l">ระหว่างทำ</span><span class="rp-ms-v">${thb(inprogBaht)}</span><span class="rp-ms-s">${mInprog.length} โครงการยังอยู่ในจังหวะ</span></div>`:''}
       <div><span class="rp-ms-l">ต้องตาม</span><span class="rp-ms-v ${behindBaht>0?'risk':''}">${thb(behindBaht)}</span><span class="rp-ms-s">${mBehind.length} โครงการงานช้ากว่าแผน</span></div>
       ${mNew.length?`<div><span class="rp-ms-l">เพิ่งเริ่ม</span><span class="rp-ms-v new">${thb(newBaht)}</span><span class="rp-ms-s">${mNew.length} โครงการรอเซ็น/เริ่มงาน</span></div>`:''}
     </div>
@@ -5442,88 +5511,105 @@ function renderRevenuePlan(list){
     ${thisMonthItems.map(x=>{
       const st = RP_ST[x.st];
       const need = Math.abs(x.gap);
+      const inDays = dLeft>0 ? `ใน ${dLeft} วัน` : 'ภายในวันนี้';
+      const paceTxt = x.pace ? `4 สัปดาห์ที่ผ่านมางานขยับเฉลี่ย ${(x.pace.perDay*7).toFixed(1)}pp/สัปดาห์` : '';
       const msg = x.st==='notstarted'
         ? `ยังไม่มีข้อมูลความคืบหน้าใน PMS (ยังไม่ได้กรอก %Progress / Start Date)${x.note?` - สถานะล่าสุด: "${x.note}"`:''} · ตั้ง WIP ${x.thisPct.toFixed(2)}% ตามนโยบายบริษัทได้ แต่ควรเติมข้อมูลใน PMS ให้ครบ ระบบจะเทียบแผนกับงานจริงได้ถูกต้องตั้งแต่เดือนหน้า`
+        : x.st==='inprogress'
+        ? `งานทำได้ ${x.pmsCur.toFixed(1)}% · แผนสิ้นเดือนต้องถึง ${x.planCum.toFixed(1)}% ต้องทำเพิ่มอีก ${need.toFixed(1)}pp ${inDays} · ณ วันนี้ควรอยู่ราว ${x.expNow.toFixed(1)}% ยังอยู่ในจังหวะ`
+        : x.st==='behind' && !lastWeek
+        ? `งานทำได้ ${x.pmsCur.toFixed(1)}% แต่ ณ วันนี้ควรอยู่ราว ${x.expNow.toFixed(1)}% (ช้ากว่าจังหวะ ${Math.abs(x.gapNow).toFixed(1)}pp) · แผนสิ้นเดือนต้องถึง ${x.planCum.toFixed(1)}% ต้องทำเพิ่มอีก ${need.toFixed(1)}pp ${inDays}${paceTxt?` · ${paceTxt}`:''} - ต้องติดตามให้เร่งงาน`
+        : x.st==='behind' && x.willMake
+        ? `งานทำได้ ${x.pmsCur.toFixed(1)}% แผนสิ้นเดือนต้องถึง ${x.planCum.toFixed(1)}% - ต้องทำเพิ่มอีก ${need.toFixed(1)}pp ${inDays} · ${paceTxt} ถ้ารักษาจังหวะนี้คาดว่าสิ้นเดือนได้ราว ${x.proj.toFixed(1)}% น่าจะทัน`
         : x.st==='behind'
-        ? `งานทำได้ ${x.pmsCur.toFixed(1)}% แต่แผนต้องถึง ${x.planCum.toFixed(1)}% - ต้องเร่งอีก ${need.toFixed(1)}pp ${dLeft>0?`ใน ${dLeft} วัน`:'ภายในวันนี้'} ไม่งั้นยอดนี้จะรับรู้ไม่ทันสิ้นเดือน ควรเลื่อนแผนไปเดือนหน้าหรือคุยกับลูกค้า/ทีมด่วน`
+        ? `งานทำได้ ${x.pmsCur.toFixed(1)}% แผนสิ้นเดือนต้องถึง ${x.planCum.toFixed(1)}% - ต้องทำเพิ่มอีก ${need.toFixed(1)}pp ${inDays} แต่ ${x.pace ? `${paceTxt} คาดว่าสิ้นเดือนได้ราว ${x.proj.toFixed(1)}%` : 'ไม่มีประวัติความคืบหน้าพอจะคาดการณ์ได้'} - ควรเลื่อนแผนส่วนที่ไม่ทันไปเดือนหน้าหรือคุยกับลูกค้า/ทีมด่วน`
         : x.st==='ahead'
-        ? `งานทำได้ ${x.pmsCur.toFixed(1)}% เกินแผน ${x.planCum.toFixed(1)}% อยู่ ${need.toFixed(1)}pp - ควรทบทวนแผน อาจดึงรับรู้รายได้เข้ามาเร็วกว่าที่วางไว้ได้`
-        : `งานทำได้ ${x.pmsCur.toFixed(1)}% เทียบแผน ${x.planCum.toFixed(1)}% - อยู่ในเกณฑ์ พร้อมตั้งเบิก/รับรู้รายได้ตามแผน`;
-      // ---- เสนอแผนใหม่: เกลี่ย gap ไปเดือนที่เหลือตามสัดส่วนเดิม (คงยอดรวม 100% เท่าเดิมเสมอ) ----
-      // ซ่อนไว้ใน <details> ให้กดเปิดเอง จะได้ไม่รกหน้าจอ - เปิดดูเฉพาะตัวที่สนใจจะปรับจริง
+        ? `งานทำได้ ${x.pmsCur.toFixed(1)}% เกินแผนสิ้นเดือน ${x.planCum.toFixed(1)}% อยู่ ${need.toFixed(1)}pp - ควรทบทวนแผน อาจดึงรับรู้รายได้เข้ามาเร็วกว่าที่วางไว้ได้`
+        : `งานทำได้ ${x.pmsCur.toFixed(1)}% เทียบแผนสิ้นเดือน ${x.planCum.toFixed(1)}% - อยู่ในเกณฑ์ พร้อมตั้งเบิก/รับรู้รายได้ตามแผน`;
+      // ---- แผนที่แนะนำ: ล้อตามงานจริง ให้รายได้สะสมเท่ากับความคืบหน้าจริง ----
+      // OAT 3 พ.ย. 69: แผนใหม่ต้องตามงานที่ทำได้จริง (By Progress รายได้สะสม = % งาน)
+      //  · เดือนที่ผ่านมาแล้ว = รับรู้ไปแล้ว คงตามเดิม (แสดงงานจริง ณ สิ้นเดือนเทียบให้เห็น)
+      //  · เดือนนี้ = งานที่คาดว่าจะถึงสิ้นเดือน - แผนสะสมถึงสิ้นเดือนก่อน
+      //      เร็วกว่าแผน → ใช้งานที่ทำได้แล้ว · ช้ากว่าแผนช่วงสัปดาห์สุดท้าย → ใช้งานที่คาดจากความเร็ว 4 สัปดาห์ล่าสุด (ไม่เกินแผนเดิม)
+      //  · ส่วนที่เหลือเกลี่ยไปเดือนถัดไปตามสัดส่วนแผนเดิม ยอดรวมเท่าเดิม
+      // แสดงเฉพาะเมื่อมีคำแนะนำจริง: เร็วกว่าแผน (ดึงเข้า) หรือสัปดาห์สุดท้ายแล้วคาดว่าไม่ทัน (เลื่อนออก) - ต้นเดือนยังไม่แนะนำ
       let proposal = '';
-      if(x.st !== 'onplan' && x.st !== 'notstarted'){
-        // รวมเดือนปัจจุบันด้วย - ยังปรับแผนเดือนนี้ได้ ไม่ใช่รอเดือนหน้า
-        const remainIdx = [];
-        for(let i=nowM;i<12;i++) if(x.monthPct[i] > 0) remainIdx.push(i);
-        const remainSum = remainIdx.reduce((s2,i)=>s2+x.monthPct[i],0) + x.beyondPct;
-        if(remainSum > 0){
-          const shift = -x.gap;   // ช้ากว่าแผน (gap ลบ) = ต้องเลื่อนออกไป / เร็วกว่า = ดึงเข้ามา
-          const rows = remainIdx.map(i=>{
-            const oldV = x.monthPct[i];
-            const newV = Math.max(0, oldV + shift*(oldV/remainSum));
-            return {label:RP_MONTH_TH[i], oldV, newV};
-          });
-          if(x.beyondPct > 0){
-            const newB = Math.max(0, x.beyondPct + shift*(x.beyondPct/remainSum));
-            rows.push({label:'หลังปี 69', oldV:x.beyondPct, newV:newB});
-          }
-          // ยอดที่เหลือต้องรับรู้ = 100 - งานที่ทำได้จริงตอนนี้ (รวมเดือนนี้ที่ยังปรับได้)
-          // บังคับให้ผลรวมหลังปัดตรงเป้าเป๊ะ ไม่งั้นกรอกจริงแล้วยอดสะสมไม่ครบ 100%
-          const pTarget = Math.round((100 - x.pmsCur)*100)/100;
-          const pRounded = rpRoundToTarget(rows.map(r=>r.newV), pTarget);
-          rows.forEach((r,i)=>{ r.newV = pRounded[i]; });
-          let cum = x.pmsCur;   // สะสมแผนใหม่ - เริ่มจากงานที่ทำได้จริงตอนนี้
-          // สะสมแผนเดิม - เริ่มจากยอดที่วางแผนไว้ถึงเดือนก่อนหน้า จะได้เทียบกันตรง ๆ
-          let cumOld = x.bfPct + x.monthPct.slice(0, remainIdx[0]).reduce((s2,v)=>s2+v,0);
-          const body = rows.map((r,ri)=>{
-            cum += r.newV; cumOld += r.oldV;
-            const dv = r.newV - r.oldV;
-            const isNow = remainIdx[ri] === nowM;
-            return `<tr class="${isNow?'rp-now':''}">
-              <td>${r.label}${isNow?' <span class="rp-nowtag">เดือนนี้</span>':''}</td>
-              <td class="rp-pp-old">${r.oldV.toFixed(2)}%</td>
-              <td class="rp-pp-old rp-cumo">${cumOld.toFixed(2)}%</td>
-              <td class="rp-pp-new">${r.newV.toFixed(2)}%</td>
-              <td class="rp-pp-cum">${cum.toFixed(2)}%</td>
-              <td class="rp-pp-d ${dv>0.005?'up':dv<-0.005?'dn':''}">${dv>0.005?'+':''}${Math.abs(dv)<0.005?'-':dv.toFixed(2)+'%'}</td>
-              <td class="rp-pp-act">${isNow ? x.pmsCur.toFixed(2)+'%' : '<span class="rp-pp-na">-</span>'}</td>
-              <td class="rp-pp-gain">${(()=>{
-                if(!isNow) return '<span class="rp-pp-na">-</span>';
-                if(x.pmsPrevM == null) return '<span class="rp-pp-na">ไม่มีข้อมูล</span>';
-                const g = x.pmsCur - x.pmsPrevM;
-                return `<b class="${g>0.005?'up':g<-0.005?'dn':''}">${g>0.005?'+':''}${g.toFixed(2)}%</b>`
-                     + `<u>จาก ${x.pmsPrevM.toFixed(2)}%</u>`;
-              })()}</td>
-              <td class="rp-pp-baht">${thb(x.selling*r.newV/100)}</td>
-            </tr>`;
-          }).join('');
-          proposal = `<details class="rp-prop">
-            <summary>ดูแผน % ที่แนะนำให้ปรับใหม่ (${x.st==='behind'?`เลื่อนออก ${Math.abs(shift).toFixed(1)}pp`:`ดึงเข้ามา ${Math.abs(shift).toFixed(1)}pp`})</summary>
-            <table class="rp-pp">
-              <thead>
-                <tr class="rp-pp-g">
-                  <th rowspan="2">เดือน</th>
-                  <th colspan="2" class="rp-g-old">แผนเดิม</th>
-                  <th colspan="2" class="rp-g-new">แผนที่แนะนำ</th>
-                  <th rowspan="2">ต่าง</th>
-                  <th rowspan="2">งานจริง</th>
-                  <th rowspan="2">ขึ้นจากเดือนก่อน</th>
-                  <th rowspan="2">มูลค่าตามแผนใหม่</th>
-                </tr>
-                <tr>
-                  <th class="rp-g-old">รายเดือน</th><th class="rp-g-old">สะสม</th>
-                  <th class="rp-g-new">รายเดือน</th><th class="rp-g-new">สะสม</th>
-                </tr>
-              </thead>
-              <tbody>${body}</tbody>
-            </table>
-            <div class="rp-pp-note">คิดจากงานจริง ณ วันนี้ ${x.pmsCur.toFixed(1)}% แล้วเกลี่ยส่วนต่าง ${Math.abs(shift).toFixed(1)}pp ไปเดือนที่เหลือตามสัดส่วนเดิม · ยอดรวมยังเท่ากับ 100% (${thb(x.selling)}) เหมือนเดิม</div>
-          </details>`;
+      if(x.st === 'ahead' || x.recommend){
+        const total = Math.round(x.totalPct*100)/100;
+        const eM = x.st === 'ahead' ? x.pmsCur : Math.min(x.planCum, Math.max(x.pmsCur, x.proj ?? x.pmsCur));
+        const overBooked = x.cPrev - eM;                          // รับรู้ไปแล้วเกินงานจริง
+        const nowNew = Math.round(Math.max(0, eM - x.cPrev)*100)/100;
+        const futIdx = []; for(let i=nowM+1;i<12;i++) if(x.monthPct[i] > 0) futIdx.push(i);
+        const futRows = futIdx.map(i => ({i, label:RP_MONTH_TH[i], oldV:x.monthPct[i]}));
+        if(x.beyondPct > 0) futRows.push({i:12, label:'หลังปี 69', oldV:x.beyondPct});
+        // ไม่มีแผนเดือนถัดไปเลย - ส่วนที่เลื่อนออกไปใส่เดือนถัดไป (ธ.ค. = ไปหลังปี)
+        if(!futRows.length) futRows.push(nowM < 11 ? {i:nowM+1, label:RP_MONTH_TH[nowM+1], oldV:0} : {i:12, label:'หลังปี 69', oldV:0});
+        const rest = Math.round((total - x.cPrev - nowNew)*100)/100;
+        const wSum = futRows.reduce((a,r)=>a+r.oldV,0);
+        const rawNew = futRows.map(r => wSum > 0 ? rest*r.oldV/wSum : rest/futRows.length);
+        rpRoundToTarget(rawNew, rest).forEach((v,k)=>{ futRows[k].newV = Math.max(0, v); });
+        // เดือนที่ผ่านมาแล้วปีนี้ ที่มีบันทึกความคืบหน้า (สูงสุด 6 เดือน) - แผนแนะนำคงตามที่รับรู้ไปแล้ว
+        const yr = new Date().getFullYear();
+        const pastRows = [];
+        for(let i=0;i<nowM;i++){
+          const me = rpMonthEndProg(x.code, yr, i);
+          if(!me) continue;
+          pastRows.push({i, label:RP_MONTH_TH[i], oldV:x.monthPct[i], newV:x.monthPct[i], act:me.v, past:true});
         }
+        const past = pastRows.slice(-6);
+        const rows = [...past, {i:nowM, label:RP_MONTH_TH[nowM], oldV:x.monthPct[nowM], newV:nowNew, now:true}, ...futRows];
+        let cumOld = x.bfPct + x.monthPct.slice(0, rows[0].i).reduce((s2,v)=>s2+v,0);
+        let cumNew = cumOld;
+        let prevAct = null;
+        if(past.length){ const pm = rpMonthEndProg(x.code, rows[0].i === 0 ? yr-1 : yr, rows[0].i === 0 ? 11 : rows[0].i-1); prevAct = pm ? pm.v : null; }
+        const body = rows.map(r=>{
+          cumOld += r.oldV; cumNew += r.newV;
+          const dv = r.newV - r.oldV;
+          const act = r.past ? r.act : r.now ? x.pmsCur : null;
+          const gain = act == null ? null : (r.now ? (x.pmsPrevM == null ? null : x.pmsCur - x.pmsPrevM) : (prevAct == null ? null : act - prevAct));
+          const gainFrom = r.now ? x.pmsPrevM : prevAct;
+          if(r.past) prevAct = r.act;
+          return `<tr class="${r.now?'rp-now':''}${r.past?' rp-past':''}">
+            <td>${r.label}${r.now?' <span class="rp-nowtag">เดือนนี้</span>':''}${r.past?' <span class="rp-pasttag">รับรู้แล้ว</span>':''}</td>
+            <td class="rp-pp-old">${r.oldV.toFixed(2)}%</td>
+            <td class="rp-pp-old rp-cumo">${cumOld.toFixed(2)}%</td>
+            <td class="rp-pp-new">${r.newV.toFixed(2)}%</td>
+            <td class="rp-pp-cum">${cumNew.toFixed(2)}%</td>
+            <td class="rp-pp-d ${dv>0.005?'up':dv<-0.005?'dn':''}">${dv>0.005?'+':''}${Math.abs(dv)<0.005?'-':dv.toFixed(2)+'%'}</td>
+            <td class="rp-pp-act">${act == null ? '<span class="rp-pp-na">-</span>' : `${act.toFixed(2)}%${r.now?'<u>ล่าสุด</u>':'<u>สิ้นเดือน</u>'}`}</td>
+            <td class="rp-pp-gain">${gain == null ? '<span class="rp-pp-na">-</span>' : `<b class="${gain>0.005?'up':gain<-0.005?'dn':''}">${gain>0.005?'+':''}${gain.toFixed(2)}%</b><u>จาก ${gainFrom.toFixed(2)}%</u>`}</td>
+            <td class="rp-pp-baht">${thb(x.selling*r.newV/100)}</td>
+          </tr>`;
+        }).join('');
+        const moved = Math.abs(x.planCum - (x.cPrev + nowNew));
+        const basis = x.st === 'ahead'
+          ? `งานทำได้แล้ว ${x.pmsCur.toFixed(1)}% เกินแผนสิ้นเดือน ${x.planCum.toFixed(1)}%`
+          : `${x.pace ? `${paceTxt} คาดว่าสิ้นเดือนงานถึงราว ${eM.toFixed(1)}%` : `ไม่มีประวัติพอคาดการณ์ ใช้งานที่ทำได้ ณ วันนี้ ${eM.toFixed(1)}%`} ไม่ถึงแผนสิ้นเดือน ${x.planCum.toFixed(1)}%`;
+        proposal = `<details class="rp-prop">
+          <summary>ดูแผน % ที่แนะนำให้ปรับใหม่ (${x.st==='ahead'?`ดึงเข้ามา ${moved.toFixed(1)}pp`:`เลื่อนออก ${moved.toFixed(1)}pp`})</summary>
+          <table class="rp-pp">
+            <thead>
+              <tr class="rp-pp-g">
+                <th rowspan="2">เดือน</th>
+                <th colspan="2" class="rp-g-old">แผนเดิม</th>
+                <th colspan="2" class="rp-g-new">แผนที่แนะนำ</th>
+                <th rowspan="2">ต่าง</th>
+                <th rowspan="2">งานจริง</th>
+                <th rowspan="2">ขึ้นจากเดือนก่อน</th>
+                <th rowspan="2">มูลค่าตามแผนใหม่</th>
+              </tr>
+              <tr class="rp-pp-sub">
+                <th class="rp-g-old">รายเดือน</th><th class="rp-g-old">สะสม</th>
+                <th class="rp-g-new">รายเดือน</th><th class="rp-g-new">สะสม</th>
+              </tr>
+            </thead>
+            <tbody>${body}</tbody>
+          </table>
+          <div class="rp-pp-note">${basis} · แผนใหม่ให้รายได้สะสมสิ้นเดือนนี้ = ${(x.cPrev + nowNew).toFixed(2)}% เท่ากับงานที่คาดว่าทำได้จริง${overBooked > 0.005 ? ` (รับรู้ถึงสิ้นเดือนก่อนไปแล้ว ${x.cPrev.toFixed(2)}% เกินงานจริง ${overBooked.toFixed(2)}pp เดือนนี้จึงเป็น 0)` : ''} แล้วเกลี่ยส่วนที่เหลือ ${rest.toFixed(2)}% ไปเดือนถัดไปตามสัดส่วนแผนเดิม · เดือนที่ผ่านมาคงตามที่รับรู้ไปแล้ว · ยอดรวมยังเท่ากับ ${total.toFixed(2)}% (${thb(x.selling*total/100)}) เหมือนเดิม</div>
+        </details>`;
       }
       return `<div class="rp-month-i ${st.cls}">
-        <div class="rp-month-n"><b>${x.name}</b> <span class="code-tag">#${x.code}</span> <span class="rp-badge rp-badge-${st.cls}">${st.icon} ${st.label}${x.st==='notstarted'?'':` ${x.gap>0?'+':''}${x.gap.toFixed(1)}pp`}</span></div>
+        <div class="rp-month-n"><b>${x.name}</b> <span class="code-tag">#${x.code}</span> <span class="rp-badge rp-badge-${st.cls}">${st.icon} ${st.label}${x.st==='notstarted'?'' : x.st==='inprogress' ? ` อีก ${Math.abs(x.gap).toFixed(1)}pp` : (x.st==='behind' && !lastWeek) ? ` ${x.gapNow.toFixed(1)}pp` : ` ${x.gap>0?'+':''}${x.gap.toFixed(1)}pp`}</span></div>
         <div class="rp-month-d">
           <span class="rp-month-b">${thb(x.thisBaht)}</span> <span class="rp-month-p">(${x.thisPct.toFixed(2)}% ของสัญญา)</span>
           <div class="rp-month-msg ${st.cls}">${st.icon} ${msg}</div>
@@ -6770,10 +6856,10 @@ function renderPhtMonthly(list){
       : `<div class="ph-hint">ไม่มีโครงการที่อยู่หรือเปลี่ยนเข้า-ออกสถานะ Warning/Critical ระหว่าง ${phYmLabel(S)} กับ ${phYmLabel(E)}</div>`}
     ${hx.other.length ? `<div class="ph-hxo"><span class="ph-hxl">เปลี่ยนสถานะอื่น (ไม่เกี่ยวกับ Warning/Critical)</span>${hx.other.map(x =>
         `<span class="trans-chip flat">${x.r.name || x.r.code} <b>${x.from} → ${x.to}</b></span>`).join('')}</div>` : ''}
-    ${win.length ? `<div class="ph-sec">แนวโน้มสุขภาพรายเดือน ตั้งแต่ ${phYmLabel(win[0])} ที่เริ่มติดตาม (${heatRows.length} โครงการใน Progress1 รวมที่ปิดไปแล้ว)</div>
+    ${win.length ? `<div class="ph-sec">แนวโน้มสุขภาพรายเดือน ตั้งแต่ ${phYmLabel(win[0])} ที่เริ่มติดตาม (${heatRows.length} โครงการที่ติดตามรายสัปดาห์ รวมที่ปิดไปแล้ว)</div>
     ${trend}
     ${heat}` : ''}
-    <div class="ph-src">ที่มา: ชีต ${(PHT.sheetNames || ['Project Health']).join(', ')} ในไฟล์ Excel${PHT.printDate ? ` (export จาก PMS ${PHT.printDate})` : ''} · เป็นค่าปัจจุบันใน PMS ซึ่งคำนวณเดือนก่อนหน้าใหม่ได้ จึงอาจต่างจากรายงาน PDF ที่ออก ณ วันนั้น · ใช้เฉพาะโครงการที่อยู่ในชีต Progress1 (รวมที่ปิดจบไปแล้ว)${PHT.notTracked ? ` · ชีต Project Health มีงานของทีมอีก ${PHT.notTracked} โครงการที่ไม่ได้อยู่ใน Progress1 จึงไม่นำมานับ` : ''}</div>
+    <div class="ph-src">ที่มา: สถานะรายเดือนใน PMS${PHT.printDate ? ` (ข้อมูล ณ ${PHT.printDate})` : ''} · เป็นค่าปัจจุบันซึ่ง PMS คำนวณเดือนก่อนหน้าใหม่ได้ จึงอาจต่างจากรายงาน PDF ที่ออก ณ วันนั้น · นับเฉพาะโครงการที่ติดตามรายสัปดาห์ (รวมที่ปิดจบไปแล้ว)${PHT.notTracked ? ` · ไม่นับอีก ${PHT.notTracked} โครงการของทีมที่ไม่ได้ติดตามรายสัปดาห์` : ''}</div>
   </div>`;
 }
 
@@ -7010,7 +7096,7 @@ function phWatchList(kept, A, B, cx){
         </div>`;
       }).join('')}
     </div>
-    <div class="ph-src">ป้าย Critical/Warning หน้าชื่อมาจากข้อมูลติดตามสัปดาห์ปัจจุบันในไฟล์ Excel${cx.hx ? ' (สถานะรายเดือนตามรายงาน PMS ดูในหัวข้อสุขภาพโครงการด้านบน)' : ''} · ป้ายสีน้ำตาลคือสิ่งที่พบจากการเทียบสองเดือน${cx.hx ? ' สุขภาพที่แย่ลงตามรายงาน' : ''} หรือแถบ Suspect Delay / Plan Revised ของรายงาน</div>
+    <div class="ph-src">ป้าย Critical/Warning หน้าชื่อมาจากข้อมูลติดตามรายสัปดาห์ล่าสุด${cx.hx ? ' (สถานะรายเดือนตามรายงาน PMS ดูในหัวข้อสุขภาพโครงการด้านบน)' : ''} · ป้ายสีน้ำตาลคือสิ่งที่พบจากการเทียบสองเดือน${cx.hx ? ' สุขภาพที่แย่ลงตามรายงาน' : ''} หรือแถบ Suspect Delay / Plan Revised ของรายงาน</div>
     `;
 }
 
@@ -7087,12 +7173,12 @@ function phHealthSection(hx, cx){
   const fromTab = cx.src === 'tab';
   const mm = cx.mism || [];
   const mismHtml = mm.length ? `<div class="ph-mism">
-      <div class="ph-rh">สีในรายงาน PDF ไม่ตรงกับชีต Project Health ในไฟล์ Excel ${mm.length} จุด</div>
-      ${mm.map(m => `<div class="ph-mr"><b>${m.b.name}</b> <span class="ph-wc">${m.b.code}</span> · ${phYmLabel(m.ym)}: รายงาน PDF ${chip(m.pdfH)} ชีต Excel ${chip(m.tabH)}</div>`).join('')}
-      <div class="ph-mn">ชีตใน Excel คือค่าปัจจุบันใน PMS (PMS คำนวณเดือนก่อนหน้าใหม่ได้) ส่วน PDF คือค่า ณ วันออกรายงาน - ถ้าอ้างอิงรายงานที่ส่งไปแล้วให้ยึด PDF ถ้าดูสถานะปัจจุบันให้ยึดชีต</div>
+      <div class="ph-rh">สีในรายงาน PDF ไม่ตรงกับสถานะปัจจุบันใน PMS ${mm.length} จุด</div>
+      ${mm.map(m => `<div class="ph-mr"><b>${m.b.name}</b> <span class="ph-wc">${m.b.code}</span> · ${phYmLabel(m.ym)}: รายงาน PDF ${chip(m.pdfH)} ปัจจุบันใน PMS ${chip(m.tabH)}</div>`).join('')}
+      <div class="ph-mn">PMS คำนวณสถานะเดือนก่อนหน้าใหม่ได้ ส่วน PDF คือค่า ณ วันออกรายงาน - ถ้าอ้างอิงรายงานที่ส่งไปแล้วให้ยึด PDF ถ้าดูสถานะปัจจุบันให้ยึดค่าใน PMS</div>
     </div>` : '';
   return `
-    <div class="ph-sec">สุขภาพโครงการตาม${fromTab ? 'ชีต Project Health (PMS)' : 'รายงาน PMS'} · ${phYmLabel(S)} → ${phYmLabel(E)}${head ? ` · ${head}` : ''}</div>
+    <div class="ph-sec">สุขภาพโครงการตาม${fromTab ? 'สถานะปัจจุบันใน PMS' : 'รายงาน PMS'} · ${phYmLabel(S)} → ${phYmLabel(E)}${head ? ` · ${head}` : ''}</div>
     ${main.length ? `<div class="ph-hx">${main.map(row).join('')}</div>`
                   : `<div class="ph-hint" style="margin:0 18px 12px">ไม่มีโครงการที่อยู่หรือเปลี่ยนเข้า-ออกสถานะ Warning/Critical ระหว่าง ${phYmLabel(S)} กับ ${phYmLabel(E)}</div>`}
     ${hx.other.length ? `<div class="ph-hxo"><span class="ph-hxl">เปลี่ยนสถานะอื่น (ไม่เกี่ยวกับ Warning/Critical)</span>${hx.other.map(x =>
@@ -7103,8 +7189,8 @@ function phHealthSection(hx, cx){
       <div class="ph-rb">สุขภาพโครงการเดือน${phYmLabel(E)} เทียบ ${phYmLabel(S)} ตาม${fromTab ? 'ข้อมูลใน PMS' : 'รายงาน PMS'}<br>${rep.join('<br>')}</div>
     </div>` : ''}
     <div class="ph-src">${fromTab
-      ? `รายงาน PDF ${cx.bLabel} ไม่มีสีสถานะของเดือนที่ใช้เทียบได้ จึงใช้ชีต Project Health ในไฟล์ Excel แทน (ค่าปัจจุบันใน PMS ไม่ใช่ภาพนิ่ง ณ วันออกรายงาน) · แถบเดือนด้านล่างแต่ละโครงการคือสถานะย้อนหลังจากชีตเดียวกัน`
-      : `อ่านจากสีช่องรายเดือนในตาราง Health and Progress ของรายงาน PMS เทียบกับสีในคำอธิบายสัญลักษณ์ของรายงาน (วาดและอ่านในเครื่องนี้ ไม่ส่งไฟล์ไปไหน) · สถานะของ ${phYmLabel(S)} ใช้จากตารางในรายงาน ${cx.bLabel} ก่อน · แถบเดือนด้านล่างแต่ละโครงการคือสถานะย้อนหลังตามรายงาน${cx.tabChecked && !mm.length ? ' · ตรวจกับชีต Project Health ในไฟล์ Excel แล้ว ตรงกันทุกโครงการ' : ''}`}</div>`;
+      ? `รายงาน PDF ${cx.bLabel} ไม่มีสีสถานะของเดือนที่ใช้เทียบได้ จึงใช้สถานะรายเดือนปัจจุบันใน PMS แทน (ไม่ใช่ภาพนิ่ง ณ วันออกรายงาน) · แถบเดือนด้านล่างแต่ละโครงการคือสถานะย้อนหลังจากแหล่งเดียวกัน`
+      : `อ่านจากสีช่องรายเดือนในตาราง Health and Progress ของรายงาน PMS เทียบกับสีในคำอธิบายสัญลักษณ์ของรายงาน (วาดและอ่านในเครื่องนี้ ไม่ส่งไฟล์ไปไหน) · สถานะของ ${phYmLabel(S)} ใช้จากตารางในรายงาน ${cx.bLabel} ก่อน · แถบเดือนด้านล่างแต่ละโครงการคือสถานะย้อนหลังตามรายงาน${cx.tabChecked && !mm.length ? ' · ตรวจกับสถานะปัจจุบันใน PMS แล้ว ตรงกันทุกโครงการ' : ''}`}</div>`;
 }
 
 function renderProjectHealthCompare(){
@@ -7221,7 +7307,7 @@ function renderProjectHealthCompare(){
     const s = phLiveState(r.code);
     if(!r.value && s){
       const sp = num(s.p['Selling Price']), ma = num(s.p['MA/Rent Value']);
-      if(sp) bits.push(`ในไฟล์ Excel: Selling Price ${phBaht(sp)}${ma ? ` · MA/Rent ${phBaht(ma)}` : ''}`);
+      if(sp) bits.push(`ข้อมูลโครงการ: Selling Price ${phBaht(sp)}${ma ? ` · MA/Rent ${phBaht(ma)}` : ''}`);
     }
     return bits.join(' · ');
   };
@@ -7264,7 +7350,7 @@ function renderProjectHealthCompare(){
           <div class="ph-clm">${fileOk
             ? `${r.pm} · มูลค่า ${phBaht(r.value)} · ความคืบหน้า ${(s.pct ?? p.b) != null ? (s.pct ?? p.b).toFixed(0)+'%' : '-'} · สถานะใน PMS: ${s.st}`
             : `${r.pm} · มูลค่า ${phBaht(r.value)} · ${p.b!=null?`รายงาน ${B.label} อยู่ที่ ${p.b.toFixed(1)}%`:'ไม่มีข้อมูลความคืบหน้า'}`}</div>
-          ${fileOk ? '' : `<div class="ph-clw">${s ? `PMS ปิดสัญญาแล้ว แต่ไฟล์ Excel ยังเป็น ${s.st} ${phPct(s.pct)} - อัปเดตวันปิดสัญญาในไฟล์` : 'ไม่พบในไฟล์ Excel'}</div>`}
+          ${fileOk ? '' : `<div class="ph-clw">${s ? `PMS ปิดสัญญาแล้ว แต่ข้อมูลติดตามรายสัปดาห์ยังเป็น ${s.st} ${phPct(s.pct)} - อัปเดตวันปิดสัญญาให้ตรงกัน` : 'ไม่พบในข้อมูลติดตามรายสัปดาห์'}</div>`}
         </div>`;}).join('')}
       </div>
       <div class="ph-report">
@@ -9903,7 +9989,7 @@ const archAsOf = x => (x && x.archivedLastSeenAt) ? fmtDate(String(x.archivedLas
 function archTag(x){
   if(!x || !x.archived) return '';
   const d = archAsOf(x);
-  return ` <span class="arch-tag" title="ไม่มีโครงการนี้ในไฟล์ล่าสุดแล้ว - แสดงข้อมูลล่าสุดที่เก็บไว้ในคลังสะสม">🗄 ข้อมูลจากคลัง${d?` ณ ${d}`:''}</span>`;
+  return ` <span class="arch-tag" title="โครงการนี้ไม่อยู่ในข้อมูลล่าสุดแล้ว - แสดงข้อมูลล่าสุดที่เก็บไว้ในคลังสะสม">🗄 ข้อมูลจากคลัง${d?` ณ ${d}`:''}</span>`;
 }
 
 function renderPayment(paywSource, codeSetList){
@@ -10768,7 +10854,7 @@ function renderCertEligibility(){
       } else {
         const g = SG.byPm[s.pm];
         if(!g){
-          sgPass = false; sgCell = cell('no','—','ไม่มีชื่อในชีต Smart Goal');
+          sgPass = false; sgCell = cell('no','—','ไม่มีชื่อในข้อมูล SMART Goal');
         } else {
           sgPass = g.pass;
           const tip = g.vals.map(v => `${sgLabel(v)}: ${v.score == null ? 'ไม่มีคะแนน' : trunc2(v.score)} ${v.score != null && v.score >= CERT_SG_MIN ? '✓' : '✗'}`).join('\n')
@@ -11562,7 +11648,7 @@ function renderOatScorecard(){
 
   el.innerHTML = `
     <div class="sc-winner">🏆 <b>${top.pm}</b> มีคะแนนรวมสูงสุด (${top.composite.toFixed(0)}/100) - ${reasonTxt}</div>
-    ${yearMode ? `<div class="sc-chg">มิติ Health ใช้สุขภาพสะสม ${phYmLabel(yr.from)} – ${phYmLabel(yr.to)}${yr.from === PHT_TRACK_START ? ' (ตั้งแต่เริ่มติดตามใน Progress1)' : ''} จากชีต Project Health เฉพาะโครงการที่อยู่ใน Progress1 (รวมที่ปิดไปแล้ว) แทนสถานะ ณ วันนี้ ·
+    ${yearMode ? `<div class="sc-chg">มิติ Health ใช้สุขภาพสะสม ${phYmLabel(yr.from)} – ${phYmLabel(yr.to)}${yr.from === PHT_TRACK_START ? ' (ตั้งแต่เริ่มติดตามรายสัปดาห์)' : ''} จากสถานะรายเดือนใน PMS เฉพาะโครงการที่ติดตามรายสัปดาห์ (รวมที่ปิดไปแล้ว) แทนสถานะ ณ วันนี้ ·
       ${moved.length ? `อันดับที่เปลี่ยนจากวิธีเดิม: ${moved.map(m => `${ppwFirst(m.pm)} ${m.from} → ${m.to}`).join(' · ')}` : 'อันดับเท่ากับวิธีเดิมทุกคน'}${cMoved.length ? ` · คะแนนรวมที่เปลี่ยน: ${cMoved.join(' · ')}` : ''}</div>` : ''}
     <div class="sc-radar-wrap">
       <div class="sc-radar-svg">${radarSvg}</div>
@@ -11586,7 +11672,7 @@ function renderOatScorecard(){
       <b>มิติวางบิล</b> = % งวดที่ถึงกำหนดแล้ววางบิลจริง ปรับด้วยความเร็วเทียบเงื่อนไขในสัญญา (เฉพาะงวดที่ระบุ &quot;X วัน&quot;) - ⚡ = เฉลี่ยวางบิลเร็วกว่าสัญญา
       (เน้นมิติที่อยู่ในการควบคุมของ PM เองมากกว่า)<br>
       <b>อัปเดต PMS</b> นับสะสมทั้งปี รายโครงการ - PM ที่ดูแล 5 โครงการต้องกรอกครบทั้ง 5 ทุกสัปดาห์<br>
-      <b>Health ปกติ</b> ${yearMode ? `= สัดส่วนเดือน-โครงการที่สุขภาพปกติ (Normal / Fast / Super Fast) ตั้งแต่ ${phYmLabel(yr.from)}${yr.from === PHT_TRACK_START ? ' (เดือนที่เริ่มติดตามใน Progress1)' : ''} ถึง ${phYmLabel(yr.to)} จากชีต Project Health ที่ export จาก PMS เฉพาะโครงการที่อยู่ใน Progress1 นับรวมที่ปิดไปแล้วระหว่างปี - ชี้ที่ตัวเลขเพื่อดูจำนวนเดือนและค่าแบบเดิม` : '= สัดส่วนโครงการที่ยังไม่ปิดที่ Health ปกติ ณ วันนี้ (เพิ่มชีต Project Health ในไฟล์ Excel เพื่อใช้แบบสะสมทั้งปี)'} · Health แดงบางครั้งมาจากของมาช้า ไม่ใช่ฝีมือ PM จึงให้น้ำหนักแค่ 15%<br>
+      <b>Health ปกติ</b> ${yearMode ? `= สัดส่วนเดือน-โครงการที่สุขภาพปกติ (Normal / Fast / Super Fast) ตั้งแต่ ${phYmLabel(yr.from)}${yr.from === PHT_TRACK_START ? ' (เดือนที่เริ่มติดตามรายสัปดาห์)' : ''} ถึง ${phYmLabel(yr.to)} จากสถานะรายเดือนใน PMS เฉพาะโครงการที่ติดตามรายสัปดาห์ นับรวมที่ปิดไปแล้วระหว่างปี - ชี้ที่ตัวเลขเพื่อดูจำนวนเดือนและค่าแบบเดิม` : '= สัดส่วนโครงการที่ยังไม่ปิดที่ Health ปกติ ณ วันนี้ (เมื่อมีสถานะรายเดือนจาก PMS จะใช้แบบสะสมทั้งปี)'} · Health แดงบางครั้งมาจากของมาช้า ไม่ใช่ฝีมือ PM จึงให้น้ำหนักแค่ 15%<br>
         <b>ดัชนีภาระงาน (Workload Index)</b> = ผลรวมของ <b>ระดับความยาก x ตัวคูณมูลค่า</b> ทุกโครงการ · ตัวคูณมูลค่า: ต่ำกว่า 10M = 1.0 · 10-50M = 1.5 · 50-200M = 2.5 · 200-500M = 4.0 · เกิน 500M = 6.0<br>
         นับเป็นมิติคะแนน 25% - เป็นความรับผิดชอบทั้งโครงการ จึงมีน้ำหนักมากกว่าวินัยการกรอกข้อมูล<br>
         <b>ข้อควรระวัง:</b> "Rev.Gap" อาจเกิดจากปัจจัยภายนอก (ผู้ขายส่งของช้า, รอราชการอนุมัติ ฯลฯ) ไม่ใช่ฝีมือ PM เสมอไป
@@ -11772,7 +11858,7 @@ function renderProductivityWorkload(){
   const D = ppwBuild();
   if(!D){
     PPW_LAST = null;
-    box.innerHTML = `<div class="ppw-empty">ยังไม่มีข้อมูลรายได้รายเดือน (ชีต "Revenue &lt;ปี&gt;") ในข้อมูลที่ sync ล่าสุด - กด Sync ข้อมูลอีกครั้ง</div>`;
+    box.innerHTML = `<div class="ppw-empty">ยังไม่มีข้อมูลรายได้รายเดือนในข้อมูลที่ sync ล่าสุด - กด Sync ข้อมูลอีกครั้ง</div>`;
     return;
   }
   if(!D.pms.length){
@@ -11809,7 +11895,7 @@ function renderProductivityWorkload(){
       <dt>มูลค่างานต่อ${unit}</dt><dd>${ppwFmt(r.dens, 2)} ล้าน</dd>
       <dt>อัตราเดินงาน</dt><dd>${ppwFmt(r.pace, 1)} %/เดือน</dd></dl></div>`).join('');
   const ex = c.rows.filter(r => r.excluded.length);
-  const exTxt = ex.length ? `* ไม่นับใน Productivity เพราะไม่มีแถวในชีต Revenue ${D.Y} (ยังนับในภาระ): ` +
+  const exTxt = ex.length ? `* ไม่นับใน Productivity เพราะไม่มีข้อมูลรายได้รายเดือนปี ${D.Y} (ยังนับในภาระ): ` +
     ex.map(r => `${ppwEsc(ppwFirst(r.pm))} - ${r.excluded.map(p => ppwEsc(p.name)).join(', ')}`).join(' · ') : '';
   // ช่องว่างระหว่างคนมาจากไหน: Productivity = มูลค่างานต่อคะแนน × อัตราเดินงาน
   const dens = c.rows.map(r => r.dens).filter(v => v != null && v > 0), paces = c.rows.map(r => r.pace).filter(v => v != null && v > 0);
@@ -11836,8 +11922,8 @@ function renderProductivityWorkload(){
         <td class="n">${p.lv}</td><td class="n">${p.cx}</td><td class="n">${ppwWeight(p, mode)}</td>
         <td class="n">${p.prog == null ? '-' : ppwFmt(p.prog, 1)}</td>
         <td class="n">${p.end ? fmtDObj(p.end) : '-'}${late ? '<br><span class="ppw-tag">เลยวันจบ</span>' : ''}</td>
-        <td>${ppwEsc(p.phase || 'ไม่มีแผนในชีต Project Plan')}</td>
-        <td class="n">${p.hasRev ? ppwFmt(ppwSum(p.rev, D.A), 2) : `<span class="ppw-sm">ไม่มีในชีต Revenue ${D.Y}</span>`}</td>
+        <td>${ppwEsc(p.phase || 'ยังไม่มีแผนงาน')}</td>
+        <td class="n">${p.hasRev ? ppwFmt(ppwSum(p.rev, D.A), 2) : `<span class="ppw-sm">ไม่มีข้อมูลรายได้ปี ${D.Y}</span>`}</td>
       </tr>`;
     }).join('');
     return `<details data-key="${ppwEsc(r.key)}"${open ? ' open' : ''}><summary>${ppwEsc(r.pm)} · ${list.length} โครงการ · ${ppwFmt(r.nowW, 0)} ${unit}</summary>
@@ -11851,13 +11937,13 @@ function renderProductivityWorkload(){
   const restM = D.A < 12 ? (D.A === 11 ? PPW_M[11] : `${PPW_M[Math.max(0, D.A)]}–${PPW_M[11]}`) : '';
   const method = [
     `คะแนนภาระของโครงการ = ${modeTxt} · นับตั้งแต่วันที่ได้รับมอบหมาย (Project Assigned Date) จนถึงวันปิดสัญญา (Contract Closed Date) ถ้ายังไม่ปิด นับถึงวันจบตามสัญญาหรือวันที่ของข้อมูล แล้วแต่อันไหนช้ากว่า · คิดตามสัดส่วนวันในแต่ละเดือน`,
-    `รายได้ = รายได้ที่รับรู้รายเดือนในชีต Revenue ${D.Y} · ${span ? span + ' = รับรู้แล้ว' : 'ยังไม่มีเดือนที่รับรู้ครบ'}${restM ? ` · ${restM} ยังเป็นแผน จึงไม่นำมาคิด` : ''}`,
-    `Productivity per Workload = รายได้${span ? ' ' + spanS : ''} ÷ คะแนนภาระสะสมช่วงเดียวกัน · นับเฉพาะโครงการที่มีแถวในชีต Revenue ${D.Y} ทั้งตัวตั้งและตัวหาร (โครงการที่ไม่มีแถวยังอยู่ในกราฟภาระ)`,
+    `รายได้ = รายได้ที่รับรู้รายเดือนของปี ${D.Y} · ${span ? span + ' = รับรู้แล้ว' : 'ยังไม่มีเดือนที่รับรู้ครบ'}${restM ? ` · ${restM} ยังเป็นแผน จึงไม่นำมาคิด` : ''}`,
+    `Productivity per Workload = รายได้${span ? ' ' + spanS : ''} ÷ คะแนนภาระสะสมช่วงเดียวกัน · นับเฉพาะโครงการที่มีข้อมูลรายได้รายเดือนปี ${D.Y} ทั้งตัวตั้งและตัวหาร (โครงการที่ไม่มีข้อมูลรายได้ยังอยู่ในกราฟภาระ)`,
     `แยกที่มา: Productivity = มูลค่างานต่อคะแนนภาระ × อัตราเดินงาน · มูลค่างานต่อคะแนน = มูลค่าโครงการที่ถืออยู่เฉลี่ยต่อ 1 คะแนน (ขึ้นกับงานที่ได้รับมอบหมาย) · อัตราเดินงาน = รายได้ต่อเดือนเทียบมูลค่าโครงการที่ถืออยู่`,
     `ไม่นำมาคิด: โครงการที่ยกเลิก` +
       (D.lag.length ? ` · รายได้ปีนี้ของโครงการที่ไม่มีภาระในปี ${by} (${D.lag.map(x => `${ppwEsc(x.name)} ${ppwFmt(x.rev, 2)} ล้าน ของ ${ppwEsc(ppwFirst(x.pm))} - ${ppwEsc(x.why)}`).join(', ')})` : '') +
       (D.lead.length ? ` · โครงการของหัวหน้าทีม (${D.lead.map(p => ppwEsc(p.name)).join(', ')}${span ? ` รายได้ ${spanS} ${ppwFmt(leadRev, 1)} ล้าน` : ''}) แยกไว้ ไม่นำมาเทียบ` : ''),
-    `ไม่ขึ้นกับตัวกรองด้านบน (ทีม/VP/PM/สถานะ/Health) เพราะดัชนีเทียบกับค่าเฉลี่ยทั้งทีม · ขั้นงานอ่านจากวันเริ่ม-วันจบในชีต Project Plan (ไม่ใช้ช่อง Percent)`,
+    `ไม่ขึ้นกับตัวกรองด้านบน (ทีม/VP/PM/สถานะ/Health) เพราะดัชนีเทียบกับค่าเฉลี่ยทั้งทีม · ขั้นงานอ่านจากวันเริ่ม-วันจบในแผนงาน (ไม่ใช้ % ในแผนงาน)`,
     `ข้อจำกัด: ยังไม่มีชั่วโมงทำงานจริง (ระบบ Workflow มีเมนู Worklog Actual) · รายได้ By Invoice เข้าเป็นก้อนตามเดือนที่ออกใบแจ้งหนี้ · บางโครงการรับรู้รายได้หลังปิดงาน · โครงการที่ช้าเพราะปัจจัยภายนอก (รอคณะกรรมการ ของมาช้า) ทำให้อัตราเดินงานต่ำโดยไม่ใช่ความผิดของ PM`,
   ];
 
@@ -11909,7 +11995,7 @@ function renderProductivityWorkload(){
     </div>
     <div class="ppw-sec ppw-now">
       <h4>ภาระตอนนี้ รายโครงการ</h4>
-      <p class="ppw-note">โครงการที่ยังไม่ปิดสัญญา ณ ${fmtDObj(D.asOf)} · ขั้นงานอ่านจากวันที่ในชีต Project Plan (ไม่ใช้ช่อง Percent)</p>
+      <p class="ppw-note">โครงการที่ยังไม่ปิดสัญญา ณ ${fmtDObj(D.asOf)} · ขั้นงานอ่านจากวันที่ในแผนงาน (ไม่ใช้ % ในแผนงาน)</p>
       ${nowHtml}
     </div>
     <details class="ppw-method"><summary>วิธีคิดและข้อจำกัด</summary><ul>${method.map(t => `<li>${t}</li>`).join('')}</ul></details>
@@ -12210,7 +12296,7 @@ function renderWorkloadIndex(list){
       ${its.map(i => `<tr>
         <td><div>${ppwEsc(i.name)}</div><div class="wli-sm">${ppwEsc(i.code)}${i.inNow ? '' : ` · ได้รับมอบหมาย ${fmtDObj(i.start)} (ยังไม่นับในตอนนี้)`}${i.bonus ? ` · ${wliBonusTxt(i)}` : ''}</div></td>
         <td class="n">${i.lv}</td><td class="n">${i.cx}</td><td class="n">${i.pts}${i.bonus ? `<div class="wli-sm">${i.base} + ${i.bonus}</div>` : ''}</td>
-        <td>${ppwEsc(i.phase || 'ไม่มีแผนในชีต Project Plan')}</td>
+        <td>${ppwEsc(i.phase || 'ยังไม่มีแผนงาน')}</td>
         <td class="n">${i.end ? fmtDObj(i.end) : '-'}${i.late ? '<br><span class="wli-tag" style="margin-left:0">เลยวันจบ</span>' : ''}</td>
       </tr>`).join('')}
       </tbody></table></div></details>`;
@@ -12220,12 +12306,12 @@ function renderWorkloadIndex(list){
     'คะแนนภาระของโครงการ = Project Level + Complex Level (อย่างน้อย 1) - นิยามเดียวกับการ์ด Productivity per Workload',
     'ตอนนี้ = รวมคะแนนของโครงการที่ได้รับมอบหมายแล้วและยังไม่ปิดสัญญา · 6 เดือนข้างหน้า = ภาระเฉลี่ยทั้งเดือน ตั้งแต่วันที่ได้รับมอบหมายถึงวันจบตามสัญญา โครงการที่เริ่มหรือจบกลางเดือนคิดตามจำนวนวัน',
     'โครงการที่เลยวันจบแล้วแต่ยังไม่ปิด และโครงการที่ยังไม่มีวันจบ นับเฉพาะช่อง "ตอนนี้" เพราะยังไม่รู้ว่าจะจบเมื่อไหร่',
-    'ขั้นงานแสดงประกอบเท่านั้น ไม่ได้ถ่วงคะแนน เพราะน้ำหนักใน tab Plan Weight เป็นสัดส่วนความคืบหน้า/รายได้ของแต่ละขั้น ไม่ใช่แรงงานของ PM (เช่น Ship to Customer 40–60% เพราะเป็นจุดส่งมอบของ ถ้านำมาถ่วง เดือนที่ติดตั้งจะดูเหมือนว่าง) และงานจ้างเหมา/MA/เช่า ในชีตยังเป็น x',
-    'ใช้ตัวกรองด้านบน · งานที่ยังไม่อยู่ในไฟล์ (ยังไม่ได้มอบหมายในระบบ) ไม่มีในการ์ดนี้',
+    'ขั้นงานแสดงประกอบเท่านั้น ไม่ได้ถ่วงคะแนน เพราะน้ำหนักขั้นงานของ PMS เป็นสัดส่วนความคืบหน้า/รายได้ของแต่ละขั้น ไม่ใช่แรงงานของ PM (เช่น Ship to Customer 40–60% เพราะเป็นจุดส่งมอบของ ถ้านำมาถ่วง เดือนที่ติดตั้งจะดูเหมือนว่าง) และงานจ้างเหมา/MA/เช่า ยังไม่มีน้ำหนักขั้นงาน',
+    'ใช้ตัวกรองด้านบน · งานที่ยังไม่ได้มอบหมายในระบบ ไม่มีในการ์ดนี้',
   ];
   if(PHT && phtLatestYm()){
     method[0] = 'คะแนนภาระของโครงการ = Project Level + Complex Level (อย่างน้อย 1) - นิยามเดียวกับการ์ด Productivity per Workload แต่การ์ดนี้บวกคะแนนปัญหาต่อเนื่องในภาระตอนนี้ด้วย';
-    method.splice(1, 0, `คะแนนปัญหาต่อเนื่อง: โครงการที่เป็น Warning หรือ Critical ติดกันจนถึง ${phYmLabel(phtLatestYm())} ตามชีต Project Health (PMS) - 2 เดือน +1 · ตั้งแต่ 3 เดือน +2 · เดือนแรกที่เพิ่งเป็นยังไม่บวก เพราะงานที่มีปัญหาต่อเนื่องใช้แรง PM มากกว่างานปกติ (ประชุมแก้ปัญหา ตามผู้ขาย รายงานผู้บริหาร) · บวกเฉพาะช่อง "ตอนนี้" ไม่บวกในเดือนข้างหน้า เพราะไม่รู้ว่าปัญหาจะจบเมื่อไหร่`);
+    method.splice(1, 0, `คะแนนปัญหาต่อเนื่อง: โครงการที่เป็น Warning หรือ Critical ติดกันจนถึง ${phYmLabel(phtLatestYm())} ตามสถานะรายเดือนใน PMS - 2 เดือน +1 · ตั้งแต่ 3 เดือน +2 · เดือนแรกที่เพิ่งเป็นยังไม่บวก เพราะงานที่มีปัญหาต่อเนื่องใช้แรง PM มากกว่างานปกติ (ประชุมแก้ปัญหา ตามผู้ขาย รายงานผู้บริหาร) · บวกเฉพาะช่อง "ตอนนี้" ไม่บวกในเดือนข้างหน้า เพราะไม่รู้ว่าปัญหาจะจบเมื่อไหร่`);
   }
 
   box.innerHTML = `
@@ -12237,7 +12323,7 @@ function renderWorkloadIndex(list){
     <div class="wli-legend"><span>น้อย</span><i></i><span>มาก</span></div>
     ${skippedNote}
     <div class="wli-h">รายโครงการ</div>
-    <p class="wli-note">ขั้นงานอ่านจากวันเริ่ม-วันจบในชีต Project Plan (ไม่ใช้ช่อง Percent)</p>
+    <p class="wli-note">ขั้นงานอ่านจากวันเริ่ม-วันจบในแผนงาน (ไม่ใช้ % ในแผนงาน)</p>
     <div class="wli-list">${listHtml}</div>
     <details class="wli-method"><summary>วิธีคิด</summary><ul>${method.map(t => `<li>${t}</li>`).join('')}</ul></details>`;
 
@@ -12248,7 +12334,7 @@ function renderWorkloadIndex(list){
     const nodes = () => [
       ppwNode('div', 'v', `${i.pts} คะแนน`),
       ppwNode('div', null, i.name),
-      ppwNode('div', 's', `L ${i.lv} + C ${i.cx}${i.bonus ? ` + ปัญหาต่อเนื่อง ${i.bonus}` : ''} · ${i.phase || 'ไม่มีแผนในชีต Project Plan'}`),
+      ppwNode('div', 's', `L ${i.lv} + C ${i.cx}${i.bonus ? ` + ปัญหาต่อเนื่อง ${i.bonus}` : ''} · ${i.phase || 'ยังไม่มีแผนงาน'}`),
       ...(i.bonus ? [ppwNode('div', 's', `PMS: ${wliBonusTxt(i)}`)] : []),
       ppwNode('div', 's', i.end ? `จบตามสัญญา ${fmtDObj(i.end)}${i.late ? ' (เลยวันจบแล้ว)' : ''}` : 'ยังไม่มีวันจบในสัญญา'),
     ];
@@ -12427,9 +12513,9 @@ async function renderPaymentArchiveAdmin(){
             <span class="arch-status">
               <span class="st-line">
                 ${p.inLatestFile
-                  ? (p.partial ? `<span class="st part">อยู่ในไฟล์บางส่วน</span>` : `<span class="st live">อยู่ในไฟล์ล่าสุด</span>`)
+                  ? (p.partial ? `<span class="st part">อยู่ในข้อมูลล่าสุดบางส่วน</span>` : `<span class="st live">อยู่ในข้อมูลล่าสุด</span>`)
                   : `<span class="st arch">🗄 มาจากคลังทั้งหมด</span>`}
-                <button type="button" class="arch-del" title="ลบโครงการนี้ออกจากคลัง - ข้อมูลในไฟล์ล่าสุดไม่กระทบ และถ้ายังอยู่ในไฟล์ ระบบจะเก็บเข้าคลังใหม่ตอน sync ครั้งถัดไป">ลบ</button>
+                <button type="button" class="arch-del" title="ลบโครงการนี้ออกจากคลัง - ข้อมูลล่าสุดไม่กระทบ และถ้ายังอยู่ในข้อมูลล่าสุด ระบบจะเก็บเข้าคลังใหม่ตอน sync ครั้งถัดไป">ลบ</button>
               </span>
               ${p.partial ? `<span class="st-sub">${[...(p.fromArchive||[]).map(k=>`🗄 ${k} มาจากคลัง`), ...(p.missing||[]).map(k=>`ไม่มี${k.replace(/\s+\d+\s*แถว$/,'')}`)].join(' · ')}</span>` : ''}
             </span>
@@ -12439,7 +12525,7 @@ async function renderPaymentArchiveAdmin(){
       listEl.querySelectorAll('.arch-del').forEach(btn=>{
         btn.addEventListener('click', async ()=>{
           const code = btn.closest('.arch-row').dataset.code;
-          if(!confirm(`ลบโครงการ ${code} ออกจากคลัง?\nข้อมูลในไฟล์ล่าสุดไม่ได้รับผลกระทบ แต่โครงการนี้จะหายไปจากการ์ดทั้งหมด`)) return;
+          if(!confirm(`ลบโครงการ ${code} ออกจากคลัง?\nข้อมูลล่าสุดไม่ได้รับผลกระทบ แต่โครงการนี้จะหายไปจากการ์ดทั้งหมด`)) return;
           btn.disabled = true;
           try{
             const res = await fetch(`${API_BASE}/api/admin/payment-archive`, {
@@ -12495,7 +12581,7 @@ async function renderPaymentArchiveAdmin(){
         const detail = (j.added||[]).length
           ? `เติมข้อมูลให้ ${j.added.length} โครงการ: ${j.added.map(a=>`${a.name} (${a.parts.join('+')})`).join(' · ')}`
           : 'ไม่มีอะไรต้องเติม - ข้อมูลในคลังครบกว่าหรือเท่าไฟล์ที่อัปโหลดแล้ว';
-        say(`${detail} · รวมในคลัง ${j.after} โครงการ${j.persisted?'':' (เขียนไฟล์ไม่สำเร็จ - จะหายถ้า server restart)'}`, 'good');
+        say(`${detail} · รวมในคลัง ${j.after} โครงการ${j.persisted?'':' (บันทึกบนเซิร์ฟเวอร์ไม่สำเร็จ - จะหายถ้า server restart)'}`, 'good');
         await load(); loadData();
       }catch(e){ say(e.message, 'bad'); }
       finally{ up.value = ''; }
