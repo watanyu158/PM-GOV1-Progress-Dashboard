@@ -440,6 +440,65 @@ function parseSmartGoalSheet(wb) {
   return { rows, sheetName };
 }
 
+// --- แกะไฟล์ Excel: sheet "Training" (ใบรับรองที่ PM แต่ละคนถืออยู่ + วันหมดอายุ) ---
+// หัวคอลัมน์ใบรับรองรูปแบบ "<ชื่อ Cert> Expiration" (เช่น CAPM Expiration, PMP Expiration) - อ่านแบบไดนามิก
+// เพิ่ม Cert ใหม่เป็นคอลัมน์ "<ชื่อ> Expiration" ได้เลยโดยไม่ต้องแก้โค้ด · ช่องว่าง = ยังไม่มี Cert นั้น
+// วันที่ส่งเป็น 'YYYY-MM-DD' เสมอ: SheetJS (cellDates) ให้เวลาเพี้ยนไปไม่กี่วินาทีตามเขตเวลาของเครื่อง
+// (เช่นเครื่องเวลาไทยได้ 23:59:56 ของวันก่อนหน้า) จึงปัดไปเที่ยงคืนที่ใกล้ที่สุดก่อนอ่านวัน
+function trainingDate(v) {
+  const pad = n => String(n).padStart(2, '0');
+  const ymd = (y, m, d) => (y > 1900 && m >= 1 && m <= 12 && d >= 1 && d <= 31) ? `${y}-${pad(m)}-${pad(d)}` : null;
+  if (v instanceof Date && !isNaN(v)) {
+    const t = new Date(v.getTime() + 12 * 3600e3);
+    return ymd(t.getFullYear(), t.getMonth() + 1, t.getDate());
+  }
+  if (typeof v === 'number' && Number.isFinite(v) && v > 20000 && v < 80000) {
+    const p = XLSX.SSF.parse_date_code(v);
+    return p ? ymd(p.y, p.m, p.d) : null;
+  }
+  const s = String(v ?? '').trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) { let y = +m[1]; if (y > 2400) y -= 543; return ymd(y, +m[2], +m[3]); }
+  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+  if (m) { let y = +m[3]; if (y > 2400) y -= 543; return ymd(y, +m[2], +m[1]); }
+  return null;
+}
+function parseTrainingSheet(wb) {
+  const sheetName = wb.SheetNames.find(n => n.replace(/\s+/g, '').toUpperCase() === 'TRAINING');
+  if (!sheetName) return { rows: [], certNames: [], sheetName: null };
+  const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, raw: true, defval: null });
+  const norm = v => String(v ?? '').replace(/\s+/g, ' ').trim();
+  const hIdx = aoa.findIndex(r => Array.isArray(r) && r.some(v => norm(v).toUpperCase() === 'PM NAME'));
+  if (hIdx < 0) return { rows: [], certNames: [], sheetName };
+  const header = aoa[hIdx].map(norm);
+  const col = name => header.findIndex(h => h.toUpperCase() === name);
+  const pmCol = col('PM NAME'), teamCol = col('TEAM'), vpCol = col('VP NAME');
+  // หัวคอลัมน์ชื่อ Cert เปล่า ๆ (เช่น "CAPM" ไม่มีคำว่า Expiration - รูปแบบร่างแรกของชีต) ก็นับเป็นคอลัมน์วันหมดอายุด้วย
+  // เฉพาะชื่อที่รู้จักเท่านั้น กันคอลัมน์อื่นอย่าง Team / VP Name ถูกอ่านเป็นใบรับรอง
+  const KNOWN_CERTS = ['CAPM', 'PMP'];
+  const certCols = [];
+  header.forEach((h, i) => {
+    const m = h.match(/^(.+?)\s*(?:EXPIRATION|EXPIRY|EXPIRES?|EXP\.?)(?:\s*DATE)?$/i);
+    if (m && m[1].trim()) certCols.push({ i, name: m[1].trim().toUpperCase() });
+    else if (KNOWN_CERTS.includes(h.toUpperCase())) certCols.push({ i, name: h.toUpperCase() });
+  });
+  const rows = aoa.slice(hIdx + 1)
+    .filter(r => Array.isArray(r) && norm(r[pmCol]))
+    .map(r => ({
+      pm: norm(r[pmCol]),
+      team: teamCol >= 0 ? (norm(r[teamCol]) || null) : null,
+      vp: vpCol >= 0 ? (norm(r[vpCol]) || null) : null,
+      certs: certCols
+        .filter(({ i }) => norm(r[i] instanceof Date ? 'd' : r[i]) !== '')
+        .map(({ i, name }) => {
+          const exp = trainingDate(r[i]);
+          // มีค่าแต่อ่านเป็นวันที่ไม่ได้ (เช่นพิมพ์ "ตลอดชีพ") - เก็บข้อความไว้แสดง ไม่ทิ้ง
+          return exp ? { name, exp } : { name, exp: null, note: norm(r[i]) };
+        }),
+    }));
+  return { rows, certNames: certCols.map(c => c.name), sheetName };
+}
+
 // --- แกะไฟล์ Excel: sheet "Plan Weight" (น้ำหนักขั้นงานตามชนิดแผนของ PMS) ---
 // คอลัมน์ "เดิม" / "ใหม่" = สัดส่วนสรุป (ส่งของ : ติดตั้ง : อบรม : ปิดโครงการ) · "-" = ไม่เปลี่ยนจากเดิม · "x" = ตาม PM
 // การ์ด Revenue Recognition ใช้ค่า "ใหม่" เป็นช่องมุม PM (OAT 20 ต.ค. 69: คง 11 ชนิดเดิม เปลี่ยนแค่สัดส่วน)
@@ -646,7 +705,7 @@ function canSeeAdminOnlyCard(user, cardId) {
   return Array.isArray(rule) && rule.map(u => String(u).toLowerCase()).includes(uname);
 }
 
-// คะแนน SMARTGOAL เป็นผลประเมินรายบุคคล - ส่งให้เฉพาะคนที่มีสิทธิ์เห็นการ์ด Certification Eligibility เท่านั้น
+// คะแนน SMARTGOAL และใบรับรองรายคน (Training) เป็นข้อมูลรายบุคคล - ส่งให้เฉพาะคนที่มีสิทธิ์เห็นการ์ด Training Certificated (id certEligibility) เท่านั้น
 // ค่าเริ่มต้น (ยังไม่เคยตั้งสิทธิ์) = admin เท่านั้น ตรงกับ defaultVis:['oat'] ของการ์ดนี้ในหน้าเว็บ
 // (ไม่ส่งไปทั้งทีมแล้วค่อยซ่อนการ์ดในหน้าเว็บ เพราะข้อมูลจะยังอยู่ในเบราว์เซอร์ของทุกคน)
 function canSeeSmartGoal(user) {
@@ -997,6 +1056,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const { rows: projectInfo, sheetName: projectInfoSheetName } = safeParse('Project Info', () => parseProjectInfoSheet(wb), { rows: [], sheetName: null });
       const { rows: projectPlanAll, sheetName: projectPlanSheetName } = safeParse('Project Plan', () => parseProjectPlanSheet(wb), { rows: [], sheetName: null });
       const { rows: smartGoal, sheetName: smartGoalSheetName } = safeParse('Smart Goal', () => parseSmartGoalSheet(wb), { rows: [], sheetName: null });
+      const { rows: trainingRaw, certNames: trainingCerts, sheetName: trainingSheetName } = safeParse('Training', () => parseTrainingSheet(wb), { rows: [], certNames: [], sheetName: null });
       const { rows: planWeight, sheetName: planWeightSheetName } = safeParse('Plan Weight', () => parsePlanWeightSheet(wb), { rows: [], sheetName: null });
       const { year: revYear, rows: revYearAll, sheetName: revYearSheetName } = safeParse('Revenue <ปี>', () => parseRevenueYearSheet(wb), { year: null, rows: [], sheetName: null });
       const healthTabRaw = safeParse('Project Health', () => parseProjectHealthSheets(wb), { found: false, rows: [], years: [], sheetNames: [], printDate: null });
@@ -1030,6 +1090,8 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       const stockSummaryTeam = stockSummary.filter(s => inTeam(s.pm));
       const projectInfoTeam = projectInfo.filter(p => inTeam(p['PM Name']));
       const smartGoalTeam = smartGoal.filter(s => inTeam(s.pm));
+      // ใบรับรองรายคน - ไม่มีชีตนี้ในไฟล์ = null (หน้าเว็บซ่อนส่วนสรุปใบรับรอง แสดงเฉพาะส่วนผู้มีสิทธิ์สอบแบบเดิม)
+      const training = trainingSheetName ? { certNames: trainingCerts, rows: trainingRaw.filter(t => inTeam(t.pm)) } : null;
       // ชีตรายได้รายเดือนเป็นข้อมูลทั้งบริษัท - เก็บเฉพาะโครงการของทีม
       const revenueYear = revYear ? { year: revYear, rows: revYearAll.filter(r => inTeam(r.pm)) } : null;
 
@@ -1065,7 +1127,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
         projectHealthTab = { years: trackedTab.years, printDate: trackedTab.printDate, sheetNames: trackedTab.sheetNames, rows: merged.rows, notTracked: healthNotTracked.length };
       }
 
-      latestData = { rows: rowsAll, revenue: revenueAll, paymentW: paymentWAll, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeamAll, projectInfoAll: projectInfo, evm, projectPlan, smartGoal: smartGoalTeam, planWeight, revenueYear, projectHealthTab, updatedAt: syncedAt };
+      latestData = { rows: rowsAll, revenue: revenueAll, paymentW: paymentWAll, po: poTeam, stock: stockTeam, stockSummary: stockSummaryTeam, projectInfo: projectInfoTeamAll, projectInfoAll: projectInfo, evm, projectPlan, smartGoal: smartGoalTeam, training, planWeight, revenueYear, projectHealthTab, updatedAt: syncedAt };
       lastRaw = {
         receivedAt: latestData.updatedAt,
         contentType: req.headers['content-type'] || null,
@@ -1082,6 +1144,7 @@ app.post('/api/webhook/excel', upload.single('file'), (req, res) => {
       console.log(`  + EVM sheets found: ${Object.keys(evm).length} (${Object.keys(evm).join(', ') || 'none'})`);
       console.log(`  + Project Plan ${projectPlanAll.length}→${projectPlan.length} (team) from "${projectPlanSheetName || '(not found)'}"`);
       console.log(`  + Smart Goal ${smartGoal.length}→${smartGoalTeam.length} (team) from "${smartGoalSheetName || '(not found)'}"`);
+      console.log(`  + Training ${trainingRaw.length}→${training ? training.rows.length : 0} (team) · Cert: ${trainingCerts.join(', ') || '-'} from "${trainingSheetName || '(not found)'}"`);
       console.log(`  + Plan Weight ${planWeight.length} แถว from "${planWeightSheetName || '(not found)'}"`);
       console.log(`  + Revenue ${revYear || '-'}: ${revYearAll.length}→${revenueYear ? revenueYear.rows.length : 0} (team) from "${revYearSheetName || '(not found)'}"`);
       console.log(`  + Project Health ${healthTabRaw.years.join(',') || '-'}: ${healthTabRaw.rows.length}→${projectHealthTab ? projectHealthTab.rows.filter(r => !r.archived).length : 0} (อยู่ใน Progress1) from "${healthTabRaw.sheetNames.join(', ') || '(not found)'}"${healthNotTracked.length ? ` · ไม่อยู่ใน Progress1 ${healthNotTracked.length} โครงการ (ไม่นำมาใช้)` : ''}${healthFromArchive ? ` + เดือนจากคลัง ${healthFromArchive}` : ''}`);
@@ -1650,6 +1713,8 @@ app.get('/api/projects', requireAuth, (req, res) => {
   const { pmName, role } = req.user;
   // ทับค่าจาก ...latestData เสมอ - คะแนน SMARTGOAL ส่งเฉพาะคนที่มีสิทธิ์เห็นการ์ด (ดู canSeeSmartGoal)
   const smartGoal = canSeeSmartGoal(req.user) ? (latestData.smartGoal || []) : [];
+  // ใบรับรองรายคนอยู่ในการ์ดเดียวกัน (Training Certificated) - ใช้สิทธิ์เดียวกับคะแนน SMARTGOAL
+  const training = canSeeSmartGoal(req.user) ? (latestData.training || null) : null;
   // รายได้รายเดือนต่อโครงการใช้เฉพาะการ์ด Productivity per Workload (ค่าเริ่มต้นเห็นเฉพาะ OAT) - ส่งให้เฉพาะคนที่เห็นการ์ด
   const revenueYear = canSeeAdminOnlyCard(req.user, 'productivityWorkload') ? (latestData.revenueYear || null) : null;
   // rowsTeamWide: ข้อมูลทีมเต็มเสมอ ไม่ว่าใคร login (ไม่ถูกกรองรายบุคคล) - ใช้กับการ์ดที่ตั้งค่าให้เห็นทีมเต็มเสมอ
@@ -1666,6 +1731,7 @@ app.get('/api/projects', requireAuth, (req, res) => {
     cardVisibility: CARD_VISIBILITY,
     cardDataScope: CARD_DATA_SCOPE,
     smartGoal,
+    training,
     revenueYear,
   });
 
@@ -1704,6 +1770,7 @@ app.get('/api/projects', requireAuth, (req, res) => {
     cardVisibility: CARD_VISIBILITY,
     cardDataScope: CARD_DATA_SCOPE,
     smartGoal,
+    training,
     revenueYear,
     scope: pmName,
   });

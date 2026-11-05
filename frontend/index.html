@@ -339,7 +339,7 @@
   .arch-date-lb{font-size:10.5px;color:var(--faint);display:flex;align-items:center;gap:6px;}
   .arch-date{font-family:inherit;font-size:10.5px;padding:4px 7px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);}
   .arch-msg{font-size:10.5px;color:var(--muted);}
-  /* Certification Eligibility (CAPM / PMP) */
+  /* Training Certificated: ตารางผู้มีสิทธิ์สอบ CAPM / PMP */
   .ce-block{padding:14px 18px 6px;}
   .ce-block + .ce-block{border-top:1px solid var(--line-soft);}
   .ce-title{font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:8px;letter-spacing:.02em;}
@@ -374,6 +374,107 @@
   .ce-res.ok{background:color-mix(in srgb,var(--success) 15%,transparent);color:var(--success);}
   .ce-res.wait{background:color-mix(in srgb,var(--warning) 15%,transparent);color:var(--warning);}
   .ce-res.no{background:color-mix(in srgb,var(--critical) 11%,transparent);color:var(--critical);}
+  /* Training Certificated: ส่วนบน = ใบรับรองของทีม (ใครถือใบไหน หมดอายุเมื่อไหร่) */
+  .tc-sec{padding:14px 18px 12px;}
+  .tc-h{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+  .tc-h b{font-size:12.5px;font-weight:700;color:var(--ink);letter-spacing:.02em;}
+  .tc-h small{font-size:10.5px;color:var(--faint);}
+  .tc-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:12px;}
+  .tc-k{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line-soft);min-width:0;}
+  .tc-k > .tc-badge,.tc-kic{width:42px;height:42px;}
+  .tc-kic{border-radius:50%;display:grid;place-items:center;flex:none;background:var(--neutral-tint);color:var(--neutral);}
+  .tc-kic svg{width:20px;height:20px;}
+  .tc-k.good .tc-kic{background:var(--success-tint);color:var(--success);}
+  .tc-k.warn{border-color:color-mix(in srgb,var(--warning) 40%,transparent);}
+  .tc-k.warn .tc-kic{background:var(--warning-tint);color:var(--warning);}
+  .tc-k.bad{border-color:color-mix(in srgb,var(--critical) 40%,transparent);}
+  .tc-k.bad .tc-kic{background:var(--critical-tint);color:var(--critical);}
+  .tc-kb{min-width:0;flex:1;}
+  .tc-kl{font-size:10.5px;font-weight:600;color:var(--muted);}
+  .tc-kv{font-family:'Plus Jakarta Sans',sans-serif;font-size:21px;font-weight:800;color:var(--ink);line-height:1.2;letter-spacing:-.01em;}
+  .tc-kv small{font-family:'Inter',system-ui,sans-serif;font-size:11px;font-weight:500;color:var(--muted);margin-left:4px;letter-spacing:0;}
+  .tc-ks{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .tc-badge{border-radius:50%;flex:none;display:block;object-fit:cover;}
+  .tc-txt,.tc-empty{display:grid;place-items:center;font-size:9px;font-weight:800;letter-spacing:.02em;}
+  .tc-txt{background:var(--brand-tint);color:var(--brand);border:2px solid var(--brand);}
+  .tc-empty{border:1.5px dashed var(--line);color:var(--faint);background:transparent;font-size:8px;}
+  .tc-scroll{overflow-x:auto;}
+  .tc-row{display:grid;grid-template-columns:var(--tc-cols);gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line-soft);}
+  .tc-row:last-child{border-bottom:none;}
+  .tc-head{font-size:10.5px;color:var(--muted);font-weight:600;align-items:end;padding-top:0;}
+  .tc-hc{display:flex;align-items:center;gap:6px;}
+  .tc-hc .tc-badge{width:18px;height:18px;}
+  .tc-hc small{font-weight:400;color:var(--faint);}
+  .tc-pm{display:flex;align-items:center;gap:9px;min-width:0;}
+  .tc-pmn{display:flex;flex-direction:column;min-width:0;line-height:1.3;}
+  .tc-pmn b{font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .tc-pmn small{font-size:10px;color:var(--faint);}
+  .tc-cell{display:flex;align-items:center;gap:9px;min-width:0;}
+  .tc-cell .tc-badge{width:34px;height:34px;}
+  .tc-cv{display:flex;flex-direction:column;align-items:flex-start;line-height:1.3;min-width:0;}
+  .tc-cv b{font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap;}
+  .tc-cv small{font-size:10.5px;color:var(--muted);white-space:nowrap;}
+  .tc-none{font-size:11px;color:var(--faint);}
+  .tc-cell.sup .tc-badge,.tc-cell.exp .tc-badge{filter:grayscale(1);opacity:.5;}
+  .tc-cell.sup b{color:var(--muted);font-weight:500;}
+  .tc-cell.exp b{color:var(--critical);}
+  .tc-st{display:inline-block;font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:999px;margin-top:2px;white-space:nowrap;}
+  .tc-st.ok{background:var(--success-tint);color:var(--success);}
+  .tc-st.plan{background:var(--warning-tint);color:var(--warning);}
+  .tc-st.soon{background:var(--warning);color:#fff;}
+  .tc-st.exp{background:var(--critical-tint);color:var(--critical);}
+  .tc-st.sup,.tc-st.na{background:var(--neutral-tint);color:var(--neutral);}
+  /* แถบอายุคงเหลือ: เส้นซ้าย = วันนี้ · ปลายแถบ = วันหมดอายุ · ช่องซ้ายสุด = ใบที่หมดไปแล้ว */
+  .tc-run{position:relative;margin-right:12px;}
+  .tc-axis{height:14px;font-size:9.5px;color:var(--faint);font-weight:500;}
+  .tc-axis span{position:absolute;bottom:0;transform:translateX(-50%);white-space:nowrap;}
+  .tc-axis span.now{color:var(--brand);font-weight:700;transform:none;}
+  .tc-axis span.gut{transform:none;left:0;}
+  .tc-tick,.tc-now{position:absolute;top:-9px;bottom:-10px;width:0;}
+  .tc-tick{border-left:1px dashed var(--line);}
+  .tc-now{border-left:2px solid color-mix(in srgb,var(--brand-2) 70%,transparent);}
+  .tc-gutbg{position:absolute;top:-9px;bottom:-10px;left:0;background:repeating-linear-gradient(135deg,transparent 0 5px,color-mix(in srgb,var(--line) 45%,transparent) 5px 6px);}
+  .tc-bar{position:absolute;height:6px;border-radius:3px;transform:translateY(-50%);}
+  .tc-bar.ok{background:color-mix(in srgb,var(--success) 60%,transparent);}
+  .tc-bar.plan{background:color-mix(in srgb,var(--warning) 55%,transparent);}
+  .tc-bar.soon{background:var(--warning);}
+  .tc-pin{position:absolute;width:22px;height:22px;transform:translate(-50%,-50%);box-shadow:0 0 0 2px var(--surface);}
+  .tc-pin.tc-txt{font-size:6.5px;border-width:1.5px;}
+  .tc-pin.sup,.tc-pin.exp{filter:grayscale(1);opacity:.5;}
+  .tc-pin.exp{filter:none;opacity:1;box-shadow:0 0 0 2px var(--critical);}
+  .tc-note{font-size:10px;color:var(--faint);margin-top:8px;line-height:1.6;display:flex;flex-wrap:wrap;gap:0 12px;}
+  .tc-note span{white-space:nowrap;}
+  .tc-note i{font-style:normal;display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:0;}
+  @media (max-width:700px){
+    .tc-sec{padding:12px 12px 10px;}
+    .tc-row{grid-template-columns:1fr 1fr !important;row-gap:8px;}
+    .tc-row > .tc-pm,.tc-row > .tc-runw{grid-column:1/-1;}
+    .tc-head > :not(.tc-runw){display:none;}
+    .tc-cell .tc-badge{width:28px;height:28px;}
+  }
+  /* ส่วนล่าง = ผู้มีสิทธิ์สอบ: คนที่ถือใบนั้น (หรือใบที่สูงกว่า) แล้ว ไม่ต้องประเมิน */
+  .tc-elig{border-top:1px solid var(--line-soft);padding:14px 18px 0;}
+  .tc-elig + .ce-block{border-top:none;padding-top:8px;}
+  .ce-title{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+  .ce-title .tc-badge{width:20px;height:20px;}
+  .ce-title small{font-size:10.5px;font-weight:500;color:var(--faint);letter-spacing:0;}
+  .ce-grp{font-size:10px;font-weight:600;color:var(--faint);padding:10px 0 2px;border-top:1px solid var(--line-soft);}
+  .ce-empty + .ce-grp{border-top:none;padding-top:0;}
+  .ce-hl{padding-bottom:6px;}
+  .ce-hr{display:grid;grid-template-columns:210px 1fr;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line-soft);}
+  .ce-hr:last-child{border-bottom:none;}
+  .ce-hr .ce-pm span{color:var(--muted);}
+  @media (max-width:600px){ .ce-hr{grid-template-columns:100px 1fr;} }
+  .ce-held{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:11.5px;color:var(--muted);min-width:0;}
+  .ce-held .tc-badge{width:24px;height:24px;}
+  .ce-held b{color:var(--ink-2);font-weight:600;}
+  .ce-held .soon{color:var(--warning);font-weight:600;}
+  .ce-hd > span{white-space:nowrap;}
+  .ce-hd::before{content:'·';margin-right:6px;}
+  @media (max-width:600px){ .ce-hd{flex-basis:100%;padding-left:32px;} .ce-hd::before{content:none;} }
+  .ce-pmx{display:flex;flex-direction:column;min-width:0;line-height:1.3;}
+  .ce-pmx small{font-size:9.5px;color:var(--critical);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ce-empty{font-size:11.5px;color:var(--muted);padding:6px 0 10px;}
   .arch-msg.bad{color:var(--critical);}
   .arch-msg.good{color:var(--success);}
   .arch-row{display:grid;grid-template-columns:108px 1fr 175px 105px 195px;gap:10px;align-items:center;padding:9px 18px;border-bottom:1px solid var(--line-soft);font-size:11px;}
@@ -2553,7 +2654,7 @@
       <div class="p-head">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M8.5 12.5 7 22l5-3 5 3-1.5-9.5"/></svg>
-          Certification Eligibility <span class="sep">-</span> <span class="th">ผู้มีสิทธิ์เสนอชื่อสอบ CAPM / PMP</span>
+          Training Certificated <span class="sep">-</span> <span class="th">ใบรับรองของทีม และผู้มีสิทธิ์สอบ CAPM / PMP</span>
         </div>
         <span class="p-count" id="certCount"></span>
       </div>
@@ -3052,7 +3153,10 @@ let STOCK = [];
 let STOCKSUM = [];
 let PROJINFO = [];
 let PROJINFO_ALL = []; // ไม่ล็อกทีม - ใช้เฉพาะ card "ค้นหาทั้งบริษัท"
-let SMARTGOAL = [];   // ชีต Smart Goal - backend ส่งมาเฉพาะคนที่มีสิทธิ์เห็นการ์ด Certification Eligibility
+let SMARTGOAL = [];   // ชีต Smart Goal - backend ส่งมาเฉพาะคนที่มีสิทธิ์เห็นการ์ด Training Certificated (id certEligibility)
+// ใบรับรองรายคน {certNames:['CAPM','PMP'], rows:[{pm, team, vp, certs:[{name, exp:'YYYY-MM-DD'}]}]} - สิทธิ์เดียวกับ SMARTGOAL
+// null = ยังไม่มีข้อมูลใบรับรอง: การ์ดแสดงเฉพาะส่วนผู้มีสิทธิ์สอบแบบเดิม (ประเมินทุกคน)
+let TRAINING = null;
 // ชีต "Project Health" (export จาก PMS) สุขภาพรายเดือนต่อโครงการ {years, printDate, sheetNames, rows:[{code,name,pm,status,months:{YYYYMM:1-5},...}]}
 // เป็นข้อมูลระดับทีม (backend ล็อกเฉพาะทีมแล้ว) - การ์ดใช้ค้นตามรหัสโครงการที่อยู่ในรายการของการ์ดนั้น จึงยังเคารพขอบเขตข้อมูลของการ์ดเหมือนเดิม
 let PHT = null;
@@ -3097,7 +3201,7 @@ const CARD_REGISTRY = [
   {tab:'3', tabLabel:'Project Information', id:'projectsByYear', en:'Projects by Year', th:'จำนวน/มูลค่าโครงการรายปี'},
   // ผลประเมินสิทธิ์สอบรายคน = ข้อมูลประเมินบุคคล ค่าเริ่มต้นให้ OAT เห็นคนเดียว (เปิดให้คนอื่นได้ที่ Admin)
   // ต้องตั้งเป็นค่าในโค้ด เพราะไฟล์ตั้งค่าสิทธิ์บน server ถูกล้างทุกครั้งที่ redeploy
-  {tab:'3', tabLabel:'Project Information', id:'certEligibility', en:'Certification Eligibility', th:'ผู้มีสิทธิ์เสนอชื่อสอบ CAPM / PMP', defaultVis:['oat']},
+  {tab:'3', tabLabel:'Project Information', id:'certEligibility', en:'Training Certificated', th:'ใบรับรองของทีม และผู้มีสิทธิ์สอบ CAPM / PMP', defaultVis:['oat']},
   {tab:'3', tabLabel:'Project Information', id:'siteHistory', en:'Site History', th:'ใครเคยดูแลลูกค้ารายนี้บ้าง'},
   {tab:'3', tabLabel:'Project Information', id:'pmProfile', en:'PM Profile', th:'ประวัติการทำงานราย PM'},
   {tab:'3', tabLabel:'Project Information', id:'torBreakdown', en:'TOR Breakdown', th:'แตกเอกสาร TOR เป็น Scope of Work', scope:false},
@@ -3151,6 +3255,7 @@ async function loadData(auto){
       STOCKSUM = j.stockSummary || [];
       PROJINFO = (j.projectInfo || []).map(normRow);
       SMARTGOAL = Array.isArray(j.smartGoal) ? j.smartGoal : [];
+      TRAINING = (j.training && Array.isArray(j.training.rows)) ? j.training : null;
       PLANWEIGHT = Array.isArray(j.planWeight) ? j.planWeight : [];
       REVY = (j.revenueYear && Array.isArray(j.revenueYear.rows)) ? j.revenueYear : null;
       PROJINFO_ALL = (j.projectInfoAll || []).map(normRow);
@@ -3195,7 +3300,7 @@ async function loadData(auto){
     HIST = SEED_DATA.map(normRow);
     ALL = latestPerProject(HIST);
     REV = SEED_REVENUE.map(normRow);
-    PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = []; PROJINFO_ALL = []; SMARTGOAL = []; PLANWEIGHT = []; REVY = null; EVM = {}; ROWS_TEAMWIDE = [];
+    PAYW = []; PO = []; STOCK = []; STOCKSUM = []; PROJINFO = []; PROJINFO_ALL = []; SMARTGOAL = []; TRAINING = null; PLANWEIGHT = []; REVY = null; EVM = {}; ROWS_TEAMWIDE = [];
     PHT = null; PHT_MAP = new Map();
     PLAN = []; PLAN_TEAMWIDE = [];
     PAYW_TEAMWIDE = []; PO_TEAMWIDE = []; STOCK_TEAMWIDE = []; STOCKSUM_TEAMWIDE = [];
@@ -5293,7 +5398,7 @@ function renderRevenuePlan(list){
     if(gap <= -10) advice.push({t:'warn', code:x.code, name:x.name,
       msg:`งานจริงช้ากว่าแผนรับรู้รายได้ ${Math.abs(gap).toFixed(1)}pp (ทำได้ ${x.pmsCur.toFixed(1)}% แต่ ณ วันนี้ตามแผนควรอยู่ราว ${x.expNow.toFixed(1)}%) - ${
         !lastWeek ? 'ติดตามว่าจะเร่งงานทันแผนสิ้นเดือนหรือไม่'
-        : x.willMake ? `4 สัปดาห์ที่ผ่านมางานขยับเฉลี่ย ${(x.pace.perDay*7).toFixed(1)}pp/สัปดาห์ ถ้ารักษาจังหวะนี้น่าจะทันแผนสิ้นเดือน`
+        : x.willMake ? `4 สัปดาห์ที่ผ่านมางานขยับเฉลี่ย ${(x.pace.perDay*7).toFixed(1)}pp/สัปดาห์ ถ้ารักษาความเร็วนี้น่าจะทันแผนสิ้นเดือน`
         : 'ถ้าไม่เร่งงาน ควรเลื่อนแผนรับรู้รายได้ออกไป ไม่งั้นจะรับรู้ไม่ทันตามที่วางไว้'}`});
     else if(gap >= 10) advice.push({t:'good', code:x.code, name:x.name,
       msg:`งานเร็วกว่าแผนรับรู้รายได้ ${gap.toFixed(1)}pp (ทำได้ ${x.pmsCur.toFixed(1)}% ณ วันนี้ตามแผนควรอยู่ราว ${x.expNow.toFixed(1)}%) - มีโอกาสเร่งรับรู้รายได้เข้ามาเร็วขึ้นได้ ${thb(x.selling*Math.min(gap,remainPct)/100)}`});
@@ -5437,11 +5542,11 @@ function renderRevenuePlan(list){
   // สรุป "ควรทำอะไร" ตามสถานการณ์จริงของเดือนนี้ - เปลี่ยนตามจำนวนวันที่เหลือด้วย
   const todos = [];
   if(mOnplan.length || mAhead.length) todos.push(`ตั้งเบิก/รับรู้รายได้ได้เลย ${mOnplan.length+mAhead.length} โครงการ รวม ${thb(readyBaht)} บาท`);
-  if(mInprog.length) todos.push(`ติดตาม ${mInprog.length} โครงการที่กำลังทำงานของเดือนนี้ (${thb(inprogBaht)} บาท) - ยังอยู่ในจังหวะ เหลืออีก ${dLeft} วัน`);
+  if(mInprog.length) todos.push(`ติดตาม ${mInprog.length} โครงการที่กำลังทำงานของเดือนนี้ (${thb(inprogBaht)} บาท) - เป็นไปตามแผน เหลืออีก ${dLeft} วัน`);
   if(mRecom.length) todos.push(`เร่งตัดสินใจ ${mRecom.length} โครงการที่คาดว่าไม่ทันสิ้นเดือน (${thb(recomBaht)} บาท) - เหลือ ${dLeft} วัน ควรเลื่อนแผนส่วนที่ไม่ทันไปเดือนหน้าหรือคุยกับลูกค้า/ทีมด่วน`);
   if(mBehind.length > mRecom.length) todos.push(lastWeek
-    ? `ตาม ${mBehind.length - mRecom.length} โครงการที่ยังช้ากว่าแผน แต่ถ้ารักษาจังหวะงานช่วงที่ผ่านมาน่าจะทันสิ้นเดือน`
-    : `เร่ง ${mBehind.length} โครงการที่งานช้ากว่าจังหวะของเดือนนี้ (${thb(behindBaht)} บาท) - ยังเหลือ ${dLeft} วัน`);
+    ? `ตาม ${mBehind.length - mRecom.length} โครงการที่ยังช้ากว่าแผน แต่ถ้ารักษาความเร็วงานช่วงที่ผ่านมาน่าจะทันสิ้นเดือน`
+    : `เร่ง ${mBehind.length} โครงการที่งานช้ากว่าแผน ณ วันนี้ (${thb(behindBaht)} บาท) - ยังเหลือ ${dLeft} วัน`);
   if(mAhead.length) todos.push(`ทบทวนแผน ${mAhead.length} โครงการที่งานเร็วกว่าแผน (${thb(aheadBaht)} บาท) - อาจดึงรับรู้รายได้เข้ามาเร็วขึ้นได้`);
   if(mNew.length) todos.push(`ติดตาม ${mNew.length} โครงการที่เพิ่งเริ่ม/รอเซ็นสัญญา (${thb(newBaht)} บาท) - ตั้ง WIP ตามนโยบายได้ แต่ต้องเติม Start Date และ %Progress ใน PMS ให้ครบ ระบบจะได้ประเมินได้ถูกต้อง`);
 
@@ -5463,7 +5568,7 @@ function renderRevenuePlan(list){
       ${reversalItems.length?`<div><span class="rp-ms-l">กลับรายการ</span><span class="rp-ms-v risk">${thb(reversalBaht)}</span><span class="rp-ms-s">${reversalItems.length} โครงการ</span></div>
       <div><span class="rp-ms-l">ยอดสุทธิ</span><span class="rp-ms-v">${thb(netMonthTotal)}</span><span class="rp-ms-s">ตรงกับแถวรวมในตาราง</span></div>`:''}
       <div><span class="rp-ms-l">พร้อมรับรู้</span><span class="rp-ms-v ok">${thb(readyBaht)}</span><span class="rp-ms-s">${mOnplan.length+mAhead.length} โครงการ</span></div>
-      ${mInprog.length?`<div><span class="rp-ms-l">ระหว่างทำ</span><span class="rp-ms-v">${thb(inprogBaht)}</span><span class="rp-ms-s">${mInprog.length} โครงการยังอยู่ในจังหวะ</span></div>`:''}
+      ${mInprog.length?`<div><span class="rp-ms-l">ระหว่างทำ</span><span class="rp-ms-v">${thb(inprogBaht)}</span><span class="rp-ms-s">${mInprog.length} โครงการเป็นไปตามแผน ณ วันนี้</span></div>`:''}
       <div><span class="rp-ms-l">ต้องตาม</span><span class="rp-ms-v ${behindBaht>0?'risk':''}">${thb(behindBaht)}</span><span class="rp-ms-s">${mBehind.length} โครงการงานช้ากว่าแผน</span></div>
       ${mNew.length?`<div><span class="rp-ms-l">เพิ่งเริ่ม</span><span class="rp-ms-v new">${thb(newBaht)}</span><span class="rp-ms-s">${mNew.length} โครงการรอเซ็น/เริ่มงาน</span></div>`:''}
     </div>
@@ -5516,11 +5621,11 @@ function renderRevenuePlan(list){
       const msg = x.st==='notstarted'
         ? `ยังไม่มีข้อมูลความคืบหน้าใน PMS (ยังไม่ได้กรอก %Progress / Start Date)${x.note?` - สถานะล่าสุด: "${x.note}"`:''} · ตั้ง WIP ${x.thisPct.toFixed(2)}% ตามนโยบายบริษัทได้ แต่ควรเติมข้อมูลใน PMS ให้ครบ ระบบจะเทียบแผนกับงานจริงได้ถูกต้องตั้งแต่เดือนหน้า`
         : x.st==='inprogress'
-        ? `งานทำได้ ${x.pmsCur.toFixed(1)}% · แผนสิ้นเดือนต้องถึง ${x.planCum.toFixed(1)}% ต้องทำเพิ่มอีก ${need.toFixed(1)}pp ${inDays} · ณ วันนี้ควรอยู่ราว ${x.expNow.toFixed(1)}% ยังอยู่ในจังหวะ`
+        ? `งานทำได้ ${x.pmsCur.toFixed(1)}% · แผนสิ้นเดือนต้องถึง ${x.planCum.toFixed(1)}% ต้องทำเพิ่มอีก ${need.toFixed(1)}pp ${inDays} · ณ วันนี้ควรอยู่ราว ${x.expNow.toFixed(1)}% เป็นไปตามแผน`
         : x.st==='behind' && !lastWeek
-        ? `งานทำได้ ${x.pmsCur.toFixed(1)}% แต่ ณ วันนี้ควรอยู่ราว ${x.expNow.toFixed(1)}% (ช้ากว่าจังหวะ ${Math.abs(x.gapNow).toFixed(1)}pp) · แผนสิ้นเดือนต้องถึง ${x.planCum.toFixed(1)}% ต้องทำเพิ่มอีก ${need.toFixed(1)}pp ${inDays}${paceTxt?` · ${paceTxt}`:''} - ต้องติดตามให้เร่งงาน`
+        ? `งานทำได้ ${x.pmsCur.toFixed(1)}% แต่ ณ วันนี้ควรอยู่ราว ${x.expNow.toFixed(1)}% (ช้ากว่าแผน ณ วันนี้ ${Math.abs(x.gapNow).toFixed(1)}pp) · แผนสิ้นเดือนต้องถึง ${x.planCum.toFixed(1)}% ต้องทำเพิ่มอีก ${need.toFixed(1)}pp ${inDays}${paceTxt?` · ${paceTxt}`:''} - ต้องติดตามให้เร่งงาน`
         : x.st==='behind' && x.willMake
-        ? `งานทำได้ ${x.pmsCur.toFixed(1)}% แผนสิ้นเดือนต้องถึง ${x.planCum.toFixed(1)}% - ต้องทำเพิ่มอีก ${need.toFixed(1)}pp ${inDays} · ${paceTxt} ถ้ารักษาจังหวะนี้คาดว่าสิ้นเดือนได้ราว ${x.proj.toFixed(1)}% น่าจะทัน`
+        ? `งานทำได้ ${x.pmsCur.toFixed(1)}% แผนสิ้นเดือนต้องถึง ${x.planCum.toFixed(1)}% - ต้องทำเพิ่มอีก ${need.toFixed(1)}pp ${inDays} · ${paceTxt} ถ้ารักษาความเร็วนี้คาดว่าสิ้นเดือนได้ราว ${x.proj.toFixed(1)}% น่าจะทัน`
         : x.st==='behind'
         ? `งานทำได้ ${x.pmsCur.toFixed(1)}% แผนสิ้นเดือนต้องถึง ${x.planCum.toFixed(1)}% - ต้องทำเพิ่มอีก ${need.toFixed(1)}pp ${inDays} แต่ ${x.pace ? `${paceTxt} คาดว่าสิ้นเดือนได้ราว ${x.proj.toFixed(1)}%` : 'ไม่มีประวัติความคืบหน้าพอจะคาดการณ์ได้'} - ควรเลื่อนแผนส่วนที่ไม่ทันไปเดือนหน้าหรือคุยกับลูกค้า/ทีมด่วน`
         : x.st==='ahead'
@@ -10749,10 +10854,177 @@ function renderPiYearChart(){
   });
 }
 
-// ==== Certification Eligibility: ผู้มีสิทธิ์ถูกเสนอชื่อเข้าสอบ CAPM / PMP ====
+// ==== Training Certificated (id certEligibility): ใบรับรองของทีม + ผู้มีสิทธิ์ถูกเสนอชื่อเข้าสอบ CAPM / PMP ====
+// OAT 5 พ.ย. 69: รวมข้อมูลใบรับรองรายคน (TRAINING) เข้าการ์ดเดิม เปลี่ยนชื่อเป็น Training Certificated
+//   ส่วนบน = dashboard ใครถือใบไหน หมดอายุวันไหน · ส่วนล่าง = เกณฑ์ผู้มีสิทธิ์สอบแบบเดิม
+//   แต่คนที่ถือใบนั้นอยู่แล้ว (หรือถือใบที่สูงกว่า เช่น PMP ในตาราง CAPM) ไม่ต้องคำนวณผ่าน/ไม่ผ่าน
+// โลโก้ CAPM / PMP: รูปที่ OAT ส่งมา ตัดเป็นวงกลม 112px ฝังในไฟล์ (ไม่ต้อง deploy โฟลเดอร์รูปเพิ่ม)
+const CERT_BADGE = {
+  PMP: 'data:image/png;base64,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',
+  CAPM: 'data:image/png;base64,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',
+};
+// ระดับใบรับรอง: ใช้เรียงลำดับ + ตัดสินว่าใบไหน "สูงกว่า" (ถือ PMP ที่ยังไม่หมดอายุ = ไม่ต้องประเมิน CAPM)
+// ใบอื่นที่เพิ่มในอนาคตได้ระดับ 0 (ไม่ทับใบไหน) แสดงเป็นป้ายตัวอักษรแทนโลโก้
+const CERT_LEVEL = { CAPM:1, PMP:2 };
+const CERT_HIGHER = { CAPM:['PMP'] };
+const CERT_SOON_DAYS = 180, CERT_PLAN_DAYS = 365;   // ≤ 6 เดือน = ต้องต่ออายุ · ≤ 1 ปี = เตรียมต่ออายุ
+const CERT_TH_M = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const certD = s => { const m = String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? new Date(+m[1], +m[2]-1, +m[3]) : null; };
+const certDate = d => `${d.getDate()} ${CERT_TH_M[d.getMonth()]} ${d.getFullYear()+543}`;
+const certDateS = d => `${d.getDate()} ${CERT_TH_M[d.getMonth()]} ${String(d.getFullYear()+543).slice(2)}`;
+function certToday(){ const t = new Date(); t.setHours(0,0,0,0); return t; }
+// ช่วงเวลาแบบปฏิทิน (ไม่ใช่หารด้วย 30): 5 พ.ย. 69 → 27 ก.ย. 72 = 2 ปี 10 เดือน · ไม่ถึงเดือน = นับวัน
+function certSpan(a, b){
+  let m = (b.getFullYear()-a.getFullYear())*12 + (b.getMonth()-a.getMonth());
+  if(b.getDate() < a.getDate()) m--;
+  if(m < 1) return `${Math.round((b-a)/DAY)} วัน`;
+  const y = Math.floor(m/12), mm = m % 12;
+  return [y ? `${y} ปี` : '', mm ? `${mm} เดือน` : ''].filter(Boolean).join(' ');
+}
+const certLv = n => CERT_LEVEL[n] || 0;
+const certFirst = n => pmKey(n).split(' ')[0];
+// extra = attribute เพิ่ม (title/style) ใส่ลงแท็กตรง ๆ · ใบที่ไม่มีโลโก้ใช้ป้ายตัวอักษรแทน
+function certBadge(name, cls, extra){
+  const n = String(name||'').toUpperCase();
+  return CERT_BADGE[n]
+    ? `<img class="tc-badge ${cls||''}" src="${CERT_BADGE[n]}" alt="${n}" draggable="false" ${extra||''}>`
+    : `<span class="tc-badge tc-txt ${cls||''}" ${extra||''}>${n.slice(0,5)}</span>`;
+}
+const certEmpty = n => `<span class="tc-badge tc-empty">${String(n).slice(0,5)}</span>`;
+// สถานะของใบรับรองหนึ่งใบ ณ วันนี้ · หมดอายุ = เลยวันที่ระบุไปแล้ว (วันที่ระบุยังใช้ได้)
+// ใบที่หมดแล้วแต่ถือใบที่สูงกว่าซึ่งยังใช้ได้ (CAPM หมด แต่มี PMP) = 'sup' ไม่ถือเป็นเรื่องต้องตาม
+function certStatus(c, person, today){
+  const d = certD(c.exp);
+  if(!d) return { k:'na', d:null };
+  const days = Math.round((d - today) / DAY);
+  if(days < 0){
+    const by = (CERT_HIGHER[c.name] || []).find(h => person.certs.some(x => x.name === h && certD(x.exp) && certD(x.exp) >= today));
+    return by ? { k:'sup', d, days, by } : { k:'exp', d, days };
+  }
+  return { k: days <= CERT_SOON_DAYS ? 'soon' : days <= CERT_PLAN_DAYS ? 'plan' : 'ok', d, days };
+}
+const CERT_ST_TXT = { ok:'ใช้งานได้', plan:'เตรียมต่ออายุ', soon:'ต้องต่ออายุ', exp:'หมดอายุแล้ว', na:'ไม่ระบุวันหมดอายุ' };
+// ข้อมูลใบรับรองทั้งทีม พร้อมสถานะ - ใช้ร่วมกันทั้งส่วน dashboard และการข้ามคนที่ถือใบแล้วในตารางผู้มีสิทธิ์สอบ
+function certTeam(today){
+  if(!TRAINING) return null;
+  const people = TRAINING.rows.map(r => {
+    const p = { pm: pmKey(r.pm), certs: (r.certs||[]).map(c => ({ name:String(c.name||'').toUpperCase(), exp:c.exp||null, note:c.note||'' })) };
+    p.certs.forEach(c => { c.st = certStatus(c, p, today); });
+    p.certs.sort((a,b) => certLv(b.name) - certLv(a.name) || a.name.localeCompare(b.name));
+    p.active = p.certs.filter(c => ['ok','plan','soon','na'].includes(c.st.k));
+    p.top = p.active.length ? Math.max(...p.active.map(c => certLv(c.name))) : -1;
+    return p;
+  });
+  // เรียง: มีใบที่ใช้ได้ (ใบสูงก่อน) → มีแต่ใบที่หมดแล้ว → ยังไม่มีเลย
+  people.sort((a,b) => (b.active.length ? 1 : 0) - (a.active.length ? 1 : 0) || b.top - a.top
+    || (b.certs.length ? 1 : 0) - (a.certs.length ? 1 : 0) || a.pm.localeCompare(b.pm));
+  const names = [...new Set([...(TRAINING.certNames||[]).map(n => String(n).toUpperCase()), ...people.flatMap(p => p.certs.map(c => c.name))])]
+    .sort((a,b) => certLv(a) - certLv(b) || a.localeCompare(b));
+  return { people, names, byPm: new Map(people.map(p => [nrm(p.pm), p])) };
+}
+// คนนี้ไม่ต้องประเมินสอบใบ key หรือไม่: ถือใบนั้นที่ยังใช้ได้ หรือถือใบที่สูงกว่าที่ยังใช้ได้
+function certHeldFor(team, pm, key){
+  const p = team && team.byPm.get(nrm(pm)); if(!p) return null;
+  const want = key.toUpperCase();
+  const same = p.active.find(c => c.name === want);
+  if(same) return { c:same, higher:false, p };
+  const hi = p.active.find(c => (CERT_HIGHER[want] || []).includes(c.name));
+  if(hi) return { c:hi, higher:true, p };
+  const lapsed = p.certs.find(c => c.name === want && c.st.k === 'exp');
+  return lapsed ? { lapsed, p } : null;
+}
+function certTeamHtml(team, today){
+  if(!team) return `<div class="tc-sec"><div class="tc-h"><b>ใบรับรองของทีม</b></div><div class="empty" style="padding:10px 0">ยังไม่มีข้อมูลใบรับรองของทีม</div></div>`;
+  if(!team.people.length) return `<div class="tc-sec"><div class="tc-h"><b>ใบรับรองของทีม</b></div><div class="empty" style="padding:10px 0">ไม่พบรายชื่อ PM ของทีมในข้อมูลใบรับรอง</div></div>`;
+  const P = team.people, N = team.names;
+  const attr = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  const all = P.flatMap(p => p.certs.map(c => ({ ...c, pm:p.pm })));
+  // --- แถวสรุป: จำนวนคนที่ถือแต่ละใบ (ใบสูงก่อน) · ต้องต่ออายุ/ใบถัดไป · ยังไม่มี Cert.
+  const tiles = [...N].reverse().map(n => {
+    const who = P.filter(p => p.active.some(c => c.name === n));
+    return `<div class="tc-k">${certBadge(n)}<div class="tc-kb"><div class="tc-kl">${n} · ใช้งานได้</div>
+      <div class="tc-kv">${who.length}<small>คน</small></div>
+      <div class="tc-ks" title="${attr(who.map(p=>p.pm).join('\n'))}">${who.length ? who.map(p=>certFirst(p.pm)).join(' · ') : 'ยังไม่มีใครถือ'}</div></div></div>`;
+  });
+  const urgent = all.filter(c => c.st.k === 'soon' || c.st.k === 'exp').sort((a,b) => a.st.d - b.st.d);
+  const upcoming = all.filter(c => ['ok','plan','soon'].includes(c.st.k)).sort((a,b) => a.st.d - b.st.d);
+  const icClock = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`;
+  const icUser = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="4"/><path d="M3 21c0-3.9 3.1-7 7-7 1.4 0 2.7.4 3.8 1.1"/><path d="M17 15l4 4M21 15l-4 4"/></svg>`;
+  if(urgent.length){
+    const bad = urgent.some(c => c.st.k === 'exp');
+    const list = urgent.map(c => `${certFirst(c.pm)} ${c.name} ${c.st.k==='exp' ? 'หมดแล้ว' : certDateS(c.st.d)}`);
+    tiles.push(`<div class="tc-k ${bad?'bad':'warn'}"><div class="tc-kic">${icClock}</div><div class="tc-kb"><div class="tc-kl">ต้องต่ออายุ · ภายใน 6 เดือน</div>
+      <div class="tc-kv">${urgent.length}<small>ใบ</small></div><div class="tc-ks" title="${attr(list.join('\n'))}">${list.join(' · ')}</div></div></div>`);
+  } else if(upcoming.length){
+    const n1 = upcoming[0];
+    tiles.push(`<div class="tc-k ${n1.st.k==='plan'?'warn':'good'}"><div class="tc-kic">${icClock}</div><div class="tc-kb"><div class="tc-kl">ใบที่จะหมดอายุถัดไป</div>
+      <div class="tc-kv">${certDateS(n1.st.d)}</div><div class="tc-ks">${certFirst(n1.pm)} · ${n1.name} · อีก ${certSpan(today, n1.st.d)}</div></div></div>`);
+  }
+  const none = P.filter(p => !p.active.length);
+  tiles.push(`<div class="tc-k"><div class="tc-kic">${icUser}</div><div class="tc-kb"><div class="tc-kl">${none.some(p => p.certs.length) ? 'ไม่มี Cert. ที่ยังใช้ได้' : 'ยังไม่มี Cert.'}</div>
+    <div class="tc-kv">${none.length}<small>คน</small></div><div class="tc-ks" title="${attr(none.map(p=>p.pm).join('\n'))}">${none.length ? none.map(p=>certFirst(p.pm)).join(' · ') : `ทุกคนมีแล้ว (${P.length} คน)`}</div></div></div>`);
+
+  // --- แกนเวลา: ซ้าย = วันนี้ ถึงต้นปีถัดจากใบที่หมดช้าที่สุด (อย่างน้อย 3 ปี) · ใบที่หมดไปแล้วอยู่ช่องซ้ายสุด
+  const live = all.filter(c => c.st.d && c.st.days >= 0);
+  const maxD = live.length ? new Date(Math.max(...live.map(c => +c.st.d))) : today;
+  const end = new Date(Math.max(maxD.getFullYear() + 1, today.getFullYear() + 3), 0, 1);
+  const G = all.some(c => c.st.d && c.st.days < 0) ? 46 : 0;   // px ของช่อง "หมดแล้ว"
+  const x = d => `calc(${G}px + (100% - ${G}px) * ${Math.max(0, Math.min(1, (d - today) / (end - today))).toFixed(4)})`;
+  const ticks = [];
+  for(let y = today.getFullYear() + 1; y <= end.getFullYear(); y++) ticks.push(new Date(y, 0, 1));
+  const lines = (G ? `<div class="tc-gutbg" style="width:${G-4}px"></div>` : '') + ticks.map(t => `<div class="tc-tick" style="left:${x(t)}"></div>`).join('') + `<div class="tc-now" style="left:${x(today)}"></div>`;
+  // ป้ายปี (พ.ศ.) วางกลางช่วงปีระหว่างเส้นประ 1 ม.ค. - ช่วงแรกที่เหลือไม่กี่เดือนก่อนขึ้นปีใหม่แคบเกินจะไม่ใส่ป้าย (กันทับป้าย "วันนี้")
+  const span = d => (d - today) / (end - today);
+  const bands = [];
+  for(let y = today.getFullYear(); y < end.getFullYear(); y++){
+    const a = Math.max(+today, +new Date(y, 0, 1)), b = Math.min(+end, +new Date(y + 1, 0, 1));
+    if(span(b) - span(a) >= 0.12) bands.push({ y, mid: new Date((a + b) / 2) });
+  }
+  const axis = `<div class="tc-run tc-axis">${G ? `<span class="gut">หมดแล้ว</span>` : ''}<span class="now" style="left:${x(today)}">วันนี้</span>${bands.map(b => `<span style="left:${x(b.mid)}">${b.y+543}</span>`).join('')}</div>`;
+
+  const cols = `minmax(170px,210px) repeat(${N.length}, minmax(150px,190px)) minmax(240px,1fr)`;
+  const head = `<div class="tc-row tc-head"><div>PM</div>${N.map(n => `<div class="tc-hc">${certBadge(n)}${n}<small>หมดอายุ</small></div>`).join('')}<div class="tc-runw">${axis}</div></div>`;
+  const rows = P.map(p => {
+    const cells = N.map(n => {
+      const c = p.certs.find(z => z.name === n);
+      if(!c) return `<div class="tc-cell">${certEmpty(n)}<span class="tc-none">ยังไม่มี</span></div>`;
+      const k = c.st.k;
+      if(k === 'na') return `<div class="tc-cell">${certBadge(n)}<span class="tc-cv"><b>${c.note ? attr(c.note) : '—'}</b><span class="tc-st na">${CERT_ST_TXT.na}</span></span></div>`;
+      const sub = k === 'sup' ? `หมดมาแล้ว ${certSpan(c.st.d, today)}`
+        : k === 'exp' ? `หมดมาแล้ว ${certSpan(c.st.d, today)}`
+        : c.st.days === 0 ? 'หมดอายุวันนี้' : `อีก ${certSpan(today, c.st.d)}`;
+      const pill = k === 'sup' ? `<span class="tc-st sup">มี ${c.st.by} แล้ว</span>` : `<span class="tc-st ${k}">${CERT_ST_TXT[k]}</span>`;
+      return `<div class="tc-cell ${k}" title="${attr(`${n} · หมดอายุ ${certDate(c.st.d)}`)}">${certBadge(n)}<span class="tc-cv"><b>${certDate(c.st.d)}</b><small>${sub}</small>${pill}</span></div>`;
+    }).join('');
+    // แถบอายุคงเหลือ: 1 เลนต่อใบที่ยังใช้ได้ · ใบที่หมดแล้ววางในช่องซ้ายสุด
+    const lane = p.certs.filter(c => c.st.d && c.st.days >= 0);
+    const gone = p.certs.filter(c => c.st.d && c.st.days < 0);
+    const H = Math.max(24, lane.length * 22 + 2);
+    const yOf = i => 12 + i * 22;
+    const bars = lane.map((c, i) => `<div class="tc-bar ${c.st.k}" style="left:${x(today)};width:calc(${x(c.st.d)} - ${x(today)});top:${yOf(i)}px"></div>`
+      + certBadge(c.name, `tc-pin ${c.st.k}`, `title="${attr(`${c.name} · หมดอายุ ${certDate(c.st.d)} · ${c.st.days === 0 ? 'หมดอายุวันนี้' : `อีก ${certSpan(today, c.st.d)}`}`)}" style="left:${x(c.st.d)};top:${yOf(i)}px"`)).join('');
+    const pins = gone.map((c, i) => certBadge(c.name, `tc-pin ${c.st.k}`,
+      `title="${attr(`${c.name} · หมดอายุ ${certDate(c.st.d)}${c.st.k==='sup' ? ` · มี ${c.st.by} แทนแล้ว` : ''}`)}" style="left:${G/2 - 2 + i*8}px;top:${H/2}px"`)).join('');
+    const sub = p.active.length ? `ใช้งานได้ ${p.active.length} ใบ` : p.certs.length ? 'ไม่มีใบที่ยังใช้ได้' : 'ยังไม่มี Cert.';
+    return `<div class="tc-row">
+      <div class="tc-pm"><div class="av" style="width:28px;height:28px;font-size:10.5px;background:${avatarColor(p.pm)}">${initials(p.pm)}</div><span class="tc-pmn"><b>${p.pm}</b><small>${sub}</small></span></div>
+      ${cells}
+      <div class="tc-runw"><div class="tc-run" style="height:${H}px">${lines}${bars}${pins}</div></div>
+    </div>`;
+  }).join('');
+  const nHave = P.filter(p => p.active.length).length;
+  return `<div class="tc-sec">
+    <div class="tc-h"><b>ใบรับรองของทีม</b><small>มี Cert. ที่ยังใช้ได้ ${nHave} จาก ${P.length} คน · ณ ${certDate(today)}</small></div>
+    <div class="tc-kpis">${tiles.join('')}</div>
+    <div class="tc-scroll"><div style="--tc-cols:${cols}">${head}${rows}</div></div>
+    <div class="tc-note"><span><i style="background:color-mix(in srgb,var(--success) 60%,transparent)"></i>ใช้งานได้ (เหลือเกิน 1 ปี)</span><span><i style="background:color-mix(in srgb,var(--warning) 55%,transparent)"></i>เตรียมต่ออายุ (≤ 1 ปี)</span><span><i style="background:var(--warning)"></i>ต้องต่ออายุ (≤ 6 เดือน)</span><span><i style="background:var(--critical)"></i>หมดอายุแล้ว</span><span>แถบเริ่มจากวันนี้ ปลายแถบคือวันหมดอายุ</span></div>
+  </div>`;
+}
+
+// ---- ส่วนล่าง: ผู้มีสิทธิ์ถูกเสนอชื่อเข้าสอบ (เกณฑ์เดิม) ----
 // ข้อ 1-3 (คัดเลือก · ประสบการณ์ PM · พนักงานประจำ): OAT ยืนยันแล้วว่าผ่านทุกคน
-// ข้อ 4 SMARTGOAL (ชีต Smart Goal ปีละ 2 รอบ): กฎของ OAT - นับจากรอบล่าสุดที่มีคะแนน ย้อนหลัง 2 ปี = 4 รอบติดกัน
-//   ทุกรอบต้อง ≥ 90 ไม่ปัดเศษ · รอบไหนว่าง = ไม่ผ่าน · ถ้าไฟล์ยังไม่มีชีตนี้ = รอข้อมูล
+// ข้อ 4 SMARTGOAL (ปีละ 2 รอบ): กฎของ OAT - นับจากรอบล่าสุดที่มีคะแนน ย้อนหลัง 2 ปี = 4 รอบติดกัน
+//   ทุกรอบต้อง ≥ 90 ไม่ปัดเศษ · รอบไหนว่าง = ไม่ผ่าน · ยังไม่มีคะแนน SMARTGOAL = รอข้อมูล
 // ข้อ 5 จำนวนโครงการ: นับทุกโครงการใน Project Info ตาม Project Level (ไม่นับ Cancel)
 // ข้อ 6 Project Score: กฎของ OAT - เฉลี่ยเฉพาะโครงการ Completely Closed ที่ Register ตั้งแต่ 1 ม.ค. 2568
 //   CAPM ใช้เฉพาะ Level 2 ขึ้นไป · PMP ใช้เฉพาะ Level 3 ขึ้นไป (CERT_RULES.scoreLevelMin)
@@ -10810,7 +11082,17 @@ function renderCertEligibility(){
   const el = document.getElementById('certBox');
   const cnt = document.getElementById('certCount');
   if(!el) return;
-  if(!PROJINFO.length){ el.innerHTML = `<div class="empty">ยังไม่มีข้อมูลประวัติโครงการ - sync ข้อมูลแล้วลองใหม่</div>`; if(cnt) cnt.textContent = ''; return; }
+  const today = certToday();
+  const team = certTeam(today);
+  const top = certTeamHtml(team, today);
+  const nPeople = team ? team.people.length : 0, nHave = team ? team.people.filter(p => p.active.length).length : 0;
+  const haveTxt = nPeople ? `มี Cert. ${nHave}/${nPeople}` : '';
+  const eligHead = `<div class="tc-elig"><div class="tc-h"><b>ผู้มีสิทธิ์เสนอชื่อสอบ CAPM / PMP</b><small>${team ? 'ประเมินเฉพาะคนที่ยังไม่มีใบนั้น หรือใบที่สูงกว่า' : 'ประเมินทุกคน'}</small></div></div>`;
+  if(!PROJINFO.length){
+    el.innerHTML = top + eligHead + `<div class="ce-block"><div class="empty">ยังไม่มีข้อมูลประวัติโครงการ - sync ข้อมูลแล้วลองใหม่</div></div>`;
+    if(cnt) cnt.textContent = haveTxt;
+    return;
+  }
   const stats = certStatsByPM();
   const SG = certSmartGoal();
   const sgLabel = w => `Y${w.year} #${w.round}`;
@@ -10820,11 +11102,25 @@ function renderCertEligibility(){
   const isDone = p => String(p['Status']||'').trim().toLowerCase() === 'completely closed';
   const icon = k => `<i class="ce-ic ${k}">${k==='ok'?'✓':k==='no'?'✗':'⏳'}</i>`;
   const cell = (k, main, sub, tip) => `<div class="ce-cell ${k}"${tip?` title="${attr(tip)}"`:''}>${icon(k)}<span class="ce-v"><b>${main}</b>${sub?`<small>${sub}</small>`:''}</span></div>`;
+  const av = pm => `<div class="av" style="width:26px;height:26px;font-size:10px;background:${avatarColor(pm)}">${initials(pm)}</div>`;
 
   const table = key => {
     const R = CERT_RULES[key];
     let nPass = 0;
-    const rows = stats.map(s=>{
+    const evalRows = [], heldRows = [];
+    stats.forEach(s=>{
+      // ถือใบนี้ (หรือใบที่สูงกว่า) ที่ยังใช้ได้อยู่แล้ว = ไม่ต้องคำนวณผ่าน/ไม่ผ่าน แสดงใบที่ถือแทน
+      const h = certHeldFor(team, s.pm, key);
+      if(h && h.c){
+        const c = h.c, st = c.st;
+        const left = !st.d ? `<span>${c.note ? attr(c.note) : 'ไม่ระบุวันหมดอายุ'}</span>`
+          : `<span>หมดอายุ ${certDate(st.d)}</span> · <span>${st.days === 0 ? 'หมดอายุวันนี้' : `อีก ${certSpan(today, st.d)}`}</span>`;
+        heldRows.push(`<div class="ce-hr">
+          <div class="ce-pm">${av(s.pm)}<span>${s.pm}</span></div>
+          <div class="ce-held">${certBadge(c.name)}<b>มี ${c.name} แล้ว</b>${h.higher ? `<span>(สูงกว่า ${R.label})</span>` : ''}<span class="ce-hd${st.k==='soon'?' soon':''}">${left}</span></div>
+        </div>`);
+        return;
+      }
       const projPass = R.projOk(s);
       // ผ่านเมื่อค่าเฉลี่ยจริง ≥ เกณฑ์เท่านั้น ไม่ปัดเศษ (89.99 = ไม่ผ่าน 90)
       // เทียบผลรวมกับ เกณฑ์ × จำนวนโครงการ แทนการหาร กันเลขทศนิยม float คลาดจนค่า 90.00 พอดีกลายเป็น 89.9999 แล้วตกเกณฑ์
@@ -10865,20 +11161,22 @@ function renderCertEligibility(){
           sgCell = cell(sgPass ? 'ok' : 'no', g.min == null ? '—' : trunc2(g.min), sub, tip);
         }
       }
-      if(projPass && scorePass && (SG.loaded ? sgPass : true)) nPass++;   // ยังไม่มีชีต = นับคนที่รอ SMARTGOAL อย่างเดียว
+      if(projPass && scorePass && (SG.loaded ? sgPass : true)) nPass++;   // ยังไม่มีคะแนน SMARTGOAL = นับคนที่รอ SMARTGOAL อย่างเดียว
       const fails = [sgPass === false && '4', !projPass && '5', !scorePass && '6'].filter(Boolean);
       const result = fails.length
         ? `<span class="ce-res no">ไม่ผ่านข้อ ${fails.join(', ')}</span>`
         : sgPass ? `<span class="ce-res ok">ผ่านทุกข้อ</span>`
         : `<span class="ce-res wait">รอ SMARTGOAL</span>`;
-      return `<div class="ce-row">
-        <div class="ce-pm"><div class="av" style="width:26px;height:26px;font-size:10px;background:${avatarColor(s.pm)}">${initials(s.pm)}</div><span>${s.pm}</span></div>
+      // เคยมีใบนี้แต่หมดอายุไปแล้ว (และไม่มีใบที่สูงกว่า) = ประเมินตามปกติ พร้อมหมายเหตุใต้ชื่อ
+      const lapsed = h && h.lapsed ? `<small title="${attr(`${h.lapsed.name} หมดอายุ ${certDate(h.lapsed.st.d)}`)}">${h.lapsed.name} หมดอายุ ${certDateS(h.lapsed.st.d)}</small>` : '';
+      evalRows.push(`<div class="ce-row">
+        <div class="ce-pm">${av(s.pm)}${lapsed ? `<span class="ce-pmx"><span>${s.pm}</span>${lapsed}</span>` : `<span>${s.pm}</span>`}</div>
         ${cell('ok','ผ่าน')}${cell('ok','ผ่าน')}${cell('ok','ผ่าน')}
         ${sgCell}
         ${projCell}${scoreCell}
         <div class="ce-cell">${result}</div>
-      </div>`;
-    }).join('');
+      </div>`);
+    });
     const head = `<div class="ce-row ce-head">
       <div>PM</div>
       <div>1. คัดเลือก</div>
@@ -10889,11 +11187,18 @@ function renderCertEligibility(){
       <div>6. Project Score<small>≥ ${R.minScore}${R.scoreLevelMin ? ` · Level ${R.scoreLevelMin}+` : ''} · Register ตั้งแต่ 1 ม.ค. 68</small></div>
       <div>ผล</div>
     </div>`;
-    return { nPass, html: `<div class="ce-block"><div class="ce-title">${R.label}</div><div class="ce-scroll"><div class="ce-table">${head}${rows}</div></div></div>` };
+    const nEval = evalRows.length;
+    const title = `<div class="ce-title">${certBadge(R.label)}${R.label}${team ? `<small>ประเมิน ${nEval} คน${heldRows.length ? ` · ถือแล้ว ${heldRows.length} คน` : ''}</small>` : ''}</div>`;
+    // คนที่ถือใบแล้วอยู่นอกตารางที่เลื่อนแนวนอน - จอแคบจะได้อ่านวันหมดอายุได้ครบโดยไม่ต้องเลื่อน
+    const body = (nEval ? `<div class="ce-scroll"><div class="ce-table">${head}${evalRows.join('')}</div></div>` : `<div class="ce-empty">ทุกคนถือ ${R.label} หรือใบที่สูงกว่าแล้ว - ไม่มีใครต้องประเมิน</div>`)
+      + (heldRows.length ? `<div class="ce-grp">ถือใบรับรองแล้ว · ไม่ต้องประเมิน</div><div class="ce-hl">${heldRows.join('')}</div>` : '');
+    return { nPass, nEval, html: `<div class="ce-block">${title}${body}</div>` };
   };
   const capm = table('capm'), pmp = table('pmp');
-  if(cnt) cnt.textContent = SG.loaded ? `ผ่านทุกข้อ: CAPM ${capm.nPass} · PMP ${pmp.nPass} คน` : `CAPM ${capm.nPass} · PMP ${pmp.nPass} คน · รอ SMARTGOAL`;
-  el.innerHTML = capm.html + pmp.html;
+  if(cnt) cnt.textContent = !team
+    ? (SG.loaded ? `ผ่านทุกข้อ: CAPM ${capm.nPass} · PMP ${pmp.nPass} คน` : `CAPM ${capm.nPass} · PMP ${pmp.nPass} คน · รอ SMARTGOAL`)
+    : [haveTxt, SG.loaded ? `ผ่านเกณฑ์ CAPM ${capm.nPass}/${capm.nEval} · PMP ${pmp.nPass}/${pmp.nEval}` : `CAPM ${capm.nPass}/${capm.nEval} · PMP ${pmp.nPass}/${pmp.nEval} · รอ SMARTGOAL`].filter(Boolean).join(' · ');
+  el.innerHTML = top + eligHead + capm.html + pmp.html;
 }
 
 // กราฟเส้น YoY แยกเส้นตามคน - จุดประสงค์คือให้เห็นว่าแต่ละคน "จำนวน/มูลค่าโครงการต่างกันปีต่อปีเท่าไหร่"
