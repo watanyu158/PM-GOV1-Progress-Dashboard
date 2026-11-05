@@ -280,6 +280,12 @@ function savePaymentArchive(data) {
 }
 let PAYMENT_ARCHIVE = loadPaymentArchive();
 
+// รหัสโครงการที่อยู่ใน Progress1 ของข้อมูลล่าสุด (รวมแถวที่ต่อมาจากคลัง) - ใช้ตัดสินว่าเป็น "โครงการที่ติดตาม"
+// ตอน sync ไฟล์ใหม่ latestData ยังเป็นของรอบก่อน แต่ mergeProjectArchive ได้แถวของไฟล์ใหม่มาเองแล้ว (rowsByCode)
+function progressCodeSet() {
+  return new Set((latestData.rows || []).map(r => String(r['Project Code'] || '').trim()).filter(Boolean));
+}
+
 // เก็บข้อมูลทุกชุดของแต่ละโครงการเข้าคลัง แล้วคืน "โครงการที่หายไปจากไฟล์" แยกตามชุดข้อมูล พร้อมธงบอกที่มา
 // เก็บ 4 ชุด: PaymentW (การเงิน) · Progress1 (ความคืบหน้ารายสัปดาห์) · Revenue (แผนรับรู้รายได้) · Project Info (ประวัติ)
 // เพราะเมื่อโครงการปิดจบ ไฟล์ต้นทางจะลบออกทั้งชุด ไม่ใช่แค่ชีตเดียว - ถ้าเก็บไม่ครบ การ์ดที่รวมยอดทั้งปีจะขาดไป
@@ -298,11 +304,14 @@ function mergeProjectArchive({ rows, paymentW, revenue, projectInfo }, syncedAt)
   const payByCode = {};
   (paymentW || []).forEach(p => { const c = codeOf(p); if (c) payByCode[c] = p; });
 
-  // ชีต Project Info เป็น "ประวัติโครงการของบริษัท" ย้อนหลังหลายปี มีโครงการเก่าที่ไม่ได้ติดตามแล้วอยู่หลายร้อยรายการ
-  // ถ้าเก็บเข้าคลังทุกรหัส คลังจะบวมด้วยโครงการเก่าที่ไม่เกี่ยว และถูกนับเป็น "โครงการที่หายจากไฟล์" ทั้งที่ไม่เคยติดตามเลย
-  // จึงเก็บ Project Info เฉพาะรหัสที่เป็นโครงการที่เราติดตามจริง = มี Progress1 / PaymentW / Revenue อยู่ด้วย (ในไฟล์นี้หรือในคลัง)
-  const isTracked = code => !!(rowsByCode[code] || payByCode[code] || revByCode[code]
-    || (store[code] && (store[code].rows || store[code].paymentW || store[code].revenue)));
+  // เก็บเฉพาะ "โครงการที่ติดตาม" = เคยอยู่ใน Progress1 (ในไฟล์นี้ ในข้อมูลล่าสุด หรือมีประวัติความคืบหน้าในคลังแล้ว)
+  // OAT 5 พ.ย. 69: เดิมนับรวมโครงการที่มีแค่ใน PaymentW / Revenue ด้วย (กันข้อมูลการเงินหายแบบ Cloud Conference)
+  // ทำให้งาน MA/งานเก่าที่ไม่เคยติดตามรายสัปดาห์เข้ามาปนในคลัง - การ์ดการเงินกรองเหลือ Progress1 อยู่แล้ว
+  // จึงไม่มีการ์ดไหนต้องใช้ข้อมูลของโครงการพวกนั้น · กติกาเดียวกับ Project Health (p1Codes)
+  // (Project Info เป็นประวัติย้อนหลังหลายปี ก็ใช้กติกานี้เหมือนกัน ไม่เก็บโครงการเก่าที่ไม่เกี่ยว)
+  const p1Now = progressCodeSet();
+  const isTracked = code => !!(rowsByCode[code] || p1Now.has(code)
+    || (store[code] && store[code].rows && store[code].rows.length));
 
   // เก็บเข้าคลังทีละชุด: ชุดไหนมีในไฟล์ให้ทับของเดิม ชุดไหนไม่มีก็คงของเดิมไว้
   const seen = new Set([...Object.keys(rowsByCode), ...Object.keys(payByCode), ...Object.keys(revByCode), ...Object.keys(infoByCode)]);
@@ -317,11 +326,12 @@ function mergeProjectArchive({ rows, paymentW, revenue, projectInfo }, syncedAt)
     if (infoByCode[code]) cur.projectInfo = infoByCode[code];
     store[code] = cur;
   });
-  // ล้างรายการเก่าที่เคยเก็บไว้ตอนยังไม่มีเงื่อนไขข้างบน (มีแต่ประวัติโครงการ ไม่มีข้อมูลที่ใช้ติดตามงานเลย)
+  // ล้างรายการที่ไม่เคยอยู่ใน Progress1 (เก็บไว้ตอนกติกาเดิมที่นับ PaymentW / Revenue ด้วย หรือมีแต่ประวัติโครงการ)
+  const purged = [];
   Object.keys(store).forEach(code => {
-    const e = store[code];
-    if (e && !e.rows && !e.paymentW && !e.revenue) delete store[code];
+    if (!isTracked(code)) { purged.push(code); delete store[code]; }
   });
+  if (purged.length) console.log(`  ✂ ล้างออกจากคลัง ${purged.length} โครงการที่ไม่เคยอยู่ใน Progress1: ${purged.join(', ')}`);
   PAYMENT_ARCHIVE.updatedAt = syncedAt;
   savePaymentArchive(PAYMENT_ARCHIVE);
 
@@ -1276,7 +1286,11 @@ app.get('/api/admin/payment-archive', requireAuth, (req, res) => {
     });
     return file ? 'file' : (arch ? 'archive' : 'none');
   };
-  const projects = Object.values(PAYMENT_ARCHIVE.projects || {}).map(e => {
+  // แสดงเฉพาะโครงการที่เคยอยู่ใน Progress1 - รายการตามกติกาเดิม (มีแค่การเงิน/แผนรายได้) จะถูกล้างตอน sync ครั้งถัดไป
+  const p1Now = progressCodeSet();
+  const projects = Object.values(PAYMENT_ARCHIVE.projects || {})
+    .filter(e => e && e.code && ((e.rows && e.rows.length) || p1Now.has(String(e.code).trim())))
+    .map(e => {
     const lastRow = (e.rows && e.rows.length) ? e.rows[e.rows.length - 1] : null;
     // ชื่อ/PM: โครงการที่ไม่มีข้อมูลการเงินก็ต้องมีชื่อ - ไล่หาจากชุดข้อมูลที่มีจริงตามลำดับ
     const name = (e.paymentW && e.paymentW.projectName) || (lastRow && lastRow['Project Name'])
@@ -1322,6 +1336,9 @@ app.post('/api/admin/payment-archive', requireAuth, (req, res) => {
   // รับทุกชุดข้อมูลที่คลังเก็บ ไม่ใช่แค่ PaymentW (ของเดิมโยน rows/revenue/projectInfo ทิ้งหมด
   // เพราะเขียนไว้ตั้งแต่ตอนคลังยังเก็บแค่ PaymentW) - โครงการที่มีชุดไหนก็ได้ ถือว่าใช้ได้
   const clean = {};
+  // รับเฉพาะโครงการที่เคยอยู่ใน Progress1 (มีประวัติความคืบหน้าในไฟล์ที่อัปโหลด ในคลัง หรือในข้อมูลล่าสุด) - กติกาเดียวกับ mergeProjectArchive
+  const p1Now = progressCodeSet();
+  const notTracked = [];
   Object.entries(incoming).forEach(([code, e]) => {
     const c = String((e && e.code) || code || '').trim();
     if (!c || !e) return;
@@ -1329,6 +1346,8 @@ app.post('/api/admin/payment-archive', requireAuth, (req, res) => {
     const hasRows = Array.isArray(e.rows) && e.rows.length > 0;
     const hasInfo = Array.isArray(e.projectInfo) && e.projectInfo.length > 0;
     if (!hasPay && !hasRows && !e.revenue && !hasInfo) return;
+    const cur = (PAYMENT_ARCHIVE.projects || {})[c];
+    if (!hasRows && !p1Now.has(c) && !(cur && cur.rows && cur.rows.length)) { notTracked.push(c); return; }
     const out = { code: c, firstSeenAt: e.firstSeenAt || null, lastSeenAt: e.lastSeenAt || null, importedFromOldFile: !!e.importedFromOldFile };
     if (hasPay) { out.paymentW = e.paymentW; out.paymentWAsOf = e.paymentWAsOf || null; }
     if (hasRows) { out.rows = e.rows.slice(-PROGRESS_ROWS_KEEP); out.rowsAsOf = e.rowsAsOf || null; }
@@ -1363,7 +1382,8 @@ app.post('/api/admin/payment-archive', requireAuth, (req, res) => {
   const attached = refreshArchivedInLatest();
   const after = Object.keys(PAYMENT_ARCHIVE.projects || {}).length;
   console.log(`✓ Admin (${req.user.username}) อัปโหลดคลังข้อมูลการเงิน (${mode === 'replace' ? 'แทนที่ทั้งหมด' : 'เติมเฉพาะที่ยังไม่มี'}) ${before} -> ${after} โครงการ · เติมข้อมูล ${added.length} (${added.map(a => `${a.name}: ${a.parts.join('+')}`).join(', ') || '-'}) · ไม่มีอะไรต้องเติม ${skipped.length} (เขียนไฟล์${persisted ? 'สำเร็จ' : 'ไม่สำเร็จ'})`);
-  res.json({ ok: true, mode: mode === 'replace' ? 'replace' : 'merge', before, after, added, skippedCount: skipped.length, attached, persisted });
+  if (notTracked.length) console.log(`  ↷ ข้าม ${notTracked.length} โครงการที่ไม่เคยอยู่ใน Progress1: ${notTracked.join(', ')}`);
+  res.json({ ok: true, mode: mode === 'replace' ? 'replace' : 'merge', before, after, added, skippedCount: skipped.length, notTrackedCount: notTracked.length, attached, persisted });
 });
 
 // ลบโครงการออกจากคลัง - ใช้เมื่อโครงการนั้นไม่ควรอยู่ในคลังแล้ว (ย้ายทีม/ใส่ผิด) ข้อมูลในไฟล์ล่าสุดไม่ได้รับผลกระทบ
@@ -1403,9 +1423,13 @@ app.post('/api/admin/payment-archive/import-excel', requireAuth, upload.single('
 
     // วันที่ของข้อมูลในไฟล์เก่า - ผู้ใช้กรอกมาได้ ถ้าไม่กรอกจะแสดงว่า "ไม่ระบุวันที่" แทนการเดาว่าเป็นข้อมูลวันนี้
     const asOf = (req.body && typeof req.body.asOf === 'string' && req.body.asOf.trim()) ? req.body.asOf.trim() : null;
-    const added = [], skipped = [];
+    const added = [], skipped = [], notTracked = [];
     const codes = new Set([...Object.keys(payTeam), ...Object.keys(progTeam), ...Object.keys(revTeam)]);
+    // เติมเฉพาะโครงการที่เคยอยู่ใน Progress1 (ในไฟล์เก่านี้ ในข้อมูลล่าสุด หรือมีประวัติความคืบหน้าในคลัง) - กติกาเดียวกับ mergeProjectArchive
+    const p1Now = progressCodeSet();
     codes.forEach(code => {
+      const inArch = PAYMENT_ARCHIVE.projects[code];
+      if (!progTeam[code] && !p1Now.has(code) && !(inArch && inArch.rows && inArch.rows.length)) { notTracked.push(code); return; }
       const cur = PAYMENT_ARCHIVE.projects[code] || { code, firstSeenAt: asOf, lastSeenAt: asOf, importedFromOldFile: true };
       // เติมเฉพาะชุดที่ "ยังไม่มีในคลัง" - ของที่มีอยู่แล้วถือว่าใหม่กว่า ห้ามทับเด็ดขาด
       const parts = [];
@@ -1422,8 +1446,8 @@ app.post('/api/admin/payment-archive/import-excel', requireAuth, upload.single('
     });
     const persisted = savePaymentArchive(PAYMENT_ARCHIVE);
     const attached = refreshArchivedInLatest();
-    console.log(`✓ Admin (${req.user.username}) เติมคลังจากไฟล์เก่า: ${added.length} โครงการ (${added.map(a => `${a.name}: ${a.parts.join('+')}`).join(', ') || '-'}) · ไม่มีอะไรต้องเติม ${skipped.length} (เขียนไฟล์${persisted ? 'สำเร็จ' : 'ไม่สำเร็จ'})`);
-    res.json({ ok: true, added, skippedCount: skipped.length, asOf, attached, persisted, total: Object.keys(PAYMENT_ARCHIVE.projects).length });
+    console.log(`✓ Admin (${req.user.username}) เติมคลังจากไฟล์เก่า: ${added.length} โครงการ (${added.map(a => `${a.name}: ${a.parts.join('+')}`).join(', ') || '-'}) · ไม่มีอะไรต้องเติม ${skipped.length} · ข้ามที่ไม่เคยอยู่ใน Progress1 ${notTracked.length} (เขียนไฟล์${persisted ? 'สำเร็จ' : 'ไม่สำเร็จ'})`);
+    res.json({ ok: true, added, skippedCount: skipped.length, notTrackedCount: notTracked.length, asOf, attached, persisted, total: Object.keys(PAYMENT_ARCHIVE.projects).length });
   } catch (e) {
     console.error(`⚠ เติมคลังจากไฟล์ Excel ไม่สำเร็จ: ${e.message}`);
     res.status(400).json({ ok: false, error: `อ่านไฟล์ไม่สำเร็จ: ${e.message}` });
