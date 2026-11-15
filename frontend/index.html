@@ -2828,7 +2828,7 @@
       <div class="p-head">
         <div class="p-title">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 21 8.5 17.5 20 6.5 20 3 8.5 12 2"/></svg>
-          Team Radar <span class="sep">-</span> <span class="th">ผลประเมินรายบุคคล (เฉพาะ OAT)</span>
+          Team Radar <span class="sep">-</span> <span class="th">ผลประเมินรายบุคคล (เฉพาะ VP)</span>
         </div>
         <span class="p-count" id="asmAdminCount"></span>
       </div>
@@ -13448,13 +13448,13 @@ function renderAdmin(){
     ${OV.stale ? `<div class="asm-note warn" style="margin-bottom:10px">ดึงข้อมูลจากที่เก็บ (Make/Excel) ไม่สำเร็จ ข้อมูลที่เห็นอาจไม่ล่าสุด: ${esc(OV.stale)}</div>` : ''}
     ${OV.storage==='local' ? '<div class="asm-note warn" style="margin-bottom:10px">ยังไม่ได้ตั้ง ASSESSMENT_MAKE_URL - ผลเก็บเฉพาะในเครื่อง server และจะหายเมื่อ redeploy</div>' : ''}
     <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16px;margin-bottom:4px">${esc(p.pmName)}</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${p.submitted?'ส่งแบบประเมินเมื่อ '+esc(fmtDT(p.submittedAt)):'ยังไม่ได้ส่งแบบประเมิน'} · ${p.oat?'OAT ให้คะแนนเมื่อ '+esc(fmtDT(p.oatAt)):'OAT ยังไม่ได้ให้คะแนน'}</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${p.submitted?'ส่งแบบประเมินเมื่อ '+esc(fmtDT(p.submittedAt)):'ยังไม่ได้ส่งแบบประเมิน'} · ${p.oat?'VP ให้คะแนนเมื่อ '+esc(fmtDT(p.oatAt)):'VP ยังไม่ได้ให้คะแนน'}</div>
     <div class="asm-radar-grid"><div class="asm-radar-box">${lay.length?radarSVG(lay):'<div class="asm-note">ยังไม่มีข้อมูลให้แสดง</div>'}
-      <div class="asm-legend">${sw('oat','OAT ประเมิน')}${sw('scn','ผลข้อทดสอบ','border-top-style:dashed')}${sw('self','ประเมินตนเอง','border-top-style:dotted')}</div></div>
-    <div class="asm-radar-side"><table class="asm-tbl"><tr><th>Index</th><th>OAT</th><th>ข้อทดสอบ</th><th>ตนเอง</th><th>Δ ข้อทดสอบ-OAT</th><th>Δ ตนเอง-OAT</th></tr>${rows}</table>
-      <div style="font-size:11.5px;color:var(--faint);margin-top:6px;line-height:1.6">⚠ = ต่างจากคะแนน OAT ตั้งแต่ 1 ขึ้นไป · ไม่นำสามเส้นมาเฉลี่ยรวมกัน เพราะวัดคนละแบบ</div></div></div>
+      <div class="asm-legend">${sw('oat','VP ประเมิน')}${sw('scn','ผลข้อทดสอบ','border-top-style:dashed')}${sw('self','ประเมินตนเอง','border-top-style:dotted')}</div></div>
+    <div class="asm-radar-side"><table class="asm-tbl"><tr><th>Index</th><th>VP</th><th>ข้อทดสอบ</th><th>ตนเอง</th><th>Δ ข้อทดสอบ-VP</th><th>Δ ตนเอง-VP</th></tr>${rows}</table>
+      <div style="font-size:11.5px;color:var(--faint);margin-top:6px;line-height:1.6">⚠ = ต่างจากคะแนน VP ตั้งแต่ 1 ขึ้นไป · ไม่นำสามเส้นมาเฉลี่ยรวมกัน เพราะวัดคนละแบบ</div></div></div>
     <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:12px">
-      <div style="font-weight:700;font-size:14px;margin-bottom:2px">คะแนนจาก OAT สำหรับ ${esc(p.pmName)}</div>
+      <div style="font-weight:700;font-size:14px;margin-bottom:2px">คะแนนจาก VP สำหรับ ${esc(p.pmName)}</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px">ให้ 1-5 ตาม rubric (กด "ดู rubric" เพื่อเปิดเกณฑ์ของแต่ละ index) · บันทึกใหม่ได้ ระบบใช้ครั้งล่าสุดและเก็บประวัติเดิมไว้ใน Excel</div>
       ${IDX.map(i=>`<div class="asm-rate-row"><div class="n">${esc(i)}</div><div class="asm-rate-btns" data-idx="${esc(i)}">${[1,2,3,4,5].map(v=>`<button type="button" class="${RATE[i]===v?'sel':''}" data-v="${v}">${v}</button>`).join('')}</div>
         <details><summary>ดู rubric</summary>${(OV.rubric[i]||[]).map((t,k)=>`<div><b>${k+1}</b> ${esc(t)}</div>`).join('')}</details></div>`).join('')}
