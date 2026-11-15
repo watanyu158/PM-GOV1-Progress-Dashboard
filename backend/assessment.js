@@ -113,7 +113,7 @@ module.exports = function registerAssessment(app, { requireAuth, normName, teamP
     const picked = {};
     for (const [qid, meta] of QMAP) {
       const oid = sc[qid];
-      if (typeof oid !== 'string' || !meta.optionIds.has(oid)) return { error: `คำตอบข้อสถานการณ์ไม่ครบหรือไม่ถูกต้อง (${qid})` };
+      if (typeof oid !== 'string' || !meta.optionIds.has(oid)) return { error: `คำตอบข้อทดสอบไม่ครบหรือไม่ถูกต้อง (${qid})` };
       const s = OPT.get(oid).score; per[meta.index].push(s); picked[qid] = s;
     }
     const scenario = {}, self = {};
@@ -217,7 +217,7 @@ module.exports = function registerAssessment(app, { requireAuth, normName, teamP
     const extra = {};
     for (const i of INDEXES) {
       const v = Number(rt[i]);
-      if (!Number.isInteger(v) || v < 1 || v > 5) return res.status(400).json({ ok: false, error: `ต้องให้คะแนน 1–5 ครบทุก index (${i})` });
+      if (!Number.isInteger(v) || v < 1 || v > 5) return res.status(400).json({ ok: false, error: `ต้องให้คะแนน 1-5 ครบทุก index (${i})` });
       extra[`${CODE[i]}_oat`] = v;
     }
     try { await appendRow(toRow('oat_rating', req.user, pm, extra)); }

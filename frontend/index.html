@@ -1926,6 +1926,11 @@
   .asm-rate-row details{margin-top:5px;font-size:12px;color:var(--muted);line-height:1.6;}
   .asm-rate-row details div{margin:2px 0;}
   .asm-msg{font-size:12.5px;margin-top:8px;min-height:18px;}
+  .asm-spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:asmspin .8s linear infinite;vertical-align:-2px;margin-right:6px;}
+  @keyframes asmspin{to{transform:rotate(360deg);}}
+  .asm-chip:disabled{opacity:.7;cursor:progress;}
+  .asm-refinfo{font-size:12px;color:var(--muted);align-self:center;margin-left:4px;}
+  #asmAdminRoot.asm-loading .asm-radar-grid{opacity:.45;transition:opacity .15s;pointer-events:none;}
   .asm-msg.err{color:var(--critical);} .asm-msg.good{color:var(--success);}
 
   /* ---------------- Login screen ---------------- */
@@ -13285,7 +13290,7 @@ function radarSVG(layers, size){
   });
   return s+'</svg>';
 }
-const f1 = v => (v==null||v==='') ? '–' : (Math.round(Number(v)*10)/10).toString();
+const f1 = v => (v==null||v==='') ? '-' : (Math.round(Number(v)*10)/10).toString();
 
 /* ---------- ฝั่งผู้ทำแบบประเมิน ---------- */
 let ST = null, FORM = null, SC = {}, SF = {}, STEP = 0, BUSY = false;
@@ -13310,11 +13315,11 @@ async function openTab(){
 function renderIntro(resume){
   const trial = ST.mode==='trial';
   $('asmRoot').innerHTML = `
-    ${trial ? '<div class="asm-note trial" style="margin-bottom:10px"><b>โหมดทดลอง</b> — ทำได้ไม่จำกัดครั้ง ผลไม่ถูกบันทึกลงระบบและไม่นับในกราฟของทีม ใช้ดูหน้าตาแบบประเมินและรูปแบบผลลัพธ์</div>' : ''}
+    ${trial ? '<div class="asm-note trial" style="margin-bottom:10px"><b>โหมดทดลอง</b> - ทำได้ไม่จำกัดครั้ง ผลไม่ถูกบันทึกลงระบบและไม่นับในกราฟของทีม ใช้ดูหน้าตาแบบประเมินและรูปแบบผลลัพธ์</div>' : ''}
     <div class="asm-note ${trial?'':'warn'}">
       <b>แบบประเมิน 5 Key Indexes ประจำรอบ ${esc(ST.cycle)}</b> (Attitude · Awareness · Engagement · Work-Life Balance · Process)<br>
-      • 20 ข้อ: สถานการณ์ 15 ข้อ + ประเมินตนเอง 5 ข้อ ใช้เวลาประมาณ 15–20 นาที<br>
-      • ไม่มีคำตอบถูก–ผิดตายตัว เลือกข้อที่ใกล้กับสิ่งที่คุณ "ทำจริง" มากที่สุด ไม่ใช่ข้อที่คิดว่าดูดีที่สุด<br>
+      • 20 ข้อ: ข้อทดสอบ 15 ข้อ + ประเมินตนเอง 5 ข้อ ใช้เวลาประมาณ 15-20 นาที<br>
+      • ไม่มีคำตอบถูก-ผิดตายตัว เลือกข้อที่ใกล้กับสิ่งที่คุณ "ทำจริง" มากที่สุด ไม่ใช่ข้อที่คิดว่าดูดีที่สุด<br>
       • ${trial ? 'โหมดทดลองส่งซ้ำได้' : '<b>ส่งได้ครั้งเดียว และแก้ไขไม่ได้หลังกดส่ง</b>'} · ระหว่างทำระบบเก็บร่างไว้ในเบราว์เซอร์นี้ ปิดแล้วกลับมาทำต่อได้
     </div>
     <div class="asm-nav"><span></span><button class="asm-btn" id="asmStart">${resume?'ทำต่อจากเดิม':'เริ่มทำแบบประเมิน'}</button></div>
@@ -13337,7 +13342,7 @@ function renderStep(){
   let body;
   if(isScn){
     const q = FORM.scenario[STEP];
-    body = `<div class="asm-q-meta">ส่วน A · สถานการณ์ ข้อ ${STEP+1} / ${nS}</div><div class="asm-q">${esc(q.text)}</div>` +
+    body = `<div class="asm-q-meta">ส่วน A · ข้อทดสอบ ${STEP+1} / ${nS}</div><div class="asm-q">${esc(q.text)}</div>` +
       q.options.map((o,i)=>`<button type="button" class="asm-opt ${SC[q.id]===o.id?'sel':''}" data-v="${esc(o.id)}"><span class="k">${'กขคงจ'[i]}</span><span>${esc(o.text)}</span></button>`).join('');
   } else {
     const s = FORM.self[STEP-nS];
@@ -13358,7 +13363,7 @@ function renderStep(){
 }
 function renderReview(){
   const trial = ST.mode==='trial';
-  const missing = FORM.scenario.map((q,i)=>SC[q.id]?null:'สถานการณ์ข้อ '+(i+1)).concat(FORM.self.map((s,i)=>SF[s.id]?null:'ประเมินตนเอง '+s.index)).filter(Boolean);
+  const missing = FORM.scenario.map((q,i)=>SC[q.id]?null:'ข้อทดสอบที่ '+(i+1)).concat(FORM.self.map((s,i)=>SF[s.id]?null:'ประเมินตนเอง '+s.index)).filter(Boolean);
   $('asmRoot').innerHTML = `<div class="asm-prog"><i style="width:100%"></i></div>
     <div class="asm-q">ตรวจสอบก่อนส่ง</div>
     ${missing.length ? `<div class="asm-note warn">ยังไม่ได้ตอบ: ${esc(missing.join(', '))}</div>` :
@@ -13380,12 +13385,12 @@ function renderReview(){
   };
 }
 function renderTrialResult(r){
-  $('asmRoot').innerHTML = `<div class="asm-note trial" style="margin-bottom:12px"><b>ผลโหมดทดลอง</b> (ส่งเมื่อ ${esc(fmtDT(r.at))}) — ไม่ได้บันทึกลงระบบ</div>
+  $('asmRoot').innerHTML = `<div class="asm-note trial" style="margin-bottom:12px"><b>ผลโหมดทดลอง</b> (ส่งเมื่อ ${esc(fmtDT(r.at))}) - ไม่ได้บันทึกลงระบบ</div>
     <div class="asm-radar-grid"><div class="asm-radar-box">${radarSVG([
       {values:r.scenario, color:COLORS.scn, fill:.12, w:2.4},
       {values:r.self, color:COLORS.self, w:2, dash:'2 4'}])}
-      <div class="asm-legend"><span><i class="asm-sw" style="border-color:${COLORS.scn}"></i> ผลข้อสถานการณ์</span><span><i class="asm-sw" style="border-top-style:dotted;border-color:${COLORS.self}"></i> ประเมินตนเอง</span></div></div>
-    <div class="asm-radar-side"><table class="asm-tbl"><tr><th>Index</th><th>สถานการณ์</th><th>ตนเอง</th></tr>
+      <div class="asm-legend"><span><i class="asm-sw" style="border-color:${COLORS.scn}"></i> ผลข้อทดสอบ</span><span><i class="asm-sw" style="border-top-style:dotted;border-color:${COLORS.self}"></i> ประเมินตนเอง</span></div></div>
+    <div class="asm-radar-side"><table class="asm-tbl"><tr><th>Index</th><th>ข้อทดสอบ</th><th>ตนเอง</th></tr>
       ${IDX.map(i=>`<tr><td>${esc(i)}</td><td>${f1(r.scenario[i])}</td><td>${f1(r.self[i])}</td></tr>`).join('')}</table></div></div>
     <div class="asm-nav"><span></span><button class="asm-btn ghost" id="asmRedo">ล้างผลและทำใหม่</button></div>`;
   $('asmRedo').onclick = async ()=>{ await api('POST','/api/assessment/trial/reset'); lsDel(draftKey()); FORM=null; renderIntro(false); };
@@ -13393,10 +13398,33 @@ function renderTrialResult(r){
 
 /* ---------- ฝั่ง OAT (admin) ---------- */
 let OV = null, SEL = 0, SHOW = {oat:true, scn:true, self:true}, RATE = {};
-async function loadAdmin(refresh){
+let ADM_LAST = null, ADM_BUSY = false, ADM_FLASH = '';
+const hhmmss = d => d ? d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '';
+function paintRefresh(){
+  const b = $('asmRefresh'), inf = $('asmRefreshInfo'), box = $('asmAdminRoot');
+  if(box) box.classList.toggle('asm-loading', ADM_BUSY);
+  if(b){ b.disabled = ADM_BUSY; b.innerHTML = ADM_BUSY ? '<i class="asm-spin"></i>กำลังรีเฟรช…' : '↻ รีเฟรช'; }
+  if(inf){
+    if(ADM_BUSY) inf.textContent = 'กำลังดึงข้อมูลล่าสุดจาก Excel (อาจใช้เวลา 2-5 วินาที)…';
+    else if(ADM_FLASH) inf.innerHTML = ADM_FLASH;
+    else inf.textContent = ADM_LAST ? 'อัปเดตล่าสุด ' + hhmmss(ADM_LAST) : '';
+  }
+}
+async function loadAdmin(refresh, manual){
+  if(ADM_BUSY) return;
+  ADM_BUSY = true; ADM_FLASH = ''; paintRefresh();
+  const t0 = Date.now();
   const {d} = await api('GET','/api/assessment/admin/overview'+(refresh?'?refresh=1':'')).catch(()=>({d:{}}));
-  if(!d.ok) return;
-  OV = d; $('asmAdminPanel').style.display = ''; renderAdmin();
+  if(manual){ const wait = 700 - (Date.now()-t0); if(wait>0) await new Promise(r=>setTimeout(r,wait)); } // ให้เห็นสัญญาณหมุนอย่างน้อยครู่หนึ่ง
+  ADM_BUSY = false;
+  if(!d.ok){
+    ADM_FLASH = '<span style="color:var(--critical)">✗ รีเฟรชไม่สำเร็จ ลองใหม่อีกครั้ง</span>';
+    if(OV) renderAdmin(); paintRefresh(); return;
+  }
+  OV = d; ADM_LAST = new Date();
+  ADM_FLASH = (manual && !d.stale) ? '<span style="color:var(--success)">✓ รีเฟรชแล้ว ' + hhmmss(ADM_LAST) + '</span>' : '';
+  $('asmAdminPanel').style.display = ''; renderAdmin();
+  if(ADM_FLASH) setTimeout(()=>{ ADM_FLASH = ''; paintRefresh(); }, 3000);
 }
 function renderAdmin(){
   const P = OV.people, p = P[SEL] || P[0];
@@ -13408,31 +13436,32 @@ function renderAdmin(){
   const rows = IDX.map(i=>{
     const o = p.oat?p.oat[i]:null, t = p.scenario?p.scenario[i]:null, s = p.self?p.self[i]:null;
     const gt = (o!=null&&t!=null) ? Math.round((t-o)*10)/10 : null, gs = (o!=null&&s!=null) ? s-o : null;
-    const cell = g => g==null ? '–' : `<span class="${Math.abs(g)>=1?'gap':''}">${g>0?'+':''}${f1(g)}${Math.abs(g)>=1?' ⚠':''}</span>`;
+    const cell = g => g==null ? '-' : `<span class="${Math.abs(g)>=1?'gap':''}">${g>0?'+':''}${f1(g)}${Math.abs(g)>=1?' ⚠':''}</span>`;
     return `<tr><td>${esc(i)}</td><td>${f1(o)}</td><td>${f1(t)}</td><td>${f1(s)}</td><td>${cell(gt)}</td><td>${cell(gs)}</td></tr>`;
   }).join('');
   const sw = (k,txt,st) => `<label><input type="checkbox" data-k="${k}" ${SHOW[k]?'checked':''}> <i class="asm-sw" style="border-color:${COLORS[k]};${st||''}"></i> ${txt}</label>`;
   RATE = Object.assign({}, p.oat||{}, RATE._pm===p.pmName ? RATE : {}); RATE._pm = p.pmName;
   $('asmAdminRoot').innerHTML = `
     <div class="asm-people">${P.map((x,i)=>`<button class="asm-chip ${i===SEL?'active':''}" data-i="${i}">${esc(x.pmName.split(' ')[0])}<small>${x.submitted?'✓ ทำแล้ว':'ยังไม่ทำ'}${x.oat?' · ✓ ประเมินแล้ว':''}</small></button>`).join('')}
-      <button class="asm-chip" id="asmRefresh" title="ดึงข้อมูลล่าสุดจากที่เก็บ">↻ รีเฟรช</button></div>
+      <button class="asm-chip" id="asmRefresh" title="ดึงข้อมูลล่าสุดจากที่เก็บ">↻ รีเฟรช</button>
+      <span id="asmRefreshInfo" class="asm-refinfo"></span></div>
     ${OV.stale ? `<div class="asm-note warn" style="margin-bottom:10px">ดึงข้อมูลจากที่เก็บ (Make/Excel) ไม่สำเร็จ ข้อมูลที่เห็นอาจไม่ล่าสุด: ${esc(OV.stale)}</div>` : ''}
-    ${OV.storage==='local' ? '<div class="asm-note warn" style="margin-bottom:10px">ยังไม่ได้ตั้ง ASSESSMENT_MAKE_URL — ผลเก็บเฉพาะในเครื่อง server และจะหายเมื่อ redeploy</div>' : ''}
+    ${OV.storage==='local' ? '<div class="asm-note warn" style="margin-bottom:10px">ยังไม่ได้ตั้ง ASSESSMENT_MAKE_URL - ผลเก็บเฉพาะในเครื่อง server และจะหายเมื่อ redeploy</div>' : ''}
     <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16px;margin-bottom:4px">${esc(p.pmName)}</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${p.submitted?'ส่งแบบประเมินเมื่อ '+esc(fmtDT(p.submittedAt)):'ยังไม่ได้ส่งแบบประเมิน'} · ${p.oat?'OAT ให้คะแนนเมื่อ '+esc(fmtDT(p.oatAt)):'OAT ยังไม่ได้ให้คะแนน'}</div>
     <div class="asm-radar-grid"><div class="asm-radar-box">${lay.length?radarSVG(lay):'<div class="asm-note">ยังไม่มีข้อมูลให้แสดง</div>'}
-      <div class="asm-legend">${sw('oat','OAT ประเมิน')}${sw('scn','ผลข้อสถานการณ์','border-top-style:dashed')}${sw('self','ประเมินตนเอง','border-top-style:dotted')}</div></div>
-    <div class="asm-radar-side"><table class="asm-tbl"><tr><th>Index</th><th>OAT</th><th>สถานการณ์</th><th>ตนเอง</th><th>Δ สถ.–OAT</th><th>Δ ตนเอง–OAT</th></tr>${rows}</table>
+      <div class="asm-legend">${sw('oat','OAT ประเมิน')}${sw('scn','ผลข้อทดสอบ','border-top-style:dashed')}${sw('self','ประเมินตนเอง','border-top-style:dotted')}</div></div>
+    <div class="asm-radar-side"><table class="asm-tbl"><tr><th>Index</th><th>OAT</th><th>ข้อทดสอบ</th><th>ตนเอง</th><th>Δ ข้อทดสอบ-OAT</th><th>Δ ตนเอง-OAT</th></tr>${rows}</table>
       <div style="font-size:11.5px;color:var(--faint);margin-top:6px;line-height:1.6">⚠ = ต่างจากคะแนน OAT ตั้งแต่ 1 ขึ้นไป · ไม่นำสามเส้นมาเฉลี่ยรวมกัน เพราะวัดคนละแบบ</div></div></div>
     <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:12px">
       <div style="font-weight:700;font-size:14px;margin-bottom:2px">คะแนนจาก OAT สำหรับ ${esc(p.pmName)}</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">ให้ 1–5 ตาม rubric (กด "ดู rubric" เพื่อเปิดเกณฑ์ของแต่ละ index) · บันทึกใหม่ได้ ระบบใช้ครั้งล่าสุดและเก็บประวัติเดิมไว้ใน Excel</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">ให้ 1-5 ตาม rubric (กด "ดู rubric" เพื่อเปิดเกณฑ์ของแต่ละ index) · บันทึกใหม่ได้ ระบบใช้ครั้งล่าสุดและเก็บประวัติเดิมไว้ใน Excel</div>
       ${IDX.map(i=>`<div class="asm-rate-row"><div class="n">${esc(i)}</div><div class="asm-rate-btns" data-idx="${esc(i)}">${[1,2,3,4,5].map(v=>`<button type="button" class="${RATE[i]===v?'sel':''}" data-v="${v}">${v}</button>`).join('')}</div>
         <details><summary>ดู rubric</summary>${(OV.rubric[i]||[]).map((t,k)=>`<div><b>${k+1}</b> ${esc(t)}</div>`).join('')}</details></div>`).join('')}
       <div class="asm-nav"><span class="asm-msg" id="asmRateMsg"></span><button class="asm-btn" id="asmRateSave">บันทึกคะแนน</button></div>
     </div>`;
   $('asmAdminRoot').querySelectorAll('.asm-chip[data-i]').forEach(b=>b.onclick = ()=>{ SEL = Number(b.dataset.i); renderAdmin(); });
-  $('asmRefresh').onclick = ()=>loadAdmin(true);
+  $('asmRefresh').onclick = ()=>loadAdmin(true, true); paintRefresh();
   $('asmAdminRoot').querySelectorAll('.asm-legend input').forEach(c=>c.onchange = ()=>{ SHOW[c.dataset.k] = c.checked; renderAdmin(); });
   $('asmAdminRoot').querySelectorAll('.asm-rate-btns').forEach(g=>g.querySelectorAll('button').forEach(b=>b.onclick = ()=>{
     RATE[g.dataset.idx] = Number(b.dataset.v); g.querySelectorAll('button').forEach(x=>x.classList.toggle('sel', x===b)); }));
