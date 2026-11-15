@@ -1809,6 +1809,9 @@ app.get('/api/debug/last-payload', requireAuth, (req, res) => {
   res.json(lastRaw);
 });
 
+// ==== แบบประเมิน 5 Key Indexes (ทำครั้งเดียวต่อรอบ, เก็บผลผ่าน Make.com -> Excel ของ OAT) - ดู assessment.js ====
+require('./assessment')(app, { requireAuth, normName, teamPmNames: TEAM_PM_NAMES, dataDir: DATA_DIR });
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`PM-GOV1 API listening on :${PORT}`);

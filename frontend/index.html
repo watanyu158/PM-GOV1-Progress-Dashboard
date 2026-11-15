@@ -1880,6 +1880,53 @@
   #tab2Panels{display:none;}
   #tab3Panels{display:none;}
   #tab4Panels{display:none;}
+  #tab5Panels{display:none;}
+  /* ---------- Assessment (แบบประเมิน 5 Key Indexes) ---------- */
+  .asm-wrap{max-width:860px;margin:0 auto;}
+  .asm-note{padding:13px 16px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line-soft);font-size:13px;line-height:1.7;color:var(--ink-2);}
+  .asm-note.warn{background:var(--warning-tint);border-color:#E3CDA0;}
+  .asm-note.ok{background:var(--success-tint);border-color:#C9DABF;}
+  .asm-note.trial{background:var(--teal-tint);border-color:#BFD2C6;}
+  .asm-prog{height:6px;background:var(--bg-tint);border-radius:4px;overflow:hidden;margin:4px 0 14px;}
+  .asm-prog>i{display:block;height:100%;background:var(--brand);transition:width .2s;}
+  .asm-q-meta{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted);margin-bottom:6px;}
+  .asm-q{font-size:16px;font-weight:600;line-height:1.55;color:var(--ink);margin-bottom:14px;}
+  .asm-opt{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:11px 14px;margin-bottom:9px;font:inherit;font-size:14px;line-height:1.55;color:var(--ink);cursor:pointer;transition:.12s;}
+  .asm-opt:hover{border-color:var(--brand-2);background:var(--brand-tint);}
+  .asm-opt.sel{border-color:var(--brand);background:var(--brand-tint);box-shadow:inset 0 0 0 1px var(--brand);}
+  .asm-opt .k{flex:none;min-width:24px;height:24px;border-radius:12px;border:1.5px solid var(--faint);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--muted);}
+  .asm-opt.sel .k{background:var(--brand);border-color:var(--brand);color:#fff;}
+  .asm-nav{display:flex;gap:10px;justify-content:space-between;margin-top:14px;flex-wrap:wrap;}
+  .asm-btn{padding:9px 20px;border-radius:8px;border:1px solid var(--brand);background:var(--brand);color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+  .asm-btn:hover{background:var(--brand-2);}
+  .asm-btn:disabled{opacity:.45;cursor:default;}
+  .asm-btn.ghost{background:var(--surface);color:var(--brand);}
+  .asm-btn.danger{background:var(--critical);border-color:var(--critical);}
+  .asm-selfhead{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;color:var(--teal);margin-bottom:4px;}
+  .asm-radar-grid{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;}
+  .asm-radar-box{flex:1 1 340px;max-width:520px;}
+  .asm-radar-side{flex:1 1 300px;min-width:280px;}
+  .asm-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;margin:6px 0 2px;}
+  .asm-legend label{display:flex;align-items:center;gap:6px;cursor:pointer;}
+  .asm-sw{display:inline-block;width:22px;height:0;border-top:3px solid;}
+  .asm-tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .asm-tbl th,.asm-tbl td{padding:6px 8px;border-bottom:1px solid var(--line-soft);text-align:right;}
+  .asm-tbl th:first-child,.asm-tbl td:first-child{text-align:left;}
+  .asm-tbl th{color:var(--muted);font-weight:600;font-size:11.5px;}
+  .asm-tbl .gap{font-weight:700;color:var(--critical);}
+  .asm-people{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .asm-chip{padding:7px 13px;border-radius:20px;border:1px solid var(--line);background:var(--surface);font:inherit;font-size:12.5px;font-weight:600;color:var(--ink-2);cursor:pointer;}
+  .asm-chip.active{background:var(--brand);border-color:var(--brand);color:#fff;}
+  .asm-chip small{font-weight:500;opacity:.8;margin-left:4px;}
+  .asm-rate-row{padding:9px 0;border-bottom:1px solid var(--line-soft);}
+  .asm-rate-row .n{font-size:13px;font-weight:700;margin-bottom:5px;}
+  .asm-rate-btns{display:flex;gap:6px;}
+  .asm-rate-btns button{width:38px;height:34px;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);font:inherit;font-weight:700;cursor:pointer;color:var(--ink-2);}
+  .asm-rate-btns button.sel{background:var(--brand);border-color:var(--brand);color:#fff;}
+  .asm-rate-row details{margin-top:5px;font-size:12px;color:var(--muted);line-height:1.6;}
+  .asm-rate-row details div{margin:2px 0;}
+  .asm-msg{font-size:12.5px;margin-top:8px;min-height:18px;}
+  .asm-msg.err{color:var(--critical);} .asm-msg.good{color:var(--success);}
 
   /* ---------------- Login screen ---------------- */
   #dashboardWrap{display:none;}
@@ -2331,6 +2378,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
       <span><span class="tab-en">Admin</span> <span class="tab-th">· จัดการสิทธิ์การ์ด</span></span>
     </button>
+    <button class="tab-btn" id="tabBtn5" data-tab="5">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span><span class="tab-en">Assessment</span> <span class="tab-th">· แบบประเมิน</span></span>
+    </button>
   </div>
 
   <div class="panel" id="panel-kpis">
@@ -2756,6 +2807,29 @@
       </div>
     </div>
   </div><!-- /tab4Panels -->
+
+  <div id="tab5Panels">
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          5 Key Indexes Assessment <span class="sep">-</span> <span class="th">แบบประเมิน One-on-One</span>
+        </div>
+        <span class="p-count" id="asmCycle"></span>
+      </div>
+      <div class="p-body"><div class="asm-wrap" id="asmRoot"></div></div>
+    </div>
+    <div class="panel" id="asmAdminPanel" style="display:none">
+      <div class="p-head">
+        <div class="p-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 21 8.5 17.5 20 6.5 20 3 8.5 12 2"/></svg>
+          Team Radar <span class="sep">-</span> <span class="th">ผลประเมินรายบุคคล (เฉพาะ OAT)</span>
+        </div>
+        <span class="p-count" id="asmAdminCount"></span>
+      </div>
+      <div class="p-body" id="asmAdminRoot"></div>
+    </div>
+  </div><!-- /tab5Panels -->
 
   <footer>PM-GOV1 Progress Dashboard - ข้อมูลอัปเดตอัตโนมัติ</footer>
 </div>
@@ -13109,6 +13183,7 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     document.getElementById('tab2Panels').style.display = tab==='2' ? 'block' : 'none';
     document.getElementById('tab3Panels').style.display = tab==='3' ? 'block' : 'none';
     document.getElementById('tab4Panels').style.display = tab==='4' ? 'block' : 'none';
+    document.getElementById('tab5Panels').style.display = tab==='5' ? 'block' : 'none';
   });
 });
 
@@ -13167,6 +13242,213 @@ if(piProfilesEl) piProfilesEl.addEventListener('click', (e)=>{
   detail.classList.toggle('open', opening);
   row.classList.toggle('open', opening);
 });
+</script>
+<script>
+/* ===== แบบประเมิน 5 Key Indexes (tab 5) =====
+   เฉลย/คะแนนอยู่ฝั่ง server เท่านั้น หน้านี้ได้รับแค่ข้อความ + รหัสตัวเลือก และส่งรหัสที่เลือกกลับไป */
+(function(){
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hdr = () => ({'Content-Type':'application/json', Authorization:'Bearer '+getToken()});
+async function api(method, path, body){
+  const r = await fetch(API_BASE+path, {method, headers:hdr(), body: body?JSON.stringify(body):undefined, signal: AbortSignal.timeout(40000)});
+  let d = {}; try{ d = await r.json(); }catch(e){}
+  return {status:r.status, d};
+}
+const IDX = ['Attitude','Awareness','Engagement','Work-Life Balance','Process'];
+const COLORS = {oat:'#7A5C3E', scn:'#2F6F8F', self:'#B07A28'};
+const fmtDT = iso => { try{ return new Date(iso).toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'}); }catch(e){ return iso||''; } };
+const lsGet = k => { try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(e){ return null; } };
+const lsSet = (k,v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+const lsDel = k => { try{ localStorage.removeItem(k); }catch(e){} };
+
+/* ---------- Radar (inline SVG, ไม่พึ่ง library) ---------- */
+function radarSVG(layers, size){
+  size = size||340; const c = size/2, R = size/2 - 38, n = IDX.length;
+  const pt = (i, v) => { const a = -Math.PI/2 + i*2*Math.PI/n; return [c + R*(v/5)*Math.cos(a), c + R*(v/5)*Math.sin(a)]; };
+  const pad = 95; let s = `<svg viewBox="${-pad} 0 ${size+2*pad} ${size}" width="100%" role="img" aria-label="Radar chart 5 Key Indexes" style="max-width:${size+2*pad}px">`;
+  for(let k=1;k<=5;k++){
+    s += `<polygon points="${IDX.map((_,i)=>pt(i,k).join(',')).join(' ')}" fill="${k%2?'#FFFDFA':'#F6F1E9'}" stroke="#D2C7B6" stroke-width="1"/>`;
+    const [x,y] = pt(0,k); s += `<text x="${x+4}" y="${y+3}" font-size="9" fill="#9A8E7E">${k}</text>`;
+  }
+  IDX.forEach((nm,i)=>{
+    const [x,y] = pt(i,5), [lx,ly] = pt(i,5.9);
+    s += `<line x1="${c}" y1="${c}" x2="${x}" y2="${y}" stroke="#D2C7B6"/>`;
+    const anchor = Math.abs(lx-c)<8 ? 'middle' : (lx>c ? 'start' : 'end');
+    s += `<text x="${lx}" y="${ly+4}" text-anchor="${anchor}" font-size="12.5" font-weight="700" fill="#4E463C">${esc(nm)}</text>`;
+  });
+  layers.forEach(L=>{
+    if(!L.values) return;
+    const pts = IDX.map((nm,i)=>pt(i, Math.max(0,Math.min(5,Number(L.values[nm])||0))));
+    s += `<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="${L.color}" fill-opacity="${L.fill||0}" stroke="${L.color}" stroke-width="${L.w||2}" ${L.dash?`stroke-dasharray="${L.dash}"`:''} stroke-linejoin="round"/>`;
+    pts.forEach(p=>{ s += `<circle cx="${p[0]}" cy="${p[1]}" r="3.2" fill="${L.color}"/>`; });
+  });
+  return s+'</svg>';
+}
+const f1 = v => (v==null||v==='') ? '–' : (Math.round(Number(v)*10)/10).toString();
+
+/* ---------- ฝั่งผู้ทำแบบประเมิน ---------- */
+let ST = null, FORM = null, SC = {}, SF = {}, STEP = 0, BUSY = false;
+const draftKey = () => `asm:draft:${currentUsername()}:${ST.cycle}`;
+const saveDraft = () => lsSet(draftKey(), {form:FORM, sc:SC, sf:SF, step:STEP});
+
+async function openTab(){
+  const root = $('asmRoot'); root.innerHTML = '<div class="asm-note">กำลังโหลด…</div>';
+  $('asmAdminPanel').style.display = 'none';
+  const {status,d} = await api('GET','/api/assessment/status').catch(()=>({status:0,d:{}}));
+  if(!d.ok){ root.innerHTML = `<div class="asm-note warn">${esc(d.error||'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่')}</div><div class="asm-nav"><button class="asm-btn ghost" id="asmRetry">ลองใหม่</button></div>`; $('asmRetry').onclick = openTab; return; }
+  ST = d; $('asmCycle').textContent = 'รอบ ' + d.cycle;
+  if(d.isAdmin) loadAdmin(false);
+  if(d.mode==='none') return void(root.innerHTML = '<div class="asm-note">บัญชีนี้ไม่ได้อยู่ในรายชื่อผู้ทำแบบประเมิน</div>');
+  if(d.mode==='real' && d.submitted) return void(root.innerHTML = `<div class="asm-note ok"><b>ส่งแบบประเมินรอบ ${esc(d.cycle)} เรียบร้อยแล้ว</b><br>ส่งเมื่อ ${esc(fmtDT(d.submittedAt))} · ทำได้ครั้งเดียวต่อรอบ ไม่สามารถแก้ไขหรือทำซ้ำได้ · ผลจะแจ้งโดยหัวหน้า</div>`);
+  if(!d.open) return void(root.innerHTML = '<div class="asm-note warn">ปิดรับแบบประเมินแล้ว</div>');
+  const dr = lsGet(draftKey());
+  if(dr && dr.form){ FORM = dr.form; SC = dr.sc||{}; SF = dr.sf||{}; STEP = dr.step||0; return renderIntro(true); }
+  if(d.mode==='trial' && d.hasTrialResult){ const t = await api('GET','/api/assessment/trial/result'); if(t.d.result) return renderTrialResult(t.d.result); }
+  renderIntro(false);
+}
+function renderIntro(resume){
+  const trial = ST.mode==='trial';
+  $('asmRoot').innerHTML = `
+    ${trial ? '<div class="asm-note trial" style="margin-bottom:10px"><b>โหมดทดลอง</b> — ทำได้ไม่จำกัดครั้ง ผลไม่ถูกบันทึกลงระบบและไม่นับในกราฟของทีม ใช้ดูหน้าตาแบบประเมินและรูปแบบผลลัพธ์</div>' : ''}
+    <div class="asm-note ${trial?'':'warn'}">
+      <b>แบบประเมิน 5 Key Indexes ประจำรอบ ${esc(ST.cycle)}</b> (Attitude · Awareness · Engagement · Work-Life Balance · Process)<br>
+      • 20 ข้อ: สถานการณ์ 15 ข้อ + ประเมินตนเอง 5 ข้อ ใช้เวลาประมาณ 15–20 นาที<br>
+      • ไม่มีคำตอบถูก–ผิดตายตัว เลือกข้อที่ใกล้กับสิ่งที่คุณ "ทำจริง" มากที่สุด ไม่ใช่ข้อที่คิดว่าดูดีที่สุด<br>
+      • ${trial ? 'โหมดทดลองส่งซ้ำได้' : '<b>ส่งได้ครั้งเดียว และแก้ไขไม่ได้หลังกดส่ง</b>'} · ระหว่างทำระบบเก็บร่างไว้ในเบราว์เซอร์นี้ ปิดแล้วกลับมาทำต่อได้
+    </div>
+    <div class="asm-nav"><span></span><button class="asm-btn" id="asmStart">${resume?'ทำต่อจากเดิม':'เริ่มทำแบบประเมิน'}</button></div>
+    <div class="asm-msg err" id="asmMsg"></div>`;
+  $('asmStart').onclick = async ()=>{
+    if(!resume){
+      $('asmStart').disabled = true;
+      const {status,d} = await api('GET','/api/assessment/form').catch(()=>({d:{}}));
+      if(!d.ok){ $('asmMsg').textContent = d.error||'โหลดแบบประเมินไม่สำเร็จ'; $('asmStart').disabled = false; if(status===409) openTab(); return; }
+      FORM = d; SC = {}; SF = {}; STEP = 0; saveDraft();
+    }
+    renderStep();
+  };
+}
+const TOTAL = () => FORM.scenario.length + FORM.self.length;
+function renderStep(){
+  const nS = FORM.scenario.length, total = TOTAL();
+  if(STEP >= total) return renderReview();
+  const isScn = STEP < nS;
+  let body;
+  if(isScn){
+    const q = FORM.scenario[STEP];
+    body = `<div class="asm-q-meta">ส่วน A · สถานการณ์ ข้อ ${STEP+1} / ${nS}</div><div class="asm-q">${esc(q.text)}</div>` +
+      q.options.map((o,i)=>`<button type="button" class="asm-opt ${SC[q.id]===o.id?'sel':''}" data-v="${esc(o.id)}"><span class="k">${'กขคงจ'[i]}</span><span>${esc(o.text)}</span></button>`).join('');
+  } else {
+    const s = FORM.self[STEP-nS];
+    body = `<div class="asm-q-meta">ส่วน B · ประเมินตนเอง ข้อ ${STEP-nS+1} / ${FORM.self.length}</div>
+      <div class="asm-selfhead">${esc(s.index)}</div><div class="asm-q" style="font-size:14px;font-weight:500">เลือกระดับที่ตรงกับตัวคุณในช่วงที่ผ่านมามากที่สุด</div>` +
+      s.levels.map((t,i)=>`<button type="button" class="asm-opt ${SF[s.id]===i+1?'sel':''}" data-v="${i+1}"><span class="k">${i+1}</span><span>${esc(t)}</span></button>`).join('');
+  }
+  const answered = isScn ? !!SC[FORM.scenario[STEP].id] : !!SF[FORM.self[STEP-nS].id];
+  $('asmRoot').innerHTML = `<div class="asm-prog"><i style="width:${Math.round(STEP/total*100)}%"></i></div>${body}
+    <div class="asm-nav"><button class="asm-btn ghost" id="asmBack" ${STEP?'':'disabled'}>← ย้อนกลับ</button>
+    <button class="asm-btn" id="asmNext" ${answered?'':'disabled'}>${STEP===total-1?'ตรวจสอบก่อนส่ง':'ถัดไป →'}</button></div>`;
+  $('asmRoot').querySelectorAll('.asm-opt').forEach(b=>b.onclick = ()=>{
+    if(isScn) SC[FORM.scenario[STEP].id] = b.dataset.v; else SF[FORM.self[STEP-nS].id] = Number(b.dataset.v);
+    saveDraft(); renderStep();
+  });
+  $('asmBack').onclick = ()=>{ STEP--; saveDraft(); renderStep(); };
+  $('asmNext').onclick = ()=>{ STEP++; saveDraft(); renderStep(); };
+}
+function renderReview(){
+  const trial = ST.mode==='trial';
+  const missing = FORM.scenario.map((q,i)=>SC[q.id]?null:'สถานการณ์ข้อ '+(i+1)).concat(FORM.self.map((s,i)=>SF[s.id]?null:'ประเมินตนเอง '+s.index)).filter(Boolean);
+  $('asmRoot').innerHTML = `<div class="asm-prog"><i style="width:100%"></i></div>
+    <div class="asm-q">ตรวจสอบก่อนส่ง</div>
+    ${missing.length ? `<div class="asm-note warn">ยังไม่ได้ตอบ: ${esc(missing.join(', '))}</div>` :
+      `<div class="asm-note ${trial?'trial':'warn'}">ตอบครบทั้ง ${TOTAL()} ข้อแล้ว<br>${trial?'โหมดทดลอง: ส่งแล้วดูผลได้ทันที และทำใหม่ได้':'<b>เมื่อกดส่งแล้วจะแก้ไขหรือทำซ้ำไม่ได้</b>'}</div>`}
+    ${(!trial && !missing.length) ? '<label style="display:flex;gap:8px;margin-top:12px;font-size:13px;cursor:pointer"><input type="checkbox" id="asmConfirm"> ฉันเข้าใจว่าส่งแล้วแก้ไขไม่ได้ และคำตอบเป็นของฉันเอง</label>' : ''}
+    <div class="asm-nav"><button class="asm-btn ghost" id="asmBack">← กลับไปแก้คำตอบ</button>
+    <button class="asm-btn" id="asmSubmit" ${missing.length||!trial?'disabled':''}>ส่งแบบประเมิน</button></div>
+    <div class="asm-msg" id="asmMsg"></div>`;
+  $('asmBack').onclick = ()=>{ const first = FORM.scenario.findIndex(q=>!SC[q.id]); const fs = FORM.self.findIndex(s=>!SF[s.id]);
+    STEP = first>=0 ? first : (fs>=0 ? FORM.scenario.length+fs : TOTAL()-1); saveDraft(); renderStep(); };
+  const cb = $('asmConfirm'); if(cb) cb.onchange = ()=>{ $('asmSubmit').disabled = !cb.checked; };
+  $('asmSubmit').onclick = async ()=>{
+    if(BUSY || missing.length) return; BUSY = true; $('asmSubmit').disabled = true; $('asmMsg').className='asm-msg'; $('asmMsg').textContent = 'กำลังส่ง…';
+    const {status,d} = await api('POST','/api/assessment/submit',{scenario:SC, self:SF}).catch(()=>({status:0,d:{}}));
+    BUSY = false;
+    if(d.ok){ lsDel(draftKey()); FORM = null; if(d.trial) return renderTrialResult(d.result); return openTab(); }
+    $('asmMsg').className = 'asm-msg err'; $('asmMsg').textContent = d.error || 'ส่งไม่สำเร็จ ยังไม่ได้บันทึก กรุณาลองกดส่งอีกครั้ง';
+    if(status===409){ lsDel(draftKey()); setTimeout(openTab,1200); } else $('asmSubmit').disabled = false;
+  };
+}
+function renderTrialResult(r){
+  $('asmRoot').innerHTML = `<div class="asm-note trial" style="margin-bottom:12px"><b>ผลโหมดทดลอง</b> (ส่งเมื่อ ${esc(fmtDT(r.at))}) — ไม่ได้บันทึกลงระบบ</div>
+    <div class="asm-radar-grid"><div class="asm-radar-box">${radarSVG([
+      {values:r.scenario, color:COLORS.scn, fill:.12, w:2.4},
+      {values:r.self, color:COLORS.self, w:2, dash:'2 4'}])}
+      <div class="asm-legend"><span><i class="asm-sw" style="border-color:${COLORS.scn}"></i> ผลข้อสถานการณ์</span><span><i class="asm-sw" style="border-top-style:dotted;border-color:${COLORS.self}"></i> ประเมินตนเอง</span></div></div>
+    <div class="asm-radar-side"><table class="asm-tbl"><tr><th>Index</th><th>สถานการณ์</th><th>ตนเอง</th></tr>
+      ${IDX.map(i=>`<tr><td>${esc(i)}</td><td>${f1(r.scenario[i])}</td><td>${f1(r.self[i])}</td></tr>`).join('')}</table></div></div>
+    <div class="asm-nav"><span></span><button class="asm-btn ghost" id="asmRedo">ล้างผลและทำใหม่</button></div>`;
+  $('asmRedo').onclick = async ()=>{ await api('POST','/api/assessment/trial/reset'); lsDel(draftKey()); FORM=null; renderIntro(false); };
+}
+
+/* ---------- ฝั่ง OAT (admin) ---------- */
+let OV = null, SEL = 0, SHOW = {oat:true, scn:true, self:true}, RATE = {};
+async function loadAdmin(refresh){
+  const {d} = await api('GET','/api/assessment/admin/overview'+(refresh?'?refresh=1':'')).catch(()=>({d:{}}));
+  if(!d.ok) return;
+  OV = d; $('asmAdminPanel').style.display = ''; renderAdmin();
+}
+function renderAdmin(){
+  const P = OV.people, p = P[SEL] || P[0];
+  $('asmAdminCount').textContent = `ส่งแล้ว ${P.filter(x=>x.submitted).length}/${P.length}`;
+  const lay = [];
+  if(SHOW.self && p.self) lay.push({values:p.self, color:COLORS.self, w:2, dash:'2 4'});
+  if(SHOW.scn && p.scenario) lay.push({values:p.scenario, color:COLORS.scn, w:2.2, dash:'7 4', fill:.06});
+  if(SHOW.oat && p.oat) lay.push({values:p.oat, color:COLORS.oat, w:3, fill:.16});
+  const rows = IDX.map(i=>{
+    const o = p.oat?p.oat[i]:null, t = p.scenario?p.scenario[i]:null, s = p.self?p.self[i]:null;
+    const gt = (o!=null&&t!=null) ? Math.round((t-o)*10)/10 : null, gs = (o!=null&&s!=null) ? s-o : null;
+    const cell = g => g==null ? '–' : `<span class="${Math.abs(g)>=1?'gap':''}">${g>0?'+':''}${f1(g)}${Math.abs(g)>=1?' ⚠':''}</span>`;
+    return `<tr><td>${esc(i)}</td><td>${f1(o)}</td><td>${f1(t)}</td><td>${f1(s)}</td><td>${cell(gt)}</td><td>${cell(gs)}</td></tr>`;
+  }).join('');
+  const sw = (k,txt,st) => `<label><input type="checkbox" data-k="${k}" ${SHOW[k]?'checked':''}> <i class="asm-sw" style="border-color:${COLORS[k]};${st||''}"></i> ${txt}</label>`;
+  RATE = Object.assign({}, p.oat||{}, RATE._pm===p.pmName ? RATE : {}); RATE._pm = p.pmName;
+  $('asmAdminRoot').innerHTML = `
+    <div class="asm-people">${P.map((x,i)=>`<button class="asm-chip ${i===SEL?'active':''}" data-i="${i}">${esc(x.pmName.split(' ')[0])}<small>${x.submitted?'✓ ทำแล้ว':'ยังไม่ทำ'}${x.oat?' · ✓ ประเมินแล้ว':''}</small></button>`).join('')}
+      <button class="asm-chip" id="asmRefresh" title="ดึงข้อมูลล่าสุดจากที่เก็บ">↻ รีเฟรช</button></div>
+    ${OV.stale ? `<div class="asm-note warn" style="margin-bottom:10px">ดึงข้อมูลจากที่เก็บ (Make/Excel) ไม่สำเร็จ ข้อมูลที่เห็นอาจไม่ล่าสุด: ${esc(OV.stale)}</div>` : ''}
+    ${OV.storage==='local' ? '<div class="asm-note warn" style="margin-bottom:10px">ยังไม่ได้ตั้ง ASSESSMENT_MAKE_URL — ผลเก็บเฉพาะในเครื่อง server และจะหายเมื่อ redeploy</div>' : ''}
+    <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16px;margin-bottom:4px">${esc(p.pmName)}</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${p.submitted?'ส่งแบบประเมินเมื่อ '+esc(fmtDT(p.submittedAt)):'ยังไม่ได้ส่งแบบประเมิน'} · ${p.oat?'OAT ให้คะแนนเมื่อ '+esc(fmtDT(p.oatAt)):'OAT ยังไม่ได้ให้คะแนน'}</div>
+    <div class="asm-radar-grid"><div class="asm-radar-box">${lay.length?radarSVG(lay):'<div class="asm-note">ยังไม่มีข้อมูลให้แสดง</div>'}
+      <div class="asm-legend">${sw('oat','OAT ประเมิน')}${sw('scn','ผลข้อสถานการณ์','border-top-style:dashed')}${sw('self','ประเมินตนเอง','border-top-style:dotted')}</div></div>
+    <div class="asm-radar-side"><table class="asm-tbl"><tr><th>Index</th><th>OAT</th><th>สถานการณ์</th><th>ตนเอง</th><th>Δ สถ.–OAT</th><th>Δ ตนเอง–OAT</th></tr>${rows}</table>
+      <div style="font-size:11.5px;color:var(--faint);margin-top:6px;line-height:1.6">⚠ = ต่างจากคะแนน OAT ตั้งแต่ 1 ขึ้นไป · ไม่นำสามเส้นมาเฉลี่ยรวมกัน เพราะวัดคนละแบบ</div></div></div>
+    <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:12px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:2px">คะแนนจาก OAT สำหรับ ${esc(p.pmName)}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">ให้ 1–5 ตาม rubric (กด "ดู rubric" เพื่อเปิดเกณฑ์ของแต่ละ index) · บันทึกใหม่ได้ ระบบใช้ครั้งล่าสุดและเก็บประวัติเดิมไว้ใน Excel</div>
+      ${IDX.map(i=>`<div class="asm-rate-row"><div class="n">${esc(i)}</div><div class="asm-rate-btns" data-idx="${esc(i)}">${[1,2,3,4,5].map(v=>`<button type="button" class="${RATE[i]===v?'sel':''}" data-v="${v}">${v}</button>`).join('')}</div>
+        <details><summary>ดู rubric</summary>${(OV.rubric[i]||[]).map((t,k)=>`<div><b>${k+1}</b> ${esc(t)}</div>`).join('')}</details></div>`).join('')}
+      <div class="asm-nav"><span class="asm-msg" id="asmRateMsg"></span><button class="asm-btn" id="asmRateSave">บันทึกคะแนน</button></div>
+    </div>`;
+  $('asmAdminRoot').querySelectorAll('.asm-chip[data-i]').forEach(b=>b.onclick = ()=>{ SEL = Number(b.dataset.i); renderAdmin(); });
+  $('asmRefresh').onclick = ()=>loadAdmin(true);
+  $('asmAdminRoot').querySelectorAll('.asm-legend input').forEach(c=>c.onchange = ()=>{ SHOW[c.dataset.k] = c.checked; renderAdmin(); });
+  $('asmAdminRoot').querySelectorAll('.asm-rate-btns').forEach(g=>g.querySelectorAll('button').forEach(b=>b.onclick = ()=>{
+    RATE[g.dataset.idx] = Number(b.dataset.v); g.querySelectorAll('button').forEach(x=>x.classList.toggle('sel', x===b)); }));
+  $('asmRateSave').onclick = async ()=>{
+    const m = $('asmRateMsg'); const miss = IDX.filter(i=>!RATE[i]);
+    if(miss.length){ m.className='asm-msg err'; m.textContent = 'ยังไม่ได้ให้คะแนน: '+miss.join(', '); return; }
+    $('asmRateSave').disabled = true; m.className='asm-msg'; m.textContent = 'กำลังบันทึก…';
+    const {d} = await api('POST','/api/assessment/admin/oat-rating',{pmName:p.pmName, ratings:Object.fromEntries(IDX.map(i=>[i,RATE[i]]))}).catch(()=>({d:{}}));
+    $('asmRateSave').disabled = false;
+    if(d.ok){ await loadAdmin(true); const mm = $('asmRateMsg'); if(mm){ mm.className='asm-msg good'; mm.textContent='บันทึกแล้ว'; } }
+    else { m.className='asm-msg err'; m.textContent = d.error||'บันทึกไม่สำเร็จ'; }
+  };
+}
+
+document.getElementById('tabBtn5').addEventListener('click', openTab);
+})();
 </script>
 </body>
 </html>
