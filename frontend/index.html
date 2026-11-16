@@ -13442,13 +13442,28 @@ function renderAdmin(){
   if(SHOW.self && p.self) lay.push({values:p.self, color:COLORS.self, w:2, dash:'2 4'});
   if(SHOW.scn && p.scenario) lay.push({values:p.scenario, color:COLORS.scn, w:2.2, dash:'7 4', fill:.06});
   if(SHOW.oat && p.oat) lay.push({values:p.oat, color:COLORS.oat, w:3, fill:.16});
+  // Avg. = ค่าเฉลี่ยของแหล่งที่ "ติ๊กไว้" ใต้กราฟ (VP / ข้อทดสอบ / ตนเอง) เฉพาะที่มีค่าแล้ว
+  // เช่น น้องส่งแล้วแต่ VP ยังไม่ให้คะแนน -> เฉลี่ยจากข้อทดสอบ+ตนเองไปก่อน พอ VP บันทึก ระบบคำนวณใหม่เอง (loadAdmin -> renderAdmin)
+  const SRC = [['oat','VP',p.oat],['scn','ข้อทดสอบ',p.scenario],['self','ตนเอง',p.self]];
+  const hasV = v => v!=null && v!=='' && !isNaN(Number(v));
+  const tickN = SRC.filter(x=>SHOW[x[0]]).length;
+  const missSrc = SRC.filter(x=>SHOW[x[0]] && IDX.some(i=>!(x[2] && hasV(x[2][i]))));
   const rows = IDX.map(i=>{
     const o = p.oat?p.oat[i]:null, t = p.scenario?p.scenario[i]:null, s = p.self?p.self[i]:null;
     const gt = (o!=null&&t!=null) ? Math.round((t-o)*10)/10 : null, gs = (o!=null&&s!=null) ? s-o : null;
-    const av = (o!=null&&t!=null&&s!=null) ? Math.round((Number(o)+Number(t)+Number(s))/3*10)/10 : null;
+    const vs = SRC.filter(x=>SHOW[x[0]] && x[2] && hasV(x[2][i])).map(x=>Number(x[2][i]));
+    const av = vs.length ? Math.round(vs.reduce((a,b)=>a+b,0)/vs.length*10)/10 : null;
+    const part = vs.length>0 && vs.length<tickN;
     const cell = g => g==null ? '-' : `<span class="${Math.abs(g)>=1?'gap':''}">${g>0?'+':''}${f1(g)}${Math.abs(g)>=1?' ⚠':''}</span>`;
-    return `<tr><td>${esc(i)}</td><td>${f1(o)}</td><td>${f1(t)}</td><td>${f1(s)}</td><td><b>${f1(av)}</b></td><td>${cell(gt)}</td><td>${cell(gs)}</td></tr>`;
+    return `<tr><td>${esc(i)}</td><td>${f1(o)}</td><td>${f1(t)}</td><td>${f1(s)}</td><td><b>${f1(av)}</b>${part?'<sup title="เฉลี่ยจากค่าที่มีอยู่ ยังไม่ครบทุกแหล่งที่ติ๊ก">*</sup>':''}</td><td>${cell(gt)}</td><td>${cell(gs)}</td></tr>`;
   }).join('');
+  const avNames = SRC.filter(x=>SHOW[x[0]]).map(x=>x[1]);
+  const avNote = !tickN
+    ? 'Avg. = ยังไม่ได้ติ๊กแหล่งข้อมูลใต้กราฟ จึงยังไม่คำนวณ (ติ๊ก VP / ข้อทดสอบ / ตนเอง อย่างน้อย 1 รายการ)'
+    : `Avg. = ค่าเฉลี่ยของ ${avNames.join(' + ')} ตามที่ติ๊กไว้ใต้กราฟ (ติ๊กหรือเลิกติ๊กเพื่อเปลี่ยนค่าที่ใช้เฉลี่ย)`
+      + (!missSrc.length ? ''
+        : missSrc.length>=tickN ? ' · ยังไม่มีข้อมูลให้เฉลี่ย (คำนวณให้อัตโนมัติเมื่อมีข้อมูล)'
+        : ` · * เฉลี่ยจากค่าที่มีอยู่ ยังไม่มี ${missSrc.map(x=>x[1]).join(', ')} (คำนวณใหม่ให้อัตโนมัติเมื่อมีข้อมูล)`);
   const sw = (k,txt,st) => `<label><input type="checkbox" data-k="${k}" ${SHOW[k]?'checked':''}> <i class="asm-sw" style="border-color:${COLORS[k]};${st||''}"></i> ${txt}</label>`;
   RATE = Object.assign({}, p.oat||{}, RATE._pm===p.pmName ? RATE : {}); RATE._pm = p.pmName;
   $('asmAdminRoot').innerHTML = `
@@ -13462,8 +13477,8 @@ function renderAdmin(){
     <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${p.submitted?'ส่งแบบประเมินเมื่อ '+esc(fmtDT(p.submittedAt)):'ยังไม่ได้ส่งแบบประเมิน'} · ${p.oat?'VP ให้คะแนนเมื่อ '+esc(fmtDT(p.oatAt)):'VP ยังไม่ได้ให้คะแนน'}</div>
     <div class="asm-radar-grid"><div class="asm-radar-box">${lay.length?radarSVG(lay):'<div class="asm-note">ยังไม่มีข้อมูลให้แสดง</div>'}
       <div class="asm-legend">${sw('oat','VP ประเมิน')}${sw('scn','ผลข้อทดสอบ','border-top-style:dashed')}${sw('self','ประเมินตนเอง','border-top-style:dotted')}</div></div>
-    <div class="asm-radar-side"><table class="asm-tbl"><tr><th>Index</th><th>VP</th><th>ข้อทดสอบ</th><th>ตนเอง</th><th>Avg.</th><th>Δ ข้อทดสอบ-VP</th><th>Δ ตนเอง-VP</th></tr>${rows}</table>
-      <div style="font-size:11.5px;color:var(--faint);margin-top:6px;line-height:1.6">⚠ = ต่างจากคะแนน VP ตั้งแต่ 1 ขึ้นไป · Avg. = ค่าเฉลี่ยของ VP, ข้อทดสอบ และตนเอง (แสดงเมื่อมีครบทั้งสามค่า) · สามค่านี้วัดคนละแบบ ใช้ค่าเฉลี่ยเป็นภาพรวมประกอบ</div></div></div>
+    <div class="asm-radar-side"><table class="asm-tbl"><tr><th>Index</th><th>VP</th><th>ข้อทดสอบ</th><th>ตนเอง</th><th title="เฉลี่ยจากแหล่งที่ติ๊กไว้ใต้กราฟ: ${esc(avNames.join(', ')||'-')}">Avg.</th><th>Δ ข้อทดสอบ-VP</th><th>Δ ตนเอง-VP</th></tr>${rows}</table>
+      <div style="font-size:11.5px;color:var(--faint);margin-top:6px;line-height:1.6">⚠ = ต่างจากคะแนน VP ตั้งแต่ 1 ขึ้นไป · ${esc(avNote)} · สามค่านี้วัดคนละแบบ ใช้ค่าเฉลี่ยเป็นภาพรวมประกอบ</div></div></div>
     <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:12px">
       <div style="font-weight:700;font-size:14px;margin-bottom:2px">คะแนนจาก VP สำหรับ ${esc(p.pmName)}</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px">ให้ 1-5 ตาม rubric (กด "ดู rubric" เพื่อเปิดเกณฑ์ของแต่ละ index) · บันทึกใหม่ได้ ระบบใช้ครั้งล่าสุดและเก็บประวัติเดิมไว้ใน Excel</div>
