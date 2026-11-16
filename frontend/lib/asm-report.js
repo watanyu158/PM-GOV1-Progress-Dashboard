@@ -2,7 +2,8 @@
  * ต้องโหลด lib/docx.min.js ก่อน (global: docx)
  * ใช้: const blob = await AsmReport.build({person, indexes, rubric, cycle, sources, generatedAt})
  *   person  = { pmName, submitted, submittedAt, oat, oatAt, scenario, self, items }   (oat/scenario/self = {index: 1-5})
- *   sources = { oat, scn, self }  แหล่งที่ใช้คิด Avg. (ตามช่องติ๊กในหน้าจอ)
+ *   sources = { oat, scn, self, avg }  ค่าที่ "ติ๊กไว้" ในหน้าจอ - เอกสารแสดงเฉพาะค่าที่ติ๊กเท่านั้น (ไม่ส่ง = ติ๊กทั้งหมด)
+ *             avg = ค่าเฉลี่ยของ VP / ข้อทดสอบ / ตนเอง เท่าที่มีข้อมูล (ไม่ขึ้นกับว่าติ๊กแต่ละแหล่งหรือไม่) จึงติ๊กใช้เฉพาะ avg ได้
  * ไม่มีเรื่อง IDP โดยตั้งใจ: เอกสารนี้สรุปผล + ประเด็นชวนคุย + พื้นที่บันทึก 1:1 ให้ VP แก้ไขต่อใน Word
  */
 (function (root) {
@@ -13,10 +14,14 @@
   const FONT = 'TH SarabunPSK';
   const FONTS = { ascii: FONT, hAnsi: FONT, cs: FONT, eastAsia: FONT };
   const C = { navy: '1F3A5F', ink: '1F2937', muted: '6B7280', line: 'D9DEE5', soft: 'F3F5F8', soft2: 'EAF0F6',
-    warn: 'FFF4DC', warnLine: 'E0B34F', note: 'FFFBEB', oat: '1F3A5F', scn: '2A9D8F', self: 'E07A1F', up: 'B54708', down: '175CD3' };
+    warn: 'FFF4DC', warnLine: 'E0B34F', note: 'FFFBEB', oat: '1F3A5F', scn: '2A9D8F', self: 'E07A1F', avg: 'A23B72', up: 'B54708', down: '175CD3' };
   const HEX = k => '#' + C[k];
-  const SRC = { oat: 'VP', scn: 'ข้อทดสอบ', self: 'ตนเอง' };
-  const LEGEND = { oat: 'VP ประเมิน', scn: 'ผลข้อทดสอบ', self: 'ประเมินตนเอง' };
+  const KEYS = ['oat', 'scn', 'self', 'avg'];       // ลำดับการแสดงผลของทุกค่า
+  const BASE = ['oat', 'scn', 'self'];              // แหล่งข้อมูลจริง (avg คำนวณจาก 3 แหล่งนี้)
+  const SRC = { oat: 'VP', scn: 'ข้อทดสอบ', self: 'ตนเอง', avg: 'ค่าเฉลี่ย' };
+  const LEGEND = { oat: 'VP ประเมิน', scn: 'ผลข้อทดสอบ', self: 'ประเมินตนเอง', avg: 'ค่าเฉลี่ย' };
+  const pick = (r, k) => k === 'oat' ? r.V : k === 'scn' ? r.T : k === 'self' ? r.S : r.Araw;
+  const split = (total, n) => { const w = Math.floor(total / n), a = Array(n).fill(w); a[n - 1] += total - w * n; return a; };
   const SCALE = ['F1F4F8', 'DCE6F1', 'C3D5E8', 'A3BFDC', '86A9D1'];   // ระดับ 1-5 (น้ำเงินไล่เฉดอ่อน->เข้ม ไม่ใช้สีแดง/เขียว เพื่อไม่ตัดสินเกินจริง)
   const shade = v => v == null ? 'FFFFFF' : SCALE[Math.min(5, Math.max(1, Math.round(v))) - 1];
   const CANVAS_FONT = '"TH Sarabun New","Sarabun","Leelawadee UI","Noto Sans Thai","Tahoma",sans-serif';
@@ -49,19 +54,25 @@
   };
 
   // ---------- วิเคราะห์ข้อมูล ----------
+  // อันดับของแต่ละค่า (ใช้หาจุดเด่น/ควรให้ความสำคัญ) คิดแยกต่อค่า ไม่ปนกัน
+  function rankOf(rows, k) {
+    const ranked = rows.filter(r => pick(r, k) != null).sort((x, y) => pick(y, k) - pick(x, k));
+    const n = ranked.length, hi = n ? pick(ranked[0], k) : null, lo = n ? pick(ranked[n - 1], k) : null;
+    const flat = n > 1 && hi - lo < 0.3;
+    const top = n ? ranked.filter(r => pick(r, k) >= hi - 0.05).slice(0, 2) : [];
+    const low = n > 1 ? ranked.slice().reverse().filter(r => pick(r, k) <= lo + 0.05).slice(0, 2) : [];
+    return { ranked, top, low, flat };
+  }
   function analyze(inp) {
     const p = inp.person, IDX = inp.indexes;
-    const tick = Object.assign({ oat: true, scn: true, self: true }, inp.sources || {});
-    const tickN = ['oat', 'scn', 'self'].filter(k => tick[k]).length;
+    const tick = Object.assign({ oat: true, scn: true, self: true, avg: true }, inp.sources || {});
     const g = (o, i) => o ? num(o[i]) : null;
     const rows = IDX.map(i => {
       const V = g(p.oat, i), T = g(p.scenario, i), S = g(p.self, i);
-      const used = [];
-      if (tick.oat && V != null) used.push(V);
-      if (tick.scn && T != null) used.push(T);
-      if (tick.self && S != null) used.push(S);
+      // ค่าเฉลี่ย = เฉลี่ยของทุกแหล่งที่มีค่า (ไม่ขึ้นกับช่องติ๊ก) เพื่อให้ติ๊กใช้เฉพาะค่าเฉลี่ยได้
+      const used = [V, T, S].filter(v => v != null);
       const Araw = mean(used);
-      return { index: i, V, T, S, Araw, A: Araw == null ? null : r1(Araw), partial: used.length > 0 && used.length < tickN,
+      return { index: i, V, T, S, Araw, A: Araw == null ? null : r1(Araw), n: used.length, partial: used.length > 0 && used.length < 3,
         dT: V != null && T != null ? r1(T - V) : null, dS: V != null && S != null ? r1(S - V) : null, dST: T != null && S != null ? r1(S - T) : null };
     });
     const col = k => rows.map(r => r[k]).filter(v => v != null);
@@ -69,52 +80,78 @@
     const overall = { V: m('V'), T: m('T'), S: m('S'), A: m('Araw') };
     overall.dT = overall.V != null && overall.T != null ? r1(overall.T - overall.V) : null;
     overall.dS = overall.V != null && overall.S != null ? r1(overall.S - overall.V) : null;
-    const has = { oat: col('V').length > 0, scn: col('T').length > 0, self: col('S').length > 0 };
-    const missing = ['oat', 'scn', 'self'].filter(k => tick[k] && !has[k]);
-    const ranked = rows.filter(r => r.Araw != null).sort((a, b) => b.Araw - a.Araw);
-    const spread = ranked.length > 1 ? ranked[0].Araw - ranked[ranked.length - 1].Araw : 0;
-    const flat = ranked.length > 1 && spread < 0.3;
-    const top = ranked.length ? ranked.filter(r => r.Araw >= ranked[0].Araw - 0.05).slice(0, 2) : [];
-    const low = ranked.length > 1 ? ranked.slice().reverse().filter(r => r.Araw <= ranked[ranked.length - 1].Araw + 0.05).slice(0, 2) : [];
+    const has = { oat: col('V').length > 0, scn: col('T').length > 0, self: col('S').length > 0, avg: col('Araw').length > 0 };
+    const shown = KEYS.filter(k => tick[k] && has[k]);                 // ติ๊กแล้วและมีข้อมูล = ค่าที่จะวาด/วิเคราะห์
+    const missing = BASE.filter(k => tick[k] && !has[k]);              // ติ๊กแล้วแต่ยังไม่มีข้อมูล
+    const absent = BASE.filter(k => !has[k]);                          // แหล่งที่ยังไม่มีข้อมูลเลย (ทำให้ค่าเฉลี่ยเป็นค่าชั่วคราว)
+    const rank = {}; shown.forEach(k => { rank[k] = rankOf(rows, k); });
     const flag = {
       sUp: rows.filter(r => r.dS != null && r.dS >= 1), sDown: rows.filter(r => r.dS != null && r.dS <= -1),
       tUp: rows.filter(r => r.dT != null && r.dT >= 1), tDown: rows.filter(r => r.dT != null && r.dT <= -1),
       stUp: rows.filter(r => r.dST != null && r.dST >= 1), stDown: rows.filter(r => r.dST != null && r.dST <= -1)
     };
     const vpLow = rows.filter(r => r.V != null && r.V <= 2);
-    return { rows, overall, has, missing, tick, tickN, ranked, top, low, flat, flag, vpLow,
-      any: has.oat || has.scn || has.self };
+    return { rows, overall, has, shown, missing, absent, tick, rank, flag, vpLow,
+      any: shown.length > 0, nothingTicked: !KEYS.some(k => tick[k]) };
+  }
+
+  const levelText = v => v < 3 ? 'ต่ำกว่าระดับมาตรฐาน (ระดับ 3)' : v < 4 ? 'ยังมีช่องว่างให้พัฒนา' : 'อยู่ในเกณฑ์ดี';
+  const LEVEL_PHRASE = { oat: 'VP ให้ระดับ', scn: 'ผลข้อทดสอบอยู่ที่ระดับ', self: 'ประเมินตนเองที่ระดับ', avg: 'ค่าเฉลี่ยอยู่ที่ระดับ' };
+  function rankNote(a, k, r) {
+    const rk = a.rank && a.rank[k];
+    if (!rk || rk.flat || rk.ranked.length < 2) return '';
+    if (rk.top.includes(r)) return ' และเป็นหนึ่งในด้านที่สูงที่สุดจากทั้ง 5 ด้าน';
+    if (rk.low.includes(r)) return ' และเป็นหนึ่งในด้านที่ต่ำที่สุดจากทั้ง 5 ด้าน';
+    return '';
   }
 
   // ข้อสังเกตรายด้านจากตัวเลข (ใช้คำว่า "อาจ" เพราะเป็นข้อสันนิษฐานเพื่อชวนคุย ไม่ใช่ข้อสรุป)
-  function insightsOf(r) {
-    const out = [];
-    if (r.V != null) {
-      if (r.dS == null) out.push('ยังไม่มีผลประเมินตนเองให้เทียบกับ VP');
-      else if (r.dS >= 1) out.push(`ประเมินตนเองสูงกว่า VP ${fmt(r.dS)} ระดับ ควรให้ยกตัวอย่างงานจริงที่ทำให้เห็นต่างกัน (อาจเป็นเรื่องมุมมองหรือการตีความเกณฑ์)`);
-      else if (r.dS <= -1) out.push(`ประเมินตนเองต่ำกว่า VP ${fmt(-r.dS)} ระดับ ผู้รับการประเมินอาจถ่อมตัวหรือยังไม่เห็นคุณค่าของงานที่ทำ ควรชวนเล่าผลงานด้านนี้`);
-      else out.push('ประเมินตนเองใกล้เคียงกับ VP (ต่างกันไม่ถึง 1 ระดับ) มุมมองตรงกัน');
-      if (r.dT == null) out.push('ยังไม่มีผลข้อทดสอบให้เทียบกับ VP');
-      else if (r.dT >= 1) out.push(`ผลข้อทดสอบสูงกว่าที่ VP เห็นในงานจริง ${fmt(r.dT)} ระดับ น่าจะรู้แนวทางที่ควรทำ แต่ในงานจริงอาจยังทำได้ไม่สม่ำเสมอ`);
-      else if (r.dT <= -1) out.push(`ผลข้อทดสอบต่ำกว่าที่ VP เห็นในงานจริง ${fmt(-r.dT)} ระดับ ในงานจริงอาจทำได้ดีกว่าการตอบโจทย์สมมติ หรือตีความโจทย์ต่างออกไป ลองดูรายข้อในภาคผนวก`);
-      else out.push('ผลข้อทดสอบใกล้เคียงกับที่ VP เห็นในงานจริง');
-    } else {
-      out.push('VP ยังไม่ได้ให้คะแนนด้านนี้ จึงยังเทียบกับมุมมองของ VP ไม่ได้');
-      if (r.dST != null) {
-        if (r.dST >= 1) out.push(`ประเมินตนเองสูงกว่าผลข้อทดสอบ ${fmt(r.dST)} ระดับ`);
-        else if (r.dST <= -1) out.push(`ประเมินตนเองต่ำกว่าผลข้อทดสอบ ${fmt(-r.dST)} ระดับ`);
-        else out.push('ประเมินตนเองใกล้เคียงกับผลข้อทดสอบ');
+  // เปรียบเทียบข้ามแหล่งเฉพาะคู่ที่ "ติ๊กทั้งคู่" เท่านั้น ถ้าไม่มีคู่ให้เทียบ (เช่น ติ๊กแต่ค่าเฉลี่ย) จะบอกระดับของค่าที่เลือกแทน
+  function insightsOf(r, a) {
+    const t = a.tick, out = [];
+    const stLines = () => {
+      if (r.dST == null) return;
+      if (r.dST >= 1) out.push(`ประเมินตนเองสูงกว่าผลข้อทดสอบ ${fmt(r.dST)} ระดับ`);
+      else if (r.dST <= -1) out.push(`ประเมินตนเองต่ำกว่าผลข้อทดสอบ ${fmt(-r.dST)} ระดับ`);
+      else out.push('ประเมินตนเองใกล้เคียงกับผลข้อทดสอบ');
+    };
+    const wantS = t.oat && t.self, wantT = t.oat && t.scn;
+    if (wantS || wantT) {
+      if (r.V != null) {
+        if (wantS) {
+          if (r.dS == null) out.push('ยังไม่มีผลประเมินตนเองให้เทียบกับ VP');
+          else if (r.dS >= 1) out.push(`ประเมินตนเองสูงกว่า VP ${fmt(r.dS)} ระดับ ควรให้ยกตัวอย่างงานจริงที่ทำให้เห็นต่างกัน (อาจเป็นเรื่องมุมมองหรือการตีความเกณฑ์)`);
+          else if (r.dS <= -1) out.push(`ประเมินตนเองต่ำกว่า VP ${fmt(-r.dS)} ระดับ ผู้รับการประเมินอาจถ่อมตัวหรือยังไม่เห็นคุณค่าของงานที่ทำ ควรชวนเล่าผลงานด้านนี้`);
+          else out.push('ประเมินตนเองใกล้เคียงกับ VP (ต่างกันไม่ถึง 1 ระดับ) มุมมองตรงกัน');
+        }
+        if (wantT) {
+          if (r.dT == null) out.push('ยังไม่มีผลข้อทดสอบให้เทียบกับ VP');
+          else if (r.dT >= 1) out.push(`ผลข้อทดสอบสูงกว่าที่ VP เห็นในงานจริง ${fmt(r.dT)} ระดับ น่าจะรู้แนวทางที่ควรทำ แต่ในงานจริงอาจยังทำได้ไม่สม่ำเสมอ`);
+          else if (r.dT <= -1) out.push(`ผลข้อทดสอบต่ำกว่าที่ VP เห็นในงานจริง ${fmt(-r.dT)} ระดับ ในงานจริงอาจทำได้ดีกว่าการตอบโจทย์สมมติ หรือตีความโจทย์ต่างออกไป ลองดูรายข้อในภาคผนวก`);
+          else out.push('ผลข้อทดสอบใกล้เคียงกับที่ VP เห็นในงานจริง');
+        }
+      } else {
+        out.push('VP ยังไม่ได้ให้คะแนนด้านนี้ จึงยังเทียบกับมุมมองของ VP ไม่ได้');
+        if (t.self && t.scn) stLines();
       }
+    } else if (t.scn && t.self) stLines();
+    if (!out.length) {   // ไม่มีคู่ให้เทียบ -> บอกระดับของค่าที่เลือก
+      a.shown.forEach(k => {
+        const v = pick(r, k);
+        if (v != null) out.push(`${LEVEL_PHRASE[k]} ${fmt(v)} ${levelText(v)}${rankNote(a, k, r)}`);
+      });
     }
+    if (!out.length) out.push('ยังไม่มีข้อมูลของด้านนี้ในค่าที่เลือก');
     return out;
   }
-  function promptsOf(r) {
-    const base = BASE_Q[r.index] || [];
-    const gap = [];
-    if (r.dS != null && r.dS >= 1) gap.push(`ขอตัวอย่างงานที่ทำให้ประเมินตนเองระดับ ${fmt(r.S)} ขณะที่ VP เห็นที่ระดับ ${fmt(r.V)}`);
-    else if (r.dS != null && r.dS <= -1) gap.push(`ชวนเล่างานที่ภูมิใจในด้านนี้ VP เห็นที่ระดับ ${fmt(r.V)} ซึ่งสูงกว่าที่ประเมินตนเอง (${fmt(r.S)})`);
-    else if (r.dT != null && r.dT <= -1) gap.push('ชวนดูข้อทดสอบที่ตอบได้ระดับต่ำ ว่าตอนตอบคิดอย่างไร และในงานจริงทำอย่างไร');
-    else if (r.dT != null && r.dT >= 1) gap.push('ชวนคุยว่าตัวเลือกที่เลือกในข้อทดสอบ ทำได้จริงในโครงการตอนนี้หรือไม่ ติดอะไร');
+  function promptsOf(r, a) {
+    const t = a.tick, base = BASE_Q[r.index] || [], gap = [];
+    const wantS = t.oat && t.self, wantT = t.oat && t.scn;
+    if (wantS && r.dS != null && r.dS >= 1) gap.push(`ขอตัวอย่างงานที่ทำให้ประเมินตนเองระดับ ${fmt(r.S)} ขณะที่ VP เห็นที่ระดับ ${fmt(r.V)}`);
+    else if (wantS && r.dS != null && r.dS <= -1) gap.push(`ชวนเล่างานที่ภูมิใจในด้านนี้ VP เห็นที่ระดับ ${fmt(r.V)} ซึ่งสูงกว่าที่ประเมินตนเอง (${fmt(r.S)})`);
+    else if (wantT && r.dT != null && r.dT <= -1) gap.push('ชวนดูข้อทดสอบที่ตอบได้ระดับต่ำ ว่าตอนตอบคิดอย่างไร และในงานจริงทำอย่างไร');
+    else if (wantT && r.dT != null && r.dT >= 1) gap.push('ชวนคุยว่าตัวเลือกที่เลือกในข้อทดสอบ ทำได้จริงในโครงการตอนนี้หรือไม่ ติดอะไร');
+    else if (t.scn && r.T != null && r.T <= 2) gap.push('ชวนดูข้อทดสอบที่ตอบได้ระดับต่ำ ว่าตอนตอบคิดอย่างไร และในงานจริงทำอย่างไร');
     return gap.length ? [base[0], gap[0]].filter(Boolean) : base.slice(0, 2);
   }
 
@@ -148,16 +185,18 @@
       g.fillText(labels[k], lx, ly);
     }
     const style = {
-      self: { dash: [4, 12], lw: 6, fill: 0, m: 'tri' }, scn: { dash: [26, 14], lw: 6, fill: 0.06, m: 'sq' }, oat: { dash: [], lw: 9, fill: 0.15, m: 'circ' }
+      self: { dash: [4, 12], lw: 6, fill: 0, m: 'tri' }, scn: { dash: [26, 14], lw: 6, fill: 0.06, m: 'sq' }, oat: { dash: [], lw: 9, fill: 0.15, m: 'circ' },
+      avg: { dash: [34, 10, 6, 10], lw: 8, fill: 0, m: 'dia' }
     };
     const marker = (x, y, kind, color) => {
       g.fillStyle = '#fff'; g.strokeStyle = color; g.lineWidth = 5; g.setLineDash([]); g.beginPath();
       if (kind === 'circ') g.arc(x, y, 13, 0, Math.PI * 2);
       else if (kind === 'sq') g.rect(x - 12, y - 12, 24, 24);
+      else if (kind === 'dia') { g.moveTo(x, y - 17); g.lineTo(x + 16, y); g.lineTo(x, y + 17); g.lineTo(x - 16, y); g.closePath(); }
       else { g.moveTo(x, y - 15); g.lineTo(x + 14, y + 11); g.lineTo(x - 14, y + 11); g.closePath(); }
       g.fill(); g.stroke();
     };
-    ['self', 'scn', 'oat'].forEach(key => {
+    ['self', 'scn', 'oat', 'avg'].forEach(key => {
       const s = series.find(x => x.key === key); if (!s) return;
       const st = style[key], col = HEX(key), pts = [];
       s.values.forEach((v, k) => { if (v != null) pts.push(pt(k, Math.max(0, Math.min(5, v)))); });
@@ -219,12 +258,16 @@
     const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, ShadingType, BorderStyle, AlignmentType,
       VerticalAlign, TabStopType, Tab, PageNumber, Header, Footer, ImageRun, LevelFormat, HeightRule, TableLayoutType, HeadingLevel } = D;
     const a = analyze(inp);
-    if (!a.any) throw new Error('ยังไม่มีข้อมูลให้สรุป (ยังไม่มีทั้งผลข้อทดสอบ ประเมินตนเอง และคะแนนจาก VP)');
+    if (a.nothingTicked) throw new Error('ยังไม่ได้ติ๊กค่าที่ต้องการให้อยู่ในรายงาน (ติ๊ก VP / ข้อทดสอบ / ตนเอง / ค่าเฉลี่ย อย่างน้อย 1 รายการ)');
+    if (!a.any) throw new Error('ค่าที่ติ๊กไว้ (' + KEYS.filter(k => a.tick[k]).map(k => SRC[k]).join(', ') + ') ยังไม่มีข้อมูลให้สรุป');
     const p = inp.person, IDX = inp.indexes, rubric = inp.rubric || {};
     const when = inp.generatedAt ? new Date(inp.generatedAt) : new Date();
+    const tk = a.tick;                                                 // ค่าที่ติ๊ก (ใช้กำหนดว่าจะแสดงอะไรบ้าง)
+    const colsSel = KEYS.filter(k => tk[k]);                            // ค่าที่ติ๊ก (รวมที่ยังไม่มีข้อมูล แสดงเป็น –)
+    const showDT = tk.oat && tk.scn, showDS = tk.oat && tk.self;           // คอลัมน์ Δ ต้องติ๊กทั้งคู่
+    const basisNames = BASE.filter(k => a.has[k]).map(k => SRC[k]);   // ค่าเฉลี่ยนี้เฉลี่ยจากอะไรบ้าง
 
-    const series = ['oat', 'scn', 'self'].filter(k => a.has[k]).map(k => ({
-      key: k, name: LEGEND[k], values: a.rows.map(r => k === 'oat' ? r.V : k === 'scn' ? r.T : r.S) }));
+    const series = a.shown.map(k => ({ key: k, name: LEGEND[k], values: a.rows.map(r => pick(r, k)) }));
     const radarPng = await toPng(drawRadar(series, IDX));
     const barPng = await toPng(drawBars(series, IDX));
 
@@ -259,105 +302,152 @@
       T('Project Manager  ·  Government 1', 14, { color: 'B9C6D8', spacing: { before: 20 } })
     ], W, { shading: fill(C.navy), margins: { top: 300, bottom: 300, left: 380, right: 380 } })] })]);
 
-    const mw = [2409, 2409, 2409, 2411];
+    // ช่องข้อมูลหัวเอกสาร: แสดงเฉพาะช่องที่เกี่ยวกับค่าที่ติ๊ก
+    const metaDefs = [['รอบประเมิน', String(inp.cycle || '–')]];
+    if (tk.scn || tk.self || tk.avg) metaDefs.push(['ส่งแบบประเมิน', p.submitted ? thDate(p.submittedAt) : 'ยังไม่ได้ส่ง']);
+    if (tk.oat || tk.avg) metaDefs.push(['VP ให้คะแนน', a.has.oat ? thDate(p.oatAt) : 'ยังไม่ได้ประเมิน']);
+    metaDefs.push(['จัดทำเอกสาร', thDate(when)]);
+    const mw = split(W, metaDefs.length);
     const metaCell = (lab, val, w) => cell([T(lab, 11.5, { color: C.muted, bold: true }), T(val, 14, { bold: true })], w, { shading: fill(C.soft) });
-    const meta = table(mw, [new TableRow({ children: [
-      metaCell('รอบประเมิน', String(inp.cycle || '–'), mw[0]),
-      metaCell('ส่งแบบประเมิน', p.submitted ? thDate(p.submittedAt) : 'ยังไม่ได้ส่ง', mw[1]),
-      metaCell('VP ให้คะแนน', a.has.oat ? thDate(p.oatAt) : 'ยังไม่ได้ประเมิน', mw[2]),
-      metaCell('จัดทำเอกสาร', thDate(when), mw[3])] })]);
+    const meta = table(mw, [new TableRow({ children: metaDefs.map(([l, v], i) => metaCell(l, v, mw[i])) })]);
+    const scopeNote = colsSel.length < KEYS.length
+      ? P([R('ค่าที่แสดงในเอกสารนี้ ', { size: pt(13), bold: true, color: C.muted }),
+        R('(เฉพาะที่ติ๊ก)  ' + colsSel.map(k => SRC[k]).join('  ·  '), { size: pt(13), color: C.muted })], { spacing: { before: 80, after: 0 } })
+      : null;
 
-    const miss = a.missing.map(k => SRC[k]);
-    const banner = miss.length ? table([W], [new TableRow({ children: [cell([
-      T(`ข้อมูลยังไม่ครบ: ยังไม่มี${miss.join(' และ ')}`, 14, { bold: true, color: '8A5A00' }),
-      T('ค่า Avg. ในเอกสารนี้จึงเป็นค่าชั่วคราวที่เฉลี่ยจากข้อมูลที่มีอยู่ (ทำเครื่องหมาย *) เมื่อข้อมูลครบ ให้ดาวน์โหลดเอกสารใหม่จากระบบ', 13.5, { color: '8A5A00' })
+    // แถบเตือนข้อมูลไม่ครบ: เตือนเฉพาะที่กระทบค่าที่ติ๊ก (ค่าที่ติ๊กแต่ไม่มีข้อมูล หรือค่าเฉลี่ยที่ยังเฉลี่ยจากแหล่งไม่ครบ)
+    const bannerKeys = BASE.filter(k => a.missing.includes(k) || (tk.avg && a.absent.includes(k)));
+    const bannerBody = [];
+    if (tk.avg && a.absent.length) bannerBody.push(`ค่าเฉลี่ยในเอกสารนี้จึงเป็นค่าชั่วคราวที่เฉลี่ยจาก ${basisNames.join(' + ')} ที่มีอยู่ (ทำเครื่องหมาย *)`);
+    if (a.missing.length) bannerBody.push('ค่าที่ติ๊กไว้แต่ยังไม่มีข้อมูลแสดงเป็น –');
+    bannerBody.push('เมื่อข้อมูลครบ ให้ดาวน์โหลดเอกสารใหม่จากระบบ');
+    const banner = bannerKeys.length ? table([W], [new TableRow({ children: [cell([
+      T(`ข้อมูลยังไม่ครบ: ยังไม่มี${bannerKeys.map(k => SRC[k]).join(' และ ')}`, 14, { bold: true, color: '8A5A00' }),
+      T(bannerBody.join(' '), 13.5, { color: '8A5A00' })
     ], W, { shading: fill(C.warn), margins: { top: 90, bottom: 90, left: 180, right: 140 },
       borders: { top: none, bottom: none, right: none, left: { style: BorderStyle.SINGLE, size: 24, color: C.warnLine } } })] })]) : null;
 
     // --- 1. ภาพรวม ---
     const o = a.overall;
-    const tw = [2409, 2409, 2409, 2411];
+    const TW = 2409;
     const gapB = { style: BorderStyle.SINGLE, size: 36, color: 'FFFFFF' };
-    const tile = (lab, sub, val, w, kind) => {
-      const dark = kind === 'avg', top = dark ? C.navy : C[kind];
-      const fg = dark ? 'FFFFFF' : C.ink, fgm = dark ? 'C9D5E6' : C.muted;
-      return cell([T(lab, 13, { bold: true, color: fgm }),
+    const tileDef = { avg: ['ค่าเฉลี่ยรวม', basisNames.join(' + ') || 'ยังไม่มีข้อมูล'], oat: ['VP', 'เห็นจากงานจริง'], scn: ['ข้อทดสอบ', 'โจทย์สถานการณ์'], self: ['ตนเอง', 'ประเมินเอง'] };
+    const tile = (k, w) => {
+      const dark = k === 'avg', top = C[k];
+      const val = k === 'avg' ? o.A : k === 'oat' ? o.V : k === 'scn' ? o.T : o.S;
+      const fg = dark ? 'FFFFFF' : C.ink, fgm = dark ? 'F3D9E7' : C.muted;
+      const sub = (k !== 'avg' && !a.has[k]) ? 'ยังไม่มีข้อมูล' : tileDef[k][1];
+      return cell([T(tileDef[k][0], 13, { bold: true, color: fgm }),
         P([R(fmt(val), { size: pt(30), bold: true, color: fg }), R(val == null ? '' : ' / 5', { size: pt(13), color: fgm })], { spacing: { before: 20, after: 0 } }),
-        T(sub, 11.5, { color: fgm })], w, { shading: fill(dark ? C.navy : C.soft), margins: { top: 110, bottom: 110, left: 150, right: 100 },
+        T(sub, 11.5, { color: fgm })], w, { shading: fill(dark ? C.avg : C.soft), margins: { top: 110, bottom: 110, left: 150, right: 100 },
         borders: { top: { style: BorderStyle.SINGLE, size: 24, color: top }, bottom: none, left: gapB, right: gapB } });
     };
-    const avgBasis = ['oat', 'scn', 'self'].filter(k => a.tick[k]).map(k => SRC[k]).join(' + ') || '–';
-    const tiles = table(tw, [new TableRow({ children: [
-      tile('Avg. รวม', avgBasis, o.A, tw[0], 'avg'), tile('VP', 'เห็นจากงานจริง', o.V, tw[1], 'oat'),
-      tile('ข้อทดสอบ', 'โจทย์สถานการณ์', o.T, tw[2], 'scn'), tile('ตนเอง', 'ประเมินเอง', o.S, tw[3], 'self')] })]);
+    const tileKeys = ['avg', 'oat', 'scn', 'self'].filter(k => tk[k]);     // ค่าเฉลี่ยมาก่อน แล้วตามด้วยแต่ละแหล่งที่ติ๊ก
+    const tiles = table(tileKeys.map(() => TW), [new TableRow({ children: tileKeys.map(k => tile(k, TW)) })]);
 
+    // สรุปจุดเด่น/ควรให้ความสำคัญ: ถ้าติ๊กค่าเฉลี่ยใช้ค่าเฉลี่ยเป็นเกณฑ์ ไม่เช่นนั้นดูแยกตามแต่ละค่าที่ติ๊ก (ไม่ใช้ค่าที่ไม่ได้ติ๊ก)
     const sumKids = [];
     const sumBlock = (lab, lines) => { sumKids.push(label(lab)); lines.forEach(l => sumKids.push(T(l, 13.5, { spacing: { after: 30 } }))); };
-    if (a.flat) sumBlock('ภาพรวมรายด้าน', [`ทั้ง 5 ด้านอยู่ในระดับใกล้เคียงกัน (ห่างกันไม่ถึง 0.3) ไม่มีด้านใดเด่นหรือด้อยกว่าด้านอื่นชัดเจน`]);
-    else if (a.ranked.length) {
-      sumBlock('จุดเด่น', [a.top.map(r => `${r.index} (${fmt(r.A)})`).join(', ')]);
-      const lw = a.low.length ? a.low[0].Araw : null;
-      const q = lw == null ? '' : lw < 3 ? 'ต่ำกว่าระดับมาตรฐาน (ระดับ 3) ควรให้ความสำคัญเป็นลำดับแรก'
-        : lw < 4 ? 'ยังมีช่องว่างให้พัฒนา' : 'อยู่ในเกณฑ์ดี แต่ยังเป็นด้านที่ยกระดับต่อได้';
-      const lines = [a.low.map(r => `${r.index} (${fmt(r.A)})`).join(', '), q].filter(Boolean);
-      if (a.vpLow.length) lines.push(`VP ให้ระดับ 2 หรือต่ำกว่า: ${names(a.vpLow)}`);
-      sumBlock('ควรให้ความสำคัญ', lines);
-    }
-    const f = a.flag, gl = [];
-    if (a.has.oat) {
-      if (f.sUp.length) gl.push(`ตนเองสูงกว่า VP: ${names(f.sUp)}`);
-      if (f.sDown.length) gl.push(`ตนเองต่ำกว่า VP: ${names(f.sDown)}`);
-      if (f.tUp.length) gl.push(`ข้อทดสอบสูงกว่า VP: ${names(f.tUp)}`);
-      if (f.tDown.length) gl.push(`ข้อทดสอบต่ำกว่า VP: ${names(f.tDown)}`);
-      const nOther = (a.has.scn ? 1 : 0) + (a.has.self ? 1 : 0);
-      sumBlock('ความต่างของมุมมองที่ควรคุย', gl.length ? gl : nOther === 0 ? ['ยังไม่มีข้อมูลจากข้อทดสอบและตนเอง จึงยังเทียบมุมมองไม่ได้']
-        : [(nOther === 2 ? 'สามมุมมอง' : 'มุมมองที่มีอยู่') + 'สอดคล้องกัน ต่างกันไม่ถึง 1 ระดับในทุกด้าน']);
+    const bases = a.shown.includes('avg') ? ['avg'] : a.shown;
+    const multi = bases.length > 1;
+    const qOf = lw => lw < 3 ? 'ต่ำกว่าระดับมาตรฐาน (ระดับ 3) ควรให้ความสำคัญเป็นลำดับแรก' : lw < 4 ? 'ยังมีช่องว่างให้พัฒนา' : 'อยู่ในเกณฑ์ดี แต่ยังเป็นด้านที่ยกระดับต่อได้';
+    if (!multi) {
+      // ค่าเดียว (ค่าเฉลี่ย หรือแหล่งเดียว): แสดงแบบละเอียด
+      const k = bases[0], rk = a.rank[k], sfx = ` (ตาม${SRC[k]})`;
+      const nm = r => `${r.index} (${fmt(pick(r, k))})`;
+      if (rk.ranked.length && rk.flat) sumBlock('ภาพรวมรายด้าน' + sfx, ['ทั้ง 5 ด้านอยู่ในระดับใกล้เคียงกัน (ห่างกันไม่ถึง 0.3) ไม่มีด้านใดเด่นหรือด้อยกว่าด้านอื่นชัดเจน']);
+      else if (rk.ranked.length) {
+        sumBlock('จุดเด่น' + sfx, [rk.top.map(nm).join(', ')]);
+        const lines = rk.low.length ? [rk.low.map(nm).join(', '), qOf(pick(rk.low[0], k))] : [];
+        if (k === 'avg' && a.shown.includes('oat') && a.vpLow.length) lines.push(`VP ให้ระดับ 2 หรือต่ำกว่า: ${names(a.vpLow)}`);   // เฉพาะเมื่อติ๊ก VP แสดงด้วย
+        if (lines.length) sumBlock('ควรให้ความสำคัญ' + sfx, lines);
+      }
     } else {
-      if (f.stUp.length) gl.push(`ตนเองสูงกว่าข้อทดสอบ: ${names(f.stUp)}`);
-      if (f.stDown.length) gl.push(`ตนเองต่ำกว่าข้อทดสอบ: ${names(f.stDown)}`);
-      sumBlock('ความต่างของมุมมองที่ควรคุย', ['VP ยังไม่ได้ให้คะแนน จึงยังเทียบกับ VP ไม่ได้'].concat(gl));
+      // หลายค่าที่ไม่ใช่ค่าเฉลี่ย: ย่อเป็นบรรทัดต่อค่า (ไม่เอาค่าที่ไม่ได้ติ๊กมาปน)
+      const lines = [];
+      bases.forEach(k => {
+        const rk = a.rank[k]; if (!rk.ranked.length) return;
+        const nm = r => `${r.index} (${fmt(pick(r, k))})`;
+        if (rk.flat) { lines.push(`${SRC[k]}: ทั้ง 5 ด้านใกล้เคียงกัน (ห่างกันไม่ถึง 0.3)`); return; }
+        const lw = rk.low.length ? pick(rk.low[0], k) : null;
+        lines.push(`${SRC[k]}: เด่น ${rk.top.map(nm).join(', ')}` + (rk.low.length ? ` · ควรให้ความสำคัญ ${rk.low.map(nm).join(', ')}${lw < 3 ? ' (ต่ำกว่า 3)' : ''}` : ''));
+      });
+      if (lines.length) sumBlock('จุดเด่น / ควรให้ความสำคัญ', lines);
     }
+    // ความต่างของมุมมอง: เทียบเฉพาะคู่ที่ติ๊กทั้งคู่ และมีข้อมูลทั้งคู่ (ถ้าติ๊กแค่ค่าเฉลี่ย/แหล่งเดียว จะไม่มีส่วนนี้)
+    const nonAvg = a.shown.filter(k => k !== 'avg');
+    if (nonAvg.length >= 2) {
+      const f = a.flag, gl = [];
+      if (nonAvg.includes('oat')) {
+        if (nonAvg.includes('self')) { if (f.sUp.length) gl.push(`ตนเองสูงกว่า VP: ${names(f.sUp)}`); if (f.sDown.length) gl.push(`ตนเองต่ำกว่า VP: ${names(f.sDown)}`); }
+        if (nonAvg.includes('scn')) { if (f.tUp.length) gl.push(`ข้อทดสอบสูงกว่า VP: ${names(f.tUp)}`); if (f.tDown.length) gl.push(`ข้อทดสอบต่ำกว่า VP: ${names(f.tDown)}`); }
+      } else {
+        if (f.stUp.length) gl.push(`ตนเองสูงกว่าข้อทดสอบ: ${names(f.stUp)}`);
+        if (f.stDown.length) gl.push(`ตนเองต่ำกว่าข้อทดสอบ: ${names(f.stDown)}`);
+      }
+      sumBlock('ความต่างของมุมมองที่ควรคุย', gl.length ? gl : [(nonAvg.length === 3 ? 'สามมุมมอง' : 'สองมุมมอง') + 'สอดคล้องกัน ต่างกันไม่ถึง 1 ระดับในทุกด้าน']);
+    }
+    if (!sumKids.length) sumKids.push(T('', 12));
     const rw = [4900, 4738];
     const radarRow = table(rw, [new TableRow({ cantSplit: true, children: [
       cell([P(img(radarPng, 318, 297, 'กราฟเรดาร์ 5 Key Indexes'), { alignment: AlignmentType.CENTER })], rw[0], { margins: { top: 0, bottom: 0, left: 0, right: 0 } }),
       cell(sumKids, rw[1], { margins: { top: 0, bottom: 0, left: 200, right: 0 }, verticalAlign: VerticalAlign.TOP })] })]);
 
-    // --- 2. ตารางคะแนน ---
-    const cw = [2750, 800, 1250, 950, 900, 1494, 1494];
+    // --- 2. ตารางคะแนน (คอลัมน์ตามค่าที่ติ๊ก) ---
+    const COLH = { oat: 'VP', scn: 'ข้อทดสอบ', self: 'ตนเอง', avg: 'ค่าเฉลี่ย', dT: 'Δ ข้อทดสอบ-VP', dS: 'Δ ตนเอง-VP' };
+    const COLW = { oat: 800, scn: 1250, self: 950, avg: 1050, dT: 1494, dS: 1494 };
+    const cols = colsSel.concat(showDT ? ['dT'] : [], showDS ? ['dS'] : []);
+    const IDXW = 2750, fitScale = (W - IDXW) / cols.reduce((s, k) => s + COLW[k], 0), scale = Math.min(1.8, fitScale);
+    const cws = cols.map(k => Math.round(COLW[k] * scale));
+    if (scale === fitScale) cws[cws.length - 1] += (W - IDXW) - cws.reduce((x, y) => x + y, 0);   // เต็มความกว้างพอดี
+    const cw = [IDXW].concat(cws);
+    const onlyAvg = colsSel.length === 1 && tk.avg;
     const hcell = (txt, w, left) => cell([T(txt, 13, { bold: true, color: 'FFFFFF', align: left ? AlignmentType.LEFT : AlignmentType.CENTER })], w,
       { shading: fill(C.navy), verticalAlign: VerticalAlign.CENTER, margins: { top: 90, bottom: 90, left: 70, right: 70 } });
     const vcell = (v, w, o2 = {}) => cell([T(fmt(v) + (o2.star ? '*' : ''), 15, { align: AlignmentType.CENTER, bold: o2.bold })], w,
       { shading: fill(o2.shade === undefined ? shade(v) : o2.shade), verticalAlign: VerticalAlign.CENTER, borders: Object.assign({}, noB, { bottom: { style: BorderStyle.SINGLE, size: 8, color: 'FFFFFF' } }) });
     const dcell = (d, w) => cell([T(sg(d), 14.5, { align: AlignmentType.CENTER, bold: d != null && Math.abs(d) >= 1,
       color: d == null ? C.muted : Math.abs(d) < 1 ? C.ink : d > 0 ? C.up : C.down })], w, { verticalAlign: VerticalAlign.CENTER, borders: { top: none, left: none, right: none, bottom: hair } });
-    const scoreRows = [new TableRow({ tableHeader: true, cantSplit: true, children: [hcell('Index', cw[0], true), hcell('VP', cw[1]), hcell('ข้อทดสอบ', cw[2]), hcell('ตนเอง', cw[3]),
-      hcell('Avg.', cw[4]), hcell('Δ ข้อทดสอบ-VP', cw[5]), hcell('Δ ตนเอง-VP', cw[6])] })];
+    const partialAny = a.rows.some(r => r.partial);
+    const rowCell = (r, k, w) => k === 'dT' ? dcell(r.dT, w) : k === 'dS' ? dcell(r.dS, w)
+      : k === 'avg' ? vcell(r.A, w, { bold: true, star: r.partial, shade: onlyAvg ? undefined : 'FFFFFF' }) : vcell(pick(r, k), w);
+    const sumCell = (k, w) => k === 'dT' || k === 'dS'
+      ? cell([T(sg(k === 'dT' ? o.dT : o.dS), 14.5, { align: AlignmentType.CENTER, bold: true })], w, { shading: fill(C.soft2), verticalAlign: VerticalAlign.CENTER })
+      : vcell(k === 'avg' ? o.A : k === 'oat' ? o.V : k === 'scn' ? o.T : o.S, w, { shade: C.soft2, bold: true, star: k === 'avg' && partialAny });
+    const scoreRows = [new TableRow({ tableHeader: true, cantSplit: true, children: [hcell('Index', cw[0], true)].concat(cols.map((k, j) => hcell(COLH[k], cws[j]))) })];
     a.rows.forEach(r => scoreRows.push(new TableRow({ cantSplit: true, children: [
-      cell([T(r.index, 15, { bold: true })], cw[0], { verticalAlign: VerticalAlign.CENTER, borders: { top: none, left: none, right: none, bottom: hair } }),
-      vcell(r.V, cw[1]), vcell(r.T, cw[2]), vcell(r.S, cw[3]), vcell(r.A, cw[4], { bold: true, star: r.partial, shade: 'FFFFFF' }), dcell(r.dT, cw[5]), dcell(r.dS, cw[6])] })));
+      cell([T(r.index, 15, { bold: true })], cw[0], { verticalAlign: VerticalAlign.CENTER, borders: { top: none, left: none, right: none, bottom: hair } })]
+      .concat(cols.map((k, j) => rowCell(r, k, cws[j]))) })));
     scoreRows.push(new TableRow({ cantSplit: true, children: [
-      cell([T('เฉลี่ยทั้ง 5 ด้าน', 15, { bold: true })], cw[0], { shading: fill(C.soft2), verticalAlign: VerticalAlign.CENTER }),
-      vcell(o.V, cw[1], { shade: C.soft2, bold: true }), vcell(o.T, cw[2], { shade: C.soft2, bold: true }), vcell(o.S, cw[3], { shade: C.soft2, bold: true }),
-      vcell(o.A, cw[4], { shade: C.soft2, bold: true, star: a.rows.some(r => r.partial) }),
-      cell([T(sg(o.dT), 14.5, { align: AlignmentType.CENTER, bold: true })], cw[5], { shading: fill(C.soft2), verticalAlign: VerticalAlign.CENTER }),
-      cell([T(sg(o.dS), 14.5, { align: AlignmentType.CENTER, bold: true })], cw[6], { shading: fill(C.soft2), verticalAlign: VerticalAlign.CENTER })] }));
+      cell([T('เฉลี่ยทั้ง 5 ด้าน', 15, { bold: true })], cw[0], { shading: fill(C.soft2), verticalAlign: VerticalAlign.CENTER })]
+      .concat(cols.map((k, j) => sumCell(k, cws[j]))) }));
     const scoreTbl = table(cw, scoreRows);
-    const avgNote = `Avg. = ค่าเฉลี่ยของ ${avgBasis} (ตามที่เลือกไว้ในหน้าจอ)` + (a.rows.some(r => r.partial) ? ` · * เฉลี่ยจากค่าที่มีอยู่ ยังไม่มี${miss.join(' และ ')}` : '');
+    const hidden = BASE.filter(k => a.has[k] && !tk[k]).map(k => SRC[k]);
+    const avgNote = tk.avg
+      ? `ค่าเฉลี่ย = เฉลี่ยของ ${basisNames.join(' + ')} (น้ำหนักเท่ากัน คิดจากทุกแหล่งที่มีข้อมูล)`
+        + (hidden.length ? ` ซึ่งรวม ${hidden.join(', ')} ที่ไม่ได้ติ๊กแสดง` : '')
+        + (partialAny ? ` · * เฉลี่ยจากค่าที่มีอยู่ ${a.absent.length ? 'ยังไม่มี' + a.absent.map(k => SRC[k]).join(' และ ') : 'บางด้านยังไม่ครบทุกแหล่ง'}` : '')
+      : '';
 
-    const guide = [
-      ['VP', 'คะแนน 1-5 ที่ VP ให้ตาม rubric จากงานที่เห็นจริง'],
-      ['ข้อทดสอบ', 'ค่าเฉลี่ยของโจทย์สถานการณ์ด้านละ 3 ข้อ (ระดับ 1-5) วัดว่าเลือกวิธีรับมืออย่างไรในสถานการณ์สมมติ'],
-      ['ตนเอง', 'ระดับที่ผู้รับการประเมินเลือกเอง ตาม rubric เดียวกับ VP'],
-      ['Δ', 'ผลต่างเทียบกับ VP (+ สูงกว่า VP, - ต่ำกว่า VP) ตัวหนาและมีสีเมื่อต่างตั้งแต่ 1 ระดับ']
-    ];
+    const GUIDE = {
+      oat: ['VP', 'คะแนน 1-5 ที่ VP ให้ตาม rubric จากงานที่เห็นจริง'],
+      scn: ['ข้อทดสอบ', 'ค่าเฉลี่ยของโจทย์สถานการณ์ด้านละ 3 ข้อ (ระดับ 1-5) วัดว่าเลือกวิธีรับมืออย่างไรในสถานการณ์สมมติ'],
+      self: ['ตนเอง', 'ระดับที่ผู้รับการประเมินเลือกเอง ตาม rubric เดียวกับ VP'],
+      avg: ['ค่าเฉลี่ย', 'เฉลี่ยของ VP, ข้อทดสอบ และตนเองที่มีข้อมูล (น้ำหนักเท่ากัน) ใช้เป็นภาพรวม']
+    };
+    const guide = colsSel.map(k => GUIDE[k]);
+    if (showDT || showDS) guide.push(['Δ', 'ผลต่างเทียบกับ VP (+ สูงกว่า VP, - ต่ำกว่า VP) ตัวหนาและมีสีเมื่อต่างตั้งแต่ 1 ระดับ']);
+    const closing = onlyAvg ? 'ค่าเฉลี่ยรวมมุมมองที่วัดคนละแบบไว้ในตัวเลขเดียว จึงอาจซ่อนความต่างระหว่างมุมมอง ใช้เป็นภาพรวมประกอบการชวนคุย ไม่ควรใช้ตัดสินเดี่ยว ๆ'
+      : colsSel.length === 1 ? 'ค่านี้เป็นมุมมองเดียว ใช้ประกอบการชวนคุย ไม่ควรใช้ตัดสินเดี่ยว ๆ'
+      : 'ค่าเหล่านี้วัดคนละแบบ จึงใช้ประกอบกันเพื่อชวนคุย ไม่ควรใช้ค่าใดค่าหนึ่งตัดสินเดี่ยว ๆ';
     const guideBox = table([W], [new TableRow({ cantSplit: true, children: [cell([
       T('วิธีอ่านผล', 13.5, { bold: true, color: C.navy, spacing: { after: 40 } }),
       ...guide.map(([k, v]) => P([R(k + '  ', { size: pt(13.5), bold: true }), R(v, { size: pt(13.5) })], { spacing: { after: 20 }, keepLines: true })),
-      T('สามค่านี้วัดคนละแบบ จึงใช้ประกอบกันเพื่อชวนคุย ไม่ควรใช้ค่าใดค่าหนึ่งตัดสินเดี่ยว ๆ', 13.5, { italics: true, color: C.muted, spacing: { before: 40 } })
+      T(closing, 13.5, { italics: true, color: C.muted, spacing: { before: 40 } })
     ], W, { shading: fill(C.soft), margins: { top: 110, bottom: 110, left: 180, right: 160 } })] })]);
 
     // --- 3. การ์ดรายด้าน ---
-    const items = Array.isArray(p.items) ? p.items : null;
+    const items = tk.scn && Array.isArray(p.items) ? p.items : null;   // คำตอบรายข้อแสดงเฉพาะเมื่อติ๊กข้อทดสอบ
     const cardW = W;
     const cards = [];
     a.rows.forEach((r, ix) => {
@@ -365,17 +455,18 @@
       const cl = 5100, cr = cardW - cl;
       const navyL = { style: BorderStyle.SINGLE, size: 36, color: C.navy };
       const head = cell([P([R(`${ix + 1}  `, { size: pt(17), bold: true, color: C.muted }), R(r.index, { size: pt(17), bold: true, color: C.navy }),
-        new TextRun({ children: [new Tab(), `VP ${fmt(r.V)}  ·  ข้อทดสอบ ${fmt(r.T)}  ·  ตนเอง ${fmt(r.S)}  ·  Avg. ${fmt(r.A)}${r.partial ? '*' : ''}`], font: FONTS, size: pt(13), color: C.muted })],
+        new TextRun({ children: [new Tab(), colsSel.map(k => k === 'avg' ? `ค่าเฉลี่ย ${fmt(r.A)}${r.partial ? '*' : ''}` : `${SRC[k]} ${fmt(pick(r, k))}`).join('  ·  ')], font: FONTS, size: pt(13), color: C.muted })],
         { tabStops: [{ type: TabStopType.RIGHT, position: cardW - 420 }], spacing: { after: 0 }, keepNext: true })], cardW, {
         columnSpan: 2, shading: fill(C.soft), margins: { top: 110, bottom: 110, left: 220, right: 160 },
         borders: { top: none, right: none, bottom: none, left: navyL } });
 
       // ซ้าย: ข้อสังเกต + เกณฑ์ rubric
       const L = [label('ข้อสังเกตจากข้อมูล')];
-      insightsOf(r).forEach(t => L.push(bullet(t, { size: 13, keepNext: true })));
+      insightsOf(r, a).forEach(x => L.push(bullet(x, { size: 13, keepNext: true })));
       const rl = [];
-      if (r.V != null && r.S != null && Math.round(r.V) === Math.round(r.S)) rl.push(['VP และตนเอง', r.V, rub(r.V)]);
-      else { if (r.V != null) rl.push(['VP', r.V, rub(r.V)]); if (r.S != null) rl.push(['ตนเอง', r.S, rub(r.S)]); }
+      const rV = tk.oat ? r.V : null, rS = tk.self ? r.S : null;   // rubric ของแหล่งที่ติ๊กเท่านั้น
+      if (rV != null && rS != null && Math.round(rV) === Math.round(rS)) rl.push(['VP และตนเอง', rV, rub(rV)]);
+      else { if (rV != null) rl.push(['VP', rV, rub(rV)]); if (rS != null) rl.push(['ตนเอง', rS, rub(rS)]); }
       if (rl.length) {
         L.push(label('เกณฑ์ตาม rubric ของระดับที่ให้/เลือก'));
         rl.forEach(([who, lv, tx]) => L.push(P([R(`${who} · ระดับ ${fmt(lv)}  `, { size: pt(12.5), bold: true, color: C.navy }), R(tx, { size: pt(12.5) })], { spacing: { after: 30 }, keepLines: true, keepNext: true })));
@@ -389,7 +480,7 @@
         Rt.push(T(its.map(x => `${x.id} = ${x.score}`).join('   ·   ') + (lows.length ? `  (ระดับ 1-2: ${lows.join(', ')} ดูภาคผนวก)` : ''), 13.5, { spacing: { after: 20 }, keepNext: true }));
       }
       Rt.push(label('ประเด็นชวนคุย'));
-      promptsOf(r).forEach(t => Rt.push(bullet(t, { size: 13, keepNext: true })));
+      promptsOf(r, a).forEach(x => Rt.push(bullet(x, { size: 13, keepNext: true })));
 
       const body = [
         cell(L, cl, { margins: { top: 40, bottom: 80, left: 220, right: 140 }, borders: { top: none, right: none, bottom: none, left: navyL } }),
@@ -432,12 +523,16 @@
       { tabStops: [{ type: TabStopType.RIGHT, position: W }], border: { top: { style: BorderStyle.SINGLE, size: 4, color: C.line, space: 6 } } })] });
     const blank = new Header({ children: [P([])] });
 
-    const children = [title, gapP(100), meta, gapP(120)];
+    const children = [title, gapP(100), meta];
+    if (scopeNote) children.push(scopeNote);
+    children.push(gapP(120));
     if (banner) children.push(banner, gapP(100));
     children.push(h1('1.  ภาพรวม'), tiles, gapP(160), radarRow,
-      h1('2.  คะแนนรายด้านและความต่างของมุมมอง', true), scoreTbl,
-      P(R(avgNote, { size: pt(12.5), color: C.muted }), { spacing: { before: 60, after: 100 } }),
-      h2('เทียบ 3 มุมมองรายด้าน'), P(img(barPng, 600, 264, 'กราฟแท่งเทียบ VP ข้อทดสอบ ตนเอง รายด้าน'), { alignment: AlignmentType.CENTER, spacing: { after: 100 } }),
+      h1(showDT || showDS ? '2.  คะแนนรายด้านและความต่างของมุมมอง' : '2.  คะแนนรายด้าน', true), scoreTbl);
+    if (avgNote) children.push(P(R(avgNote, { size: pt(12.5), color: C.muted }), { spacing: { before: 60, after: 100 } }));
+    else children.push(gapP(100));
+    children.push(h2(series.length > 1 ? 'เทียบค่ารายด้าน' : 'คะแนนรายด้าน (กราฟแท่ง)'),
+      P(img(barPng, 600, 264, 'กราฟแท่ง ' + series.map(s => s.name).join(' ') + ' รายด้าน'), { alignment: AlignmentType.CENTER, spacing: { after: 100 } }),
       guideBox,
       h1('3.  วิเคราะห์รายด้าน'),
       T('ข้อสังเกตด้านล่างสร้างจากตัวเลขโดยอัตโนมัติ เพื่อใช้เป็นจุดเริ่มต้นของการพูดคุย ไม่ใช่ข้อสรุป แก้ไขหรือเพิ่มความเห็นได้ตามต้องการ', 13.5, { color: C.muted, spacing: { after: 140 } }),
