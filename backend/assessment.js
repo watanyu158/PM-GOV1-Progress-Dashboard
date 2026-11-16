@@ -43,6 +43,7 @@ module.exports = function registerAssessment(app, { requireAuth, normName, teamP
   let rows = [];            // แถวทุกประเภทของรอบปัจจุบัน
   let loadedAt = 0;
   let lastError = null;
+  let lastDiag = null;      // ผลตรวจการอ่านจาก Make ครั้งล่าสุด (แสดงให้ admin ดู)
   const trialResults = new Map(); // username -> ผลทดลองล่าสุด (อยู่ใน memory เท่านั้น)
   const busy = new Set();         // กันกดส่งซ้ำพร้อมกัน
 
@@ -63,7 +64,7 @@ module.exports = function registerAssessment(app, { requireAuth, normName, teamP
     const text = await r.text();
     let j = null; try { j = JSON.parse(text); } catch { /* ไม่ใช่ JSON */ }
     if (!r.ok) throw new Error(`Make ตอบ HTTP ${r.status}`);
-    if (!j || j.ok === false) throw new Error('Make ตอบกลับไม่ถูกรูปแบบ (ต้องเป็น JSON {"ok":true,...})');
+    if (!j || j.ok === false) { console.log('assessment: Make ตอบไม่ถูกรูปแบบ ->', String(text).slice(0, 300)); throw new Error('Make ตอบกลับไม่ถูกรูปแบบ (ต้องเป็น JSON {"ok":true,...}) เริ่มต้นข้อความที่ได้: ' + String(text).slice(0, 80).replace(/\s+/g, ' ')); }
     return j;
   }
   const num = (v) => { const n = Number(v); return Number.isFinite(n) && v !== '' && v !== null ? n : null; };
@@ -81,7 +82,12 @@ module.exports = function registerAssessment(app, { requireAuth, normName, teamP
     try {
       const j = await makeCall({ action: 'list', cycle: cycle() });
       const arr = Array.isArray(j.rows) ? j.rows : (Array.isArray(j.data) ? j.data : []);
-      rows = arr.map(normRow).filter(r => r.cycle === cycle());
+      const all = arr.map(normRow);
+      rows = all.filter(r => r.cycle === cycle());
+      const byType = {}; rows.forEach(r => { byType[r.type || '?'] = (byType[r.type || '?'] || 0) + 1; });
+      lastDiag = { at: Date.now(), rawCount: arr.length, kept: rows.length, byType,
+        cycles: [...new Set(all.map(r => r.cycle))].slice(0, 6), keys: arr[0] ? Object.keys((arr[0] && arr[0].values) || arr[0]).slice(0, 8) : [] };
+      console.log(`assessment: อ่านจาก Make ${arr.length} แถว ใช้ได้ ${rows.length} แถว (รอบ ${cycle()}) ประเภท=${JSON.stringify(byType)} cycles=${JSON.stringify(lastDiag.cycles)}`);
       loadedAt = Date.now(); lastError = null; saveLocal();
     } catch (e) { lastError = e.message; throw e; }
   }
@@ -207,7 +213,7 @@ module.exports = function registerAssessment(app, { requireAuth, normName, teamP
       return { pmName: pm, submitted: !!sr, submittedAt: sr ? sr.submittedAt : null, scenario: pick(sr, 'scn'), self: pick(sr, 'self'),
         oat: pick(or, 'oat'), oatAt: or ? or.submittedAt : null };
     });
-    res.json({ ok: true, cycle: cycle(), storage: MAKE_URL ? 'make' : 'local', loadedAt, stale, indexes: INDEXES,
+    res.json({ ok: true, cycle: cycle(), storage: MAKE_URL ? 'make' : 'local', loadedAt, stale, diag: lastDiag, indexes: INDEXES,
       rubric: Object.fromEntries(BANK.self.map(s => [s.index, s.levels])), people });
   });
   app.post('/api/assessment/admin/oat-rating', requireAuth, adminOnly, async (req, res) => {
