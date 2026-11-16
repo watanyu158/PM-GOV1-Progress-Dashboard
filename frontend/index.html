@@ -1901,6 +1901,8 @@
   .asm-btn:hover{background:var(--brand-2);}
   .asm-btn:disabled{opacity:.45;cursor:default;}
   .asm-btn.ghost{background:var(--surface);color:var(--brand);}
+  .asm-dl{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px;}
+  .asm-dl .asm-btn{padding:7px 14px;font-size:12.5px;}
   .asm-btn.danger{background:var(--critical);border-color:var(--critical);}
   .asm-selfhead{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;color:var(--teal);margin-bottom:4px;}
   .asm-radar-grid{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;}
@@ -13435,6 +13437,39 @@ async function loadAdmin(refresh, manual){
   $('asmAdminPanel').style.display = ''; renderAdmin();
   if(ADM_FLASH) setTimeout(()=>{ ADM_FLASH = ''; paintRefresh(); }, 3000);
 }
+/* ---------- ดาวน์โหลดสรุปเป็น Word (สร้างในเบราว์เซอร์ ข้อมูลไม่ออกนอกเครื่อง) ---------- */
+const _libP = {};
+function loadLib(src){
+  if(_libP[src]) return _libP[src];
+  return _libP[src] = new Promise((ok,err)=>{
+    const el = document.createElement('script'); el.src = src;
+    el.onload = ()=>ok();
+    el.onerror = ()=>{ delete _libP[src]; el.remove(); err(new Error('โหลดไลบรารีไม่สำเร็จ: '+src+' - ตรวจว่าโฟลเดอร์ lib/ ถูก deploy ไปด้วยหรือไม่')); };
+    document.head.appendChild(el);
+  });
+}
+async function downloadSummary(p){
+  const btn = $('asmDlDoc'), m = $('asmDlMsg');
+  const say = (cls, txt)=>{ const mm = $('asmDlMsg'); if(mm){ mm.className = 'asm-msg '+cls; mm.textContent = txt; } };
+  if(!p.scenario && !p.self && !p.oat){ say('err','ยังไม่มีข้อมูลให้สรุป (ยังไม่มีทั้งผลข้อทดสอบ ประเมินตนเอง และคะแนน VP)'); return; }
+  btn.disabled = true; say('', 'กำลังสร้างไฟล์ Word…');
+  try{
+    await loadLib('lib/docx.min.js');
+    await loadLib('lib/asm-report.js');
+    if(document.fonts && document.fonts.ready) await document.fonts.ready.catch(()=>{});   // ให้ฟอนต์ในกราฟพร้อมก่อนวาด
+    const blob = await AsmReport.build({ person:p, indexes:IDX, rubric:OV.rubric||{}, cycle:OV.cycle, sources:Object.assign({}, SHOW), generatedAt:new Date() });
+    const d = new Date(), pad = n=>String(n).padStart(2,'0');
+    const name = '5Index_Summary_'+String(p.pmName||'PM').trim().replace(/[\\/:*?"<>|\s]+/g,'_')+'_'+d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'.docx';
+    const url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    say('good', '✓ ดาวน์โหลดแล้ว: '+name);
+  }catch(e){
+    say('err', (e && e.message) || 'สร้างไฟล์ไม่สำเร็จ');
+  }finally{
+    const b2 = $('asmDlDoc'); if(b2) b2.disabled = false;
+  }
+}
 function renderAdmin(){
   const P = OV.people, p = P[SEL] || P[0];
   $('asmAdminCount').textContent = `ส่งแล้ว ${P.filter(x=>x.submitted).length}/${P.length}`;
@@ -13475,6 +13510,7 @@ function renderAdmin(){
     ${OV.storage==='local' ? '<div class="asm-note warn" style="margin-bottom:10px">ยังไม่ได้ตั้ง ASSESSMENT_MAKE_URL - ผลเก็บเฉพาะในเครื่อง server และจะหายเมื่อ redeploy</div>' : ''}
     <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16px;margin-bottom:4px">${esc(p.pmName)}</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${p.submitted?'ส่งแบบประเมินเมื่อ '+esc(fmtDT(p.submittedAt)):'ยังไม่ได้ส่งแบบประเมิน'} · ${p.oat?'VP ให้คะแนนเมื่อ '+esc(fmtDT(p.oatAt)):'VP ยังไม่ได้ให้คะแนน'}</div>
+    <div class="asm-dl"><button type="button" class="asm-btn ghost" id="asmDlDoc" title="สรุปผลทั้ง 5 index พร้อมกราฟเรดาร์ กราฟแท่ง ข้อสังเกต ประเด็นชวนคุย และช่องบันทึก 1:1 เป็นไฟล์ Word ที่แก้ไขได้ (ค่า Avg. ในไฟล์ใช้ตามที่ติ๊กไว้ใต้กราฟ)">⬇ ดาวน์โหลดสรุป (Word)</button><span class="asm-msg" id="asmDlMsg"></span></div>
     <div class="asm-radar-grid"><div class="asm-radar-box">${lay.length?radarSVG(lay):'<div class="asm-note">ยังไม่มีข้อมูลให้แสดง</div>'}
       <div class="asm-legend">${sw('oat','VP ประเมิน')}${sw('scn','ผลข้อทดสอบ','border-top-style:dashed')}${sw('self','ประเมินตนเอง','border-top-style:dotted')}</div></div>
     <div class="asm-radar-side"><table class="asm-tbl"><tr><th>Index</th><th>VP</th><th>ข้อทดสอบ</th><th>ตนเอง</th><th title="เฉลี่ยจากแหล่งที่ติ๊กไว้ใต้กราฟ: ${esc(avNames.join(', ')||'-')}">Avg.</th><th>Δ ข้อทดสอบ-VP</th><th>Δ ตนเอง-VP</th></tr>${rows}</table>
@@ -13488,6 +13524,7 @@ function renderAdmin(){
     </div>`;
   $('asmAdminRoot').querySelectorAll('.asm-chip[data-i]').forEach(b=>b.onclick = ()=>{ SEL = Number(b.dataset.i); renderAdmin(); });
   $('asmRefresh').onclick = ()=>loadAdmin(true, true); paintRefresh();
+  $('asmDlDoc').onclick = ()=>downloadSummary(p);
   $('asmAdminRoot').querySelectorAll('.asm-legend input').forEach(c=>c.onchange = ()=>{ SHOW[c.dataset.k] = c.checked; renderAdmin(); });
   $('asmAdminRoot').querySelectorAll('.asm-rate-btns').forEach(g=>g.querySelectorAll('button').forEach(b=>b.onclick = ()=>{
     RATE[g.dataset.idx] = Number(b.dataset.v); g.querySelectorAll('button').forEach(x=>x.classList.toggle('sel', x===b)); }));

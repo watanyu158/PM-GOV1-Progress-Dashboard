@@ -204,6 +204,20 @@ module.exports = function registerAssessment(app, { requireAuth, normName, teamP
 
   // ---- Admin (OAT): ดูผล + ให้คะแนนน้อง ----
   const adminOnly = (req, res, next) => req.user.role === 'admin' ? next() : res.status(403).json({ ok: false, error: 'ต้องเป็น admin เท่านั้น' });
+  // คำตอบข้อทดสอบรายข้อของน้อง (เฉพาะ admin) ใช้ทำเอกสารสรุป: ระบบเก็บเฉพาะ "คะแนน 1-5 ของแต่ละข้อ"
+  // แต่ละข้อมีตัวเลือกคะแนนละ 1 ตัวเสมอ จึงย้อนกลับเป็นข้อความตัวเลือกที่น้องเลือกได้ตรงตัว
+  function itemsOf(sr) {
+    if (!sr || !sr.answers) return null;
+    let a; try { a = typeof sr.answers === 'string' ? JSON.parse(sr.answers) : sr.answers; } catch { return null; }
+    if (!a || typeof a !== 'object') return null;
+    const out = [];
+    for (const q of BANK.scenario) {
+      const s = Number(a[q.id]);
+      const o = q.options.find(x => x.score === s);
+      if (o) out.push({ id: q.id, index: q.index, score: s, q: q.text, a: o.text });
+    }
+    return out.length ? out : null;
+  }
   app.get('/api/assessment/admin/overview', requireAuth, adminOnly, async (req, res) => {
     let stale = null;
     try { await refresh(req.query.refresh === '1'); } catch (e) { stale = e.message; }
@@ -211,7 +225,7 @@ module.exports = function registerAssessment(app, { requireAuth, normName, teamP
       const sr = selfRowOf(pm), or = latest('oat_rating', pm);
       const pick = (r, k) => r ? Object.fromEntries(INDEXES.map(i => [i, r[`${CODE[i]}_${k}`]])) : null;
       return { pmName: pm, submitted: !!sr, submittedAt: sr ? sr.submittedAt : null, scenario: pick(sr, 'scn'), self: pick(sr, 'self'),
-        oat: pick(or, 'oat'), oatAt: or ? or.submittedAt : null };
+        oat: pick(or, 'oat'), oatAt: or ? or.submittedAt : null, items: itemsOf(sr) };
     });
     res.json({ ok: true, cycle: cycle(), storage: MAKE_URL ? 'make' : 'local', loadedAt, stale, diag: lastDiag, indexes: INDEXES,
       rubric: Object.fromEntries(BANK.self.map(s => [s.index, s.levels])), people });
