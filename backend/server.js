@@ -181,6 +181,224 @@ if (DATA_DIR_PERSISTENT) {
   console.log('⚠ ยังไม่ได้ตั้ง DATA_DIR - ไฟล์ตั้งค่าและคลังข้อมูลการเงินสะสมจะหายทุกครั้งที่ redeploy (ดูวิธีแก้ในหมายเหตุด้านบนโค้ด)');
 }
 
+// ==================== สำรองถาวรบน GitHub (private repo) ====================
+// ปัญหาที่แก้: Render แผน Free ไม่มีดิสก์ถาวร ไฟล์ใน DATA_DIR ถูกล้างทุกครั้งที่ redeploy/restart
+// คลังข้อมูลสะสม + ค่าสิทธิ์การ์ด + ขอบเขตข้อมูลการ์ด จึงหายทั้งหมด (เจอจริง: การเงินของ IT Asset Management #335254611
+// หายถาวร เพราะบัญชีลบออกจาก PaymentW ไปแล้ว และคลังที่เคยเก็บไว้ถูกล้างตอน deploy)
+// วิธีทำงาน:
+//   - ตอน server เปิด: ดึงไฟล์ทั้ง 3 จาก repo มาก่อนเปิดรับ request (คลัง = รวมกับของในเครื่อง · ค่าการ์ด = ของใน repo ชนะ)
+//   - ทุกครั้งที่เขียนไฟล์ในเครื่อง: รอ 8 วินาทีรวบหลายการเขียนเป็นครั้งเดียว แล้ว commit ขึ้น repo
+//     คลังที่ต่างกันแค่เวลา "เห็นล่าสุด" จะ commit อย่างมากวันละครั้ง (กัน repo บวมจากการ sync ถี่ ๆ)
+//   - อ่านจาก repo ไม่สำเร็จ = หยุดเขียนขึ้น repo จนกว่าจะอ่านได้ (กันเอาคลังที่ไม่ครบไปทับของดีใน repo)
+// ตั้งค่า (env บน Render - token เก็บที่ backend เท่านั้น ห้ามใส่ในโค้ดหรือหน้าเว็บ):
+//   BACKUP_GITHUB_TOKEN  = fine-grained token สิทธิ์ Contents: Read and write เฉพาะ repo นี้
+//   BACKUP_GITHUB_REPO   = owner/repo (ต้องเป็น private และต้องไม่ใช่ repo ที่ Render ใช้ deploy ไม่งั้นทุก commit จะ deploy ใหม่วนไป)
+//   BACKUP_GITHUB_BRANCH = (ไม่บังคับ) ค่าเริ่มต้น = branch หลักของ repo · BACKUP_GITHUB_DIR = (ไม่บังคับ) โฟลเดอร์ใน repo ค่าเริ่มต้น pm-gov1-data
+const GH_API = (process.env.BACKUP_GITHUB_API_URL || 'https://api.github.com').trim().replace(/\/+$/, ''); // เปลี่ยนได้เพื่อทดสอบเท่านั้น
+const GH_TOKEN = (process.env.BACKUP_GITHUB_TOKEN || '').trim();
+const GH_REPO = (process.env.BACKUP_GITHUB_REPO || '').trim()
+  .replace(/^https?:\/\/(www\.)?github\.com\//i, '').replace(/\.git$/i, '').replace(/^\/+|\/+$/g, '');
+const GH_BRANCH = (process.env.BACKUP_GITHUB_BRANCH || '').trim();
+const GH_DIR = ((process.env.BACKUP_GITHUB_DIR || 'pm-gov1-data').trim().replace(/^\/+|\/+$/g, '')) || 'pm-gov1-data';
+const GH_FILES = { archive: 'payment-archive.json', cardVisibility: 'card-visibility.json', cardDataScope: 'card-data-scope.json' };
+const GH = {
+  enabled: !!(GH_TOKEN && /^[\w.-]+\/[\w.-]+$/.test(GH_REPO)),
+  configuredBadly: !!(GH_TOKEN || GH_REPO) && !(GH_TOKEN && /^[\w.-]+\/[\w.-]+$/.test(GH_REPO)),
+  blocked: null,          // 'public-repo' | 'same-as-deploy' - ตั้งแล้วไม่อ่าน/ไม่เขียนเลย
+  started: false,         // ผ่านขั้นกู้คืนตอนเปิด server แล้ว (สำเร็จหรือไม่ก็ตาม)
+  restored: false,        // อ่าน repo สำเร็จแล้ว = อนุญาตให้เขียนขึ้น repo
+  restoredAt: null, restoredCount: null,
+  lastPushAt: null, lastError: null, lastErrorAt: null,
+  files: {},              // name -> { sha, pushedText, pushedHash, pushedAt, touched }
+  timer: null, chain: Promise.resolve(),
+};
+Object.values(GH_FILES).forEach(n => { GH.files[n] = { sha: null, pushedText: null, pushedHash: null, pushedAt: null, touched: false }; });
+{
+  // repo ที่ Render ใช้ deploy (Render ใส่ env นี้ให้เองสำหรับ service ที่ deploy จาก Git)
+  const deploySlug = (process.env.RENDER_GIT_REPO_SLUG || '').trim().toLowerCase();
+  if (GH.enabled && deploySlug && deploySlug === GH_REPO.toLowerCase()) GH.blocked = 'same-as-deploy';
+  if (GH.configuredBadly) console.log('⚠ ตั้งค่าสำรอง GitHub ไม่ครบ: ต้องมีทั้ง BACKUP_GITHUB_TOKEN และ BACKUP_GITHUB_REPO รูปแบบ owner/repo');
+  else if (!GH.enabled) console.log('ℹ ยังไม่ได้ตั้งที่สำรองถาวรบน GitHub (BACKUP_GITHUB_TOKEN + BACKUP_GITHUB_REPO) - คลังจะหายทุกครั้งที่ redeploy');
+  else if (GH.blocked) console.log(`⛔ BACKUP_GITHUB_REPO (${GH_REPO}) เป็น repo เดียวกับที่ Render ใช้ deploy - ไม่สำรองขึ้น repo นี้ (ทุก commit จะทำให้ deploy ใหม่วนไป) ใช้คนละ repo`);
+}
+const ghPath = name => [...GH_DIR.split('/'), name].map(encodeURIComponent).join('/');
+async function ghFetch(method, url, { body, accept } = {}) {
+  return fetch(url, {
+    method,
+    headers: {
+      'Authorization': `Bearer ${GH_TOKEN}`,
+      'Accept': accept || 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'pm-gov1-dashboard',
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(25000),
+  });
+}
+async function ghErr(r, what) {
+  let msg = ''; try { const j = await r.json(); msg = j.message || ''; } catch (e) {}
+  const hint = r.status === 401 ? 'token ไม่ถูกต้องหรือหมดอายุ'
+    : r.status === 403 ? 'token ไม่มีสิทธิ์ (ต้องมี Contents: Read and write) หรือเกินโควตา'
+    : r.status === 404 ? 'ไม่พบ repo หรือ token ไม่มีสิทธิ์เข้าถึง repo นี้'
+    : msg;
+  return new Error(`${what}: GitHub ${r.status}${hint ? ` - ${hint}` : ''}`);
+}
+async function ghCheckRepo() {
+  const r = await ghFetch('GET', `${GH_API}/repos/${GH_REPO}`);
+  if (!r.ok) throw await ghErr(r, 'ตรวจ repo');
+  const j = await r.json();
+  // ข้อมูลการเงินของทีม - ห้ามเก็บใน repo สาธารณะเด็ดขาด
+  if (j.private !== true) { GH.blocked = 'public-repo'; throw new Error(`repo ${GH_REPO} เป็น public - ไม่บันทึกข้อมูลการเงินลง repo สาธารณะ เปลี่ยนเป็น private ก่อน`); }
+}
+// อ่านไฟล์จาก repo: { missing:true } ถ้ายังไม่มีไฟล์ · ไฟล์ใหญ่เกิน 1 MB API ไม่ส่งเนื้อหามา ต้องขอแบบ raw อีกรอบ
+async function ghRead(name) {
+  const url = `${GH_API}/repos/${GH_REPO}/contents/${ghPath(name)}${GH_BRANCH ? `?ref=${encodeURIComponent(GH_BRANCH)}` : ''}`;
+  const r = await ghFetch('GET', url);
+  if (r.status === 404) return { missing: true };
+  if (!r.ok) throw await ghErr(r, `อ่าน ${name}`);
+  const meta = await r.json();
+  let text;
+  if (meta.encoding === 'base64' && meta.content) text = Buffer.from(meta.content, 'base64').toString('utf8');
+  else {
+    const r2 = await ghFetch('GET', url, { accept: 'application/vnd.github.raw+json' });
+    if (!r2.ok) throw await ghErr(r2, `อ่าน ${name} (raw)`);
+    text = await r2.text();
+  }
+  return { sha: meta.sha, text };
+}
+async function ghWrite(name, text, message) {
+  const f = GH.files[name];
+  const url = `${GH_API}/repos/${GH_REPO}/contents/${ghPath(name)}`;
+  const body = { message, content: Buffer.from(text, 'utf8').toString('base64'), ...(GH_BRANCH ? { branch: GH_BRANCH } : {}), ...(f.sha ? { sha: f.sha } : {}) };
+  let r = await ghFetch('PUT', url, { body });
+  if (r.status === 409 || r.status === 422) {
+    // sha ไม่ตรง (มีคนแก้ไฟล์ใน repo เอง หรือ sha หาย) - ขอ sha ล่าสุดแล้วลองใหม่ 1 ครั้ง
+    const cur = await ghRead(name);
+    if (cur.sha) body.sha = cur.sha; else delete body.sha;
+    r = await ghFetch('PUT', url, { body });
+  }
+  if (!r.ok) throw await ghErr(r, `บันทึก ${name}`);
+  const j = await r.json();
+  f.sha = (j.content && j.content.sha) || f.sha;
+}
+// คลังที่ต่างกันแค่เวลา (เห็นล่าสุด/ข้อมูล ณ) ไม่นับว่าเปลี่ยน - ไม่งั้นทุก sync จะ commit ใหม่ทั้งที่เนื้อหาเหมือนเดิม
+const GH_VOLATILE = new Set(['updatedAt', 'lastSeenAt', 'paymentWAsOf', 'rowsAsOf', 'revenueAsOf', 'projectInfoAsOf']);
+function ghHash(name, text) {
+  let basis = text;
+  if (name === GH_FILES.archive) {
+    try { basis = JSON.stringify(JSON.parse(text), (k, v) => (GH_VOLATILE.has(k) ? undefined : v)); } catch (e) {}
+  }
+  return crypto.createHash('sha1').update(basis).digest('hex');
+}
+const GH_TIME_ONLY_EVERY_MS = 20 * 3600e3;   // เนื้อหาเหมือนเดิม ต่างแค่เวลา: commit อย่างมากทุก 20 ชม.
+function ghTextOf(name) {
+  if (name === GH_FILES.archive) return JSON.stringify(PAYMENT_ARCHIVE, null, 2);
+  if (name === GH_FILES.cardVisibility) return JSON.stringify(CARD_VISIBILITY, null, 2);
+  return JSON.stringify(CARD_DATA_SCOPE, null, 2);
+}
+// รวมคลังสองชุด (ใน repo กับในเครื่อง) รายโครงการ: ชุดที่เห็นล่าสุดเป็นหลัก แล้วเติมส่วนที่ขาดจากอีกชุด
+function mergeArchiveStores(remote, local) {
+  const out = { version: 1, ...remote, projects: { ...(remote.projects || {}) }, healthMonths: { ...(remote.healthMonths || {}) } };
+  const has = v => Array.isArray(v) ? v.length > 0 : !!v;
+  Object.entries(local.projects || {}).forEach(([code, l]) => {
+    const r = out.projects[code];
+    if (!r) { out.projects[code] = l; return; }
+    const lNewer = String(l.lastSeenAt || '') > String(r.lastSeenAt || '');
+    const m = { ...(lNewer ? l : r) }, older = lNewer ? r : l;
+    ['rows', 'paymentW', 'revenue', 'projectInfo'].forEach(k => {
+      if (!has(m[k]) && has(older[k])) { m[k] = older[k]; if (older[k + 'AsOf'] !== undefined) m[k + 'AsOf'] = older[k + 'AsOf']; }
+    });
+    if (older.firstSeenAt && (!m.firstSeenAt || older.firstSeenAt < m.firstSeenAt)) m.firstSeenAt = older.firstSeenAt;
+    out.projects[code] = m;
+  });
+  Object.entries(local.healthMonths || {}).forEach(([code, l]) => {
+    const r = out.healthMonths[code];
+    out.healthMonths[code] = r ? { ...r, ...l, months: { ...(r.months || {}), ...(l.months || {}) } } : l;
+  });
+  out.updatedAt = [remote.updatedAt, local.updatedAt].filter(Boolean).sort().pop() || null;
+  return out;
+}
+// ดึงทั้ง 3 ไฟล์จาก repo มาใช้ - เรียกตอนเปิด server และเรียกซ้ำก่อนเขียนถ้ารอบก่อนอ่านไม่สำเร็จ
+async function ghRestore() {
+  if (!GH.enabled || GH.blocked) return;
+  try {
+    await ghCheckRepo();
+    const got = {};
+    for (const name of Object.values(GH_FILES)) got[name] = await ghRead(name);
+    const A = got[GH_FILES.archive];
+    if (!A.missing) {
+      const remote = JSON.parse(A.text);
+      if (!remote.projects || typeof remote.projects !== 'object' || Array.isArray(remote.projects)) remote.projects = {};
+      PAYMENT_ARCHIVE = mergeArchiveStores(remote, PAYMENT_ARCHIVE);
+      savePaymentArchive(PAYMENT_ARCHIVE, { local: true });
+      GH.restoredCount = Object.keys(remote.projects).length;
+      const f = GH.files[GH_FILES.archive];
+      f.pushedHash = ghHash(GH_FILES.archive, A.text); f.pushedAt = remote.updatedAt ? Date.parse(remote.updatedAt) : Date.now();
+    } else GH.restoredCount = 0;
+    GH.files[GH_FILES.archive].sha = A.sha || null;
+    // ค่าการ์ด: ของใน repo ชนะ ยกเว้น admin แก้ค่าในรอบรันนี้แล้ว (ตอนที่ยังอ่าน repo ไม่ได้)
+    [[GH_FILES.cardVisibility, t => { CARD_VISIBILITY = t; saveCardVisibility(t, { local: true }); }],
+     [GH_FILES.cardDataScope, t => { CARD_DATA_SCOPE = t; saveCardDataScope(t, { local: true }); }]].forEach(([name, apply]) => {
+      const g = got[name], f = GH.files[name];
+      f.sha = g.sha || null;
+      if (g.missing) return;
+      const parsed = JSON.parse(g.text);
+      if (!f.touched && parsed && typeof parsed === 'object' && !Array.isArray(parsed)) apply(parsed);
+      f.pushedHash = ghHash(name, g.text); f.pushedAt = Date.now();
+    });
+    GH.restored = true; GH.restoredAt = new Date().toISOString(); GH.lastError = null;
+    // กู้คืนได้ทีหลัง (ตอนเปิด server GitHub ล่ม) แต่ sync ไปแล้ว: เอาการเงินของโครงการที่หายจากไฟล์มาต่อท้ายทันที ไม่ต้องรอ sync ใหม่
+    if (GH.started && latestData.paymentW && latestData.paymentW.length) {
+      try { refreshArchivedInLatest(); } catch (e) { console.log(`⚠ ต่อข้อมูลจากคลังหลังกู้คืนไม่สำเร็จ: ${e.message}`); }
+    }
+    console.log(`☁ กู้คืนจาก GitHub ${GH_REPO} (โฟลเดอร์ ${GH_DIR}): คลัง ${GH.restoredCount} โครงการ · ค่าสิทธิ์การ์ด ${got[GH_FILES.cardVisibility].missing ? 'ยังไม่มีใน repo' : 'โหลดแล้ว'} · ขอบเขตข้อมูลการ์ด ${got[GH_FILES.cardDataScope].missing ? 'ยังไม่มีใน repo' : 'โหลดแล้ว'}`);
+  } catch (e) {
+    GH.lastError = e.message; GH.lastErrorAt = new Date().toISOString();
+    console.log(`⚠ กู้คืนจาก GitHub ไม่สำเร็จ: ${e.message} - หยุดบันทึกขึ้น repo ไว้ก่อน จะลองใหม่ทุก 5 นาทีและตอนเขียนครั้งถัดไป`);
+  }
+}
+// commit ไฟล์ที่เปลี่ยนขึ้น repo (เรียงคิวทีละรอบ ไม่ยิงซ้อนกัน)
+function ghPushNow(reason, force) {
+  GH.chain = GH.chain.then(async () => {
+    if (!GH.enabled || GH.blocked) return;
+    if (!GH.restored) { await ghRestore(); if (!GH.restored) return; }
+    for (const name of Object.values(GH_FILES)) {
+      const f = GH.files[name];
+      const text = ghTextOf(name), h = ghHash(name, text);
+      const timeOnly = h === f.pushedHash;
+      if (timeOnly && (name !== GH_FILES.archive || (!force && f.pushedAt && Date.now() - f.pushedAt < GH_TIME_ONLY_EVERY_MS))) continue;
+      if (timeOnly && f.pushedText === text) continue;
+      const n = name === GH_FILES.archive ? ` (${Object.keys(PAYMENT_ARCHIVE.projects || {}).length} โครงการ)` : '';
+      try {
+        await ghWrite(name, text, `${name}: ${reason}${n} @ ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC`);
+        f.pushedText = text; f.pushedHash = h; f.pushedAt = Date.now();
+        GH.lastPushAt = new Date().toISOString(); GH.lastError = null;
+        console.log(`☁ บันทึก ${name} ขึ้น GitHub แล้ว${n}`);
+      } catch (e) {
+        GH.lastError = e.message; GH.lastErrorAt = new Date().toISOString();
+        console.log(`⚠ บันทึก ${name} ขึ้น GitHub ไม่สำเร็จ: ${e.message}`);
+      }
+    }
+  }).catch(e => { GH.lastError = e.message; GH.lastErrorAt = new Date().toISOString(); });
+  return GH.chain;
+}
+function ghSchedule(name) {
+  if (!GH.enabled || GH.blocked || !GH.started) return;
+  if (GH.files[name]) GH.files[name].touched = true;
+  clearTimeout(GH.timer);
+  GH.timer = setTimeout(() => ghPushNow('sync'), 8000);
+}
+function ghStatus() {
+  return {
+    enabled: GH.enabled, configuredBadly: GH.configuredBadly, blocked: GH.blocked,
+    repo: GH.enabled ? GH_REPO : null, dir: GH_DIR, branch: GH_BRANCH || null,
+    restored: GH.restored, restoredAt: GH.restoredAt, restoredCount: GH.restoredCount,
+    lastPushAt: GH.lastPushAt || (GH.files[GH_FILES.archive].pushedAt ? new Date(GH.files[GH_FILES.archive].pushedAt).toISOString() : null),
+    lastError: GH.lastError, lastErrorAt: GH.lastErrorAt,
+  };
+}
+
 const CARD_VISIBILITY_FILE = path.join(DATA_DIR, 'card-visibility-store.json');
 const DEFAULT_CARD_VISIBILITY = {
   teamScorecard: ['oat'], // ค่าเริ่มต้น: การ์ดนี้เคย hardcode ไว้ให้ oat เห็นคนเดียว - seed ไว้แบบเดิมก่อน OAT จะมาปรับเองทีหลังได้
@@ -198,7 +416,9 @@ function loadCardVisibility() {
   }
 }
 
-function saveCardVisibility(data) {
+// opts.local = เขียนเฉพาะไฟล์ในเครื่อง ไม่ส่งขึ้น GitHub (ใช้ตอนกู้คืนจาก GitHub เอง)
+function saveCardVisibility(data, opts) {
+  if (!(opts && opts.local)) ghSchedule(GH_FILES.cardVisibility);
   try {
     fs.writeFileSync(CARD_VISIBILITY_FILE, JSON.stringify(data, null, 2), 'utf8');
     return true;
@@ -228,7 +448,8 @@ function loadCardDataScope() {
     return { ...DEFAULT_CARD_DATA_SCOPE };
   }
 }
-function saveCardDataScope(data) {
+function saveCardDataScope(data, opts) {
+  if (!(opts && opts.local)) ghSchedule(GH_FILES.cardDataScope);
   try { fs.writeFileSync(CARD_DATA_SCOPE_FILE, JSON.stringify(data, null, 2), 'utf8'); return true; }
   catch (e) { console.log(`⚠ เขียนไฟล์ขอบเขตข้อมูลการ์ดไม่สำเร็จ: ${e.message}`); return false; }
 }
@@ -274,7 +495,8 @@ function loadPaymentArchive() {
     }
   }
 }
-function savePaymentArchive(data) {
+function savePaymentArchive(data, opts) {
+  if (!(opts && opts.local)) ghSchedule(GH_FILES.archive);
   try { fs.writeFileSync(PAYMENT_ARCHIVE_FILE, JSON.stringify(data, null, 2), 'utf8'); return true; }
   catch (e) { console.log(`⚠ เขียนคลังข้อมูลการเงินสะสมไม่สำเร็จ: ${e.message} (ยังใช้ได้ในรอบรันนี้ แต่จะหายถ้า server restart)`); return false; }
 }
@@ -1321,7 +1543,16 @@ app.get('/api/admin/payment-archive', requireAuth, (req, res) => {
       missing: work.filter(x => x.src === 'none').map(x => x.k),
     };
   }).sort((a, b) => String(a.code).localeCompare(String(b.code)));
-  res.json({ ok: true, updatedAt: PAYMENT_ARCHIVE.updatedAt, count: projects.length, projects, archive: PAYMENT_ARCHIVE });
+  res.json({ ok: true, updatedAt: PAYMENT_ARCHIVE.updatedAt, count: projects.length, projects, archive: PAYMENT_ARCHIVE, backup: ghStatus() });
+});
+
+// บันทึกขึ้น GitHub ทันที (ปุ่มในการ์ด Finance Data Archive) - ใช้ตรวจว่าตั้งค่าถูกหลังใส่ env ครั้งแรก
+app.post('/api/admin/backup/push', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ ok: false, error: 'ต้องเป็น admin เท่านั้น' });
+  if (!GH.enabled || GH.blocked) return res.json({ ok: false, backup: ghStatus() });
+  await ghPushNow('manual', true);
+  const st = ghStatus();
+  res.json({ ok: !st.lastError, backup: st });
 });
 
 // อัปโหลดคลังกลับ (ไฟล์ JSON ที่เคยดาวน์โหลดไว้) - ค่าเริ่มต้นคือ "เติมเฉพาะโครงการที่ยังไม่มีในคลัง"
@@ -1809,10 +2040,22 @@ app.get('/api/debug/last-payload', requireAuth, (req, res) => {
   res.json(lastRaw);
 });
 
-// ==== แบบประเมิน 5 Key Indexes (ทำครั้งเดียวต่อรอบ, เก็บผลผ่าน Make.com -> Excel ของ OAT) - ดู assessment.js ====
-require('./assessment')(app, { requireAuth, normName, teamPmNames: TEAM_PM_NAMES, dataDir: DATA_DIR });
-
 const PORT = process.env.PORT || 3000;
+// กู้คืนจาก GitHub ให้เสร็จก่อนเปิดรับ request (กัน sync แรกหลัง deploy ทำงานกับคลังว่าง) - รออย่างมาก 30 วินาที
+// อ่านไม่สำเร็จ = เปิด server ต่อด้วยของในเครื่อง แต่ไม่เขียนขึ้น repo จนกว่าจะอ่านได้ (ดู ghPushNow)
+GH.chain = GH.chain.then(() => ghRestore());
+const ghBoot = (GH.enabled && !GH.blocked) ? Promise.race([GH.chain, new Promise(r => setTimeout(r, 30000))]) : Promise.resolve();
+ghBoot.then(() => {
+GH.started = true;
+if (GH.restored) ghPushNow('startup');
+// ตอนเปิด server อ่าน GitHub ไม่ได้ (ล่ม/ช้า) - ลองใหม่ทุก 5 นาทีจนกว่าจะได้ แล้วบันทึกส่วนที่ค้างขึ้น repo
+if (GH.enabled && !GH.blocked) {
+  const retry = setInterval(() => {
+    if (GH.restored || GH.blocked) return clearInterval(retry);
+    GH.chain = GH.chain.then(() => ghRestore()).then(() => { if (GH.restored) { clearInterval(retry); ghPushNow('restore-retry'); } });
+  }, 5 * 60 * 1000);
+  retry.unref();
+}
 app.listen(PORT, () => {
   console.log(`PM-GOV1 API listening on :${PORT}`);
 
@@ -1830,4 +2073,5 @@ app.listen(PORT, () => {
   } else {
     console.log('ℹ keep-alive skipped (RENDER_EXTERNAL_URL not set - not running on Render, or running locally)');
   }
+});
 });

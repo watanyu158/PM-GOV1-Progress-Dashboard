@@ -198,6 +198,37 @@
   @media(max-width:900px){.kpi-value-row{grid-template-columns:repeat(2,1fr);row-gap:14px;}}
   @media(max-width:420px){.kpi-vg-v{font-size:14px;}.kpi-vg-item.main .kpi-vg-v{font-size:17px;}}
 
+  /* ธงติดตามโครงการ 5 ข้อ (ใต้การ์ด Project Value) - นิยามตามที่ OAT กำหนด 17 พ.ย. 69 */
+  .kfl-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:10px;}
+  .kfl-head .kpi-top{margin-bottom:0;}
+  .kfl-sum{margin-left:auto;font-size:11px;color:var(--muted);}
+  .kfl-sum b{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:var(--kc);}
+  .kfl-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+  @media(max-width:1080px){.kfl-row{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));}}
+  .kfl-item{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-width:0;
+    padding:9px 11px 10px;border-radius:9px;border:1px solid var(--line-soft);border-left:3px solid var(--line);
+    background:var(--surface-2);transition:.15s;}
+  .kfl-item:hover{background:var(--surface);border-color:var(--line);}
+  .kfl-item:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
+  .kfl-item.on{background:var(--surface);box-shadow:var(--sh-md);}
+  .kfl-item.zero{border-left-color:color-mix(in srgb,var(--success) 55%,transparent);}
+  .kfl-item.warn{border-left-color:var(--warning);}
+  .kfl-item.crit{border-left-color:var(--critical);}
+  .kfl-l{font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);line-height:1.3;}
+  .kfl-v{font-family:'Plus Jakarta Sans',sans-serif;font-size:24px;font-weight:800;line-height:1.1;color:var(--ink);}
+  .kfl-v small{font-family:'Inter',system-ui,sans-serif;font-size:11px;font-weight:500;color:var(--faint);margin-left:4px;}
+  .kfl-item.zero .kfl-v{color:var(--success);}
+  .kfl-item.warn .kfl-v{color:var(--warning);}
+  .kfl-item.crit .kfl-v{color:var(--critical);}
+  .kfl-d{font-size:10.5px;color:var(--muted);line-height:1.35;}
+  .kfl-list{display:none;margin-top:10px;border-top:1px solid var(--line-soft);padding-top:8px;overflow-x:auto;}
+  .kfl-list.open{display:block;}
+  .kfl-list .tf-tbl{min-width:600px;}
+  .kfl-cap{font-size:11px;color:var(--ink-2);font-weight:600;margin-bottom:4px;}
+  .kfl-cap small{font-weight:400;color:var(--faint);margin-left:6px;}
+  .kfl-none{font-size:11px;color:var(--success);padding:4px 0;}
+  .kfl-days{font-family:'IBM Plex Mono',monospace;font-weight:700;white-space:nowrap;}
+  .kfl-days.warn{color:var(--warning);} .kfl-days.crit{color:var(--critical);}
   .kpi-gap-remark{
     margin-top:14px;padding-top:12px;border-top:1px dashed var(--line-soft);
     font-size:11px;color:var(--warning);line-height:1.7;
@@ -339,6 +370,15 @@
   .arch-date-lb{font-size:10.5px;color:var(--faint);display:flex;align-items:center;gap:6px;}
   .arch-date{font-family:inherit;font-size:10.5px;padding:4px 7px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);}
   .arch-msg{font-size:10.5px;color:var(--muted);}
+  /* สถานะสำรองถาวรบน GitHub (ใต้ปุ่มของการ์ดคลัง) */
+  .arch-backup{display:flex;gap:6px 10px;align-items:center;flex-wrap:wrap;padding:9px 18px;border-bottom:1px solid var(--line-soft);font-size:11px;color:var(--muted);line-height:1.5;}
+  .arch-backup:empty{display:none;}
+  .arch-backup b{font-weight:700;}
+  .arch-backup.ok b{color:var(--success);}
+  .arch-backup.warn b{color:var(--warning);}
+  .arch-backup.bad b{color:var(--critical);}
+  .arch-backup code{font-size:10.5px;background:var(--surface-2);padding:1px 5px;border-radius:4px;}
+  .arch-backup .admin-update-btn{padding:4px 10px;font-size:10.5px;}
   /* Training Certificated: ตารางผู้มีสิทธิ์สอบ CAPM / PMP */
   .ce-block{padding:14px 18px 6px;}
   .ce-block + .ce-block{border-top:1px solid var(--line-soft);}
@@ -1880,61 +1920,6 @@
   #tab2Panels{display:none;}
   #tab3Panels{display:none;}
   #tab4Panels{display:none;}
-  #tab5Panels{display:none;}
-  /* ---------- Assessment (แบบประเมิน 5 Key Indexes) ---------- */
-  .asm-wrap{max-width:860px;margin:0 auto;}
-  .asm-note{padding:13px 16px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line-soft);font-size:13px;line-height:1.7;color:var(--ink-2);}
-  .asm-note.warn{background:var(--warning-tint);border-color:#E3CDA0;}
-  .asm-note.ok{background:var(--success-tint);border-color:#C9DABF;}
-  .asm-note.trial{background:var(--teal-tint);border-color:#BFD2C6;}
-  .asm-prog{height:6px;background:var(--bg-tint);border-radius:4px;overflow:hidden;margin:4px 0 14px;}
-  .asm-prog>i{display:block;height:100%;background:var(--brand);transition:width .2s;}
-  .asm-q-meta{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted);margin-bottom:6px;}
-  .asm-q{font-size:16px;font-weight:600;line-height:1.55;color:var(--ink);margin-bottom:14px;}
-  .asm-opt{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:11px 14px;margin-bottom:9px;font:inherit;font-size:14px;line-height:1.55;color:var(--ink);cursor:pointer;transition:.12s;}
-  .asm-opt:hover{border-color:var(--brand-2);background:var(--brand-tint);}
-  .asm-opt.sel{border-color:var(--brand);background:var(--brand-tint);box-shadow:inset 0 0 0 1px var(--brand);}
-  .asm-opt .k{flex:none;min-width:24px;height:24px;border-radius:12px;border:1.5px solid var(--faint);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--muted);}
-  .asm-opt.sel .k{background:var(--brand);border-color:var(--brand);color:#fff;}
-  .asm-nav{display:flex;gap:10px;justify-content:space-between;margin-top:14px;flex-wrap:wrap;}
-  .asm-btn{padding:9px 20px;border-radius:8px;border:1px solid var(--brand);background:var(--brand);color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
-  .asm-btn:hover{background:var(--brand-2);}
-  .asm-btn:disabled{opacity:.45;cursor:default;}
-  .asm-btn.ghost{background:var(--surface);color:var(--brand);}
-  .asm-dl{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px;}
-  .asm-dl .asm-btn{padding:7px 14px;font-size:12.5px;}
-  .asm-btn.danger{background:var(--critical);border-color:var(--critical);}
-  .asm-selfhead{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;color:var(--teal);margin-bottom:4px;}
-  .asm-radar-grid{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;}
-  .asm-radar-box{flex:1 1 340px;max-width:520px;}
-  .asm-radar-side{flex:1 1 300px;min-width:280px;}
-  .asm-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;margin:6px 0 2px;}
-  .asm-legend label{display:flex;align-items:center;gap:6px;cursor:pointer;}
-  .asm-sw{display:inline-block;width:22px;height:0;border-top:3px solid;}
-  .asm-tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
-  .asm-tbl th,.asm-tbl td{padding:6px 8px;border-bottom:1px solid var(--line-soft);text-align:right;}
-  .asm-tbl th:first-child,.asm-tbl td:first-child{text-align:left;}
-  .asm-tbl th{color:var(--muted);font-weight:600;font-size:11.5px;}
-  .asm-tbl .gap{font-weight:700;color:var(--critical);}
-  .asm-people{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
-  .asm-chip{padding:7px 13px;border-radius:20px;border:1px solid var(--line);background:var(--surface);font:inherit;font-size:12.5px;font-weight:600;color:var(--ink-2);cursor:pointer;}
-  .asm-chip.active{background:var(--brand);border-color:var(--brand);color:#fff;}
-  .asm-chip small{font-weight:500;opacity:.8;margin-left:4px;}
-  .asm-rate-row{padding:9px 0;border-bottom:1px solid var(--line-soft);}
-  .asm-rate-row .n{font-size:13px;font-weight:700;margin-bottom:5px;}
-  .asm-rate-btns{display:flex;gap:6px;}
-  .asm-rate-btns button{width:38px;height:34px;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);font:inherit;font-weight:700;cursor:pointer;color:var(--ink-2);}
-  .asm-rate-btns button.sel{background:var(--brand);border-color:var(--brand);color:#fff;}
-  .asm-rate-row details{margin-top:5px;font-size:12px;color:var(--muted);line-height:1.6;}
-  .asm-rate-row details div{margin:2px 0;}
-  .asm-msg{font-size:12.5px;margin-top:8px;min-height:18px;}
-  .asm-spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:asmspin .8s linear infinite;vertical-align:-2px;margin-right:6px;}
-  @keyframes asmspin{to{transform:rotate(360deg);}}
-  .asm-chip:disabled{opacity:.7;cursor:progress;}
-  .asm-diag{font-size:11.5px;color:var(--faint);margin:-4px 0 10px;line-height:1.6;}
-  .asm-refinfo{font-size:12px;color:var(--muted);align-self:center;margin-left:4px;}
-  #asmAdminRoot.asm-loading .asm-radar-grid{opacity:.45;transition:opacity .15s;pointer-events:none;}
-  .asm-msg.err{color:var(--critical);} .asm-msg.good{color:var(--success);}
 
   /* ---------------- Login screen ---------------- */
   #dashboardWrap{display:none;}
@@ -2386,10 +2371,6 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
       <span><span class="tab-en">Admin</span> <span class="tab-th">· จัดการสิทธิ์การ์ด</span></span>
     </button>
-    <button class="tab-btn" id="tabBtn5" data-tab="5">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-      <span><span class="tab-en">Assessment</span> <span class="tab-th">· แบบประเมิน</span></span>
-    </button>
   </div>
 
   <div class="panel" id="panel-kpis">
@@ -2789,7 +2770,7 @@
       <div class="p-body">
         <div style="padding:13px 18px;border-bottom:1px solid var(--line-soft);font-size:11.5px;color:var(--faint);line-height:1.6">
           เลือก "ทุกคน" ให้การ์ดนั้นเห็นได้ทุกคนในทีม หรือติ๊กเลือกเฉพาะบางคน แล้วกด "อัปเดต" ต่อการ์ด - มีผลทันทีตอนคนนั้นโหลด/รีเฟรชหน้าครั้งถัดไป<br>
-          ⚠️ การตั้งค่านี้เก็บใน memory ของ server - ถ้า redeploy backend จะรีเซ็ตกลับเป็นค่าเริ่มต้นทั้งหมด
+          <span id="adminPersistNote">⚠️ การตั้งค่านี้เก็บใน memory ของ server - ถ้า redeploy backend จะรีเซ็ตกลับเป็นค่าเริ่มต้นทั้งหมด</span>
         </div>
         <div id="adminCardList"></div>
       </div>
@@ -2811,33 +2792,11 @@
           <label class="arch-date-lb">วันที่ของไฟล์เก่า <input type="date" id="archAsOf" class="arch-date"></label>
           <span id="archMsg" class="arch-msg"></span>
         </div>
+        <div id="archBackup" class="arch-backup"></div>
         <div id="archList"></div>
       </div>
     </div>
   </div><!-- /tab4Panels -->
-
-  <div id="tab5Panels">
-    <div class="panel">
-      <div class="p-head">
-        <div class="p-title">
-          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-          5 Key Indexes Assessment <span class="sep">-</span> <span class="th">แบบประเมิน One-on-One</span>
-        </div>
-        <span class="p-count" id="asmCycle"></span>
-      </div>
-      <div class="p-body"><div class="asm-wrap" id="asmRoot"></div></div>
-    </div>
-    <div class="panel" id="asmAdminPanel" style="display:none">
-      <div class="p-head">
-        <div class="p-title">
-          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 21 8.5 17.5 20 6.5 20 3 8.5 12 2"/></svg>
-          Team Radar <span class="sep">-</span> <span class="th">ผลประเมินรายบุคคล (เฉพาะ VP)</span>
-        </div>
-        <span class="p-count" id="asmAdminCount"></span>
-      </div>
-      <div class="p-body" id="asmAdminRoot"></div>
-    </div>
-  </div><!-- /tab5Panels -->
 
   <footer>PM-GOV1 Progress Dashboard - ข้อมูลอัปเดตอัตโนมัติ</footer>
 </div>
@@ -3433,6 +3392,104 @@ function buildFilters(){
   });
 }
 
+// ==== ธงติดตามโครงการ 5 ข้อ (การ์ดใต้ Project Value) ====
+// นิยามของ OAT (17 พ.ย. 69) ตรวจทานกับสูตรในรายงาน PMS Process Dashboard ของบริษัท (Rpt_PMS_OverAll_Project 16 พ.ย. 69)
+// ให้นับตรงกับรายงานทุกข้อ - ใช้คอลัมน์ Status ตามที่บันทึกในระบบ (ไม่ใช่สถานะที่แดชบอร์ดอนุมานจากวันปิดงาน)
+//   Not Update In-Progress     = Status Inprogress · มี Update Date และผ่านมาตั้งแต่ 14 วันขึ้นไป
+//   Not Update Contract Closed = Status Contract Closed · ไม่มี Update Date เลย หรือผ่านมาตั้งแต่ 14 วันขึ้นไป
+//   Pending Contract Close     = Status Inprogress · %Progress = 100
+//   Overdue Internal Kickoff   = Status Inprogress · มี Project Accept Date แต่ Internal Meeting Submit Date ว่าง และเลยมาเกิน 7 วัน
+//                                (ในระบบ Accept Date มีเวลาติดมาด้วย รายงานจึงขึ้นตั้งแต่วันที่ 8 - ตรงกับ "เกินกว่า 7 วัน")
+//   Overdue Project Transfer   = มี Contract Closed Date ผ่านมาตั้งแต่ 7 วัน แต่ Transfer Date ยังว่าง (ไม่ดูสถานะ)
+// นับเฉพาะโครงการในรายชื่อที่ติดตาม (โครงการที่ OAT ดูแลในฐานะ VP) - รายงานบริษัทนับทั้งทีม ซึ่งรวมโครงการก่อนหน้านั้นด้วย
+// โครงการที่ OAT ไม่ให้นับ แม้จะโผล่ในข้อมูล: 119251054 AOT - IPT and VG Replacement (อยู่ก่อนช่วงที่ OAT เป็น VP)
+const PMS_FLAG_EXCLUDE = new Set(['119251054']);
+const PMS_FLAGS = [
+  { k:'nuIp', en:'Not Update In-Progress',     th:'Inprogress ไม่อัปเดตตั้งแต่ 14 วัน',           sev:'warn', ref:'อัปเดตล่าสุด' },
+  { k:'nuCc', en:'Not Update Contract Closed', th:'Contract Closed ไม่อัปเดตตั้งแต่ 14 วัน',      sev:'warn', ref:'อัปเดตล่าสุด' },
+  { k:'pcc',  en:'Pending Contract Close',     th:'ความคืบหน้า 100% แต่ยังเป็น Inprogress',       sev:'warn', ref:'อัปเดตล่าสุด' },
+  { k:'oik',  en:'Overdue Internal Kickoff',   th:'ยังไม่ทำ internal kickoff เกิน 7 วันหลัง Accept', sev:'crit', ref:'Accept Date' },
+  { k:'opt',  en:'Overdue Project Transfer',   th:'Contract Close ครบ 7 วัน ยังไม่มี Transfer Date', sev:'crit', ref:'Contract Closed Date' },
+];
+function pmsFlagHits(list, today0){
+  const since = v => { const d = parseD(v); return d ? Math.round((today0 - d) / DAY) : null; };
+  const rawSt = p => String(p['Status'] || '').trim();
+  const isIp = p => /^in\s*progress$/i.test(rawSt(p));
+  const hits = { nuIp:[], nuCc:[], pcc:[], oik:[], opt:[] };
+  list.forEach(p => {
+    if(PMS_FLAG_EXCLUDE.has(String(p['Project Code'] || '').trim())) return;
+    const upd = hasCellValue(p['Update Date']) ? since(p['Update Date']) : null;
+    if(isIp(p) && upd != null && upd >= 14) hits.nuIp.push({ p, date:p['Update Date'], days:upd });
+    if(/^contract\s*closed$/i.test(rawSt(p)) && (upd == null || upd >= 14)) hits.nuCc.push({ p, date:p['Update Date'], days:upd });
+    if(isIp(p) && num(p['%Progress']) >= 100) hits.pcc.push({ p, date:p['Update Date'], days:upd });
+    const acc = since(p['Project Accept Date']);
+    if(isIp(p) && acc != null && acc > 7 && !hasCellValue(p['Internal Meeting Submit Date'])) hits.oik.push({ p, date:p['Project Accept Date'], days:acc });
+    const cc = since(p['Contract Closed Date']);
+    if(cc != null && cc >= 7 && !hasCellValue(p['Transfer Date'])) hits.opt.push({ p, date:p['Contract Closed Date'], days:cc });
+  });
+  Object.values(hits).forEach(a => a.sort((x, y) => (y.days ?? 1e9) - (x.days ?? 1e9)));
+  return hits;
+}
+function pmsFlagsCardHtml(list){
+  const today0 = new Date(); today0.setHours(0,0,0,0);
+  const hits = pmsFlagHits(list, today0);
+  const totalHits = PMS_FLAGS.reduce((t, f) => t + hits[f.k].length, 0);
+  const projN = new Set(PMS_FLAGS.flatMap(f => hits[f.k].map(h => String(h.p['Project Code']||'').trim()))).size;
+  const anyCrit = PMS_FLAGS.some(f => f.sev === 'crit' && hits[f.k].length);
+  const kc = !totalHits ? '#4F7A4A' : anyCrit ? '#A8482F' : '#B07A28';
+  const kt = !totalHits ? '#E6EDDF' : anyCrit ? '#F5E2DB' : '#F7EBD6';
+  const fmt = v => { const d = parseD(v); return d ? fmtDObj(d) : '-'; };
+  const items = PMS_FLAGS.map(f => {
+    const n = hits[f.k].length;
+    return `<button type="button" class="kfl-item ${n ? f.sev : 'zero'}" data-k="${f.k}" aria-expanded="false" title="${f.th} - กดเพื่อดูรายชื่อ">
+      <span class="kfl-l">${f.en}</span>
+      <span class="kfl-v">${n}<small>โครงการ</small></span>
+      <span class="kfl-d">${f.th}</span>
+    </button>`;
+  }).join('');
+  // รายชื่อแยกตามธง ซ่อนไว้ กดที่ช่องไหนแสดงของช่องนั้น
+  const lists = PMS_FLAGS.map(f => {
+    const rows = hits[f.k];
+    const body = rows.length ? `<table class="tf-tbl"><thead><tr><th>Project Code</th><th>ชื่อโครงการ</th><th>PM</th><th>สถานะ</th><th>%</th><th>${f.ref}</th><th>ผ่านมา</th></tr></thead><tbody>
+        ${rows.map(h => `<tr>
+          <td class="tf-code">${h.p['Project Code']||'-'}</td>
+          <td class="tf-name">${String(h.p['Project Name']||'-').slice(0,48)}</td>
+          <td>${pmKey(h.p['PM Name'])||'-'}</td>
+          <td>${statusTag(h.p)}</td>
+          <td>${hasCellValue(h.p['%Progress']) ? num(h.p['%Progress']).toFixed(num(h.p['%Progress']) % 1 ? 2 : 0) : '-'}</td>
+          <td>${fmt(h.date)}</td>
+          <td><span class="kfl-days ${f.sev}">${h.days == null ? (f.k === 'nuCc' ? 'ไม่เคยอัปเดต' : '-') : `${h.days} วัน`}</span></td>
+        </tr>`).join('')}</tbody></table>`
+      : `<div class="kfl-none">✓ ไม่มีโครงการเข้าเงื่อนไขนี้</div>`;
+    return `<div class="kfl-list" data-list="${f.k}"><div class="kfl-cap">${f.en}<small>${f.th}</small></div>${body}</div>`;
+  }).join('');
+  return `
+    <div class="kpi kpi-wide kpi-flags" style="--kc:${kc};--kt:${kt}">
+      <div class="kfl-head">
+        <div class="kpi-top">
+          <div class="kpi-ico">${svg(totalHits ? I.alert : I.check)}</div>
+          <div class="kpi-label"><div class="kpi-en">Project Follow-up</div><div class="kpi-th">โครงการที่ต้องตามตามเกณฑ์ 5 ข้อ · นับ ณ ${fmtDObj(today0)}</div></div>
+        </div>
+        <span class="kfl-sum">${totalHits ? `รวม <b>${totalHits}</b> รายการ จาก <b>${projN}</b> โครงการ` : 'ไม่มีโครงการที่ต้องตาม'}</span>
+      </div>
+      <div class="kfl-row">${items}</div>
+      ${lists}
+    </div>`;
+}
+// กดช่องธง = เปิด/ปิดรายชื่อของช่องนั้น (เปิดได้ทีละช่อง)
+function bindPmsFlags(root){
+  root.querySelectorAll('.kfl-item').forEach(btn => btn.addEventListener('click', () => {
+    const card = btn.closest('.kpi-flags');
+    const wasOn = btn.classList.contains('on');
+    card.querySelectorAll('.kfl-item').forEach(b => { b.classList.remove('on'); b.setAttribute('aria-expanded', 'false'); });
+    card.querySelectorAll('.kfl-list').forEach(l => l.classList.remove('open'));
+    if(!wasOn){
+      btn.classList.add('on'); btn.setAttribute('aria-expanded', 'true');
+      const l = card.querySelector(`.kfl-list[data-list="${btn.dataset.k}"]`); if(l) l.classList.add('open');
+    }
+  }));
+}
+
 function renderKPIs(list){
   const total = list.length;
   const inprog = list.filter(p=>/inprogress|กำลัง/i.test(p['Status']||'')).length;
@@ -3596,7 +3653,9 @@ function renderKPIs(list){
     </div>`;
   }
 
-  document.getElementById('kpis').innerHTML = cardsHtml + valueCardHtml + transferHtml;
+  const kpisEl = document.getElementById('kpis');
+  kpisEl.innerHTML = cardsHtml + valueCardHtml + pmsFlagsCardHtml(list) + transferHtml;
+  bindPmsFlags(kpisEl);
 }
 
 function renderPM(list){
@@ -12881,6 +12940,40 @@ async function renderPaymentArchiveAdmin(){
   const say = (txt, cls='') => { msgEl.className = 'arch-msg ' + cls; msgEl.textContent = txt; };
   const authHdr = () => ({ Authorization:`Bearer ${getToken()}` });
 
+  // สถานะสำรองถาวรบน GitHub - คลัง + ค่าสิทธิ์การ์ด + ขอบเขตข้อมูลการ์ด (server กู้คืนเองตอนเปิดหลัง redeploy)
+  function renderBackup(b){
+    const el = document.getElementById('archBackup');
+    const note = document.getElementById('adminPersistNote');
+    if(!el || !b) return;
+    const pad2 = n => String(n).padStart(2,'0');
+    const fmtDT = iso => { const d = new Date(iso); return isNaN(d) ? '-' : `${fmtDObj(d)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+    const repo = b.repo ? `<code>${b.repo}</code>` : '';
+    let cls, html, btn = false;
+    if(b.configuredBadly){ cls = 'bad'; html = `<b>⚠ ตั้งค่าที่สำรองถาวรไม่ครบ</b> ต้องมีทั้ง BACKUP_GITHUB_TOKEN และ BACKUP_GITHUB_REPO (รูปแบบ owner/repo) บน Render`; }
+    else if(!b.enabled){ cls = 'warn'; html = `<b>⚠ ยังไม่มีที่สำรองถาวร</b> คลังและค่าสิทธิ์การ์ดจะหายทุกครั้งที่ redeploy - ตั้ง BACKUP_GITHUB_TOKEN และ BACKUP_GITHUB_REPO บน Render เพื่อเก็บถาวรใน GitHub`; }
+    else if(b.blocked === 'public-repo'){ cls = 'bad'; html = `<b>⛔ ไม่บันทึกขึ้น GitHub</b> ${repo} เป็น public - ข้อมูลการเงินต้องเก็บใน private repo เท่านั้น`; }
+    else if(b.blocked === 'same-as-deploy'){ cls = 'bad'; html = `<b>⛔ ไม่บันทึกขึ้น GitHub</b> ${repo} เป็น repo เดียวกับที่ Render ใช้ deploy - ต้องใช้คนละ repo ไม่งั้นทุกครั้งที่บันทึกจะ deploy ใหม่`; }
+    else if(b.lastError){ cls = 'bad'; btn = true; html = `<b>⚠ สำรองขึ้น GitHub ไม่สำเร็จ</b> ${repo} · ${b.lastError} · ระบบจะลองใหม่เองตอนข้อมูลเปลี่ยนครั้งถัดไป`; }
+    else { cls = 'ok'; btn = true;
+      html = `<b>☁ สำรองถาวรบน GitHub</b> ${repo} <span>บันทึกล่าสุด ${b.lastPushAt ? fmtDT(b.lastPushAt) : 'ยังไม่เคย'}</span>`
+        + (b.restoredAt ? `<span>· ตอนเปิด server กู้คืนได้ ${b.restoredCount || 0} โครงการ</span>` : ''); }
+    el.className = 'arch-backup ' + cls;
+    el.innerHTML = html + (btn ? ` <button type="button" class="admin-update-btn" id="archPushNow">☁ บันทึกตอนนี้</button>` : '');
+    if(note) note.textContent = (b.enabled && !b.blocked && !b.lastError && b.restored)
+      ? '☁ การตั้งค่านี้สำรองถาวรบน GitHub แล้ว - ไม่หายตอน redeploy'
+      : '⚠️ การตั้งค่านี้เก็บใน memory ของ server - ถ้า redeploy backend จะรีเซ็ตกลับเป็นค่าเริ่มต้นทั้งหมด';
+    const pb = document.getElementById('archPushNow');
+    if(pb) pb.addEventListener('click', async ()=>{
+      pb.disabled = true; say('กำลังบันทึกขึ้น GitHub...');
+      try{
+        const res = await fetch(`${API_BASE}/api/admin/backup/push`, { method:'POST', headers: authHdr() });
+        const jj = await res.json();
+        say(jj.ok ? 'บันทึกขึ้น GitHub แล้ว' : `บันทึกไม่สำเร็จ: ${(jj.backup && jj.backup.lastError) || jj.error || 'ไม่ทราบสาเหตุ'}`, jj.ok ? 'good' : 'bad');
+      }catch(e){ say('บันทึกไม่สำเร็จ: ' + e.message, 'bad'); }
+      await load();
+    });
+  }
+
   async function load(){
     try{
       const res = await fetch(`${API_BASE}/api/admin/payment-archive`, { headers: authHdr() });
@@ -12888,6 +12981,7 @@ async function renderPaymentArchiveAdmin(){
       if(!res.ok || !j.ok) throw new Error(j.error || 'ดึงข้อมูลคลังไม่สำเร็จ');
       const arch = j.projects.filter(p => !p.inLatestFile);
       cntEl.textContent = `${j.count} โครงการ · มาจากคลัง ${arch.length}`;
+      renderBackup(j.backup);
       const fmtIso = s => s ? fmtDate(String(s).slice(0,10)) : 'ไม่ระบุวันที่';
       // ป้ายรายชุดข้อมูล: อยู่ในไฟล์ล่าสุด (ปกติ) · มาจากคลัง (เส้นประ) · ไม่มีเลย (ขีดฆ่า สีเตือน)
       const partTag = q => q.src==='file' ? `<span class="pt">${q.k}</span>`
@@ -13191,7 +13285,6 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     document.getElementById('tab2Panels').style.display = tab==='2' ? 'block' : 'none';
     document.getElementById('tab3Panels').style.display = tab==='3' ? 'block' : 'none';
     document.getElementById('tab4Panels').style.display = tab==='4' ? 'block' : 'none';
-    document.getElementById('tab5Panels').style.display = tab==='5' ? 'block' : 'none';
   });
 });
 
@@ -13250,308 +13343,6 @@ if(piProfilesEl) piProfilesEl.addEventListener('click', (e)=>{
   detail.classList.toggle('open', opening);
   row.classList.toggle('open', opening);
 });
-</script>
-<script>
-/* ===== แบบประเมิน 5 Key Indexes (tab 5) =====
-   เฉลย/คะแนนอยู่ฝั่ง server เท่านั้น หน้านี้ได้รับแค่ข้อความ + รหัสตัวเลือก และส่งรหัสที่เลือกกลับไป */
-(function(){
-const $ = id => document.getElementById(id);
-const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const hdr = () => ({'Content-Type':'application/json', Authorization:'Bearer '+getToken()});
-async function api(method, path, body){
-  const r = await fetch(API_BASE+path, {method, headers:hdr(), body: body?JSON.stringify(body):undefined, signal: AbortSignal.timeout(40000)});
-  let d = {}; try{ d = await r.json(); }catch(e){}
-  return {status:r.status, d};
-}
-const IDX = ['Attitude','Awareness','Engagement','Work-Life Balance','Process'];
-const COLORS = {oat:'#7A5C3E', scn:'#2F6F8F', self:'#B07A28', avg:'#A23B72'};
-const fmtDT = iso => { try{ return new Date(iso).toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'}); }catch(e){ return iso||''; } };
-const lsGet = k => { try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(e){ return null; } };
-const lsSet = (k,v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
-const lsDel = k => { try{ localStorage.removeItem(k); }catch(e){} };
-
-/* ---------- Radar (inline SVG, ไม่พึ่ง library) ---------- */
-function radarSVG(layers, size){
-  size = size||340; const c = size/2, R = size/2 - 38, n = IDX.length;
-  const pt = (i, v) => { const a = -Math.PI/2 + i*2*Math.PI/n; return [c + R*(v/5)*Math.cos(a), c + R*(v/5)*Math.sin(a)]; };
-  const pad = 95; let s = `<svg viewBox="${-pad} 0 ${size+2*pad} ${size}" width="100%" role="img" aria-label="Radar chart 5 Key Indexes" style="max-width:${size+2*pad}px">`;
-  for(let k=1;k<=5;k++){
-    s += `<polygon points="${IDX.map((_,i)=>pt(i,k).join(',')).join(' ')}" fill="${k%2?'#FFFDFA':'#F6F1E9'}" stroke="#D2C7B6" stroke-width="1"/>`;
-    const [x,y] = pt(0,k); s += `<text x="${x+4}" y="${y+3}" font-size="9" fill="#9A8E7E">${k}</text>`;
-  }
-  IDX.forEach((nm,i)=>{
-    const [x,y] = pt(i,5), [lx,ly] = pt(i,5.9);
-    s += `<line x1="${c}" y1="${c}" x2="${x}" y2="${y}" stroke="#D2C7B6"/>`;
-    const anchor = Math.abs(lx-c)<8 ? 'middle' : (lx>c ? 'start' : 'end');
-    s += `<text x="${lx}" y="${ly+4}" text-anchor="${anchor}" font-size="12.5" font-weight="700" fill="#4E463C">${esc(nm)}</text>`;
-  });
-  layers.forEach(L=>{
-    if(!L.values) return;
-    const pts = IDX.map((nm,i)=>pt(i, Math.max(0,Math.min(5,Number(L.values[nm])||0))));
-    s += `<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="${L.color}" fill-opacity="${L.fill||0}" stroke="${L.color}" stroke-width="${L.w||2}" ${L.dash?`stroke-dasharray="${L.dash}"`:''} stroke-linejoin="round"/>`;
-    pts.forEach(p=>{ s += `<circle cx="${p[0]}" cy="${p[1]}" r="3.2" fill="${L.color}"/>`; });
-  });
-  return s+'</svg>';
-}
-const f1 = v => (v==null||v==='') ? '-' : (Math.round(Number(v)*10)/10).toString();
-
-/* ---------- ฝั่งผู้ทำแบบประเมิน ---------- */
-let ST = null, FORM = null, SC = {}, SF = {}, STEP = 0, BUSY = false;
-const draftKey = () => `asm:draft:${currentUsername()}:${ST.cycle}`;
-const saveDraft = () => lsSet(draftKey(), {form:FORM, sc:SC, sf:SF, step:STEP});
-
-async function openTab(){
-  const root = $('asmRoot'); root.innerHTML = '<div class="asm-note">กำลังโหลด…</div>';
-  $('asmAdminPanel').style.display = 'none';
-  const {status,d} = await api('GET','/api/assessment/status').catch(()=>({status:0,d:{}}));
-  if(!d.ok){ root.innerHTML = `<div class="asm-note warn">${esc(d.error||'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่')}</div><div class="asm-nav"><button class="asm-btn ghost" id="asmRetry">ลองใหม่</button></div>`; $('asmRetry').onclick = openTab; return; }
-  ST = d; $('asmCycle').textContent = 'รอบ ' + d.cycle;
-  if(d.isAdmin) loadAdmin(false);
-  if(d.mode==='none') return void(root.innerHTML = '<div class="asm-note">บัญชีนี้ไม่ได้อยู่ในรายชื่อผู้ทำแบบประเมิน</div>');
-  if(d.mode==='real' && d.submitted) return void(root.innerHTML = `<div class="asm-note ok"><b>ส่งแบบประเมินรอบ ${esc(d.cycle)} เรียบร้อยแล้ว</b><br>ส่งเมื่อ ${esc(fmtDT(d.submittedAt))} · ทำได้ครั้งเดียวต่อรอบ ไม่สามารถแก้ไขหรือทำซ้ำได้ · ผลจะแจ้งโดยหัวหน้า</div>`);
-  if(!d.open) return void(root.innerHTML = '<div class="asm-note warn">ปิดรับแบบประเมินแล้ว</div>');
-  const dr = lsGet(draftKey());
-  if(dr && dr.form){ FORM = dr.form; SC = dr.sc||{}; SF = dr.sf||{}; STEP = dr.step||0; return renderIntro(true); }
-  if(d.mode==='trial' && d.hasTrialResult){ const t = await api('GET','/api/assessment/trial/result'); if(t.d.result) return renderTrialResult(t.d.result); }
-  renderIntro(false);
-}
-function renderIntro(resume){
-  const trial = ST.mode==='trial';
-  $('asmRoot').innerHTML = `
-    ${trial ? '<div class="asm-note trial" style="margin-bottom:10px"><b>โหมดทดลอง</b> - ทำได้ไม่จำกัดครั้ง ผลไม่ถูกบันทึกลงระบบและไม่นับในกราฟของทีม ใช้ดูหน้าตาแบบประเมินและรูปแบบผลลัพธ์</div>' : ''}
-    <div class="asm-note ${trial?'':'warn'}">
-      <b>แบบประเมิน 5 Key Indexes ประจำรอบ ${esc(ST.cycle)}</b> (Attitude · Awareness · Engagement · Work-Life Balance · Process)<br>
-      • 20 ข้อ: ข้อทดสอบ 15 ข้อ + ประเมินตนเอง 5 ข้อ ใช้เวลาประมาณ 15-20 นาที<br>
-      • ไม่มีคำตอบถูก-ผิดตายตัว เลือกข้อที่ใกล้กับสิ่งที่คุณ "ทำจริง" มากที่สุด ไม่ใช่ข้อที่คิดว่าดูดีที่สุด<br>
-      • ${trial ? 'โหมดทดลองส่งซ้ำได้' : '<b>ส่งได้ครั้งเดียว และแก้ไขไม่ได้หลังกดส่ง</b>'} · ระหว่างทำระบบเก็บร่างไว้ในเบราว์เซอร์นี้ ปิดแล้วกลับมาทำต่อได้
-    </div>
-    <div class="asm-nav"><span></span><button class="asm-btn" id="asmStart">${resume?'ทำต่อจากเดิม':'เริ่มทำแบบประเมิน'}</button></div>
-    <div class="asm-msg err" id="asmMsg"></div>`;
-  $('asmStart').onclick = async ()=>{
-    if(!resume){
-      $('asmStart').disabled = true;
-      const {status,d} = await api('GET','/api/assessment/form').catch(()=>({d:{}}));
-      if(!d.ok){ $('asmMsg').textContent = d.error||'โหลดแบบประเมินไม่สำเร็จ'; $('asmStart').disabled = false; if(status===409) openTab(); return; }
-      FORM = d; SC = {}; SF = {}; STEP = 0; saveDraft();
-    }
-    renderStep();
-  };
-}
-const TOTAL = () => FORM.scenario.length + FORM.self.length;
-function renderStep(){
-  const nS = FORM.scenario.length, total = TOTAL();
-  if(STEP >= total) return renderReview();
-  const isScn = STEP < nS;
-  let body;
-  if(isScn){
-    const q = FORM.scenario[STEP];
-    body = `<div class="asm-q-meta">ส่วน A · ข้อทดสอบ ${STEP+1} / ${nS}</div><div class="asm-q">${esc(q.text)}</div>` +
-      q.options.map((o,i)=>`<button type="button" class="asm-opt ${SC[q.id]===o.id?'sel':''}" data-v="${esc(o.id)}"><span class="k">${'กขคงจ'[i]}</span><span>${esc(o.text)}</span></button>`).join('');
-  } else {
-    const s = FORM.self[STEP-nS];
-    body = `<div class="asm-q-meta">ส่วน B · ประเมินตนเอง ข้อ ${STEP-nS+1} / ${FORM.self.length}</div>
-      <div class="asm-selfhead">${esc(s.index)}</div><div class="asm-q" style="font-size:14px;font-weight:500">เลือกระดับที่ตรงกับตัวคุณในช่วงที่ผ่านมามากที่สุด</div>` +
-      s.levels.map((t,i)=>`<button type="button" class="asm-opt ${SF[s.id]===i+1?'sel':''}" data-v="${i+1}"><span class="k">${i+1}</span><span>${esc(t)}</span></button>`).join('');
-  }
-  const answered = isScn ? !!SC[FORM.scenario[STEP].id] : !!SF[FORM.self[STEP-nS].id];
-  $('asmRoot').innerHTML = `<div class="asm-prog"><i style="width:${Math.round(STEP/total*100)}%"></i></div>${body}
-    <div class="asm-nav"><button class="asm-btn ghost" id="asmBack" ${STEP?'':'disabled'}>← ย้อนกลับ</button>
-    <button class="asm-btn" id="asmNext" ${answered?'':'disabled'}>${STEP===total-1?'ตรวจสอบก่อนส่ง':'ถัดไป →'}</button></div>`;
-  $('asmRoot').querySelectorAll('.asm-opt').forEach(b=>b.onclick = ()=>{
-    if(isScn) SC[FORM.scenario[STEP].id] = b.dataset.v; else SF[FORM.self[STEP-nS].id] = Number(b.dataset.v);
-    saveDraft(); renderStep();
-  });
-  $('asmBack').onclick = ()=>{ STEP--; saveDraft(); renderStep(); };
-  $('asmNext').onclick = ()=>{ STEP++; saveDraft(); renderStep(); };
-}
-function renderReview(){
-  const trial = ST.mode==='trial';
-  const missing = FORM.scenario.map((q,i)=>SC[q.id]?null:'ข้อทดสอบที่ '+(i+1)).concat(FORM.self.map((s,i)=>SF[s.id]?null:'ประเมินตนเอง '+s.index)).filter(Boolean);
-  $('asmRoot').innerHTML = `<div class="asm-prog"><i style="width:100%"></i></div>
-    <div class="asm-q">ตรวจสอบก่อนส่ง</div>
-    ${missing.length ? `<div class="asm-note warn">ยังไม่ได้ตอบ: ${esc(missing.join(', '))}</div>` :
-      `<div class="asm-note ${trial?'trial':'warn'}">ตอบครบทั้ง ${TOTAL()} ข้อแล้ว<br>${trial?'โหมดทดลอง: ส่งแล้วดูผลได้ทันที และทำใหม่ได้':'<b>เมื่อกดส่งแล้วจะแก้ไขหรือทำซ้ำไม่ได้</b>'}</div>`}
-    ${(!trial && !missing.length) ? '<label style="display:flex;gap:8px;margin-top:12px;font-size:13px;cursor:pointer"><input type="checkbox" id="asmConfirm"> ฉันเข้าใจว่าส่งแล้วแก้ไขไม่ได้ และคำตอบเป็นของฉันเอง</label>' : ''}
-    <div class="asm-nav"><button class="asm-btn ghost" id="asmBack">← กลับไปแก้คำตอบ</button>
-    <button class="asm-btn" id="asmSubmit" ${missing.length||!trial?'disabled':''}>ส่งแบบประเมิน</button></div>
-    <div class="asm-msg" id="asmMsg"></div>`;
-  $('asmBack').onclick = ()=>{ const first = FORM.scenario.findIndex(q=>!SC[q.id]); const fs = FORM.self.findIndex(s=>!SF[s.id]);
-    STEP = first>=0 ? first : (fs>=0 ? FORM.scenario.length+fs : TOTAL()-1); saveDraft(); renderStep(); };
-  const cb = $('asmConfirm'); if(cb) cb.onchange = ()=>{ $('asmSubmit').disabled = !cb.checked; };
-  $('asmSubmit').onclick = async ()=>{
-    if(BUSY || missing.length) return; BUSY = true; $('asmSubmit').disabled = true; $('asmMsg').className='asm-msg'; $('asmMsg').textContent = 'กำลังส่ง…';
-    const {status,d} = await api('POST','/api/assessment/submit',{scenario:SC, self:SF}).catch(()=>({status:0,d:{}}));
-    BUSY = false;
-    if(d.ok){ lsDel(draftKey()); FORM = null; if(d.trial) return renderTrialResult(d.result); return openTab(); }
-    $('asmMsg').className = 'asm-msg err'; $('asmMsg').textContent = d.error || 'ส่งไม่สำเร็จ ยังไม่ได้บันทึก กรุณาลองกดส่งอีกครั้ง';
-    if(status===409){ lsDel(draftKey()); setTimeout(openTab,1200); } else $('asmSubmit').disabled = false;
-  };
-}
-function renderTrialResult(r){
-  $('asmRoot').innerHTML = `<div class="asm-note trial" style="margin-bottom:12px"><b>ผลโหมดทดลอง</b> (ส่งเมื่อ ${esc(fmtDT(r.at))}) - ไม่ได้บันทึกลงระบบ</div>
-    <div class="asm-radar-grid"><div class="asm-radar-box">${radarSVG([
-      {values:r.scenario, color:COLORS.scn, fill:.12, w:2.4},
-      {values:r.self, color:COLORS.self, w:2, dash:'2 4'}])}
-      <div class="asm-legend"><span><i class="asm-sw" style="border-color:${COLORS.scn}"></i> ผลข้อทดสอบ</span><span><i class="asm-sw" style="border-top-style:dotted;border-color:${COLORS.self}"></i> ประเมินตนเอง</span></div></div>
-    <div class="asm-radar-side"><table class="asm-tbl"><tr><th>Index</th><th>ข้อทดสอบ</th><th>ตนเอง</th></tr>
-      ${IDX.map(i=>`<tr><td>${esc(i)}</td><td>${f1(r.scenario[i])}</td><td>${f1(r.self[i])}</td></tr>`).join('')}</table></div></div>
-    <div class="asm-nav"><span></span><button class="asm-btn ghost" id="asmRedo">ล้างผลและทำใหม่</button></div>`;
-  $('asmRedo').onclick = async ()=>{ await api('POST','/api/assessment/trial/reset'); lsDel(draftKey()); FORM=null; renderIntro(false); };
-}
-
-/* ---------- ฝั่ง OAT (admin) ---------- */
-let OV = null, SEL = 0, SHOW = {oat:true, scn:true, self:true, avg:true}, RATE = {};
-let ADM_LAST = null, ADM_BUSY = false, ADM_FLASH = '';
-const hhmmss = d => d ? d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '';
-function diagText(){
-  const g = OV && OV.diag; if(!g) return OV && OV.storage==='make' ? 'ยังไม่เคยอ่านข้อมูลจาก Make ในรอบการทำงานนี้ของ server' : '';
-  const ty = Object.entries(g.byType||{}).map(([k,v])=>k+' '+v).join(', ') || 'ไม่มี';
-  let t = `ตรวจสอบ: Make ส่งมา ${g.rawCount} แถว · ตรงรอบ ${OV.cycle} ${g.kept} แถว (${ty})`;
-  if(g.rawCount>0 && g.kept===0) t += ` · ค่าในคอลัมน์ cycle ที่ Make ส่งมา: ${(g.cycles||[]).map(c=>'"'+c+'"').join(', ')||'ว่าง'}`;
-  return t;
-}
-function paintRefresh(){
-  const b = $('asmRefresh'), inf = $('asmRefreshInfo'), box = $('asmAdminRoot'), dg = $('asmDiag');
-  if(dg) dg.textContent = diagText();
-  if(box) box.classList.toggle('asm-loading', ADM_BUSY);
-  if(b){ b.disabled = ADM_BUSY; b.innerHTML = ADM_BUSY ? '<i class="asm-spin"></i>กำลังรีเฟรช…' : '↻ รีเฟรช'; }
-  if(inf){
-    if(ADM_BUSY) inf.textContent = 'กำลังดึงข้อมูลล่าสุดจาก Excel (อาจใช้เวลา 2-5 วินาที)…';
-    else if(ADM_FLASH) inf.innerHTML = ADM_FLASH;
-    else inf.textContent = ADM_LAST ? 'อัปเดตล่าสุด ' + hhmmss(ADM_LAST) : '';
-  }
-}
-async function loadAdmin(refresh, manual){
-  if(ADM_BUSY) return;
-  ADM_BUSY = true; ADM_FLASH = ''; paintRefresh();
-  const t0 = Date.now();
-  const {d} = await api('GET','/api/assessment/admin/overview'+(refresh?'?refresh=1':'')).catch(()=>({d:{}}));
-  if(manual){ const wait = 700 - (Date.now()-t0); if(wait>0) await new Promise(r=>setTimeout(r,wait)); } // ให้เห็นสัญญาณหมุนอย่างน้อยครู่หนึ่ง
-  ADM_BUSY = false;
-  if(!d.ok){
-    ADM_FLASH = '<span style="color:var(--critical)">✗ รีเฟรชไม่สำเร็จ ลองใหม่อีกครั้ง</span>';
-    if(OV) renderAdmin(); paintRefresh(); return;
-  }
-  OV = d; ADM_LAST = new Date();
-  ADM_FLASH = (manual && !d.stale) ? '<span style="color:var(--success)">✓ รีเฟรชแล้ว ' + hhmmss(ADM_LAST) + '</span>' : '';
-  $('asmAdminPanel').style.display = ''; renderAdmin();
-  if(ADM_FLASH) setTimeout(()=>{ ADM_FLASH = ''; paintRefresh(); }, 3000);
-}
-/* ---------- ดาวน์โหลดสรุปเป็น Word (สร้างในเบราว์เซอร์ ข้อมูลไม่ออกนอกเครื่อง) ---------- */
-const _libP = {};
-function loadLib(src){
-  if(_libP[src]) return _libP[src];
-  return _libP[src] = new Promise((ok,err)=>{
-    const el = document.createElement('script'); el.src = src;
-    el.onload = ()=>ok();
-    el.onerror = ()=>{ delete _libP[src]; el.remove(); err(new Error('โหลดไลบรารีไม่สำเร็จ: '+src+' - ตรวจว่าโฟลเดอร์ lib/ ถูก deploy ไปด้วยหรือไม่')); };
-    document.head.appendChild(el);
-  });
-}
-async function downloadSummary(p){
-  const btn = $('asmDlDoc'), m = $('asmDlMsg');
-  const say = (cls, txt)=>{ const mm = $('asmDlMsg'); if(mm){ mm.className = 'asm-msg '+cls; mm.textContent = txt; } };
-  if(!p.scenario && !p.self && !p.oat){ say('err','ยังไม่มีข้อมูลให้สรุป (ยังไม่มีทั้งผลข้อทดสอบ ประเมินตนเอง และคะแนน VP)'); return; }
-  if(!['oat','scn','self','avg'].some(k=>SHOW[k])){ say('err','ยังไม่ได้ติ๊กค่าที่ต้องการให้อยู่ในรายงาน (ติ๊ก VP / ข้อทดสอบ / ตนเอง / ค่าเฉลี่ย อย่างน้อย 1 รายการใต้กราฟ)'); return; }
-  btn.disabled = true; say('', 'กำลังสร้างไฟล์ Word…');
-  try{
-    await loadLib('lib/docx.min.js');
-    await loadLib('lib/asm-report.js');
-    if(document.fonts && document.fonts.ready) await document.fonts.ready.catch(()=>{});   // ให้ฟอนต์ในกราฟพร้อมก่อนวาด
-    const blob = await AsmReport.build({ person:p, indexes:IDX, rubric:OV.rubric||{}, cycle:OV.cycle, sources:Object.assign({}, SHOW), generatedAt:new Date() });
-    const d = new Date(), pad = n=>String(n).padStart(2,'0');
-    const name = '5Index_Summary_'+String(p.pmName||'PM').trim().replace(/[\\/:*?"<>|\s]+/g,'_')+'_'+d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'.docx';
-    const url = URL.createObjectURL(blob), a = document.createElement('a');
-    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url), 4000);
-    say('good', '✓ ดาวน์โหลดแล้ว: '+name);
-  }catch(e){
-    say('err', (e && e.message) || 'สร้างไฟล์ไม่สำเร็จ');
-  }finally{
-    const b2 = $('asmDlDoc'); if(b2) b2.disabled = false;
-  }
-}
-function renderAdmin(){
-  const P = OV.people, p = P[SEL] || P[0];
-  $('asmAdminCount').textContent = `ส่งแล้ว ${P.filter(x=>x.submitted).length}/${P.length}`;
-  // ค่าเฉลี่ย = เฉลี่ยของ VP / ข้อทดสอบ / ตนเอง "ทุกแหล่งที่มีค่า" (ไม่ขึ้นกับช่องติ๊ก) จึงติ๊กใช้เฉพาะค่าเฉลี่ยได้
-  // เช่น น้องส่งแล้วแต่ VP ยังไม่ให้คะแนน -> เฉลี่ยจากข้อทดสอบ+ตนเองไปก่อน พอ VP บันทึก ระบบคำนวณใหม่เอง (loadAdmin -> renderAdmin)
-  // ช่องติ๊กมีผลกับ "สิ่งที่แสดง" (กราฟ ตาราง) และรายงาน Word เท่านั้น
-  const SRC = [['oat','VP',p.oat],['scn','ข้อทดสอบ',p.scenario],['self','ตนเอง',p.self]];
-  const hasV = v => v!=null && v!=='' && !isNaN(Number(v));
-  const valsAt = i => SRC.filter(x=>x[2] && hasV(x[2][i])).map(x=>Number(x[2][i]));
-  const avgAt = i => { const vs = valsAt(i); return vs.length ? vs.reduce((a,b)=>a+b,0)/vs.length : null; };
-  const avgObj = {}; IDX.forEach(i=>{ const v = avgAt(i); if(v!=null) avgObj[i] = Math.round(v*100)/100; });
-  const hasAvg = Object.keys(avgObj).length>0;
-  const lay = [];
-  if(SHOW.self && p.self) lay.push({values:p.self, color:COLORS.self, w:2, dash:'2 4'});
-  if(SHOW.scn && p.scenario) lay.push({values:p.scenario, color:COLORS.scn, w:2.2, dash:'7 4', fill:.06});
-  if(SHOW.oat && p.oat) lay.push({values:p.oat, color:COLORS.oat, w:3, fill:.16});
-  if(SHOW.avg && hasAvg) lay.push({values:avgObj, color:COLORS.avg, w:3, dash:'10 3 2 3'});
-  const tickKeys = ['oat','scn','self','avg'].filter(k=>SHOW[k]);
-  const showDT = SHOW.oat && SHOW.scn, showDS = SHOW.oat && SHOW.self;
-  const COLH = {oat:'VP', scn:'ข้อทดสอบ', self:'ตนเอง', avg:'ค่าเฉลี่ย'};
-  const noData = SRC.filter(x=>!(x[2] && IDX.some(i=>hasV(x[2][i])))).map(x=>x[1]);   // แหล่งที่ยังไม่มีข้อมูลเลย
-  const haveData = SRC.filter(x=>x[2] && IDX.some(i=>hasV(x[2][i]))).map(x=>x[1]);
-  const rows = IDX.map(i=>{
-    const o = p.oat?p.oat[i]:null, t = p.scenario?p.scenario[i]:null, s = p.self?p.self[i]:null;
-    const gt = (o!=null&&t!=null) ? Math.round((t-o)*10)/10 : null, gs = (o!=null&&s!=null) ? s-o : null;
-    const av = avgAt(i), n = valsAt(i).length, part = n>0 && n<3;
-    const cell = g => g==null ? '-' : `<span class="${Math.abs(g)>=1?'gap':''}">${g>0?'+':''}${f1(g)}${Math.abs(g)>=1?' ⚠':''}</span>`;
-    const td = {oat:`<td>${f1(o)}</td>`, scn:`<td>${f1(t)}</td>`, self:`<td>${f1(s)}</td>`,
-      avg:`<td><b>${f1(av)}</b>${part?'<sup title="เฉลี่ยจากค่าที่มีอยู่ ยังไม่ครบทุกแหล่ง">*</sup>':''}</td>`};
-    return `<tr><td>${esc(i)}</td>${tickKeys.map(k=>td[k]).join('')}${showDT?`<td>${cell(gt)}</td>`:''}${showDS?`<td>${cell(gs)}</td>`:''}</tr>`;
-  }).join('');
-  const anyPart = IDX.some(i=>{ const n = valsAt(i).length; return n>0 && n<3; });
-  const hiddenSrc = SRC.filter(x=>haveData.includes(x[1]) && !SHOW[x[0]]).map(x=>x[1]);
-  const avNote = !SHOW.avg ? '' : !hasAvg
-    ? 'ค่าเฉลี่ย = ยังไม่มีข้อมูลให้เฉลี่ย (คำนวณให้อัตโนมัติเมื่อมีข้อมูล)'
-    : `ค่าเฉลี่ย = เฉลี่ยของ ${haveData.join(' + ')} ทุกแหล่งที่มีข้อมูล (ไม่ขึ้นกับช่องติ๊ก${hiddenSrc.length?' จึงรวม '+hiddenSrc.join(', ')+' ที่ไม่ได้ติ๊กแสดงด้วย':''})`
-      + (anyPart ? ` · * เฉลี่ยจากค่าที่มีอยู่ ${noData.length?'ยังไม่มี '+noData.join(', ')+' ':''}(คำนวณใหม่ให้อัตโนมัติเมื่อมีข้อมูล)` : '');
-  const dlHint = tickKeys.length ? 'ไฟล์ Word จะมีเฉพาะ: ' + tickKeys.map(k=>COLH[k]).join(' · ') : 'ยังไม่ได้ติ๊กค่าที่ต้องการให้อยู่ในไฟล์';
-  const sw = (k,txt,st) => `<label><input type="checkbox" data-k="${k}" ${SHOW[k]?'checked':''}> <i class="asm-sw" style="border-color:${COLORS[k]};${st||''}"></i> ${txt}</label>`;
-  RATE = Object.assign({}, p.oat||{}, RATE._pm===p.pmName ? RATE : {}); RATE._pm = p.pmName;
-  $('asmAdminRoot').innerHTML = `
-    <div class="asm-people">${P.map((x,i)=>`<button class="asm-chip ${i===SEL?'active':''}" data-i="${i}">${esc(x.pmName.split(' ')[0])}<small>${x.submitted?'✓ ทำแล้ว':'ยังไม่ทำ'}${x.oat?' · ✓ ประเมินแล้ว':''}</small></button>`).join('')}
-      <button class="asm-chip" id="asmRefresh" title="ดึงข้อมูลล่าสุดจากที่เก็บ">↻ รีเฟรช</button>
-      <span id="asmRefreshInfo" class="asm-refinfo"></span></div>
-    <div id="asmDiag" class="asm-diag"></div>
-    ${OV.stale ? `<div class="asm-note warn" style="margin-bottom:10px">ดึงข้อมูลจากที่เก็บ (Make/Excel) ไม่สำเร็จ ข้อมูลที่เห็นอาจไม่ล่าสุด: ${esc(OV.stale)}</div>` : ''}
-    ${OV.storage==='local' ? '<div class="asm-note warn" style="margin-bottom:10px">ยังไม่ได้ตั้ง ASSESSMENT_MAKE_URL - ผลเก็บเฉพาะในเครื่อง server และจะหายเมื่อ redeploy</div>' : ''}
-    <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16px;margin-bottom:4px">${esc(p.pmName)}</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${p.submitted?'ส่งแบบประเมินเมื่อ '+esc(fmtDT(p.submittedAt)):'ยังไม่ได้ส่งแบบประเมิน'} · ${p.oat?'VP ให้คะแนนเมื่อ '+esc(fmtDT(p.oatAt)):'VP ยังไม่ได้ให้คะแนน'}</div>
-    <div class="asm-dl"><button type="button" class="asm-btn ghost" id="asmDlDoc" title="สรุปผลทั้ง 5 index พร้อมกราฟเรดาร์ กราฟแท่ง ข้อสังเกต ประเด็นชวนคุย และช่องบันทึก 1:1 เป็นไฟล์ Word ที่แก้ไขได้ (ไฟล์มีเฉพาะค่าที่ติ๊กไว้ใต้กราฟ: VP / ข้อทดสอบ / ตนเอง / ค่าเฉลี่ย)">⬇ ดาวน์โหลดสรุป (Word)</button><span class="asm-dlhint" style="font-size:11.5px;color:var(--muted)">${esc(dlHint)}</span><span class="asm-msg" id="asmDlMsg"></span></div>
-    <div class="asm-radar-grid"><div class="asm-radar-box">${lay.length?radarSVG(lay):'<div class="asm-note">ยังไม่มีข้อมูลให้แสดง</div>'}
-      <div class="asm-legend">${sw('oat','VP ประเมิน')}${sw('scn','ผลข้อทดสอบ','border-top-style:dashed')}${sw('self','ประเมินตนเอง','border-top-style:dotted')}${sw('avg','ค่าเฉลี่ย','border-top-width:4px')}</div></div>
-    <div class="asm-radar-side">${tickKeys.length ? `<table class="asm-tbl"><tr><th>Index</th>${tickKeys.map(k=>`<th>${COLH[k]}</th>`).join('')}${showDT?'<th>Δ ข้อทดสอบ-VP</th>':''}${showDS?'<th>Δ ตนเอง-VP</th>':''}</tr>${rows}</table>`
-        : '<div class="asm-note">ยังไม่ได้ติ๊กค่าที่ต้องการแสดง ติ๊ก VP / ข้อทดสอบ / ตนเอง / ค่าเฉลี่ย ใต้กราฟ</div>'}
-      <div style="font-size:11.5px;color:var(--faint);margin-top:6px;line-height:1.6">${(showDT||showDS)?'⚠ = ต่างจากคะแนน VP ตั้งแต่ 1 ขึ้นไป · ':''}${avNote?esc(avNote)+' · ':''}แต่ละค่าวัดคนละแบบ ใช้ประกอบกันเป็นภาพรวม</div></div></div>
-    <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:12px">
-      <div style="font-weight:700;font-size:14px;margin-bottom:2px">คะแนนจาก VP สำหรับ ${esc(p.pmName)}</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">ให้ 1-5 ตาม rubric (กด "ดู rubric" เพื่อเปิดเกณฑ์ของแต่ละ index) · บันทึกใหม่ได้ ระบบใช้ครั้งล่าสุดและเก็บประวัติเดิมไว้ใน Excel</div>
-      ${IDX.map(i=>`<div class="asm-rate-row"><div class="n">${esc(i)}</div><div class="asm-rate-btns" data-idx="${esc(i)}">${[1,2,3,4,5].map(v=>`<button type="button" class="${RATE[i]===v?'sel':''}" data-v="${v}">${v}</button>`).join('')}</div>
-        <details><summary>ดู rubric</summary>${(OV.rubric[i]||[]).map((t,k)=>`<div><b>${k+1}</b> ${esc(t)}</div>`).join('')}</details></div>`).join('')}
-      <div class="asm-nav"><span class="asm-msg" id="asmRateMsg"></span><button class="asm-btn" id="asmRateSave">บันทึกคะแนน</button></div>
-    </div>`;
-  $('asmAdminRoot').querySelectorAll('.asm-chip[data-i]').forEach(b=>b.onclick = ()=>{ SEL = Number(b.dataset.i); renderAdmin(); });
-  $('asmRefresh').onclick = ()=>loadAdmin(true, true); paintRefresh();
-  $('asmDlDoc').onclick = ()=>downloadSummary(p);
-  $('asmAdminRoot').querySelectorAll('.asm-legend input').forEach(c=>c.onchange = ()=>{ SHOW[c.dataset.k] = c.checked; renderAdmin(); });
-  $('asmAdminRoot').querySelectorAll('.asm-rate-btns').forEach(g=>g.querySelectorAll('button').forEach(b=>b.onclick = ()=>{
-    RATE[g.dataset.idx] = Number(b.dataset.v); g.querySelectorAll('button').forEach(x=>x.classList.toggle('sel', x===b)); }));
-  $('asmRateSave').onclick = async ()=>{
-    const m = $('asmRateMsg'); const miss = IDX.filter(i=>!RATE[i]);
-    if(miss.length){ m.className='asm-msg err'; m.textContent = 'ยังไม่ได้ให้คะแนน: '+miss.join(', '); return; }
-    $('asmRateSave').disabled = true; m.className='asm-msg'; m.textContent = 'กำลังบันทึก…';
-    const {d} = await api('POST','/api/assessment/admin/oat-rating',{pmName:p.pmName, ratings:Object.fromEntries(IDX.map(i=>[i,RATE[i]]))}).catch(()=>({d:{}}));
-    $('asmRateSave').disabled = false;
-    if(d.ok){ await loadAdmin(true); const mm = $('asmRateMsg'); if(mm){ mm.className='asm-msg good'; mm.textContent='บันทึกแล้ว'; } }
-    else { m.className='asm-msg err'; m.textContent = d.error||'บันทึกไม่สำเร็จ'; }
-  };
-}
-
-document.getElementById('tabBtn5').addEventListener('click', openTab);
-})();
 </script>
 </body>
 </html>
