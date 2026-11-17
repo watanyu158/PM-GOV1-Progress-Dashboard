@@ -2040,6 +2040,9 @@ app.get('/api/debug/last-payload', requireAuth, (req, res) => {
   res.json(lastRaw);
 });
 
+// ==== แบบประเมิน 5 Key Indexes (ทำครั้งเดียวต่อรอบ, เก็บผลผ่าน Make.com -> Excel ของ OAT) - ดู assessment.js ====
+require('./assessment')(app, { requireAuth, normName, teamPmNames: TEAM_PM_NAMES, dataDir: DATA_DIR });
+
 const PORT = process.env.PORT || 3000;
 // กู้คืนจาก GitHub ให้เสร็จก่อนเปิดรับ request (กัน sync แรกหลัง deploy ทำงานกับคลังว่าง) - รออย่างมาก 30 วินาที
 // อ่านไม่สำเร็จ = เปิด server ต่อด้วยของในเครื่อง แต่ไม่เขียนขึ้น repo จนกว่าจะอ่านได้ (ดู ghPushNow)
